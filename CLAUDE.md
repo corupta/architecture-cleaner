@@ -6,15 +6,25 @@ Entry for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackat
 
 ## Status
 
-Pre-planning (2026-10-01). The go decision is made; no code exists yet. Next comes a full planning session, which owns scope, architecture, requirements and timeline.
+Planning finished on 2026-10-02. [docs/plan.md](docs/plan.md) owns scope, architecture, budget, gates and timeline. The raw research behind it is in `docs/research/`, and [docs/kickoff.md](docs/kickoff.md) is history.
 
-[docs/kickoff.md](docs/kickoff.md) holds the feasibility notes, hackathon facts, research, candidate ideas and open questions. It's input for planning, not a set of decisions.
+Next is the gate session (G1–G3), whose prompt is in [docs/next-session.md](docs/next-session.md). corupta makes the build/pivot/stop call on **Tue Oct 6**. Feature freeze is **Oct 20** and submission **Oct 28**.
 
-## Decided at kickoff (revisable with a reason)
+## Decided (revisable with a reason)
 
-- Enter the Coding and Agentic Engineering track.
-- TypeScript targets only for the hackathon. Revisit if the repo hunt shows good targets are mostly JS.
-- Open-source repos with real test suites come first. A private, untested JS repo corupta used to maintain (Sequelize, ~100 models) comes after everything else works.
+- **Track and goal:** Coding and Agentic Engineering track, aiming to win it.
+- **Targets:** TS only, OSI-licensed OSS repos with real test suites. The repo hunt confirmed good TS targets exist. corupta's private Sequelize JS repo comes after everything else works.
+- **Pitch:** proof, not trust.
+  - The hero is the per-commit certificate plus a findings log of bugs that are recorded and never fixed.
+  - Nemotron only plans.
+  - No "Clean Architecture" claim.
+- **Layout:** feature-flat: `src/modules/<singular-kebab>/`, `shared/`, `platform/`.
+- **MVP ladder:** preflight → module moves → residual consolidation → filename normalization → boundary rules with a frozen baseline.
+- **Executor:** built on the TS 6 compiler API with span-only edits, not ts-morph `move()`. The certifier is a separate process and can certify any diff.
+- **Models:** Nemotron 3 Super plans, Ultra critiques, 3.5 Lightning fans out (it replaces Nano).
+- **Form factor:** CLI, a static replay site as the demo URL, and a `--replay` test build. No live endpoint on our key.
+- **Demo target:** immich `server/`, provisional until the Oct 6 gate. Backups: Dokploy, mcphub.
+- **Timeline:** freeze Oct 20, submit Oct 28.
 
 ## Hard constraints
 
