@@ -1,0 +1,1 @@
+{ "moves": { "tests/greeting.test.ts": "src/greeting.test.ts" } }

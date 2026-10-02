@@ -1,0 +1,7 @@
+{
+  "moves": {
+    "src/services/billing.service.ts": "src/modules/billing/billing.service.ts",
+    "src/services/billing.service.test.ts": "src/modules/billing/billing.service.test.ts",
+    "src/services/payment.gateway.ts": "src/platform/payment.gateway.ts"
+  }
+}

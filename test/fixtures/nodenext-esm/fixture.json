@@ -1,0 +1,12 @@
+{
+  "description": "NodeNext ESM (package.json type=module, module/moduleResolution nodenext). Moves services/*.service.ts and clock.mts into src/modules/<feature>/ and the whole users/ folder (including index.ts) into src/modules/users/. Every relative specifier carries a .js/.mjs ending; index targets are addressed as ./users/index.js. Rewritten specifiers must keep .js/.mjs and /index.js. Covers import, export ... from, export *, export * as, import type, inline type, export type, dynamic import() with a string literal and a no-substitution template, across directory depths. Specifiers between co-moved files, and moved files whose relative path to a co-moved target is unchanged, stay byte-identical, as do look-alike paths in a comment and a plain string. Byte traps: double quotes, no semicolons, a CRLF moved file, a BOM unmoved file.",
+  "rows": [
+    1,
+    2,
+    3,
+    6,
+    14,
+    15
+  ],
+  "typecheck": true
+}

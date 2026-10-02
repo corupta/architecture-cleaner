@@ -1,0 +1,7 @@
+{
+  "description": "A moved file does import(`./locales/${lang}.js`) (a template with a substitution, row 7). Moving src/load-locale.ts to src/i18n/load-locale.ts would make that runtime path miss src/locales/, and the executor cannot rewrite a non-literal, so the step is declined with dynamic-reference and nothing is written. The literal './load-locale' import in src/app.ts would otherwise be rewritten to './i18n/load-locale'. No other hazard is present.",
+  "rows": [
+    7
+  ],
+  "typecheck": true
+}

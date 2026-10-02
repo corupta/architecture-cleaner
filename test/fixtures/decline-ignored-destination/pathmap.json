@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/schema.ts": "src/generated/schema.ts"
+  }
+}

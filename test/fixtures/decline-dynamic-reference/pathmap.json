@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/load-locale.ts": "src/i18n/load-locale.ts"
+  }
+}

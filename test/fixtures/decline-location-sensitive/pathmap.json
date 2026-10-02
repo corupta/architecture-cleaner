@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/mailer.ts": "src/modules/mailer/mailer.ts"
+  }
+}

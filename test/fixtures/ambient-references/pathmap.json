@@ -1,0 +1,7 @@
+{
+  "moves": {
+    "src/app.ts": "src/platform/app.ts",
+    "src/legacy/legacy.ts": "src/modules/legacy/legacy.ts",
+    "src/models/user.model.ts": "src/modules/user/user.model.ts"
+  }
+}

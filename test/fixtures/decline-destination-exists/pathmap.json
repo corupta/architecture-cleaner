@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/user.service.ts": "src/users/user.service.ts"
+  }
+}

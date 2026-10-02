@@ -1,0 +1,11 @@
+{
+  "moves": {
+    "src/services/order.service.ts": "src/modules/order/order.service.ts",
+    "src/services/clock.mts": "src/modules/order/clock.mts",
+    "src/services/report.service.ts": "src/modules/report/report.service.ts",
+    "src/users/index.ts": "src/modules/users/index.ts",
+    "src/users/user.model.ts": "src/modules/users/user.model.ts",
+    "src/users/user.repository.ts": "src/modules/users/user.repository.ts",
+    "src/users/user.service.ts": "src/modules/users/user.service.ts"
+  }
+}

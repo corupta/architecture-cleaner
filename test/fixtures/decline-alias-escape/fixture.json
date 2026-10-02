@@ -1,0 +1,7 @@
+{
+  "description": "src/checkout.ts imports '@feature/pricing' through tsconfig paths {\"@feature/*\": [\"./src/feature/*\"]} (row 12). The target moves to src/billing/pricing.ts, which is no longer under src/feature/, so the alias key cannot be kept and the executor must not fall back to a relative specifier: declined with alias-escape, nothing is written. The paths target uses './' because baseUrl is not set (TS 6 deprecates baseUrl). No other hazard is present.",
+  "rows": [
+    12
+  ],
+  "typecheck": true
+}

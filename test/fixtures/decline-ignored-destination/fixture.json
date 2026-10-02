@@ -1,0 +1,7 @@
+{
+  "description": ".gitignore contains 'generated/' and the destination is src/generated/schema.ts (row 23): the moved file would vanish from the commit. Declined with ignored-destination; nothing is written. The './schema' import in src/main.ts would otherwise be rewritten to './generated/schema'. No other hazard is present.",
+  "rows": [
+    23
+  ],
+  "typecheck": true
+}

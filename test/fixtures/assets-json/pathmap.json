@@ -1,0 +1,6 @@
+{
+  "moves": {
+    "src/ui/button.ts": "src/modules/ui/button.ts",
+    "src/ui/icons.ts": "src/modules/ui/icons.ts"
+  }
+}

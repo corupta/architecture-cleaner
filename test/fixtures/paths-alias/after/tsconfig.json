@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["src/*"],
+      "@shared/*": ["src/shared/*"]
+    },
+    "strict": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}

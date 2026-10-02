@@ -1,0 +1,7 @@
+{
+  "description": "The root package.json has no \"type\", so src/format-date.ts is CommonJS. The destination src/scripts/format-date.ts sits under src/scripts/package.json {\"type\": \"module\"}, so the moved file's implied module format would flip to ESM (row 22) and its CJS importer would start require()-ing an ES module. Declined with module-format-change; nothing is written. The './format-date' import in src/report.ts would otherwise be rewritten to './scripts/format-date'. Typechecked under module/moduleResolution nodenext so the package.json scopes are real to tsc. No other hazard is present.",
+  "rows": [
+    22
+  ],
+  "typecheck": true
+}

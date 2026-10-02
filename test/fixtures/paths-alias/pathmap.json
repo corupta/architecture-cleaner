@@ -1,0 +1,10 @@
+{
+  "moves": {
+    "src/controllers/user.controller.ts": "src/modules/user/user.controller.ts",
+    "src/models/user.model.ts": "src/modules/user/user.model.ts",
+    "src/services/user.service.ts": "src/modules/user/user.service.ts",
+    "src/shared/ids.ts": "src/shared/identity/ids.ts",
+    "src/users/index.ts": "src/modules/user/index.ts",
+    "src/users/user.routes.ts": "src/modules/user/user.routes.ts"
+  }
+}

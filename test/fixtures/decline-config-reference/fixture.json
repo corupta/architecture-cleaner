@@ -1,0 +1,5 @@
+{
+  "description": "jest.config.js lists setupFiles: ['<rootDir>/src/setup.ts'], a config-relative path to a moved file. Moving src/setup.ts to src/testing/setup.ts would leave Jest pointing at a missing file; the executor does not edit config files, so the step is declined with config-reference and nothing is written. The './test-clock' import in the moved file would otherwise be rewritten to '../test-clock'. jest.config.js is outside the tsconfig include, so the TypeScript program stays clean. No other hazard is present.",
+  "rows": [],
+  "typecheck": true
+}

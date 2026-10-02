@@ -1,0 +1,5 @@
+{
+  "description": "A moved file reads joinPath(__dirname, 'templates'): moving src/mailer.ts to src/modules/mailer/mailer.ts would silently repoint the templates directory (src/templates/ stays put). The step is declined with location-sensitive and nothing is written, even though the './shared/join-path' import would otherwise be a routine rewrite to '../../shared/join-path'. __dirname is declared in a tracked ambient .d.ts; no other hazard is present (literal imports only, no config mentions, destination free, not ignored, same module format).",
+  "rows": [],
+  "typecheck": true
+}

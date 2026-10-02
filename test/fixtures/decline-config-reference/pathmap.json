@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/setup.ts": "src/testing/setup.ts"
+  }
+}

@@ -1,0 +1,1 @@
+{ "description": "A test outside the tsconfig include moves into src/: it would enter the type-checked program (plan §3.4 K5).", "rows": [19, 20], "typecheck": true }

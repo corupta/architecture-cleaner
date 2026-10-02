@@ -1,0 +1,5 @@
+{
+  "description": "Vitest mock strings. A service and its test move into src/modules/billing/ and the mocked payment gateway moves to src/platform/. vi.mock('./x') and vi.importActual('./x') in the moved test are re-relativized to the unmoved target; vi.mock(import('./y')) is rewritten like any import(); vi.mock('@/services/...') and vi.importMock('@/services/...') in an unmoved test keep the '@/' key and get the new tail; vi.mock('@/lib/clock') in the moved test still resolves and is left alone, as is vi.mock('./tax.calculator') where neither side moved. vitest.config.ts (alias '@' -> ./src via __dirname) sits outside the tsconfig include and is not moved, so it is neither location-sensitive nor a config-reference.",
+  "rows": [6, 8],
+  "typecheck": true
+}

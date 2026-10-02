@@ -1,0 +1,17 @@
+{
+  "description": "CommonJS repo (package.json type=commonjs; module commonjs, moduleResolution node10, esModuleInterop, resolveJsonModule, include [\"src\"]). Moves user.service.ts and user.validator.ts from src/services, user.model.ts from src/models and user-format.ts from src/lib into src/modules/user/. Rewritten extensionless relative specifiers cover import, export { x } from, export * from, import type, export type { T } from, import x = require, require() and require.resolve() in .ts, import() with a string literal and with a no-substitution template, typeof import(), and JSON imports of the unmoved src/config.json from moved importers (both import x from and import x = require; .json kept). tests/user.service.test.ts sits outside the tsconfig include and is still rewritten. Must not change: './user.validator' import and re-export between co-moved files, specifiers to unmoved targets in unmoved files (including ./config.json from src/app.ts), and look-alike paths in a comment and a plain string inside a moved file. Byte traps: CRLF moved file (user.validator.ts) and CRLF unmoved file (order.service.ts), BOM moved file (user-format.ts) and BOM unmoved file (index.ts), double quotes (app.ts), and a test file with no semicolons and no trailing newline.",
+  "rows": [
+    1,
+    2,
+    3,
+    4,
+    "5b",
+    6,
+    9,
+    17,
+    19,
+    21,
+    23
+  ],
+  "typecheck": true
+}

@@ -1,0 +1,9 @@
+{
+  "description": "tsconfig paths aliases (@app/*, @shared/* overlapping) and baseUrl bare specifiers keep their key/form with a new tail; aliases in moved files that still resolve stay untouched; directory-index specifiers (relative, alias, baseUrl) keep the directory form, explicit /index keeps /index; relative specifiers are recomputed.",
+  "rows": [
+    12,
+    13,
+    15
+  ],
+  "typecheck": true
+}

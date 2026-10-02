@@ -1,0 +1,7 @@
+{
+  "moves": {
+    "src/services/user.repository.ts": "src/modules/user/user.repository.ts",
+    "src/services/user.service.test.ts": "src/modules/user/user.service.test.ts",
+    "src/services/user.service.ts": "src/modules/user/user.service.ts"
+  }
+}

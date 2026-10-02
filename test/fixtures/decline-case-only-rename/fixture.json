@@ -1,0 +1,7 @@
+{
+  "description": "src/User.ts -> src/user.ts differs only in letter case (row 23): unsafe on case-insensitive filesystems and for git. Declined with case-only-rename; nothing is written. The './User' import in src/main.ts would otherwise become './user'. src/user.ts does not exist as a separate tracked file, so destination-exists must not fire. No other hazard is present.",
+  "rows": [
+    23
+  ],
+  "typecheck": true
+}

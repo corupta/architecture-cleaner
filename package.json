@@ -1,0 +1,22 @@
+{
+  "name": "architecture-cleaner",
+  "version": "0.1.0",
+  "description": "Restructure a type-sliced TypeScript backend into feature modules, one certified commit at a time.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "ac": "dist/cli/main.js" },
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "ac": "node dist/cli/main.js"
+  },
+  "dependencies": {
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "vitest": "5.0.3"
+  }
+}

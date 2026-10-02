@@ -1,0 +1,8 @@
+{
+  "moves": {
+    "src/services/user.service.ts": "src/modules/user/user.service.ts",
+    "src/services/user.validator.ts": "src/modules/user/user.validator.ts",
+    "src/models/user.model.ts": "src/modules/user/user.model.ts",
+    "src/lib/user-format.ts": "src/modules/user/user-format.ts"
+  }
+}

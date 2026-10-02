@@ -1,0 +1,5 @@
+{
+  "description": "Non-TS assets (.css, .svg, .json) never move; their importers do. Two files move one level deeper (src/ui -> src/modules/ui). Every asset specifier in a moved file is recomputed from the filesystem and keeps its extension verbatim (row 17: './theme.json' stays a .json specifier; row 18: ambient-typed .css/.svg imports are resolved against the filesystem, not skipped). Asset imports from unmoved files, the moved-to-moved './button' import, and the ambient wildcard declarations stay byte-identical.",
+  "rows": [17, 18],
+  "typecheck": true
+}

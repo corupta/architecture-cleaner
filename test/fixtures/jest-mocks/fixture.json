@@ -1,0 +1,5 @@
+{
+  "description": "Jest references (rows 8, 8b) with a static moduleNameMapper '^@/(.*)$' -> '<rootDir>/src/$1' mirrored by tsconfig paths '@/*'. user.service.ts, its co-located test and user.repository.ts move from src/services/ to src/modules/user/; the adjacent __mocks__/user.repository.ts and __snapshots__/user.service.test.ts.snap co-move without being listed in pathmap.json, while src/lib/__mocks__/mailer.ts stays with the unmoved mailer. Rewritten: jest.mock (with factory) from a moved test to an unmoved target, jest.mock/doMock/requireActual relative strings and jest.unmock/requireMock '@/...' alias strings in an unmoved test whose targets moved (alias key kept, new tail), and outward relative imports in moved and co-moved files. Byte-identical: jest.mock('./user.repository') and requireActual('./user.repository') between co-moved files, jest.mock('@/lib/mailer') and import '@/lib/clock' (alias, target unmoved), the unresolved virtual jest.mock('./does-not-exist'), the co-moved mock's '../user.repository', and the snapshot. Double-quoted test file checks quote preservation.",
+  "rows": [8, "8b"],
+  "typecheck": true
+}

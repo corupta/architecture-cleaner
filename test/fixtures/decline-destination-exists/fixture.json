@@ -1,0 +1,7 @@
+{
+  "description": "Moving src/user.service.ts onto src/users/user.service.ts, a different tracked file that is not itself being moved away (row 23). Declined with destination-exists; nothing is written and the existing file is not overwritten. The './user.service' import in src/main.ts would otherwise be rewritten to './users/user.service'. No other hazard is present.",
+  "rows": [
+    23
+  ],
+  "typecheck": true
+}

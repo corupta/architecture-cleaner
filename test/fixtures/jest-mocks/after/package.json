@@ -1,0 +1,7 @@
+{
+  "name": "jest-mocks-fixture",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  }
+}

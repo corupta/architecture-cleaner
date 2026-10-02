@@ -1,0 +1,8 @@
+{
+  "description": "Triple-slash reference paths (./ and bare sibling forms, importer moved and target moved) and relative declare-module augmentations (target moved and importer moved) are rewritten; lib references, bare ambient modules, unmoved sibling references and an augmentation that still resolves stay byte-identical. Covers a CRLF moved file and a BOM-prefixed edited file.",
+  "rows": [
+    10,
+    11
+  ],
+  "typecheck": true
+}

@@ -1,0 +1,5 @@
+{
+  "name": "nodenext-esm-fixture",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/format-date.ts": "src/scripts/format-date.ts"
+  }
+}

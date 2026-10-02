@@ -1,0 +1,5 @@
+{
+  "moves": {
+    "src/feature/pricing.ts": "src/billing/pricing.ts"
+  }
+}
