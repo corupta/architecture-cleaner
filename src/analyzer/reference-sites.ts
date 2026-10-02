@@ -7,7 +7,8 @@ const mockCallees = new Set([
   'jest.mock', 'jest.doMock', 'jest.unmock', 'jest.dontMock', 'jest.requireActual', 'jest.requireMock', 'jest.createMockFromModule',
   'vi.mock', 'vi.doMock', 'vi.unmock', 'vi.doUnmock', 'vi.importActual', 'vi.importMock',
 ]);
-const tripleSlashPath = /^\/\/\/\s*<reference\s+path\s*=\s*(["'])([^"']*)\1/;
+// `path=` is always file-relative; `types=` only when it starts with './' or '../' (otherwise it names a package).
+const tripleSlashReference = /^\/\/\/\s*<reference\s+(path|types)\s*=\s*(["'])([^"']*)\2/;
 
 export interface ExtractedFile {
   sites: ReferenceSite[];
@@ -50,11 +51,12 @@ export function extractSites(fileName: string, text: string): ExtractedFile {
 
   for (const range of ts.getLeadingCommentRanges(text, 0) ?? []) {
     const comment = text.slice(range.pos, range.end);
-    const match = tripleSlashPath.exec(comment);
-    if (!match) continue;
-    const start = range.pos + comment.indexOf(match[1]!, comment.indexOf('path')) + 1;
-    sites.push({ kind: 'triple-slash', specifier: match[2]!, start, end: start + match[2]!.length, typeOnly: true });
+    const match = tripleSlashReference.exec(comment);
+    if (!match || (match[1] === 'types' && !/^\.\.?\//.test(match[3]!))) continue;
+    const start = range.pos + comment.indexOf(match[2]!, comment.indexOf(match[1]!)) + 1;
+    sites.push({ kind: 'triple-slash', specifier: match[3]!, start, end: start + match[3]!.length, typeOnly: true });
   }
+  const isAugmentationScope = ts.isExternalModule(sourceFile);
 
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -67,8 +69,11 @@ export function extractSites(fileName: string, text: string): ExtractedFile {
     } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)
       && ts.isStringLiteral(node.moduleReference.expression)) {
       literalSite(node.moduleReference.expression, 'import-equals', { typeOnly: node.isTypeOnly });
-    } else if (ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name) && /^\.\.?(\/|$)/.test(node.name.text)) {
+    } else if (ts.isModuleDeclaration(node) && ts.isStringLiteral(node.name) && (/^\.\.?(\/|$)/.test(node.name.text) || isAugmentationScope)) {
+      // In a module file, `declare module 'x'` augments whatever 'x' resolves to (possibly a repo file via paths).
       literalSite(node.name, 'declare-module', { typeOnly: true });
+    } else if (ts.isJSDocImportTag(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      literalSite(node.moduleSpecifier, 'import', { typeOnly: true });
     } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
       literalSite(node.argument.literal, 'typeof-import', { typeOnly: true });
     } else if (ts.isCallExpression(node)) {
@@ -90,10 +95,12 @@ export function extractSites(fileName: string, text: string): ExtractedFile {
     } else if (ts.isIdentifier(node) && (node.text === '__dirname' || node.text === '__filename') && isValueReference(node)) {
       hazards.push({ kind: 'location-sensitive', detail: node.text, offset: node.getStart(sourceFile) });
     } else if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword && ts.isPropertyAccessExpression(node.parent)
-      && ['url', 'dirname', 'filename'].includes(node.parent.name.text)) {
+      && ['url', 'dirname', 'filename', 'resolve'].includes(node.parent.name.text)) {
       hazards.push({ kind: 'location-sensitive', detail: `import.meta.${node.parent.name.text}`, offset: node.getStart(sourceFile) });
     }
     ts.forEachChild(node, visit);
+    // JSDoc (`@import`, `@type {import('./x').T}`) is real module syntax in checkJs files; forEachChild skips it.
+    for (const doc of (node as { jsDoc?: ts.JSDoc[] }).jsDoc ?? []) visit(doc);
   };
   visit(sourceFile);
   sites.sort((a, b) => a.start - b.start);

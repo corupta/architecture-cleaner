@@ -10,6 +10,8 @@ import type { ModuleFormat, ReferenceSite, Resolution } from './types.js';
 
 const jestExtensions = ['', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.json'];
 const viteExtensions = ['', '.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'];
+// Node's CommonJS lookup for require-like sites TS doesn't resolve (e.g. extensionless JSON: require('./data')).
+const nodeCjsExtensions = ['', '.js', '.json', '.node'];
 const isRelative = (specifier: string) => /^\.\.?(\/|$)/.test(specifier);
 
 export interface ResolveContext {
@@ -44,8 +46,9 @@ function resolveWithTypeScript(context: ResolveContext, file: string, specifier:
   if (isBuiltin(specifier)) return { type: 'external', path: specifier, via: 'typescript' };
   if (isRelative(specifier)) {
     // Assets (`./button.css`) and JSON without resolveJsonModule: TS doesn't resolve them, the bundler/runtime does.
-    const candidate = path.posix.join(path.posix.dirname(file), specifier);
-    if (context.repo.fileExists(toAbsolute(context.repo, candidate))) return { type: 'file', path: candidate, via: 'filesystem' };
+    const base = path.posix.join(path.posix.dirname(file), specifier);
+    const found = mode === ts.ModuleKind.CommonJS ? probe(context.repo, base, nodeCjsExtensions) : context.repo.fileExists(toAbsolute(context.repo, base)) ? base : null;
+    if (found) return { type: 'file', path: found, via: 'filesystem' };
   }
   return { type: 'unresolved' };
 }

@@ -18,9 +18,16 @@ export interface ViteAlias {
   replacement: string;
 }
 
+/** Which files a runner collects as tests: directory roots plus glob patterns (repo-relative), when statically known. */
+export interface TestScope {
+  roots: string[];
+  include: string[];
+  exclude: string[];
+}
+
 export interface RunnerConfig {
-  jest: { config: string; rootDir: string; mappers: JestMapper[] } | null;
-  vitest: { config: string; aliases: ViteAlias[] } | null;
+  jest: { config: string; rootDir: string; mappers: JestMapper[]; scope: TestScope } | null;
+  vitest: { config: string; aliases: ViteAlias[]; scope: TestScope } | null;
   unreadable: { config: string; reason: string }[];
 }
 
@@ -87,6 +94,22 @@ function staticPath(expression: ts.Expression, configDirectory: string, sourceFi
 
 const normalizeDirectory = (directory: string) => (directory === '.' ? '' : directory.replace(/\/$/, ''));
 
+function staticStrings(expression: ts.Expression | undefined): string[] | null {
+  if (!expression) return [];
+  if (ts.isStringLiteralLike(expression)) return [expression.text];
+  if (ts.isArrayLiteralExpression(expression) && expression.elements.every(ts.isStringLiteralLike)) return expression.elements.map((element) => (element as ts.StringLiteralLike).text);
+  return null;
+}
+
+/** Repo-relative test-scope patterns; `<rootDir>` and config-relative paths expanded. */
+function expandPatterns(patterns: string[], rootDir: string, configDirectory: string): string[] {
+  return patterns.map((pattern) => {
+    const expanded = pattern.replace(/<rootDir>\/?/g, rootDir === '' ? '' : `${rootDir}/`);
+    if (expanded === pattern && !pattern.startsWith('**') && !pattern.startsWith('/')) return path.posix.join(configDirectory, pattern);
+    return expanded;
+  });
+}
+
 export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
   const result: RunnerConfig = { jest: null, vitest: null, unreadable: [] };
   const tracked = repo.tracked().filter((file) => !file.includes('node_modules/'));
@@ -144,9 +167,20 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
       }
     }
     const rootDir = normalizeDirectory(rootDirectory);
+    let scope: TestScope = { roots: [rootDir], include: [], exclude: [] };
+    if (!config.endsWith('.json')) {
+      const sourceFile = ts.createSourceFile(config, text, ts.ScriptTarget.Latest, true);
+      const object = exportedObject(sourceFile)!;
+      const roots = staticStrings(getProperty(object, 'roots'));
+      const testMatch = staticStrings(getProperty(object, 'testMatch'));
+      const ignore = staticStrings(getProperty(object, 'testPathIgnorePatterns'));
+      if (roots === null || testMatch === null || ignore === null || getProperty(object, 'testRegex')) result.unreadable.push({ config, reason: 'non-literal or regex test scope' });
+      else scope = { roots: roots.length ? expandPatterns(roots, rootDir, configDirectory).map(normalizeDirectory) : [rootDir], include: expandPatterns(testMatch, rootDir, configDirectory), exclude: [] };
+    }
     result.jest = {
       config,
       rootDir,
+      scope,
       mappers: mapperEntries.map(([source, replacement]) => ({
         pattern: new RegExp(source),
         source,
@@ -186,7 +220,12 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
       } else readable = false;
     }
     if (!readable) result.unreadable.push({ config, reason: 'non-literal resolve.alias entry' });
-    result.vitest = { config, aliases };
+    const testSection = getProperty(object, 'test');
+    const include = testSection && ts.isObjectLiteralExpression(testSection) ? staticStrings(getProperty(testSection, 'include')) : [];
+    const exclude = testSection && ts.isObjectLiteralExpression(testSection) ? staticStrings(getProperty(testSection, 'exclude')) : [];
+    if (include === null || exclude === null) result.unreadable.push({ config, reason: 'non-literal test.include/exclude' });
+    const scope: TestScope = { roots: [configDirectory], include: expandPatterns(include ?? [], configDirectory, configDirectory), exclude: expandPatterns(exclude ?? [], configDirectory, configDirectory) };
+    result.vitest = { config, aliases, scope };
   }
   return result;
 }

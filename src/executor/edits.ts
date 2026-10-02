@@ -9,7 +9,7 @@ import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import type { Analysis, ResolvedSite } from '../analyzer/types.js';
 import type { Decline } from './declines.js';
 import { mapPath } from './move-set.js';
-import { AliasEscape, respecify } from './respecify.js';
+import { respecify, SpecifierDecline } from './respecify.js';
 
 export interface SpecifierEdit {
   /** Repo-relative path of the file before the move (spans refer to its text). */
@@ -45,7 +45,7 @@ export function planEdits(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<s
       try {
         const after = respecify({
           site,
-          importer: { from: file.path, to: newFile },
+          importer: { from: file.path, to: newFile, format: file.format },
           target: { from: target, to: newTarget },
           options: scope.options,
           configDirectory: scope.config ? path.posix.dirname(scope.config).replace(/^\.$/, '') : '',
@@ -54,8 +54,8 @@ export function planEdits(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<s
         });
         if (after !== site.specifier) edits.push({ file: file.path, start: site.start, end: site.end, before: site.specifier, after, kind: site.kind });
       } catch (error) {
-        if (!(error instanceof AliasEscape)) throw error;
-        declines.push({ code: 'alias-escape', file: file.path, detail: error.message });
+        if (!(error instanceof SpecifierDecline)) throw error;
+        declines.push({ code: error.code, file: file.path, detail: error.message });
       }
     }
   }

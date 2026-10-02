@@ -55,3 +55,15 @@ test/fixtures/<name>/
    - `ignored-destination`: a destination is matched by `.gitignore`.
    - `alias-escape`: as above, including a directory-form alias (`@app/config` → `config/index.ts`) whose directory would become the alias root itself.
    - `unknown-source`: a pathmap source isn't a tracked file.
+   - `unsupported-specifier`: a specifier whose form can't be kept, e.g. a relative path that reached its target through `rootDirs`, a renamed target spelled with a suffix (`moduleSuffixes`), or a new ESM specifier containing `#`, `?` or `%`.
+   - `extension-change`: a move changes a file's extension (`.ts` → `.tsx` changes how it parses).
+   - `ambient-declaration`: a moved `.d.ts` is a global declaration file or lives under `typeRoots` (plan §2.4 pins ambient declarations).
+   - `split-pair`: a moved `<asset>.d.ts` declares a non-TS asset that never moves. (`x.d.ts` and `x.js` are co-moved instead.)
+   - `symlink`: a moved file is a tracked symlink.
+   - `package-resolution-change`: a moved file would load a bare package from a different `node_modules`.
+   - `test-runner-scope`: a moved file would enter or leave the Jest/Vitest test set (`roots`, `testMatch`, `include`, `exclude`).
+   - `dirty-worktree`: tracked files have uncommitted changes (the step must be all or nothing).
+   - `unsupported-encoding`: a file that needs an edit isn't valid UTF-8.
+9. **Co-moves also include declaration pairs:** `x.d.ts` ↔ `x.js`/`x.jsx`, `x.d.mts` ↔ `x.mjs`, `x.d.cts` ↔ `x.cjs`. TS resolves the declaration while Node loads the implementation, so they move together.
+10. **Also extracted:** relative `/// <reference types="./x" />`, JSDoc `@import` and `import('…')` types (checkJs), and `declare module '<alias>'` augmentations in module files. `import.meta.resolve` in a moved file is location-sensitive.
+11. **Config references** also cover a moved file's emitted path (`outDir` + path under `rootDir`, `.ts` → `.js`), as named by `package.json` `main`/`bin`/scripts.
