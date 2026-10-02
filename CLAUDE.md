@@ -2,7 +2,9 @@
 
 Entry for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/), Coding and Agentic Engineering track. corupta is entering solo with limited hours; Claude does most of the building.
 
-**Working idea:** an agent that restructures a legacy TypeScript repo sliced by technical type (`controllers/`, `services/`, `models/`) into a domain/feature-oriented, Clean-Architecture-style layout, without changing behavior, and proves it didn't.
+**Working idea:** an agent that restructures a legacy TypeScript repo sliced by technical type (`controllers/`, `services/`, `models/`) into feature modules with enforced boundaries, without changing behavior, and proves it didn't.
+
+**Direction after the hackathon: Clean Architecture.** The frozen violation inventory is the starting point. From there we'd add dependency inversion through ports, checked against a behavioral oracle, since that step can't be certified mechanically. See [docs/plan.md §2.7](docs/plan.md).
 
 ## Status
 
@@ -17,7 +19,7 @@ Next is the gate session (G1–G3), whose prompt is in [docs/next-session.md](do
 - **Pitch:** proof, not trust.
   - The hero is the per-commit certificate plus a findings log of bugs that are recorded and never fixed.
   - Nemotron only plans.
-  - No "Clean Architecture" claim.
+  - The hackathon deliverable makes no "Clean Architecture" claim. Clean Architecture is the stated direction after the hackathon, and it can get a future-direction slide in the demo.
 - **Layout:** feature-flat: `src/modules/<singular-kebab>/`, `shared/`, `platform/`.
 - **MVP ladder:** preflight → module moves → residual consolidation → filename normalization → boundary rules with a frozen baseline.
 - **Executor:** built on the TS 6 compiler API with span-only edits, not ts-morph `move()`. The certifier is a separate process and can certify any diff.

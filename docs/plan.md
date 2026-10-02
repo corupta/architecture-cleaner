@@ -22,7 +22,7 @@ Pitch: *merge an architecture change on proof, not on trust in the AI or your te
 | Certificate = AST equality + graph equality + hazard scan | 10+ false-certificate holes: relative→alias rewrites that crash prod, Jest/Vitest snapshots or `__mocks__` left behind, glob loaders with the same set but a different order, hooks reordering imports, `rootDir` drift, gitignored destinations. Raw TS API vs ts-morph isn't independent (ts-morph bundles TS 6). | Redesigned as K0–K8 (§3.4): byte-span confinement, multi-resolver identity, checks on the commit in a fresh worktree, diversity via the test runner's own resolver plus oxc. |
 | Nano for fan-out | **Nemotron 3.5 Lightning**: same price ($0.06/$0.24), 1M context, SWE-bench Verified 51.6 vs Nano's 34–39. Nano looks headed for deprecation. | Use Lightning; drop Nano. |
 | Credits are tight | No caching discount, but a full planning run on a ~250-file repo costs **≈$0.50**. The traps are generic-agent loops and benchmarks. | §5: ~$34 planned, ~$17 reserve. |
-| "Clean Architecture" framing | Inner CA folders on active-record code end up empty or mislabeled, and dependency inversion can't be certified. | Claim "feature modules with enforced boundaries + a frozen inventory of every violation". Never "Clean Architecture". |
+| "Clean Architecture" framing | Inner CA folders on active-record code end up empty or mislabeled, and dependency inversion can't be certified. | For the hackathon, claim "feature modules with enforced boundaries + a frozen inventory of every violation". Clean Architecture is the post-hackathon direction (§2.7). |
 | Organizer quote ("code completion is standard") | The actual quote: "a code-completion wrapper is a start; an agent that plans, writes, tests, and iterates on a real repo with minimal human input is where it gets interesting". | The planner is a real agent: tools, an evaluate/refine loop, and replanning on certificate failure (§3.5). |
 | Ultra 71.9% SWE-bench Verified | The card says 70.7 (BF16) / **69.5 (NVFP4, the variant TF serves)**. | Corrected. |
 | Demo on a small, curated repo | Popular repos do apply. **immich** (115k★) has a purely type-sliced server with ~1,850 offline unit tests. Its maintainers hand-restructured it in 14 single-move PRs over ~30 h (March 2024). | immich is the primary demo target (§2.6). |
@@ -32,7 +32,7 @@ Pitch: *merge an architecture change on proof, not on trust in the AI or your te
 ### 2.1 Positioning and claims
 
 - **Say:** "certificate", "mechanically checked under stated assumptions", "first we know of for TypeScript", "feature modules with enforced boundaries".
-- **Never say:** "formally proven", "zero risk", "verified" without saying what is verified, "first AI refactoring tool", "Clean Architecture".
+- **Never say:** "formally proven", "zero risk", "verified" without saying what is verified, "first AI refactoring tool", "Clean Architecture" as a description of what ships. Presenting Clean Architecture as the future direction is fine (§2.7).
 - **Prior-art slide and README section:**
   - structure-sweep: the closest; credit its dual-opinion gate and blind mode.
   - Kiro smart relocate and ts-morph MCPs: commodity moves.
@@ -86,7 +86,7 @@ Every commit carries a certificate.
 - symbol renames;
 - adding or dissolving barrels;
 - reordering imports;
-- dependency inversion as code, god-class splits, dedup;
+- dependency inversion as code (the post-hackathon direction, §2.7), god-class splits, dedup;
 - **fixing any bug, ever**;
 - generating NestJS `*.module.ts`;
 - JS targets (post-hackathon, corupta's Sequelize repo);
@@ -170,6 +170,17 @@ Why immich for the demo:
 **Real-world recovery (new).** Take immich @`6e93ddf2` (type-sliced, right after the reorg) and score against the maintainers' own former `domain/<feature>/` folders @`40262c30` (2024-03-18). Ground truth made by humans, not by our scrambler. Feasibility is checked in G2.
 
 Clones go to `~/ac-targets/`, never into this tree.
+
+### 2.7 Future direction: Clean Architecture (after the hackathon)
+
+The hackathon deliverable stops at feature modules with enforced boundaries. Clean Architecture is where the project heads afterwards, built on what ships:
+1. **The frozen violation inventory is the starting point.** Every dependency-rule violation is known, located and baselined. That inventory is the work list for Clean Architecture.
+2. **Draft ports, report-only (stretch S6).** For each frozen violation, propose a port interface and adapter. The LLM writes the text; nothing in the code changes.
+3. **Dependency inversion as code, one port per step.** This changes call sites, construction and DI wiring, so a mechanical certificate can't cover it. It needs a behavioral oracle: golden-master or differential runs, the existing tests, and contract diffs such as immich's OpenAPI spec. The ladder, the never-fix discipline and the findings log all carry over.
+4. **Honest inner layers.** Where files really are framework-free, opt-in `layered` folders (`http/ application/ domain/ infrastructure/`) become true rather than decorative.
+5. **JS targets,** starting with corupta's private Sequelize repo.
+
+**In the demo:** a short future-direction beat at the close (§9), only if it fits the 3 minutes. Point to the frozen violations on screen: "today we enforce and freeze them; next we invert them, one verified port at a time."
 
 ## 3. Tool architecture
 
@@ -569,6 +580,7 @@ Today is Fri Oct 2; the deadline is Fri Oct 30, 10:00 PT. Sessions are Claude se
    - Cost per run on Token Factory, with the tier chart.
 6. **2:35–2:55 Close**
    - "Nemotron draws the map. Code moves it. A checker proves nothing else changed."
+   - Optional, about 5 s, if time allows: the future direction (§2.7). "Next: from enforced boundaries to Clean Architecture, inverting each frozen violation one verified port at a time."
    - Repo and site URLs.
 
 corupta records only the voiceover; every visual is scripted and re-renderable.
