@@ -1,0 +1,28 @@
+{
+  "_source": "TF catalog https://tokenfactory.nebius.com/api/public/models_info, pinned 2026-10-01 (plan \u00a73.6). USD per 1M tokens.",
+  "nvidia/nemotron-3-super-120b-a12b": {
+    "input": 0.3,
+    "output": 0.9
+  },
+  "nvidia/Nemotron-3-Ultra-550b-a55b": {
+    "input": 1.0,
+    "output": 3.0
+  },
+  "nvidia/Nemotron-3_5-Lightning": {
+    "input": 0.06,
+    "output": 0.24
+  },
+  "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B": {
+    "input": 0.06,
+    "output": 0.24
+  },
+  "_aliases": "Lowercase IDs below exist only for the tf-probes ID-casing check.",
+  "nvidia/nemotron-3-ultra-550b-a55b": {
+    "input": 1.0,
+    "output": 3.0
+  },
+  "nvidia/nemotron-3_5-lightning": {
+    "input": 0.06,
+    "output": 0.24
+  }
+}
