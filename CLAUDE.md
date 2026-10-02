@@ -10,7 +10,9 @@ Entry for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackat
 
 Planning finished on 2026-10-02. [docs/plan.md](docs/plan.md) owns scope, architecture, budget, gates and timeline. The raw research behind it is in `docs/research/`, and [docs/kickoff.md](docs/kickoff.md) is history.
 
-Next is the gate session (G1–G3), whose prompt is in [docs/next-session.md](docs/next-session.md). corupta makes the build/pivot/stop call on **Tue Oct 6**. Feature freeze is **Oct 20** and submission **Oct 28**.
+The gate session (S2) ran on 2026-10-02; [docs/gates.md](docs/gates.md) has the numbers. G2 passed. G1 failed criterion 1, and corupta rated the immich plan 3.1/5, so the planner follows the plan §6 **pivot**: deterministic seeds decide, Nemotron edits the draft. G3 came out messy, so the certificate pitch holds. Spike code and the budget ledger are on branch `spike/gates`.
+
+Next is S3 (scaffold, analyzer, executor, openhab-cloud bring-up), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
 
 ## Decided (revisable with a reason)
 
@@ -23,7 +25,7 @@ Next is the gate session (G1–G3), whose prompt is in [docs/next-session.md](do
 - **Layout:** feature-flat: `src/modules/<singular-kebab>/`, `shared/`, `platform/`.
 - **MVP ladder:** preflight → module moves → residual consolidation → filename normalization → boundary rules with a frozen baseline.
 - **Executor:** built on the TS 6 compiler API with span-only edits, not ts-morph `move()`. The certifier is a separate process and can certify any diff.
-- **Models:** Nemotron 3 Super plans, Ultra critiques, 3.5 Lightning fans out (it replaces Nano).
+- **Models (after G1):** Nemotron 3 Ultra (`medium_effort`) edits the deterministic seeds draft and critiques it. 3.5 Lightning fans out (it replaces Nano). Super is the G3 generic-agent baseline model, and a planner sample only with an explicit temperature and a reasoning cap.
 - **Form factor:** CLI, a static replay site as the demo URL, and a `--replay` test build. No live endpoint on our key.
 - **Demo target:** immich `server/`, provisional until the Oct 6 gate. Backups: Dokploy, mcphub.
 - **Timeline:** freeze Oct 20, submit Oct 28.

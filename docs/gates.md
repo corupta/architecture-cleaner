@@ -4,13 +4,13 @@
 - Deterministic seeds decide where files go. Nemotron edits the seed draft: it names and merges groups, moves contested files with a rationale, and writes the findings narration and the critic review.
 - The certificate stays the hero. G3 makes it stronger than we planned.
 - G2 passes, so **immich stays the demo repo.**
-- One input is still yours: rate the immich plan in [gates/immich-plan.md](gates/immich-plan.md) from 1 to 5. ≥3 keeps the pivot; <3 means stop under plan §6.
+- **Decided 2026-10-02:** corupta rated the immich plan in [gates/immich-plan.md](gates/immich-plan.md) **3.1/5**, so G1 criterion 2 passes, the pivot stands, and S3 is green-lit. His note: small improvements over the planner's choices would help (<10% of placements). S5 inputs: move the registries out of `shared/infra` into `platform/`, merge the `*-admin` modules into their domains, and revisit the asset / asset-media / asset-file split and the `app` module.
 
 | Gate | Verdict | Numbers |
 |---|---|---|
 | TF probes | done, $0.025 | Strict `json_schema` is enforced on Super, Ultra and Lightning; `chat_template_kwargs` passes through; **Super decodes greedily unless `temperature` is set**; `n=K` reports input once in `usage` (billing not yet confirmed). Details: [gates/tf-probes.md](gates/tf-probes.md), feedback items 18–29. |
 | G2 repo health | **PASS** (all 3 bars) | immich 2,337/2,337 unit cases offline (incl. 1 `it.fails`), twice, plus a byte-identical OpenAPI oracle; openhab-cloud 454/454; benchmark repos green: hoppscotch, ghostfolio, realworld (kaneo after quarantine) |
-| G1 boundary spike | **FAIL on criterion 1**; criterion 2 is your rating | The LLM's best sample beats the best deterministic baseline by ≥5 MoJoFM on 1 of 3 repos (H1 +6.2; hoppscotch +1.4; kaneo −12.3). It never reaches +15 on hard files. |
+| G1 boundary spike | **FAIL on criterion 1**; criterion 2 **PASS** (corupta 3.1/5), so **pivot** | The LLM's best sample beats the best deterministic baseline by ≥5 MoJoFM on 1 of 3 repos (H1 +6.2; hoppscotch +1.4; kaneo −12.3). It never reaches +15 on hard files. |
 | G3 generic agent | **MESSY**, so the pitch holds | 4 of 4 runs incomplete; tsc goes from 0 errors to 101–1,680; test files fail to load in every run; 2 verified latent path breaks that no unit test covers |
 
 Spend: **$7.54 of the $11.25 session cap.** By run: probes $0.025, G1 $1.70 (cap $3), G3 immich $4.93 (cap $5; the budget watchdog stopped it at 98% of the cap), G3 mcphub $0.86 (cap $3), smoke $0.014. Ledger: `spike/llm/ledger.jsonl` on branch `spike/gates`, like all spike code.

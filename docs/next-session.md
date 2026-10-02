@@ -1,43 +1,21 @@
-# Next session: gates (G1–G3)
+# Next session: S3 (scaffold + analyzer + executor)
 
-Opening prompt for the gate session. Paste it as the first message.
+Opening prompt for S3, from [gates.md](gates.md). Paste it as the first message.
 
 ```
-Gate session for architecture-cleaner: run the Token Factory probes, G2, G1 and G3, then write the decision memo.
+Session S3 for architecture-cleaner: scaffold the product repo, port the analyzer, build the executor, bring up one openhab-cloud module end to end.
 
-Read CLAUDE.md, then docs/plan.md in full (§6 gates, §5 budget, §3 architecture, §2.6 repos). docs/research/ holds the raw research (pinned SHAs, hazards, Token Factory facts, prior art). Consult it; don't re-research.
+Read CLAUDE.md, docs/gates.md (all of it; the decisions are final unless corupta's Oct 6 call changed them, and he will say so), then docs/plan.md §2.2–2.5, §3.3, §3.4 (K1–K3 only), §3.7. Spike code to port, not copy blindly: spike/g1/analyzer.mjs (TS 6.0.3 Program, symbol-level edges through barrels, reference sites incl. jest/vi mocks, unresolved internal specifiers), spike/g2/{env.sh,block-net.cjs} (target toolchains and offline oracles). Target recipes: ~/ac-work/g2/<repo>/commands.sh.
 
-Mode: execution, high autonomy. corupta is needed only for the Token Factory key and the Oct 6 decision. Work on branch spike/gates and commit freely there. Merge only docs/gates.md, docs/feedback-log.md and any plan corrections into main.
+Mode: execution, high autonomy, on branch s3/scaffold created from main; commit freely; merge to main when the exit criteria hold. No LLM calls in S3. The spike code lives only on branch spike/gates. Read it with `git show spike/gates:spike/<path>` or a worktree (`git worktree add ~/ac-work/spike-gates spike/gates`); port it, don't merge it. The G2 recipes source /workspace/architecture-cleaner/spike/g2/env.sh, which exists only on spike/gates. Run them from that worktree after adjusting the path, or port env.sh and block-net.cjs first: they belong in the product's oracle runner anyway.
 
-Preconditions
-- .env must contain NEBIUS_API_KEY. If it doesn't, do G2 first and ask corupta for the key before any LLM call.
-- Clone targets into ~/ac-targets/, outside this tree, at the pinned SHAs. Fetch full SHAs via ls-remote or a full clone.
-- Install target-specific Node versions project-locally (e.g. a Node 24 tarball under ~/ac-targets/.node/). Never install anything globally.
-- Every LLM call goes through a minimal recording gateway with a hard budget ledger (cost from usage × the pinned price table, refusal before a cap would be crossed). Caps are in plan §5. No live endpoints.
+Build:
+1. Scaffold per plan §3.7: TypeScript 6.0.x, Node 22, vitest, feature folders src/{cli,preflight,analyzer,executor,certificate,...}; MIT LICENSE; `ac` bin.
+2. Analyzer (TS): inventory from git ls-files grouped by tsconfig option set (with the TS 6 shim), every reference site with its exact span (import/export/import type/import =/import()/typeof import/require/require.resolve/jest.* and vi.* mocks with the virtual flag/declare module/triple-slash/asset specifiers), resolution via ts.resolveModuleName plus Jest moduleNameMapper/Vite alias semantics for test-runner sites.
+3. Executor per plan §3.3: pathMap + co-move bundles → respecify with ts.moduleSpecifiers.updateModuleSpecifier → keep the form class (relative stays relative, alias key stays, .js ending and /index style stay) → edit inside the quotes only (BOM/CRLF safe) → git mv → self-verify on a virtual post-move host (after == map(before), unresolved stays unresolved).
+4. Fixtures: one small fixture repo per capability row (relative CJS, NodeNext .js endings, tsconfig paths alias, Jest moduleNameMapper + jest.mock, vitest alias + vi.mock, barrel re-exports, dynamic import, triple-slash), each with a golden pathMap and expected edits; plus the GEFR differential (TS getEditsForFileRename) on them.
+5. Bring-up: openhab-cloud @76966b546b (CJS, mocha, no aliases; G2 recipe in ~/ac-work/g2/openhab-cloud/commands.sh, extra tests typecheck in extra-oracles.sh). Move one module's files end to end with our executor on a branch in ~/ac-targets/openhab-cloud, then run the oracles offline: tsc 0 errors, the out-of-repo tests typecheck with no new errors against its 58-error baseline, and mocha 31/31 files and 454/454 cases. `git diff -M` must show only renames plus in-quote specifier edits. Note: its package.json test glob is unquoted (dash expands ** as *), so moving tests to another depth silently drops them. Pin test files, and record it as a finding (never fix it).
 
-Order
-0. Token Factory probes (≤$0.25).
-   - GET /v1/models?verbose=true: IDs, per-model rate limits, supported features.
-   - On Super, Ultra and Lightning: enable_thinking on/off, low_effort/medium_effort, reasoning_effort, where the reasoning text lands, usage fields.
-   - response_format json_schema vs a forced strict tool call.
-   - Write docs/gates/tf-probes.md and append defects to docs/feedback-log.md.
-1. G2 repo health (no LLM).
-   - Repos (SHAs in docs/research/03a, 03b, 03c):
-     - immich server/ (primary: Node 24, build @immich/plugin-sdk and @immich/sdk first, unit vitest config only)
-     - Dokploy (backup)
-     - mcphub (backup, Jest)
-     - openhab-cloud (checker bring-up)
-     - hoppscotch backend, kaneo apps/api, ghostfolio apps/api, mikro-orm realworld (benchmark)
-   - For each: install, tsc, unit suite twice, offline check, timings, pass/fail per file.
-   - Also check: the immich OpenAPI oracle (nest build + sync-open-api) offline, and whether the immich 2024 real-world recovery benchmark is feasible (6e93ddf2 type-sliced vs 40262c30 domain/<feature>/ ground truth).
-2. G1 boundary spike (≤$3), exactly as plan §6: virtual scramble, the four deterministic baselines, planner v0 on Super (+1 Ultra sample), MoJoFM/ARI/c2c on feature files and hard files, then a one-page immich plan summary for corupta to rate 1–5.
-3. G3 generic-agent baseline (≤$8): opencode on Token Factory (Super) behind a metering proxy with a hard cap, fixed prompt from plan §6, on immich ($5) and mcphub ($3). Measure everything listed in §6. Keep the branches and transcripts outside this tree, with paths recorded.
-4. Write docs/gates.md: a one-page memo readable in 10 minutes.
-   - per-gate verdict with numbers;
-   - build/pivot/stop recommendation;
-   - demo-repo recommendation;
-   - plan corrections, also applied to docs/plan.md.
-   - End with the opening prompt for session S3 (scaffold + analyzer + executor).
-
+Exit criteria: fixtures green including the GEFR differential; the openhab-cloud module move green on all three oracles above; a 10-line report in docs/sessions/s3.md; the S4 opening prompt (certifier K0–K4, K6, K8; mutation harness ≥20 operators; ac certify on the four G3 branches in ~/ac-targets/g3/{immich,mcphub}) at its end.
 Log weird-but-not-blocking observations with /log-anomaly.
 ```
