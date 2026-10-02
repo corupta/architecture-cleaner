@@ -2,9 +2,25 @@
   "_doc": "Hard caps in USD (plan §5). The gateway refuses any call whose pre-send estimate would cross the run cap or the global cap.",
   "globalCap": 11.25,
   "runs": {
-    "tf-probes": { "cap": 0.25, "mode": "record" },
-    "g1": { "cap": 3.00, "mode": "auto" },
-    "g3-immich": { "cap": 5.00, "mode": "record" },
-    "g3-mcphub": { "cap": 3.00, "mode": "record" }
+    "tf-probes": {
+      "cap": 0.25,
+      "mode": "record"
+    },
+    "g1": {
+      "cap": 3,
+      "mode": "auto"
+    },
+    "g3-immich": {
+      "cap": 5,
+      "mode": "record"
+    },
+    "g3-mcphub": {
+      "cap": 3,
+      "mode": "record"
+    },
+    "g3-smoke": {
+      "cap": 0.15,
+      "mode": "record"
+    }
   }
 }

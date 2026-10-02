@@ -37,7 +37,11 @@ net.Socket.prototype.connect = function (...args) {
   } else {
     return originalConnect.apply(this, args);
   }
-  if (isLoopback(host)) return originalConnect.apply(this, args);
+  if (isLoopback(host)) {
+    // Port 9 is env.sh's dead proxy: a connect there is a proxied network attempt, so log it too.
+    if (Number(port) === 9) record('proxy', host, port);
+    return originalConnect.apply(this, args);
+  }
   record('connect', host, port);
   const error = Object.assign(new Error(`ac-offline: blocked connection to ${host}:${port}`), { code: 'ECONNREFUSED', errno: -111, syscall: 'connect' });
   process.nextTick(() => this.destroy(error));
@@ -45,19 +49,21 @@ net.Socket.prototype.connect = function (...args) {
 };
 
 const originalLookup = dns.lookup;
+// IP literals resolve locally without touching the network; only real name lookups are blocked.
+const isLocalLookup = (hostname) => isLoopback(hostname) || net.isIP(hostname) !== 0;
 dns.lookup = function (hostname, options, callback) {
   if (typeof options === 'function') {
     callback = options;
     options = {};
   }
-  if (isLoopback(hostname)) return originalLookup.call(this, hostname, options, callback);
+  if (isLocalLookup(hostname)) return originalLookup.call(this, hostname, options, callback);
   record('dns', hostname);
   const error = Object.assign(new Error(`ac-offline: blocked DNS lookup of ${hostname}`), { code: 'ENOTFOUND', errno: -3008, syscall: 'getaddrinfo', hostname });
   process.nextTick(() => callback(error));
 };
 const originalPromiseLookup = dns.promises.lookup;
 dns.promises.lookup = async function (hostname, options) {
-  if (isLoopback(hostname)) return originalPromiseLookup.call(this, hostname, options);
+  if (isLocalLookup(hostname)) return originalPromiseLookup.call(this, hostname, options);
   record('dns', hostname);
   throw Object.assign(new Error(`ac-offline: blocked DNS lookup of ${hostname}`), { code: 'ENOTFOUND', syscall: 'getaddrinfo', hostname });
 };

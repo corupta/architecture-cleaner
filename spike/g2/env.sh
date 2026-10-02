@@ -8,6 +8,7 @@ export COREPACK_HOME="$HOME/ac-targets/.corepack"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export COREPACK_ENABLE_STRICT=0
 export npm_config_store_dir="$HOME/ac-targets/.pnpm-store"
+export pnpm_config_store_dir="$HOME/ac-targets/.pnpm-store"  # pnpm 11 reads only this one
 export npm_config_cache="$HOME/ac-targets/.npm-cache"
 export YARN_CACHE_FOLDER="$HOME/ac-targets/.yarn-cache"
 export YARN_GLOBAL_FOLDER="$HOME/ac-targets/.yarn-global"

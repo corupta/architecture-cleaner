@@ -1,0 +1,11 @@
+{
+  "name": "architecture-cleaner-spike",
+  "private": true,
+  "type": "module",
+  "description": "Gate-session spike code (G1 boundary spike, G3 harness). Not the product; S3 starts the real scaffold.",
+  "dependencies": {
+    "graphology": "0.26.0",
+    "graphology-communities-louvain": "2.0.2",
+    "typescript": "6.0.3"
+  }
+}
