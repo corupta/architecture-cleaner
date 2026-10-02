@@ -37,7 +37,7 @@ const ultraRun = await runEditPlanner({ runId: 'g1', modelKey: 'ultra', view, dr
 const candidates = [...superRun.results.map((result) => ({ result, facts: superRun.facts })), ...ultraRun.results.map((result) => ({ result, facts: ultraRun.facts }))]
   .filter(({ result }) => result.finalPlan)
   .map(({ result, facts }) => ({ label: result.label, plan: result.finalPlan, facts, evaluation: evaluatePlan(result.finalPlan, facts, view) }));
-const cycleFiles = (evaluation) => evaluation.groupCycles.reduce((sum, cycle) => sum + cycle.length, 0);
+const groupsInCycles = (evaluation) => evaluation.groupCycles.reduce((sum, cycle) => sum + cycle.length, 0);
 // Bunch-style TurboMQ (sum of cluster factors): rewards cohesive, loosely coupled groups without rewarding one big lump.
 const turboMqSum = (candidate) => [...turboMqClusterFactors(planAssignment(candidate.plan, candidate.facts), view.edges).values()].reduce((sum, factor) => sum + factor, 0);
 for (const candidate of candidates) candidate.turboMqSum = +turboMqSum(candidate).toFixed(2);
@@ -60,7 +60,7 @@ lines.push(`# immich server/ plan v1 (G1), for corupta to rate 1–5`, '');
 lines.push(`immich-app/immich \`server/\` @ \`${graph.sha.slice(0, 10)}\` (AGPL-3.0; paths below are excerpts of that tree). Planner v1 (edit the draft): deterministic facts + seeds draft → Nemotron names/merges draft groups and moves misplaced files (json_schema strict) → 1 evaluate round. Shown: **${winner.label}**${forcedLabel ? ' (chosen by hand: see the candidates line)' : ' (TurboMQ winner; no ground truth)'}.`, '');
 lines.push(`- Movable files planned: **${view.nodes.length}**; pinned and left in place: **${pinned.length}** (schema/migrations, workers, bin, emails, main.ts, and ${locationSensitive.length} location-sensitive files: ${locationSensitive.map((id) => `\`${id}\``).join(', ')}).`);
 lines.push(`- Groups: **${winner.evaluation.groups}**; files in shared/platform: ${winner.evaluation.sharedOrPlatformFiles}; cross-group edge ratio ${winner.evaluation.crossGroupEdgeRatio}; group cycles: ${winner.evaluation.groupCycles.length ? winner.evaluation.groupCycles.map((cycle) => `${cycle.length} groups`).join(', ') : 'none'}; files pulled harder toward another group: ${winner.evaluation.graphDisagreementCount}.`);
-lines.push(`- Candidates (TurboMQ sum, groups, files in group cycles, cross-edge ratio): ${candidates.map((candidate) => `${candidate.label} (${candidate.turboMqSum}, ${candidate.evaluation.groups}, ${cycleFiles(candidate.evaluation)}, ${candidate.evaluation.crossGroupEdgeRatio})`).join('; ')}; ${draftCandidate.label} (${draftCandidate.turboMqSum}).`, '');
+lines.push(`- Candidates (TurboMQ sum, groups, groups in cycles, cross-edge ratio): ${candidates.map((candidate) => `${candidate.label} (${candidate.turboMqSum}, ${candidate.evaluation.groups}, ${groupsInCycles(candidate.evaluation)}, ${candidate.evaluation.crossGroupEdgeRatio})`).join('; ')}; ${draftCandidate.label} (${draftCandidate.turboMqSum}).`, '');
 lines.push('**Rating question:** would you accept this plan after changing ≤10% of placements (≈' + Math.ceil(view.nodes.length / 10) + ' files)? 1 = no, 3 = yes with ≤10% changes, 5 = as is.', '');
 lines.push('## Groups', '', '| group | files | roles | examples |', '|---|---|---|---|');
 for (const [name, keys] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length)) {

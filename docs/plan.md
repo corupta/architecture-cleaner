@@ -25,7 +25,7 @@ Pitch: *merge an architecture change on proof, not on trust in the AI or your te
 | "Clean Architecture" framing | Inner CA folders on active-record code end up empty or mislabeled, and dependency inversion can't be certified. | For the hackathon, claim "feature modules with enforced boundaries + a frozen inventory of every violation". Clean Architecture is the post-hackathon direction (§2.7). |
 | Organizer quote ("code completion is standard") | The actual quote: "a code-completion wrapper is a start; an agent that plans, writes, tests, and iterates on a real repo with minimal human input is where it gets interesting". | The planner is a real agent: tools, an evaluate/refine loop, and replanning on certificate failure (§3.5). |
 | Ultra 71.9% SWE-bench Verified | The card says 70.7 (BF16) / **69.5 (NVFP4, the variant TF serves)**. | Corrected. |
-| Demo on a small, curated repo | Popular repos do apply. **immich** (115k★) has a purely type-sliced server with ~1,850 offline unit tests. Its maintainers hand-restructured it in 14 single-move PRs over ~30 h (March 2024). | immich is the primary demo target (§2.6). |
+| Demo on a small, curated repo | Popular repos do apply. **immich** (115k★) has a purely type-sliced server with 2,337 offline unit cases (G2). Its maintainers hand-restructured it in about 17 layout PRs over ~52 h (March 20–22, 2024). | immich is the primary demo target (§2.6). |
 
 ## 2. Scope
 
@@ -149,7 +149,7 @@ Why immich for the demo:
   - an 87-file import cycle;
   - god files;
   - naming drift.
-- **Hook (corrected in G2):** the maintainers restructured by hand in March 2024: about 17 layout PRs over ~50 h (Mar 20–22). Most are pure moves. #8080 only rewrote imports, and #8118, #8131, #8138 and #8201 merge or split files. Only the domain layer had been feature-sliced. The tool makes such a migration mechanical and provable, and `ac certify` can audit those very PRs, though the merge PRs fall outside the move-only certificate.
+- **Hook (corrected in G2):** the maintainers restructured by hand in March 2024: about 17 layout PRs over ~52 h (Mar 20–22). Most are pure moves. #8080 moved nothing: it rewrote imports to absolute `src/…` paths, deleted 42 barrels and removed the path aliases. #8118, #8131, #8138, #8152, #8156 and #8201 merge or split files. Only the domain layer had been feature-sliced. The tool makes such a migration mechanical and provable, and `ac certify` can audit those very PRs, though the merge PRs fall outside the move-only certificate.
 - **Costs:**
   - Node 24 (project-local);
   - building `@immich/plugin-sdk`/`@immich/sdk` first;
@@ -161,8 +161,8 @@ Why immich for the demo:
 
 | Repo | Role |
 |---|---|
-| hoppscotch backend (MIT, ~700 offline cases) | Flagship, with traps |
-| kaneo `apps/api` (Hono, MIT) | Low name leakage |
+| hoppscotch backend (MIT, 761 offline cases in 19 files) | Flagship, with traps |
+| kaneo `apps/api` (Hono, MIT, 849 offline cases in 112 out-of-tree files) | Low name leakage |
 | ghostfolio `apps/api` (AGPL) | Alias `jest.mock` |
 | amplication-server, ultimate-nest | Optional |
 | mikro-orm realworld | Smoke test |
@@ -195,7 +195,7 @@ flowchart TB
     PRE["Preflight + baseline<br/>(deterministic)"]
     AN["Analyzer<br/>inventory · resolver · reference sites<br/>hazards · table-access matrix<br/>(deterministic)"]
     SEED["Seed clustering<br/>stems + label propagation + consumer rules<br/>(deterministic)"]
-    PLAN["Planner agent<br/>Nemotron 3 Super · tool loop:<br/>file_facts · evaluate_plan · submit_plan"]
+    PLAN["Planner (draft editor)<br/>Nemotron 3 Ultra · edits the seeds draft:<br/>names · merges · contested moves"]
     SUM["Summarizer<br/>Nemotron 3.5 Lightning fan-out"]
     CRIT["Critic<br/>Nemotron 3 Ultra · 1 call"]
     VAL["Plan validator / scorer<br/>(deterministic)"]
@@ -230,13 +230,13 @@ flowchart TB
 
 | Component | Kind | Why |
 |---|---|---|
-| Planner | **Agent editing a deterministic draft** (Ultra, `medium_effort`) | Judgment: names, merges, contested files, shared vs platform, multi-writer owners. G1 showed the LLM adds +1 to +6 MoJoFM over its own draft and never beats strong deterministic clustering on placement alone. |
+| Planner | **Agent editing a deterministic draft** (Ultra, `medium_effort`) | Judgment: names, merges, contested files, shared vs platform, multi-writer owners. G1: it beats the best deterministic baseline by ≥5 MoJoFM only on opaque-name H1 (+6.2), by +1.4 on hoppscotch, and loses on kaneo (−12.3). Its best sample adds +1 to +6 over its own draft. |
 | Summarizer | LLM fan-out (Lightning) | One-line purpose for ambiguous files; cheap and parallel |
 | Critic | LLM (Ultra, 1 call) | "Senior architect review", module-name polish and report narration. The track hint says "Ultra for serious reasoning". |
 | Findings narrator | LLM (Lightning/Super) | Prose for deterministic findings; text only |
 | Analyzer, seeds, validator, orchestrator, executor, certifier, oracles, reporter | **Deterministic** | Soundness: no LLM output can produce a false certificate. Also reproducibility (replay), cost and judge trust. |
 
-The track's agent loop: plan → evaluate (tools) → refine → execute → certify/test → on failure roll back, **replan the step** (bounded to 2 attempts), else pin and log a finding.
+The track's agent loop: seeds draft → Nemotron edit → validate → execute → certify/test → on failure roll back, **replan the step** (bounded to 2 attempts), else pin and log a finding. The evaluate/refine round is off by default after G1 (§3.5).
 
 ### 3.3 Executor: resolve → map → respecify → re-resolve
 
@@ -269,7 +269,7 @@ Estimate 20–32 focused hours (MVP cut 16–20).
 | K5 | Ordered glob/loader match lists plus per-file compile-context fingerprint. MVP: pin loader targets; decline nested scopes. | loader order, ESM/CJS flips |
 | **K6** | Test inventory (Jest **and** Vitest):<br>• `--listTests` / `vitest list` equal modulo `pathMap`<br>• mock resolution equal<br>• no new name collisions<br>• run with `CI=true` / `--ci` and `snapshot.added == 0`<br>• per-file case counts **and file-load status** equal (G3: the immich single-shot still reported 2,337/2,337 cases while 66 spec files failed to load) | silent test drops, unloadable specs, vacuous snapshot passes, automock flips |
 | K7 | Emit layout: each pinned entry's emitted path is unchanged. MVP: require an explicit `rootDir`, or decline. | `dist/src/server.js` → `dist/server.js` |
-| **K8** | Oracles on the **commit in a fresh worktree** (hooks bypassed and recorded), with the target's Node version: target tsc, test suite, plus per-target extras (immich: OpenAPI spec byte-diff) | anything the static model misses on exercised paths |
+| **K8** | Oracles on the **commit in a fresh worktree** (hooks bypassed and recorded, `HUSKY=0`), with the target's Node version: target tsc (`--incremental false`; hoppscotch gates on `tsconfig.build.json`), test suite (test identity = file + name + ordinal), plus per-target extras (immich: OpenAPI spec byte-diff, run from a scratch cwd) | anything the static model misses on exercised paths |
 
 **Independence**
 - The certifier is a separate process that reads only the two committed trees.
@@ -316,11 +316,11 @@ Estimate 20–32 focused hours (MVP cut 16–20).
    - output: a draft plan with per-file confidence and a contested list.
 3. **Planner = draft editor** (after G1; the §6 pivot):
    - Input: the facts plus the seeds draft as numbered groups G1..Gn.
-   - Output (`json_schema` strict): one entry per draft group (final bare name and kind; equal names merge), plus moves for misplaced files only, each with a one-line rationale. The model never lists every file. G1's v0 did, and at ≥157 files it dropped 26–45% of files, duplicated up to 248 ids, or collapsed to one group.
-   - Model: Ultra with `medium_effort` (best edits in G1). Super only with an explicit `temperature` and a reasoning cap: at default effort it truncated at 32k–64k tokens, and at `low_effort` it returned the draft unchanged.
-   - Optional tools (`file_facts`, `evaluate_plan`) stay, but **the evaluate round is off by default**. In G1 it hurt 6 of 17 samples, 4 by more than 10 points, because cycle and cross-edge feedback rewards merging.
+   - Output (`json_schema` strict): one entry per draft group (final bare name and kind; equal names merge), plus moves for misplaced files only, each with a one-line rationale. The model never lists every file. G1's v0 did: it dropped 10–15% of hoppscotch's 189 ids and 26–45% of kaneo's 456, listed up to 259 duplicate entries on immich, or collapsed to one group.
+   - Model: Ultra with `medium_effort`. It made the best edits on hoppscotch and H1 and the only real immich edit, though it also lowered the kaneo draft by 9 points. Super only with an explicit `temperature` and a reasoning cap: at default effort 11 completions truncated at 32k–64k tokens, and at `low_effort` it mostly returned the draft unchanged (0 moves in 5 of 8 samples; one sample made 87 moves and lost 29 points).
+   - Optional tools (`file_facts`, `evaluate_plan`) stay, but **the evaluate round is off by default**. In G1 it hurt 6 of 17 samples, 4 by more than 10 points. We suspect, but haven't tested, that the cycle and cross-edge feedback rewards merging.
    - Job: name modules; merge or split seeds; decide contested files; pick multi-writer owners; propose findings.
-4. **K candidates** come from one call with `n=K` (input billed once) at an explicit T=1.0 and top_p=0.95. TF decodes Super greedily when `temperature` is unset. GT-free selection is an **open problem**: TurboMQ ranked the unedited draft first on immich. Until it's solved, rank by validator metrics plus the critic, and show the alternatives in `plan.md`.
+4. **K candidates** come from one call with `n=K` (Super reports the input once in `usage`; Ultra's `n>1` is unprobed) at an explicit T=1.0 and top_p=0.95. TF decodes Super greedily when `temperature` is unset. GT-free selection is an **open problem**: TurboMQ ranked the unedited draft first on immich. Until it's solved, rank by validator metrics plus the critic, and show the alternatives in `plan.md`.
 5. **Critic** (Ultra, 1 call): reviews the winner. Its suggestions go back through the validator, never straight to execution.
 6. **Dual-opinion flag** (credit: structure-sweep): files where the plan disagrees with the graph majority are listed as "contested". `plan.yaml` can be edited between `plan` and `apply`.
 
@@ -340,13 +340,13 @@ Estimate 20–32 focused hours (MVP cut 16–20).
 - **Structured output:** `response_format: {type: "json_schema", strict: true}` is enforced on Super, Ultra and Lightning, with thinking on or off, even though the catalog doesn't tag it. zod still validates. The forced named tool stays as a fallback. Never use `tool_choice: "required"` on Lightning: it loops.
 - **Reasoning:**
   - Control it with `chat_template_kwargs`: `enable_thinking`, `low_effort` (Super), `medium_effort` (Ultra). These pass through at top level or inside `extra_body`. Don't use `reasoning_effort`, which maps inconsistently.
-  - Read `reasoning_content` only.
+  - Read `reasoning_content` only. Super and Lightning mirror it into `reasoning`; Ultra doesn't.
   - **Always set `max_tokens`.** On `finish_reason: length`, never parse `content`: Ultra and Lightning leak raw reasoning into it.
   - Thinking off costs answers (every thinking-off probe answer was wrong), so the planner keeps thinking on.
-- **Sampling:** always send `temperature: 1.0, top_p: 0.95`. Super is greedy without it, and `n>1` is rejected.
+- **Sampling:** always send `temperature: 1.0, top_p: 0.95`. Without it, Super decodes greedily and rejects `n>1`.
 - No prompt-caching discount, so keep prompts compact.
 - `store: false`.
-- No `x-ratelimit-*` headers and no `service_tier` field come back. Pace on the catalog limits (Lightning 400k TPM / 600 RPM) and back off on 429.
+- Rate-limit headers: Lightning returns `x-ratelimit-{limit,remaining,reset}-*`, so the gateway reads them. Super and Ultra return none and report a sentinel catalog limit, so pace them client-side. Back off on 429. `service_tier` is always null.
 - Model IDs are case-sensitive.
 
 **Cassettes and budget**
@@ -410,9 +410,9 @@ Estimate 20–32 focused hours (MVP cut 16–20).
 |---|---|
 | Lightning | Summaries, narration, a cheap A/B arm |
 | Super | The generic-agent baseline model; a planner-editor sample only with an explicit temperature and a reasoning cap (G1) |
-| Ultra | Planner-editor (`medium_effort`, the best G1 edits) plus 1 critic call per run |
+| Ultra | Planner-editor (`medium_effort`; best G1 edits on hoppscotch, H1 and immich) plus 1 critic call per run |
 
-**Per-run estimate** (≈250 movable files, K=3, ≤3 refine rounds): Super ≈$0.35 + Ultra ≈$0.10 + Lightning ≈$0.04 → **≈$0.50**.
+**Per-run estimate** (≈250 movable files): before G1 it was Super ≈$0.35 + Ultra ≈$0.10 + Lightning ≈$0.04 → ≈$0.50. After G1 the editor is Ultra: 1 edit call (K via `n=3` if Ultra supports it) + 1 critic + Lightning narration → **≈$0.15–0.25**. G1's Ultra calls averaged $0.03.
 
 | Phase | Cap | Notes |
 |---|---|---|
@@ -486,7 +486,7 @@ Spike code goes on branch `spike/gates`. Only the gate report and the feedback l
   - "fixes" (hunk sample);
   - tokens, $, turns, time.
 - **Keep the branches and transcripts.** The certifier re-checks them later for the video.
-- **Protocol after S2:** report both variants. Single-shot is `opencode run` with the fixed prompt; it quit within 1–3 minutes on both targets. Persistent adds automated replies: whenever the agent stops, a fixed message reports typecheck/test pass-fail plus the output tail and asks it to continue, until the checks are green, 90 minutes pass, 25 turns are used, or the cap is hit. Persistent is the reference baseline.
+- **Protocol after S2:** report both variants. Single-shot is `opencode run` with the fixed prompt; it quit within 3 minutes on both targets (48 s and 169 s). Persistent adds automated replies: whenever the agent stops, a fixed message reports typecheck/test pass-fail plus the output tail and asks it to continue, until the checks are green, 90 minutes pass, 25 turns are used, or the cap is hit. Persistent is the reference baseline.
 - **Messy** (pitch holds) if any of:
   - tsc or tests regress;
   - ≥1 behavior-relevant change the tests don't catch;
@@ -514,7 +514,7 @@ Spike code goes on branch `spike/gates`. Only the gate report and the feedback l
 - Real targets have no ground truth, so use TurboMQ and back-edge counts.
 - ICSA 2026 found classic methods beat LLM decompositions by 62% on MoJoFM, so baselines are mandatory. G1 agrees: Louvain beat every LLM plan on kaneo.
 - Baseline set (from G1): B0 type folders; name-token (full stem and anchored with prefix merging); export-symbol tokens, which survive H1; seeds + label propagation from both seed sources; Louvain at resolutions 1, 2 and 4 × 5 seeds. Headline = the best of them.
-- Correction to research 03b: degenerate partitions (all singletons, or one cluster) score MoJoFM **0**, not 14.29. Brute force checked this on 66k pairs.
+- Correction to research 03b: with B = 3×3, both all-singletons and one-cluster score MoJoFM **0**, not 14.29 (brute-force checked). Degenerate partitions score low in general but not always 0, so keep the cluster-count ratio next to MoJoFM.
 
 **Real-world recovery:** immich @`6e93ddf2` vs its own pre-reorg modules @`40262c30`, if G2 finds it feasible.
 
@@ -526,8 +526,8 @@ Today is Fri Oct 2; the deadline is Fri Oct 30, 10:00 PT. Sessions are Claude se
 |---|---|---|
 | Oct 2–5 | **S2 gates:** TF probes → G2 → G1 → G3 → `docs/gates.md` | 15 min setup |
 | **Tue Oct 6** | ◆ build/pivot/stop + demo repo | 30 min |
-| Oct 6–8 | S3: scaffold, analyzer, executor, fixtures; bring-up: one openhab-cloud module end to end | — |
-| Oct 8–10 | S4: certifier K0–K4, K6, K8 (Jest + Vitest), mutation harness ≥20 operators, GEFR differential; `ac certify` on the G3 branches (first A/B numbers). **Storyboard locked Oct 9.** | 15 min storyboard OK |
+| Oct 6–8 | S3: scaffold, analyzer, executor, fixtures, GEFR differential; bring-up: one openhab-cloud module end to end | — |
+| Oct 8–10 | S4: certifier K0–K4, K6, K8 (Jest + Vitest), mutation harness ≥20 operators; `ac certify` on the G3 branches (first A/B numbers). **Storyboard locked Oct 9.** | 15 min storyboard OK |
 | Oct 10–13 | S5: LLM gateway (cassettes, ledger), seeds, planner agent, validator, K candidates, critic, `plan.yaml` | — |
 | Oct 13–15 | S6: orchestrator R0–R4, findings, end to end on immich | **Oct 14: 1 h review** |
 | Oct 15–18 | S7: reporter + replay site v1, scramble tool, benchmark runner + runs | — |
@@ -557,7 +557,7 @@ Today is Fri Oct 2; the deadline is Fri Oct 30, 10:00 PT. Sessions are Claude se
 2. **0:15–0:40 The failure**
    - opencode on **NVIDIA Nemotron 3 Super via Nebius Token Factory** (said aloud) restructures immich. Real G3 numbers only: it copies 211 files and corrupts every rewritten import. Yet vitest still reports **2,337/2,337 passing**, because the 66 broken spec copies never load.
    - Then `ac certify` on its branch turns red: duplicated files, non-move edits, unloadable specs, broken OpenAPI build.
-   - "Green test count, broken program."
+   - "Green test count, broken build." On the persistent branch, two moved files also lose their `import.meta.dirname` paths (migrations, helmet.json) with no unit test noticing.
 3. **0:40–1:30 Ours**
    - "Nemotron draws the map": the plan view, a contested file's rationale, the table-access matrix, Ultra's review line.
    - The ladder runs: codemod → certificate checks tick → tests and the OpenAPI byte-diff → commit.
@@ -583,7 +583,7 @@ corupta records only the voiceover; every visual is scripted and re-renderable.
 - **Technological Implementation**
   - A resolver-exact executor on the TS 6 API.
   - A multi-resolver certificate, mutation-tested, with the kill rate published.
-  - A tool-calling planner agent on Nemotron with an evaluate/refine loop.
+  - A Nemotron draft-editor agent over deterministic seeds, with measured gains and losses against strong baselines (G1).
   - Measured model tiering.
   - Cassettes and a budget ledger.
   - Benchmarks with baselines, including human ground truth (immich 2024).
@@ -610,7 +610,7 @@ corupta records only the voiceover; every visual is scripted and re-renderable.
    - Mitigation: storyboard Oct 9; the A/B and a red-certificate moment; scripted visuals; rough cut Oct 23.
 2. **Novelty attack** (structure-sweep et al.).
    - Mitigation: a proof-led pitch, a prior-art slide, `certify` on foreign diffs.
-3. **Plan quality on a tangled popular repo** (87-file SCC, god injection). This one materialized in G1: the LLM doesn't beat strong deterministic clustering.
+3. **Plan quality on a tangled popular repo** (87-file SCC, god injection). This one materialized in G1: the LLM beats the best deterministic baseline by ≥5 only on opaque-name H1 (+6.2), by +1.4 on hoppscotch, and loses on kaneo (−12.3).
    - Mitigation: the pivot (seeds decide, Nemotron edits and arbitrates); corupta's 1–5 rating of the immich plan; contested list; editable plan; god structures surfaced as findings.
 4. **Checker soundness.**
    - Mitigation: K0–K8, 32 mutants, fresh worktree, multi-resolver checks, careful wording.
@@ -624,7 +624,7 @@ corupta records only the voiceover; every visual is scripted and re-renderable.
    - Mitigation: pin TS 6, the shim, GEFR differential tests, fixtures.
 7. **Target environment:** aarch64 native deps, heavy installs, offline-ness.
    - Mitigation: pinned SHAs, G2, project-local Node versions.
-8. **Token Factory:** deprecations (Nano), unverified reasoning/JSON pass-through, no caching, rate limits.
+8. **Token Factory:** deprecations (Nano), no caching, rate limits, per-model quirks (Super's greedy default, reasoning leaking into `content` on truncation). Reasoning/JSON pass-through was verified in S2.
    - Mitigation: replay mode, fallbacks, probes, IDs in config.
 9. **corupta's bandwidth** (~10 h).
    - Mitigation: 3 scheduled touchpoints; everything reviewable async.
@@ -644,4 +644,5 @@ Still open:
 - ts-morph/TS 6 spike items. The analyzer spike used the raw TS 6.0.3 API on 5 repos (immich at two SHAs, hoppscotch, kaneo, mcphub, realworld), covering NodeNext, Bundler and node10 with `ignoreDeprecations`. Every internal specifier resolved at base except mcphub's 8 pre-existing broken ones (test scripts importing `./src/...`, and a CSS import).
 - dependency-cruiser attribution through barrels.
 - A GT-free plan-selection objective (§3.5).
+- Whether Ultra accepts `n>1` (§3.5 K candidates).
 - Whether `usage` equals billing for `n>1`. Check the console bill.

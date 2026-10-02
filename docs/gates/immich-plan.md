@@ -1,4 +1,4 @@
-> **Context.** G1 last step (plan §6). Planner v1 ("edit the draft") on immich, Ultra sample, after one evaluate round. The validator's TurboMQ pick was Super #2, which made no edits at all (85 groups, identical to the deterministic draft), so the Ultra plan is shown instead: it is the only candidate that actually edited the draft. All immich planning calls in G1 (v0, v1, v1b and the 2024-recovery run) cost about $0.41 together. Raw JSON: `~/ac-work/g1/immich-plan.v1.json`.
+> **Context.** G1 last step (plan §6). Planner v1 ("edit the draft") on immich, Ultra sample, after one evaluate round. The validator's TurboMQ pick was Super #2, which moved no files: it kept the draft's 85-group partition and only renamed 2 groups. So the Ultra plan is shown instead, the only v1 candidate that really edited the draft (65 groups, 26 moves). The v1b Super #1 sample also moved 28 files, but TurboMQ ranked it last. All immich planning calls in G1 (v0, v1, v1b and the 2024-recovery run) cost about $0.41 together. Raw JSON: `~/ac-work/g1/immich-plan.v1.json`.
 > **How to read the validator lines.** The cycle and "pulled toward" numbers are dominated by two things: `BaseService` injects 55 repositories into every service, and the registries (`controllers/index.ts`, `commands/index.ts`) import everything. Any grouping of immich inherits both, so treat them as findings, not plan defects.
 
 # immich server/ plan v1 (G1), for corupta to rate 1–5
@@ -7,7 +7,7 @@ immich-app/immich `server/` @ `02063972e8` (AGPL-3.0; paths below are excerpts o
 
 - Movable files planned: **269**; pinned and left in place: **189** (schema/migrations, workers, bin, emails, main.ts, and 7 location-sensitive files: `src/constants.ts`, `src/main.ts`, `src/maintenance/maintenance-health.repository.ts`, `src/repositories/config.repository.ts`, `src/repositories/database.repository.ts`, `src/services/cli.service.ts`, `src/utils/misc.ts`).
 - Groups: **65**; files in shared/platform: 32; cross-group edge ratio 0.862; group cycles: 62 groups; files pulled harder toward another group: 188.
-- Candidates (TurboMQ sum, groups, files in group cycles, cross-edge ratio): immich/v1/super#2 (10.48, 85, 80, 0.866); immich/v1/ultra#1 (10.22, 65, 62, 0.862); deterministic draft (10.48).
+- Candidates (TurboMQ sum, groups, groups in cycles, cross-edge ratio): immich/v1/super#2 (10.48, 85, 80, 0.866); immich/v1/ultra#1 (10.22, 65, 62, 0.862); deterministic draft (10.48).
 
 **Rating question:** would you accept this plan after changing ≤10% of placements (≈27 files)? 1 = no, 3 = yes with ≤10% changes, 5 = as is.
 

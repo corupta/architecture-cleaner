@@ -28,7 +28,8 @@ esac
       start=$(date +%s); "$g2/with-test-slot.sh" timeout 1200 ./node_modules/.bin/vitest --config test/vitest.config.mjs --run --reporter=json --outputFile.json="$out/tests.json" > "$out/tests.log" 2>&1
       echo "tests_exit=$? tests_seconds=$(( $(date +%s) - start ))" >> "$out/status.env"
       rm -rf dist; start=$(date +%s); timeout 900 ./node_modules/.bin/nest build > "$out/nest-build.log" 2>&1; build=$?
-      mkdir -p "$out/openapi/server" && cd "$out/openapi/server" && timeout 300 node "$worktree/server/dist/bin/sync-open-api.js" > "$out/openapi.log" 2>&1; sync=$?
+      # useSwagger writes path.resolve(cwd, "../open-api/immich-openapi-specs.json"); create that directory.
+      mkdir -p "$out/openapi/server" "$out/openapi/open-api" && cd "$out/openapi/server" && timeout 300 node "$worktree/server/dist/bin/sync-open-api.js" > "$out/openapi.log" 2>&1; sync=$?
       # The G3 clones are depth-1, so the root commit is the pinned base.
       git -C "$checkout" show "$(git -C "$checkout" rev-list --max-parents=0 "$ref" | tail -1):open-api/immich-openapi-specs.json" > "$out/openapi/base-spec.json"
       same=missing
