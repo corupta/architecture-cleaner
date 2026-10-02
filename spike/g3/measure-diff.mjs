@@ -46,8 +46,10 @@ function isBarrelSource(text) {
 }
 
 const scope = packageRoot === '.' ? [] : ['--', packageRoot];
-const nameStatus = git('diff', '--name-status', '-M50%', `${base}..${end}`, ...scope).trim().split('\n').filter(Boolean).map((line) => line.split('\t'));
-const counts = { added: 0, deleted: 0, renamed: 0, modified: 0, other: 0 };
+// -C --find-copies-harder: agents sometimes copy files into the new layout and leave the originals behind.
+const nameStatus = git('diff', '--name-status', '-M50%', '-C50%', '--find-copies-harder', `${base}..${end}`, ...scope).trim().split('\n').filter(Boolean).map((line) => line.split('\t'));
+const counts = { added: 0, deleted: 0, renamed: 0, copied: 0, modified: 0, other: 0 };
+const copied = [];
 const renamed = [];
 const modified = [];
 const added = [];
@@ -56,6 +58,9 @@ for (const [status, first, second] of nameStatus) {
   if (status.startsWith('R')) {
     counts.renamed++;
     renamed.push({ from: first, to: second, similarity: Number(status.slice(1)) });
+  } else if (status.startsWith('C')) {
+    counts.copied++;
+    copied.push({ from: first, to: second, similarity: Number(status.slice(1)) });
   } else if (status === 'A') {
     counts.added++;
     added.push(first);
@@ -68,7 +73,7 @@ for (const [status, first, second] of nameStatus) {
   } else counts.other++;
 }
 
-const movedSource = renamed.filter((entry) => isSource(entry.to));
+const movedSource = [...renamed, ...copied].filter((entry) => isSource(entry.to));
 let movedLines = 0;
 const moved = { specifierOnly: 0, other: 0, filesWithOtherEdits: 0, samples: [] };
 for (const entry of movedSource) {
@@ -146,7 +151,7 @@ try {
 const result = {
   checkout, base, end, packageRoot,
   counts,
-  sourceFiles: { renamed: movedSource.length, modified: modifiedSource.length, added: addedSource.length, deleted: deleted.filter(isSource).length },
+  sourceFiles: { renamed: renamed.filter((entry) => isSource(entry.to)).length, copied: copied.filter((entry) => isSource(entry.to)).length, modified: modifiedSource.length, added: addedSource.length, deleted: deleted.filter(isSource).length },
   newBarrels,
   addedSourceFiles: addedSource,
   deletedSourceFiles: deleted.filter(isSource),

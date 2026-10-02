@@ -364,7 +364,7 @@ function parseEdit(response) {
   }
 }
 
-export async function runEditPlanner({ runId, modelKey, view, draft, samples = 1, maxTokens = 64000, templateKwargs, label }) {
+export async function runEditPlanner({ runId, modelKey, view, draft, samples = 1, maxTokens = 64000, templateKwargs, label, evaluateRounds = 1 }) {
   const facts = buildEditFacts(view, draft);
   const messages = [{ role: 'system', content: editSystemPrompt }, { role: 'user', content: facts.text }];
   const sampling = {
@@ -384,6 +384,10 @@ export async function runEditPlanner({ runId, modelKey, view, draft, samples = 1
     }
     const applied1 = applyEdit(firstParsed.edit, facts, draft);
     const evaluation1 = evaluatePlan(applied1.plan, facts, view);
+    if (!evaluateRounds) {
+      results.push({ label: `${label}#${index + 1}`, modelKey, turn1: { edit: firstParsed.edit, plan: applied1.plan, missingDraftGroups: applied1.missingDraftGroups, evaluation: evaluation1, reasoningChars: firstParsed.reasoningChars }, turn2: { skipped: true }, finalPlan: applied1.plan, usage: { turn1Shared: first.json?.usage } });
+      continue;
+    }
     const second = await chat(runId, {
       model: models[modelKey],
       messages: [...messages, { role: 'assistant', content: choice.message.content }, { role: 'user', content: editEvaluationText(evaluation1, applied1) }],

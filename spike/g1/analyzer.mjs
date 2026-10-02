@@ -227,7 +227,7 @@ export function analyze({ repoDir, packageRoot, tsconfig = 'tsconfig.json', trac
   return {
     repoDir,
     packageRoot,
-    sha: execFileSync('git', ['-C', repoDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    sha: trackedFiles ? 'archive' : execFileSync('git', ['-C', repoDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     typescript: ts.version,
     moduleResolution: ts.ModuleResolutionKind[options.moduleResolution],
     files: fileFacts,

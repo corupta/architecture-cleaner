@@ -42,7 +42,7 @@ function score(assignment, truth, featureKeys, hardKeys) {
 }
 
 async function main() {
-  const [benchName, flag] = process.argv.slice(2);
+  const [benchName, flag = ''] = process.argv.slice(2);
   const bench = benches[benchName];
   if (!bench) throw new Error(`unknown bench ${benchName}`);
   const graph = JSON.parse(fs.readFileSync(path.join(workDir, bench.graph), 'utf8'));
@@ -104,11 +104,14 @@ async function main() {
 
   if (flag !== '--no-llm') {
     // --v1: the "edit the draft" planner; default: v0, which enumerates every file id.
-    const planner = flag === '--v1' ? runEditPlanner : runPlanner;
-    const version = flag === '--v1' ? 'v1' : 'v0';
-    const superRun = await planner({ runId: 'g1', modelKey: 'super', view, draft, samples: 2, label: `${benchName}/${version}/super` });
+    // --v1b: v1 with Super on low_effort (v1 Super truncated at 64k tokens of reasoning) and no evaluate round
+    // (in v0/v1 the round mostly made plans worse).
+    const planner = flag === '--v1' || flag === '--v1b' ? runEditPlanner : runPlanner;
+    const version = flag.replace(/^--/, '') || 'v0';
+    const v1b = flag === '--v1b';
+    const superRun = await planner({ runId: 'g1', modelKey: 'super', view, draft, samples: 2, label: `${benchName}/${version}/super`, ...(v1b ? { templateKwargs: { low_effort: true }, evaluateRounds: 0 } : {}) });
     // Ultra on medium_effort: at default effort it spent all 32k tokens reasoning on hoppscotch (157 files).
-    const ultraRun = await planner({ runId: 'g1', modelKey: 'ultra', view, draft, samples: 1, templateKwargs: { medium_effort: true }, label: `${benchName}/${version}/ultra` });
+    const ultraRun = await planner({ runId: 'g1', modelKey: 'ultra', view, draft, samples: 1, templateKwargs: { medium_effort: true }, label: `${benchName}/${version}/ultra`, ...(v1b ? { evaluateRounds: 0 } : {}) });
     for (const run of [superRun, ultraRun]) {
       for (const sample of run.results) {
         if (sample.error) {
@@ -126,7 +129,7 @@ async function main() {
   }
 
   fs.mkdirSync(path.join(workDir, 'results'), { recursive: true });
-  fs.writeFileSync(path.join(workDir, 'results', `${benchName}${flag === '--no-llm' ? '.baselines' : flag === '--v1' ? '.v1' : ''}.json`), JSON.stringify({ ...result, truth: Object.fromEntries(truth), hardKeys, featureKeys }, null, 1));
+  fs.writeFileSync(path.join(workDir, 'results', `${benchName}${flag === '--no-llm' ? '.baselines' : flag ? `.${flag.replace(/^--/, '')}` : ''}.json`), JSON.stringify({ ...result, truth: Object.fromEntries(truth), hardKeys, featureKeys }, null, 1));
   console.log(`\n${benchName} (${manifest.repo}@${graph.sha.slice(0, 10)}, ${bench.nameMode}): ${result.featureFiles} feature files in ${result.groundTruthModules} modules, ${result.hardFiles} hard files, ${result.leakyRenames} leaky renames; draft from ${result.draftSource}; best baseline ${bestBaseline.name} ${bestBaseline.mojoFm}, best on hard ${bestBaselineHard.name} ${bestBaselineHard.mojoFmHard}`);
   console.log('| method | MoJoFM | ARI | c2c_cvg@0.66 | clusters/GT | matched acc | MoJoFM hard | matched acc hard |');
   console.log('|---|---|---|---|---|---|---|---|');
