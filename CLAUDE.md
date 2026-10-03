@@ -12,7 +12,9 @@ Planning finished on 2026-10-02. [docs/plan.md](docs/plan.md) owns scope, archit
 
 The gate session (S2) ran on 2026-10-02; [docs/gates.md](docs/gates.md) has the numbers. G2 passed. G1 failed criterion 1, and corupta rated the immich plan 3.1/5, so the planner follows the plan §6 **pivot**: deterministic seeds decide, Nemotron edits the draft. G3 came out messy, so the certificate pitch holds. Spike code and the budget ledger are on branch `spike/gates`.
 
-Next is S3 (scaffold, analyzer, executor, openhab-cloud bring-up), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
+S3 ran on 2026-10-02/03; [docs/sessions/s3.md](docs/sessions/s3.md) has the report. It shipped the scaffold, the analyzer and the move executor. On immich, a 292-file R1-style step passed every oracle offline, with the OpenAPI spec byte-identical.
+
+Next is S4 (certifier, mutation harness, `ac certify` on our branches and the G3 branches, storyboard draft), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
 
 ## Decided (revisable with a reason)
 
