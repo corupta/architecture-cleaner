@@ -9,7 +9,7 @@ import { applyMove, isWorktreeClean } from './apply.js';
 import { type Decline, findDeclines } from './declines.js';
 import { applyEditsToText, planEdits, type SpecifierEdit } from './edits.js';
 import { mapPath, withCoMoves } from './move-set.js';
-import { verifyMove, type Violation } from './verify.js';
+import { crossProgramMismatches, verifyMove, type Violation } from './verify.js';
 
 export type MoveResult =
   | { outcome: 'applied' | 'verified'; moves: Map<string, string>; edits: SpecifierEdit[]; before: Analysis; after: Analysis }
@@ -45,6 +45,10 @@ export function executeMove(repo: RepoFs, requested: ReadonlyMap<string, string>
 
   const { after, violations } = verifyMove(repo, before, moves, newContentsByNewPath, runner);
   if (violations.length) return { outcome: 'unverified', moves, edits: planned.edits, violations };
+  // The step is right under each file's own program; a file shared with programs that resolve differently can't
+  // be rewritten one way for all of them, so that is a decline, not a verification failure.
+  const mismatches = crossProgramMismatches(repo, before, after, moves, newContentsByNewPath, runner);
+  if (mismatches.length) return { outcome: 'declined', moves, declines: mismatches.map((mismatch) => ({ code: 'multi-program-file', file: mismatch.file, detail: mismatch.detail })) };
   if (dryRun) return { outcome: 'verified', moves, edits: planned.edits, before, after };
   applyMove(repo, moves, newContentsByOldPath);
   return { outcome: 'applied', moves, edits: planned.edits, before, after };

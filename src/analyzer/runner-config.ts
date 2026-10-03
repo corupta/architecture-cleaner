@@ -1,6 +1,7 @@
 // Test-runner resolution settings, read statically from config ASTs (never by executing target code).
 // Plan §2.5: a test config that can't be loaded statically is a preflight decline, so anything we can't read
-// is reported in `unreadable` instead of guessed.
+// is reported in `unreadable` instead of guessed. Every config is kept (monorepos have one per package); a file
+// is governed by the config in its nearest ancestor directory.
 import path from 'node:path';
 import ts from 'typescript';
 import type { RepoFs } from './repo-fs.js';
@@ -18,21 +19,49 @@ export interface ViteAlias {
   replacement: string;
 }
 
-/** Which files a runner collects as tests: directory roots plus glob patterns (repo-relative), when statically known. */
+/** Which files a runner collects as tests (repo-relative): roots, include/exclude globs, exclude regexes. */
 export interface TestScope {
   roots: string[];
   include: string[];
   exclude: string[];
+  /** Jest testPathIgnorePatterns, matched against '/' + the repo-relative path. */
+  excludePatterns: RegExp[];
+}
+
+export interface JestConfig {
+  config: string;
+  /** Repo-relative directory of the config file ('' for the root). */
+  directory: string;
+  rootDir: string;
+  mappers: JestMapper[];
+  scope: TestScope;
+}
+
+export interface VitestConfig {
+  config: string;
+  directory: string;
+  aliases: ViteAlias[];
+  scope: TestScope;
 }
 
 export interface RunnerConfig {
-  jest: { config: string; rootDir: string; mappers: JestMapper[]; scope: TestScope } | null;
-  vitest: { config: string; aliases: ViteAlias[]; scope: TestScope } | null;
+  jest: JestConfig[];
+  vitest: VitestConfig[];
   unreadable: { config: string; reason: string }[];
 }
 
 const jestConfigPattern = /(^|\/)jest\.config\.(js|cjs|mjs|ts|cts|mts|json)$/;
 const viteConfigPattern = /(^|\/)(vitest|vite)\.config\.(js|cjs|mjs|ts|cts|mts)$/;
+
+/** The config whose directory is the nearest ancestor of `file`. */
+export function nearestConfig<T extends { directory: string }>(configs: readonly T[], file: string): T | null {
+  let best: T | null = null;
+  for (const config of configs) {
+    const covers = config.directory === '' || file.startsWith(`${config.directory}/`);
+    if (covers && (!best || config.directory.length > best.directory.length)) best = config;
+  }
+  return best;
+}
 
 function propertyName(name: ts.PropertyName): string | null {
   if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
@@ -46,10 +75,14 @@ function getProperty(object: ts.ObjectLiteralExpression, key: string): ts.Expres
   return undefined;
 }
 
-/** The exported config object: `module.exports = {…}`, `export default {…}`, `defineConfig({…})`, or a const they name. */
-function exportedObject(sourceFile: ts.SourceFile): ts.ObjectLiteralExpression | null {
+/**
+ * The exported config object: `module.exports = {…}`, `module.exports = exports = {…}`, `export default {…}`,
+ * `defineConfig({…})`, or a const they name. Later mutation (`exports.x = …`, `config.x = …`) makes it unreadable.
+ */
+function exportedObject(sourceFile: ts.SourceFile): { object: ts.ObjectLiteralExpression | null; mutated: boolean } {
   const constants = new Map<string, ts.Expression>();
   let exported: ts.Expression | undefined;
+  const assignedPaths: string[] = [];
   for (const statement of sourceFile.statements) {
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
@@ -58,20 +91,29 @@ function exportedObject(sourceFile: ts.SourceFile): ts.ObjectLiteralExpression |
     } else if (ts.isExportAssignment(statement)) {
       exported = statement.expression;
     } else if (ts.isExpressionStatement(statement) && ts.isBinaryExpression(statement.expression)
-      && statement.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken
-      && statement.expression.left.getText(sourceFile) === 'module.exports') {
-      exported = statement.expression.right;
+      && statement.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      const left = statement.expression.left.getText(sourceFile);
+      if (left === 'module.exports') exported = statement.expression.right;
+      else assignedPaths.push(left);
     }
   }
   const unwrap = (expression: ts.Expression | undefined): ts.ObjectLiteralExpression | null => {
     if (!expression) return null;
     if (ts.isParenthesizedExpression(expression) || ts.isSatisfiesExpression(expression) || ts.isAsExpression(expression)) return unwrap(expression.expression);
     if (ts.isObjectLiteralExpression(expression)) return expression;
+    if (ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.EqualsToken) return unwrap(expression.right);
     if (ts.isIdentifier(expression)) return unwrap(constants.get(expression.text));
     if (ts.isCallExpression(expression) && expression.arguments.length === 1) return unwrap(expression.arguments[0]);
+    // `export default async () => ({ … })` (Nx roots): the returned object literal.
+    if ((ts.isArrowFunction(expression) || ts.isFunctionExpression(expression)) && !ts.isBlock(expression.body)) return unwrap(expression.body);
+    if (ts.isAwaitExpression(expression)) return unwrap(expression.expression);
     return null;
   };
-  return unwrap(exported);
+  // Mutation of the exported object after its declaration (`exports.x = …`, `config.roots = …`). Unrelated
+  // assignments such as `process.env.TZ = 'UTC'` don't change the config.
+  const exportedName = exported && ts.isIdentifier(exported) ? exported.text : null;
+  const mutated = assignedPaths.some((left) => /^(module\.)?exports\./.test(left) || (exportedName !== null && left.startsWith(`${exportedName}.`)));
+  return { object: unwrap(exported), mutated };
 }
 
 /** Resolves `'./src'`, `path.resolve(__dirname, './src')`, `resolve(__dirname, 'src')`, `fileURLToPath(new URL('./src', import.meta.url))`. */
@@ -93,6 +135,7 @@ function staticPath(expression: ts.Expression, configDirectory: string, sourceFi
 }
 
 const normalizeDirectory = (directory: string) => (directory === '.' ? '' : directory.replace(/\/$/, ''));
+const stripBom = (text: string) => (text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
 
 function staticStrings(expression: ts.Expression | undefined): string[] | null {
   if (!expression) return [];
@@ -101,7 +144,7 @@ function staticStrings(expression: ts.Expression | undefined): string[] | null {
   return null;
 }
 
-/** Repo-relative test-scope patterns; `<rootDir>` and config-relative paths expanded. */
+/** Repo-relative test-scope patterns: `<rootDir>` and config-relative paths expanded. */
 function expandPatterns(patterns: string[], rootDir: string, configDirectory: string): string[] {
   return patterns.map((pattern) => {
     const expanded = pattern.replace(/<rootDir>\/?/g, rootDir === '' ? '' : `${rootDir}/`);
@@ -110,88 +153,113 @@ function expandPatterns(patterns: string[], rootDir: string, configDirectory: st
   });
 }
 
+interface JestFields {
+  rootDir?: string;
+  roots?: string[];
+  testMatch?: string[];
+  testPathIgnorePatterns?: string[];
+  moduleNameMapper?: [string, string][];
+  testRegex?: boolean;
+}
+
+function jestScope(fields: JestFields, rootDir: string, configDirectory: string): TestScope {
+  const testMatch = fields.testMatch ?? [];
+  const negated = testMatch.filter((pattern) => pattern.startsWith('!')).map((pattern) => pattern.slice(1));
+  return {
+    roots: fields.roots?.length ? expandPatterns(fields.roots, rootDir, configDirectory).map(normalizeDirectory) : [rootDir],
+    include: expandPatterns(testMatch.filter((pattern) => !pattern.startsWith('!')), rootDir, configDirectory),
+    exclude: expandPatterns(negated, rootDir, configDirectory),
+    excludePatterns: (fields.testPathIgnorePatterns ?? []).map((pattern) => new RegExp(pattern.replace(/<rootDir>/g, `/${rootDir}`.replace(/\/$/, '')))),
+  };
+}
+
+function readJestJson(text: string, isPackageJson: boolean): JestFields | null {
+  const json = JSON.parse(stripBom(text));
+  const jest = isPackageJson ? json.jest : json;
+  if (!jest || typeof jest !== 'object' || jest.projects) return null;
+  const strings = (value: unknown) => (value === undefined ? undefined : Array.isArray(value) ? value.map(String) : [String(value)]);
+  return {
+    rootDir: typeof jest.rootDir === 'string' ? jest.rootDir : undefined,
+    roots: strings(jest.roots),
+    testMatch: strings(jest.testMatch),
+    testPathIgnorePatterns: strings(jest.testPathIgnorePatterns),
+    moduleNameMapper: Object.entries(jest.moduleNameMapper ?? {}).map(([key, value]) => [key, Array.isArray(value) ? String(value[0]) : String(value)]),
+    testRegex: jest.testRegex !== undefined,
+  };
+}
+
+function readJestScript(config: string, text: string, configDirectory: string): JestFields | string | null {
+  const sourceFile = ts.createSourceFile(config, text, ts.ScriptTarget.Latest, true);
+  const { object, mutated } = exportedObject(sourceFile);
+  if (!object) return 'no static config object';
+  if (mutated) return 'config object mutated after its declaration';
+  // A multi-project root (`projects: [...]`) delegates to the projects' own configs, which are read separately.
+  if (getProperty(object, 'projects')) return null;
+  const fields: JestFields = { testRegex: Boolean(getProperty(object, 'testRegex')) };
+  const rootDir = getProperty(object, 'rootDir');
+  if (rootDir) {
+    const resolved = staticPath(rootDir, configDirectory, sourceFile);
+    if (resolved === null) return 'non-literal rootDir';
+    fields.rootDir = path.posix.relative(configDirectory || '.', resolved) || '.';
+  }
+  for (const key of ['roots', 'testMatch', 'testPathIgnorePatterns'] as const) {
+    const values = staticStrings(getProperty(object, key));
+    if (values === null) return `non-literal ${key}`;
+    if (values.length) fields[key] = values;
+  }
+  const mapper = getProperty(object, 'moduleNameMapper');
+  if (mapper) {
+    if (!ts.isObjectLiteralExpression(mapper)) return 'non-literal moduleNameMapper';
+    fields.moduleNameMapper = [];
+    for (const property of mapper.properties) {
+      const key = ts.isPropertyAssignment(property) ? propertyName(property.name) : null;
+      const value = ts.isPropertyAssignment(property) ? property.initializer : undefined;
+      const target = value && ts.isStringLiteralLike(value) ? value.text
+        : value && ts.isArrayLiteralExpression(value) && value.elements[0] && ts.isStringLiteralLike(value.elements[0]) ? value.elements[0].text : null;
+      if (key === null || target === null) return 'non-literal moduleNameMapper entry';
+      fields.moduleNameMapper.push([key, target]);
+    }
+  }
+  return fields;
+}
+
 export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
-  const result: RunnerConfig = { jest: null, vitest: null, unreadable: [] };
+  const result: RunnerConfig = { jest: [], vitest: [], unreadable: [] };
   const tracked = repo.tracked().filter((file) => !file.includes('node_modules/'));
   const jestConfigs = tracked.filter((file) => jestConfigPattern.test(file));
   const packageJest = tracked.filter((file) => file.endsWith('package.json') && /"jest"\s*:/.test(repo.read(file) ?? ''));
   for (const config of [...jestConfigs, ...packageJest]) {
-    const configDirectory = path.posix.dirname(config);
+    const configDirectory = normalizeDirectory(path.posix.dirname(config));
     const text = repo.read(config) ?? '';
-    let mapperEntries: [string, string][] = [];
-    let rootDirectory = configDirectory;
-    if (config.endsWith('.json')) {
-      try {
-        const json = JSON.parse(text);
-        const jest = config.endsWith('package.json') ? json.jest : json;
-        if (typeof jest?.rootDir === 'string') rootDirectory = path.posix.join(configDirectory, jest.rootDir);
-        mapperEntries = Object.entries(jest?.moduleNameMapper ?? {}).map(([key, value]) => [key, Array.isArray(value) ? String(value[0]) : String(value)]);
-      } catch {
-        result.unreadable.push({ config, reason: 'invalid JSON' });
-        continue;
-      }
-    } else {
-      const sourceFile = ts.createSourceFile(config, text, ts.ScriptTarget.Latest, true);
-      const object = exportedObject(sourceFile);
-      if (!object) {
-        result.unreadable.push({ config, reason: 'no static config object' });
-        continue;
-      }
-      const rootDir = getProperty(object, 'rootDir');
-      if (rootDir) {
-        const resolved = staticPath(rootDir, configDirectory, sourceFile);
-        if (resolved === null) {
-          result.unreadable.push({ config, reason: 'non-literal rootDir' });
-          continue;
-        }
-        rootDirectory = resolved;
-      }
-      const mapper = getProperty(object, 'moduleNameMapper');
-      if (mapper) {
-        if (!ts.isObjectLiteralExpression(mapper)) {
-          result.unreadable.push({ config, reason: 'non-literal moduleNameMapper' });
-          continue;
-        }
-        for (const property of mapper.properties) {
-          const key = ts.isPropertyAssignment(property) ? propertyName(property.name) : null;
-          const value = ts.isPropertyAssignment(property) ? property.initializer : undefined;
-          const target = value && ts.isStringLiteralLike(value) ? value.text
-            : value && ts.isArrayLiteralExpression(value) && value.elements[0] && ts.isStringLiteralLike(value.elements[0]) ? value.elements[0].text : null;
-          if (key === null || target === null) {
-            result.unreadable.push({ config, reason: 'non-literal moduleNameMapper entry' });
-            mapperEntries = [];
-            break;
-          }
-          mapperEntries.push([key, target]);
-        }
-      }
+    let fields: JestFields | string | null;
+    try {
+      fields = config.endsWith('.json') ? readJestJson(text, config.endsWith('package.json')) : readJestScript(config, text, configDirectory);
+    } catch {
+      fields = 'invalid JSON';
     }
-    const rootDir = normalizeDirectory(rootDirectory);
-    let scope: TestScope = { roots: [rootDir], include: [], exclude: [] };
-    if (!config.endsWith('.json')) {
-      const sourceFile = ts.createSourceFile(config, text, ts.ScriptTarget.Latest, true);
-      const object = exportedObject(sourceFile)!;
-      const roots = staticStrings(getProperty(object, 'roots'));
-      const testMatch = staticStrings(getProperty(object, 'testMatch'));
-      const ignore = staticStrings(getProperty(object, 'testPathIgnorePatterns'));
-      if (roots === null || testMatch === null || ignore === null || getProperty(object, 'testRegex')) result.unreadable.push({ config, reason: 'non-literal or regex test scope' });
-      else scope = { roots: roots.length ? expandPatterns(roots, rootDir, configDirectory).map(normalizeDirectory) : [rootDir], include: expandPatterns(testMatch, rootDir, configDirectory), exclude: [] };
+    if (fields === null) continue;
+    if (typeof fields === 'string') {
+      result.unreadable.push({ config, reason: fields });
+      continue;
     }
-    result.jest = {
+    if (fields.testRegex) result.unreadable.push({ config, reason: 'testRegex (regex test scope) is not modelled' });
+    const rootDir = normalizeDirectory(fields.rootDir ? path.posix.join(configDirectory || '.', fields.rootDir) : configDirectory);
+    result.jest.push({
       config,
+      directory: configDirectory,
       rootDir,
-      scope,
-      mappers: mapperEntries.map(([source, replacement]) => ({
+      scope: jestScope(fields, rootDir, configDirectory),
+      mappers: (fields.moduleNameMapper ?? []).map(([source, replacement]) => ({
         pattern: new RegExp(source),
         source,
         replacement: replacement.replace(/<rootDir>\/?/g, rootDir === '' ? '' : `${rootDir}/`),
       })),
-    };
+    });
   }
   for (const config of tracked.filter((file) => viteConfigPattern.test(file))) {
     const configDirectory = normalizeDirectory(path.posix.dirname(config));
     const sourceFile = ts.createSourceFile(config, repo.read(config) ?? '', ts.ScriptTarget.Latest, true);
-    const object = exportedObject(sourceFile);
+    const { object } = exportedObject(sourceFile);
     if (!object) {
       result.unreadable.push({ config, reason: 'no static config object' });
       continue;
@@ -224,8 +292,12 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
     const include = testSection && ts.isObjectLiteralExpression(testSection) ? staticStrings(getProperty(testSection, 'include')) : [];
     const exclude = testSection && ts.isObjectLiteralExpression(testSection) ? staticStrings(getProperty(testSection, 'exclude')) : [];
     if (include === null || exclude === null) result.unreadable.push({ config, reason: 'non-literal test.include/exclude' });
-    const scope: TestScope = { roots: [configDirectory], include: expandPatterns(include ?? [], configDirectory, configDirectory), exclude: expandPatterns(exclude ?? [], configDirectory, configDirectory) };
-    result.vitest = { config, aliases, scope };
+    result.vitest.push({
+      config,
+      directory: configDirectory,
+      aliases,
+      scope: { roots: [configDirectory], include: expandPatterns(include ?? [], configDirectory, configDirectory), exclude: expandPatterns(exclude ?? [], configDirectory, configDirectory), excludePatterns: [] },
+    });
   }
   return result;
 }

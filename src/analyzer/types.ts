@@ -10,7 +10,9 @@ export type SiteKind =
   | 'require-resolve'
   | 'mock'
   | 'declare-module'
-  | 'triple-slash';
+  | 'triple-slash'
+  /** `new URL('./x', import.meta.url)` and `import.meta.resolve('./x')`: exact, file-relative paths. */
+  | 'url-reference';
 
 /** A module reference with the exact span of its literal content (inside the quotes). */
 export interface ReferenceSite {

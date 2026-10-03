@@ -120,7 +120,15 @@ export function moduleResolutionHost(repo: RepoFs): ts.ModuleResolutionHost {
       return relativePath.startsWith('..') ? ts.sys.readFile(fileName) : (repo.read(relativePath) ?? ts.sys.readFile(fileName));
     },
     directoryExists: (directoryName) => repo.directoryExists(directoryName),
-    realpath: (fileName) => fileName,
+    // Real paths through workspace symlinks (node_modules/a -> packages/a), so a repo file reached through a
+    // package link is still recognised as that repo file. Virtual (moved) paths don't exist on disk: identity.
+    realpath: (fileName) => {
+      try {
+        return fs.realpathSync(fileName);
+      } catch {
+        return fileName;
+      }
+    },
     getCurrentDirectory: () => repo.root,
     getDirectories: (directoryName) => (repo.directoryExists(directoryName) ? repo.entries(directoryName).directories : []),
   };

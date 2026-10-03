@@ -4,7 +4,7 @@
 // spellings and explicit extensions survive; only the directory part changes.
 import path from 'node:path';
 import type ts from 'typescript';
-import type { RunnerConfig } from '../analyzer/runner-config.js';
+import { nearestConfig, type RunnerConfig } from '../analyzer/runner-config.js';
 import type { ModuleFormat, ReferenceSite } from '../analyzer/types.js';
 
 /** A specifier the executor can't rewrite while keeping its form: the step is declined with `code`. */
@@ -44,19 +44,25 @@ const lastSegmentOf = (specifier: string) => specifier.replace(/\/+$/, '').split
 
 /** Whether a module path (as written after alias expansion) reaches `target`: exact, + extension, JS ending, or directory index. */
 function denotes(modulePath: string, target: string): boolean {
-  const trimmed = modulePath.replace(/\/+$/, '');
+  const trimmed = path.posix.normalize(modulePath).replace(/\/+$/, '');
   const candidates = [trimmed, trimmed.replace(/\.(m|c)?js$/, '')];
-  return candidates.some((candidate) => target === candidate || target.startsWith(`${candidate}.`) || target.startsWith(`${candidate}/index.`));
+  const arbitraryExtension = /^(.*)(\.[^./]+)$/.exec(trimmed);
+  if (arbitraryExtension) candidates.push(`${arbitraryExtension[1]}.d${arbitraryExtension[2]}`);
+  return candidates.some((candidate) => (candidate === '.' ? /^index\./.test(target)
+    : target === candidate || target.startsWith(`${candidate}.`) || target.startsWith(`${candidate}/index.`)));
 }
+
+/** `index`, or `index.<moduleSuffix>` (platform/index.ios.ts): the file a directory specifier reaches. */
+const isIndexStem = (stem: string) => stem === 'index' || stem.startsWith('index.');
 
 /** The repo path the new specifier must spell (before choosing relative/alias form), plus a trailing slash to keep. */
 function spelledPath(specifier: string, target: { from: string; to: string }): { spelled: string; trailingSlash: boolean; directoryForm: boolean } {
   const trailingSlash = /[^/]\/+$/.test(specifier) || specifier === './' || specifier === '../';
   const lastSegment = lastSegmentOf(specifier);
-  const addressesDirectory = stemOf(target.from) === 'index' && lastSegment !== 'index' && !lastSegment.startsWith('index.');
+  const addressesDirectory = isIndexStem(stemOf(target.from)) && lastSegment !== 'index' && !lastSegment.startsWith('index.');
   if (addressesDirectory) {
     // The index file was renamed away from `index`: its directory no longer denotes it, so spell the file instead.
-    if (stemOf(target.to) !== 'index') return { spelled: path.posix.join(path.posix.dirname(target.to), stemOf(target.to)), trailingSlash: false, directoryForm: false };
+    if (!isIndexStem(stemOf(target.to))) return { spelled: path.posix.join(path.posix.dirname(target.to), stemOf(target.to)), trailingSlash: false, directoryForm: false };
     return { spelled: path.posix.dirname(target.to), trailingSlash, directoryForm: true };
   }
   if (path.posix.basename(target.from) === path.posix.basename(target.to)) {
@@ -131,8 +137,10 @@ function formSpecifier(input: RespecifyInput, spelled: string, trailingSlash: bo
     if (tail === '' && directoryForm) throw new SpecifierDecline('alias-escape', specifier, 'directory form at the alias root');
     return tail;
   };
-  if (site.kind === 'mock' && site.callee?.startsWith('jest.') && runner.jest) {
-    for (const mapper of runner.jest.mappers) {
+  const jest = nearestConfig(runner.jest, importer.from);
+  const vitest = nearestConfig(runner.vitest, importer.from);
+  if (site.kind === 'mock' && site.callee?.startsWith('jest.') && jest) {
+    for (const mapper of jest.mappers) {
       if (!mapper.pattern.test(specifier)) continue;
       const shape = /^\^(.*)\(\.\*\)\$$/.exec(mapper.source);
       const replacement = /^(.*)\$1$/.exec(mapper.replacement);
@@ -142,8 +150,8 @@ function formSpecifier(input: RespecifyInput, spelled: string, trailingSlash: bo
       return unescapeRegex(shape[1]!) + tail + slash;
     }
   }
-  if (site.kind === 'mock' && site.callee?.startsWith('vi.') && runner.vitest) {
-    for (const alias of runner.vitest.aliases) {
+  if (site.kind === 'mock' && site.callee?.startsWith('vi.') && vitest) {
+    for (const alias of vitest.aliases) {
       if (specifier !== alias.find && !specifier.startsWith(`${alias.find}/`)) continue;
       const tail = aliasTail(alias.replacement);
       if (tail === null || tail === '') throw new SpecifierDecline('alias-escape', specifier, `target leaves alias ${alias.find}`);
@@ -156,12 +164,27 @@ function formSpecifier(input: RespecifyInput, spelled: string, trailingSlash: bo
       const base = pathsBase(input);
       const substitutions = options.paths[match.key] ?? [];
       // The substitution the old specifier actually went through: the one whose expansion reaches the old target.
-      const used = substitutions.find((substitution) => denotes(path.posix.join(base, substitution.replace('*', match.star)), target.from)) ?? substitutions[0];
-      if (!used || !match.key.includes('*') || !used.endsWith('*')) throw new SpecifierDecline('alias-escape', specifier, `paths key ${match.key} cannot express a moved target`);
-      const tail = aliasTail(path.posix.join(base, used.slice(0, -1)).replace(/\/$/, ''));
-      if (tail === null) throw new SpecifierDecline('alias-escape', specifier, `target leaves ${used}`);
+      // `${configDir}` substitutions arrive already absolute from TS; the rest are relative to the paths base.
+      const expand = (substitution: string) => (path.isAbsolute(substitution) ? path.relative(input.root, substitution).split(path.sep).join('/') : path.posix.join(base, substitution));
+      const used = substitutions.find((substitution) => denotes(expand(substitution.replace('*', match.star)), target.from)) ?? substitutions[0];
+      if (!used || !match.key.includes('*') || !used.includes('*')) throw new SpecifierDecline('alias-escape', specifier, `paths key ${match.key} cannot express a moved target`);
+      const [substitutionPrefix, substitutionSuffix] = [used.slice(0, used.indexOf('*')), used.slice(used.indexOf('*') + 1)];
       const star = match.key.indexOf('*');
       const keySuffix = match.key.slice(star + 1);
+      if (substitutionSuffix) {
+        // TS appends the substitution suffix ('src/modules/*/index'), so the `*` capture is the part of the new
+        // target's module path between the substitution's prefix and suffix.
+        const prefixPath = expand(substitutionPrefix);
+        const modulePath = path.posix.join(path.posix.dirname(target.to), stemOf(target.to));
+        if (!modulePath.startsWith(prefixPath) || !modulePath.endsWith(substitutionSuffix) || modulePath.length < prefixPath.length + substitutionSuffix.length) {
+          throw new SpecifierDecline('alias-escape', specifier, `new target isn't expressible through ${used}`);
+        }
+        const capture = modulePath.slice(prefixPath.length, modulePath.length - substitutionSuffix.length);
+        if (capture === '') throw new SpecifierDecline('alias-escape', specifier, `empty capture for ${used}`);
+        return match.key.slice(0, star) + capture + keySuffix;
+      }
+      const tail = aliasTail(expand(substitutionPrefix).replace(/\/$/, ''));
+      if (tail === null) throw new SpecifierDecline('alias-escape', specifier, `target leaves ${used}`);
       // A key suffix ('@x/*.js') is part of the spelling: the tail must end with it, and it is written once.
       if (keySuffix && !tail.endsWith(keySuffix)) throw new SpecifierDecline('alias-escape', specifier, `new tail doesn't end with the key suffix ${keySuffix}`);
       return match.key.slice(0, star) + tail.slice(0, tail.length - keySuffix.length) + keySuffix + slash;
@@ -179,7 +202,9 @@ export function respecify(input: RespecifyInput): string {
   const { spelled, trailingSlash, directoryForm } = spelledPath(input.site.specifier, input.target);
   const result = formSpecifier(input, spelled, trailingSlash, directoryForm);
   // ESM specifiers are URLs: '#', '?' and '%' in a path change their meaning at runtime even though TS accepts them.
-  if (input.importer.format === 'esm' && /[#?%]/.test(result) && result !== input.site.specifier) {
+  // import() is URL-resolved by Node even in a CJS file, unless a compiler downlevels it.
+  const urlResolved = input.importer.format === 'esm' || input.site.kind === 'dynamic-import' || input.site.kind === 'url-reference';
+  if (urlResolved && /[#?%]/.test(result) && result !== input.site.specifier) {
     throw new SpecifierDecline('unsupported-specifier', input.site.specifier, `new specifier '${result}' contains a URL-significant character`);
   }
   return result;

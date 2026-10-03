@@ -254,3 +254,239 @@ describe('semantic preservation', () => {
     expect(codes(move(root, { 'src/view.ts': 'src/view.tsx' }))).toEqual(['extension-change']);
   });
 });
+
+// Round 2 (fix variants, multi-config repos, JS and mixed-module repos).
+const esm = (extra: object = {}) => JSON.stringify({ compilerOptions: { module: 'nodenext', moduleResolution: 'nodenext', strict: true, types: [], ...extra }, include: ['src'] });
+
+describe('round 2: specifier forms', () => {
+  it('MC-1 handles ${configDir} paths substitutions', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ paths: { '@/*': ['${configDir}/src/*'] } }),
+      'src/a.ts': 'export const a = 1;\n',
+      'src/main.ts': "import { a } from '@/a';\nexport const main = a;\n",
+    });
+    expect(codes(move(root, { 'src/a.ts': 'src/lib/a.ts' }))).toEqual(['applied']);
+    expect(read(root, 'src/main.ts')).toContain("from '@/lib/a'");
+  });
+
+  it('B11 keeps a paths substitution suffix (src/modules/*/index)', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ baseUrl: '.', paths: { '@mod/*': ['src/modules/*/index'] } }),
+      'src/modules/user/index.ts': 'export const user = 1;\n',
+      'src/main.ts': "import { user } from '@mod/user';\nexport const main = user;\n",
+    });
+    expect(codes(move(root, { 'src/modules/user/index.ts': 'src/modules/account/index.ts' }))).toEqual(['applied']);
+    expect(read(root, 'src/main.ts')).toContain("from '@mod/account'");
+    expect(typecheck(root)).toEqual([]);
+  });
+
+  it('B12 keeps a directory form whose index carries a moduleSuffix', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ moduleSuffixes: ['.ios', ''] }),
+      'src/core/platform/index.ios.ts': 'export const platform = "ios";\n',
+      'src/main.ts': "import { platform } from './core/platform';\nexport const main = platform;\n",
+    });
+    expect(codes(move(root, { 'src/core/platform/index.ios.ts': 'src/shared/platform/index.ios.ts' }))).toEqual(['applied']);
+    expect(read(root, 'src/main.ts')).toContain("from './shared/platform'");
+  });
+
+  it('B10 keeps an arbitrary-extension asset import (x.d.css.ts declares ./x.css)', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ allowArbitraryExtensions: true }),
+      'src/ui/x.css': '.x {}\n',
+      'src/ui/x.d.css.ts': 'declare const styles: Record<string, string>;\nexport default styles;\n',
+      'src/ui/button.ts': "import styles from './x.css';\nexport const button = styles;\n",
+    });
+    expect(codes(move(root, { 'src/ui/button.ts': 'src/modules/ui/button.ts' }))).toEqual(['applied']);
+    expect(read(root, 'src/modules/ui/button.ts')).toContain("from '../../ui/x.css'");
+  });
+
+  it('JSM-9 rewrites require(..) aimed at a repo-root index', () => {
+    const root = repoFrom({
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', moduleResolution: 'node10', allowJs: true, types: [] }, include: ['.'] }),
+      'index.js': 'module.exports = 1;\n',
+      'test/a.js': "const app = require('..');\nmodule.exports = app;\n",
+    });
+    expect(codes(move(root, { 'test/a.js': 'test/unit/a.js' }))).toEqual(['applied']);
+    expect(read(root, 'test/unit/a.js')).toContain("require('../..')");
+  });
+
+  it('B04/JSM-4 checks URL-significant characters in import() from a CJS file', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs(),
+      'src/util.ts': 'export const util = 1;\n',
+      'src/main.ts': "export const load = () => import('./util');\n",
+    });
+    expect(codes(move(root, { 'src/util.ts': 'src/c#/util.ts' }))).toEqual(['unsupported-specifier']);
+  });
+});
+
+describe('round 2: reference kinds', () => {
+  it('B02 rewrites new URL(..., import.meta.url) in a file that stays', () => {
+    const root = repoFrom({
+      'package.json': '{ "type": "module" }\n',
+      'tsconfig.json': esm({ lib: ['es2022', 'dom'] }),
+      'src/main.ts': "export const worker = new URL('./task.ts', import.meta.url);\n",
+      'src/task.ts': 'export const task = 1;\n',
+    });
+    expect(codes(move(root, { 'src/task.ts': 'src/jobs/task.ts' }))).toEqual(['applied']);
+    expect(read(root, 'src/main.ts')).toContain("new URL('./jobs/task.ts', import.meta.url)");
+  });
+
+  it('B03 treats computed import.meta access in a moved file as location-sensitive', () => {
+    const root = repoFrom({
+      'package.json': '{ "type": "module" }\n',
+      'tsconfig.json': esm(),
+      'src/where.ts': "const meta = import.meta;\nexport const here = meta['url'];\n",
+    });
+    expect(codes(move(root, { 'src/where.ts': 'src/lib/where.ts' }))).toEqual(['location-sensitive']);
+  });
+
+  it('JSM-5 scans extensionless node scripts (bin/www)', () => {
+    const root = repoFrom({
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', moduleResolution: 'node10', allowJs: true, types: [] }, include: ['.'] }),
+      'app.js': 'module.exports = {};\n',
+      'bin/www': "#!/usr/bin/env node\nconst app = require('../app');\nmodule.exports = app;\n",
+    });
+    expect(codes(move(root, { 'app.js': 'src/app.js' }))).toEqual(['applied']);
+    expect(read(root, 'bin/www')).toContain("require('../src/app')");
+  });
+});
+
+describe('round 2: declines', () => {
+  it('B01/JSM-1 declines an explicit split of a .js/.d.ts pair', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ allowJs: true }),
+      'src/greet.js': 'exports.greet = () => "hi";\n',
+      'src/greet.d.ts': 'export declare function greet(): string;\n',
+    });
+    expect(codes(move(root, { 'src/greet.js': 'src/a/greet.js', 'src/greet.d.ts': 'src/b/greet.d.ts' }))).toEqual(['split-pair']);
+  });
+
+  it('JSM-8 declines moving one side of a same-stem .ts/.js pair (plan §2.5)', () => {
+    const root = repoFrom({ 'tsconfig.json': cjs(), 'src/x.ts': 'export const x = 1;\n', 'src/x.js': 'exports.x = 1;\n' });
+    expect(codes(move(root, { 'src/x.ts': 'src/lib/x.ts' }))).toContain('split-pair');
+  });
+
+  it('B14 declines moving an arbitrary-extension declaration away from its asset', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ allowArbitraryExtensions: true }),
+      'src/x.css': '.x {}\n',
+      'src/x.d.css.ts': 'declare const styles: Record<string, string>;\nexport default styles;\n',
+    });
+    expect(codes(move(root, { 'src/x.d.css.ts': 'src/ui/x.d.css.ts' }))).toContain('split-pair');
+  });
+
+  it('B05 declines when a single-file nested package would be picked up', () => {
+    const root = repoFrom(
+      { 'tsconfig.json': cjs(), '.gitignore': 'node_modules/\nnode_modules\n', 'src/main.ts': "import dep from 'dep';\nexport const main = dep;\n" },
+      { 'node_modules/dep/index.js': 'module.exports = 1;\n', 'src/nested/node_modules/dep.js': 'module.exports = 2;\n' },
+    );
+    expect(codes(move(root, { 'src/main.ts': 'src/nested/main.ts' }))).toEqual(['package-resolution-change']);
+  });
+
+  it('B06/JSM-6 reads the Jest test scope from package.json', () => {
+    const root = repoFrom({
+      'package.json': JSON.stringify({ jest: { roots: ['<rootDir>/src'] } }),
+      'tsconfig.json': cjs(),
+      'src/sum.test.ts': 'export const check = 1;\n',
+    });
+    expect(codes(move(root, { 'src/sum.test.ts': 'tests/sum.test.ts' }))).toContain('test-runner-scope');
+  });
+
+  it('MC-5 honours testPathIgnorePatterns', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs(),
+      'jest.config.js': "module.exports = { testPathIgnorePatterns: ['/fixtures/'] };\n",
+      'src/sum.test.ts': 'export const check = 1;\n',
+    });
+    expect(codes(move(root, { 'src/sum.test.ts': 'src/fixtures/sum.test.ts' }))).toContain('test-runner-scope');
+  });
+
+  it('MC-4/B07 checks every Jest config in a monorepo, not just the last', () => {
+    const root = repoFrom({
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', moduleResolution: 'node10', types: [] }, include: ['packages'] }),
+      'packages/a/jest.config.js': "module.exports = { roots: ['<rootDir>/src'] };\n",
+      'packages/b/jest.config.js': "module.exports = { roots: ['<rootDir>/src'] };\n",
+      'packages/a/src/x.test.ts': 'export const check = 1;\n',
+    });
+    expect(codes(move(root, { 'packages/a/src/x.test.ts': 'packages/a/other/x.test.ts' }))).toContain('test-runner-scope');
+  });
+
+  it('JSM-7 declines when a Jest config is mutated after its declaration', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs(),
+      'jest.config.js': "const config = {};\nconfig.roots = ['<rootDir>/src'];\nmodule.exports = config;\n",
+      'src/a.ts': 'export const a = 1;\n',
+    });
+    expect(codes(move(root, { 'src/a.ts': 'src/lib/a.ts' }))).toEqual(['unreadable-runner-config']);
+  });
+
+  it('MC-2 declines a file whose programs resolve differently', () => {
+    const root = repoFrom({
+      'tsconfig.json': cjs({ baseUrl: '.', paths: { '@/*': ['src/*'] } }),
+      'tsconfig.alt.json': cjs({ baseUrl: '.', paths: { '@/*': ['alt/*'] } }),
+      'src/a.ts': 'export const a = 1;\n',
+      'alt/a.ts': 'export const a = 2;\n',
+      'src/main.ts': "import { a } from '@/a';\nexport const main = a;\n",
+    });
+    // Under tsconfig.json '@/a' is src/a.ts (moves, so it becomes '@/lib/a'); under tsconfig.alt.json it is
+    // alt/a.ts, which '@/lib/a' would no longer reach.
+    expect(codes(move(root, { 'src/a.ts': 'src/lib/a.ts' }))).toEqual(['multi-program-file']);
+  });
+
+  it('MC-6/B08 sees emitted paths with rootDir unset (TS 5 common source directory)', () => {
+    const root = repoFrom({
+      'package.json': '{ "main": "dist/commands/run.js" }\n',
+      'tsconfig.json': cjs({ outDir: 'dist' }),
+      'src/commands/run.ts': 'export const run = 1;\n',
+      'src/lib/util.ts': 'export const util = 1;\n',
+    });
+    expect(codes(move(root, { 'src/commands/run.ts': 'src/cli/run.ts' }))).toEqual(['config-reference']);
+  });
+
+  it('MC-7 does not match a config key that equals a flat file stem', () => {
+    const root = repoFrom({
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', moduleResolution: 'node10', types: [] }, include: ['*.ts', 'src'] }),
+      'types.ts': 'export type Id = string;\n',
+      'src/main.ts': "import type { Id } from '../types';\nexport const id: Id = 'x';\n",
+    });
+    expect(codes(move(root, { 'types.ts': 'src/types.ts' }))).toEqual(['applied']);
+    expect(read(root, 'src/main.ts')).toContain("from './types'");
+  });
+
+  it('JSM-2 treats package.json "main": "./lib" as a reference to lib/index.js', () => {
+    const root = repoFrom({
+      'package.json': '{ "main": "./lib" }\n',
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', moduleResolution: 'node10', allowJs: true, types: [] }, include: ['lib', 'src'] }),
+      'lib/index.js': 'module.exports = 1;\n',
+    });
+    expect(codes(move(root, { 'lib/index.js': 'src/index.js' }))).toEqual(['config-reference']);
+  });
+
+  it('JSM-3 reads a package.json "type" behind a BOM', () => {
+    const root = repoFrom({
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'nodenext', moduleResolution: 'nodenext', types: [] }, include: ['src', 'esm'] }),
+      'src/a.ts': 'export const a = 1;\n',
+      'esm/package.json': '﻿{ "type": "module" }\n',
+    });
+    expect(codes(move(root, { 'src/a.ts': 'esm/a.ts' }))).toContain('module-format-change');
+  });
+});
+
+describe('round 2: workspaces', () => {
+  it('MC-3 sees through a workspace symlink and declines rewriting a bare package path', () => {
+    const root = repoFrom({
+      'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', moduleResolution: 'node10', types: [] }, include: ['packages'] }),
+      '.gitignore': 'node_modules\n',
+      'packages/a/package.json': '{ "name": "a" }\n',
+      'packages/a/src/util.ts': 'export const util = 1;\n',
+      'packages/b/src/main.ts': "import { util } from 'a/src/util';\nexport const main = util;\n",
+    });
+    fs.mkdirSync(path.join(root, 'node_modules'));
+    fs.symlinkSync('../packages/a', path.join(root, 'node_modules/a'));
+    const result = move(root, { 'packages/a/src/util.ts': 'packages/a/src/lib/util.ts' });
+    expect(result.outcome).toBe('declined');
+    expect(codes(result)).toContain('alias-escape');
+  });
+});

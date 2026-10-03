@@ -14,6 +14,16 @@ export function isSourceFile(file: string): boolean {
   return sourcePattern.test(file) && !file.split('/').includes('node_modules');
 }
 
+/** Extensionless executables run by Node (`bin/www` with a `#!/usr/bin/env node` line) are JavaScript too. */
+export function isNodeScript(repo: RepoFs, file: string): boolean {
+  if (path.posix.basename(file).includes('.') || file.split('/').includes('node_modules')) return false;
+  const text = repo.read(file);
+  return text !== undefined && /^#![^\n]*\bnode\b/.test(text);
+}
+
+/** JSON text without a leading BOM (JSON.parse rejects it; Node strips it for package.json). */
+export const stripBom = (text: string) => (text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+
 /** Node's module format for a file at this path: extension first, then the nearest package.json `type`. */
 export function moduleFormat(repo: RepoFs, file: string): ModuleFormat {
   if (/\.(mts|mjs)$/.test(file)) return 'esm';
@@ -22,7 +32,7 @@ export function moduleFormat(repo: RepoFs, file: string): ModuleFormat {
     const manifest = repo.read(directory === '.' ? 'package.json' : `${directory}/package.json`);
     if (manifest !== undefined) {
       try {
-        return JSON.parse(manifest).type === 'module' ? 'esm' : 'cjs';
+        return JSON.parse(stripBom(manifest)).type === 'module' ? 'esm' : 'cjs';
       } catch {
         return 'cjs';
       }
@@ -31,7 +41,8 @@ export function moduleFormat(repo: RepoFs, file: string): ModuleFormat {
   }
 }
 
-export type SiteResolver = (file: string, site: ReferenceSite) => Resolution;
+/** Resolves a site in `file`; `options` overrides the file's own scope (to ask "and under that other program?"). */
+export type SiteResolver = (file: string, site: ReferenceSite, options?: ts.CompilerOptions) => Resolution;
 
 interface AnalyzerContext {
   scopeOf: ReturnType<typeof loadScopes>;
@@ -51,7 +62,7 @@ function createContext(repo: RepoFs, runner?: RunnerConfig): AnalyzerContext {
       return cache;
     },
   };
-  return { scopeOf, resolve: (file, site) => resolveSite(context, file, moduleFormat(repo, file), site, scopeOf(file).options) };
+  return { scopeOf, resolve: (file, site, options) => resolveSite(context, file, moduleFormat(repo, file), site, options ?? scopeOf(file).options) };
 }
 
 /** Resolves single sites as if they sat in `file` of `repo` (used to ask "does this specifier still work after the move?"). */
@@ -62,7 +73,7 @@ export function createSiteResolver(repo: RepoFs, runner?: RunnerConfig): SiteRes
 export function analyzeRepo(repo: RepoFs, { files, runner }: { files?: string[]; runner?: RunnerConfig } = {}): Analysis {
   const { scopeOf, resolve } = createContext(repo, runner);
   const analysis: Analysis = { files: new Map() };
-  for (const file of files ?? repo.tracked().filter(isSourceFile)) {
+  for (const file of files ?? repo.tracked().filter((file) => isSourceFile(file) || isNodeScript(repo, file))) {
     const text = repo.read(file);
     if (text === undefined) continue;
     const { sites, hazards } = extractSites(file, text);

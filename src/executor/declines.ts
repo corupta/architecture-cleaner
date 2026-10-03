@@ -15,7 +15,7 @@ export type DeclineCode =
   | 'unknown-source' | 'case-only-rename' | 'destination-exists' | 'ignored-destination' | 'location-sensitive'
   | 'dynamic-reference' | 'config-reference' | 'module-format-change' | 'compile-context-change' | 'alias-escape' | 'unsupported-literal'
   | 'unsupported-specifier' | 'extension-change' | 'ambient-declaration' | 'split-pair' | 'symlink' | 'package-resolution-change'
-  | 'test-runner-scope' | 'dirty-worktree' | 'unsupported-encoding';
+  | 'test-runner-scope' | 'dirty-worktree' | 'unsupported-encoding' | 'unreadable-runner-config' | 'multi-program-file';
 
 export interface Decline {
   code: DeclineCode;
@@ -77,8 +77,9 @@ export function globToRegExp(glob: string): RegExp {
 function inScope(file: string, scope: TestScope, defaults: { include: string[]; exclude: string[] }): boolean {
   if (!scope.roots.some((root) => root === '' || file.startsWith(`${root}/`))) return false;
   const include = scope.include.length ? scope.include : defaults.include;
-  const exclude = scope.exclude.length ? scope.exclude : defaults.exclude;
-  return include.some((glob) => globToRegExp(glob).test(file)) && !exclude.some((glob) => globToRegExp(glob).test(file));
+  const exclude = [...scope.exclude, ...(scope.exclude.length ? [] : defaults.exclude)];
+  return include.some((glob) => globToRegExp(glob).test(file)) && !exclude.some((glob) => globToRegExp(glob).test(file))
+    && !scope.excludePatterns.some((pattern) => pattern.test(`/${file}`));
 }
 
 function packageName(specifier: string): string {
@@ -91,8 +92,27 @@ function nearestPackage(repo: RepoFs, directory: string, name: string): string |
   for (let current = directory; ; current = path.posix.dirname(current)) {
     const candidate = current === '.' ? `node_modules/${name}` : `${current}/node_modules/${name}`;
     if (repo.directoryExists(toAbsolute(repo, candidate))) return candidate;
+    // Node also loads a package that is a single file: node_modules/dep.js / .json / .node.
+    for (const extension of ['.js', '.json', '.node']) if (repo.fileExists(toAbsolute(repo, candidate + extension))) return candidate + extension;
     if (current === '.' || current === '') return null;
   }
+}
+
+const pairedImplementation: [RegExp, string][] = [[/\.d\.ts$/, '.js'], [/\.d\.mts$/, '.mjs'], [/\.d\.cts$/, '.cjs'], [/\.js$/, '.d.ts'], [/\.mjs$/, '.d.mts'], [/\.cjs$/, '.d.cts']];
+const sameStemPairs: [RegExp, string][] = [[/\.ts$/, '.js'], [/\.tsx$/, '.jsx'], [/\.mts$/, '.mjs'], [/\.cts$/, '.cjs'], [/\.js$/, '.ts'], [/\.jsx$/, '.tsx'], [/\.mjs$/, '.mts'], [/\.cjs$/, '.cts']];
+
+/** Longest common directory of a program's non-declaration files: TS 5's default rootDir. */
+function commonSourceDirectory(files: ReadonlySet<string>): string {
+  const directories = [...files].filter((file) => !/\.d\.[cm]?ts$/.test(file)).map((file) => path.posix.dirname(file).split('/'));
+  if (directories.length === 0) return '';
+  const first = directories[0]!;
+  let length = first.length;
+  for (const parts of directories) {
+    let shared = 0;
+    while (shared < length && parts[shared] === first[shared]) shared++;
+    length = shared;
+  }
+  return first.slice(0, length).join('/').replace(/^\.$/, '');
 }
 
 const emittedExtension: Record<string, string> = { '.ts': '.js', '.tsx': '.js', '.mts': '.mjs', '.cts': '.cjs' };
@@ -113,10 +133,37 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
   for (const ignored of ignoredPaths(repo, [...moves.values()])) declines.push({ code: 'ignored-destination', file: destinations.get(ignored) ?? ignored, detail: ignored });
 
   const scopesBefore = loadScopes(repo);
+  // An unreadable runner config only matters for files it governs (its directory and below): moved files, and
+  // files whose mocks point at moved files.
+  const mockImporters = [...analysis.files.values()].filter((file) => file.sites.some((site) => site.kind === 'mock'
+    && site.resolution.type === 'file' && moves.has(site.resolution.path))).map((file) => file.path);
+  const governed = [...moves.keys(), ...moves.values(), ...mockImporters];
+  for (const entry of runner.unreadable) {
+    const directory = path.posix.dirname(entry.config).replace(/^\.$/, '');
+    const affected = governed.find((file) => directory === '' || file.startsWith(`${directory}/`));
+    if (affected) declines.push({ code: 'unreadable-runner-config', file: entry.config, detail: `${entry.reason} (governs ${affected})` });
+  }
   for (const [from, to] of moves) {
     if (!tracked.has(from)) continue;
+    // Declaration pairs move as one: an explicit pathmap must not send the halves to different places.
+    for (const [pattern, suffix] of pairedImplementation) {
+      if (!pattern.test(from)) continue;
+      const partner = from.replace(pattern, suffix);
+      if (tracked.has(partner) && moves.has(partner) && moves.get(partner) !== to.replace(pattern, suffix)) {
+        declines.push({ code: 'split-pair', file: from, detail: `${partner} goes to ${moves.get(partner)}, not next to ${to}` });
+      }
+    }
+    // Plan §2.5: a .ts and a .js with the same stem are ambiguous (TS picks the .ts, Node the committed .js).
+    for (const [pattern, suffix] of sameStemPairs) {
+      const partner = pattern.test(from) && !/\.d\.[cm]?ts$/.test(from) ? from.replace(pattern, suffix) : null;
+      if (partner && tracked.has(partner)) declines.push({ code: 'split-pair', file: from, detail: `same-stem pair with ${partner}` });
+    }
     if (extensionOf(from) !== extensionOf(to)) declines.push({ code: 'extension-change', file: from, detail: `${extensionOf(from)} -> ${extensionOf(to)}` });
     if (fs.lstatSync(toAbsolute(repo, from), { throwIfNoEntry: false })?.isSymbolicLink()) declines.push({ code: 'symlink', file: from, detail: 'tracked symlink' });
+    const arbitraryDeclaration = /^(.*)\.d\.([^./]+)\.ts$/.exec(from);
+    if (arbitraryDeclaration && tracked.has(`${arbitraryDeclaration[1]}.${arbitraryDeclaration[2]}`) && !moves.has(`${arbitraryDeclaration[1]}.${arbitraryDeclaration[2]}`)) {
+      declines.push({ code: 'split-pair', file: from, detail: `declares the asset ${arbitraryDeclaration[1]}.${arbitraryDeclaration[2]}, which never moves` });
+    }
     if (/\.d\.[cm]?ts$/.test(from)) {
       const declared = from.replace(/\.d\.[cm]?ts$/, '');
       if (tracked.has(declared) && !moves.has(declared) && !/\.[cm]?[jt]sx?$/.test(declared)) declines.push({ code: 'split-pair', file: from, detail: `declares the asset ${declared}, which never moves` });
@@ -135,11 +182,14 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
       const after = nearestPackage(repo, path.posix.dirname(to), name);
       if (before !== after) declines.push({ code: 'package-resolution-change', file: from, detail: `'${name}' from ${before ?? 'nowhere'} -> ${after ?? 'nowhere'}` });
     }
-    if (runner.jest && inScope(from, runner.jest.scope, { include: jestDefaultMatch, exclude: [] }) !== inScope(to, runner.jest.scope, { include: jestDefaultMatch, exclude: [] })) {
-      declines.push({ code: 'test-runner-scope', file: from, detail: `Jest test membership changes at ${to}` });
+    // Every runner config counts: in a monorepo a test can leave one package's set and enter another's.
+    for (const jest of runner.jest) {
+      const defaults = { include: jestDefaultMatch, exclude: [] };
+      if (inScope(from, jest.scope, defaults) !== inScope(to, jest.scope, defaults)) declines.push({ code: 'test-runner-scope', file: from, detail: `${jest.config}: test membership changes at ${to}` });
     }
-    if (runner.vitest && inScope(from, runner.vitest.scope, { include: vitestDefaultInclude, exclude: vitestDefaultExclude }) !== inScope(to, runner.vitest.scope, { include: vitestDefaultInclude, exclude: vitestDefaultExclude })) {
-      declines.push({ code: 'test-runner-scope', file: from, detail: `Vitest test membership changes at ${to}` });
+    for (const vitest of runner.vitest) {
+      const defaults = { include: vitestDefaultInclude, exclude: vitestDefaultExclude };
+      if (inScope(from, vitest.scope, defaults) !== inScope(to, vitest.scope, defaults)) declines.push({ code: 'test-runner-scope', file: from, detail: `${vitest.config}: test membership changes at ${to}` });
     }
   }
 
@@ -149,26 +199,40 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
     }
   }
 
-  // MVP: never edit configs; refuse the step when one names a moved file (repo- or config-relative, with or without extension).
+  // MVP: never edit configs; refuse the step when one names a moved file: its repo- or config-relative path, with or
+  // without extension, its directory for an index file (package.json "main": "./lib"), or its emitted path.
+  const programFiles = new Map<string, ReadonlySet<string>>([...scopesBefore.programs].map(([config, program]) => [config, program.files]));
   for (const config of repo.tracked().filter((file) => configPattern.test(file) && !file.includes('node_modules/'))) {
     const text = repo.read(config) ?? '';
     const configDirectory = path.posix.dirname(config);
     for (const from of moves.keys()) {
-      const variants = new Set([from, path.posix.relative(configDirectory, from)]);
-      // The emitted path too (rootDir → outDir, .ts → .js): package.json main/bin and scripts name build output.
-      const options = scopesBefore(from).options;
+      const paths = new Set<string>([from]);
+      const scope = scopesBefore(from);
+      const options = scope.options;
       if (options.outDir && /\.[cm]?tsx?$/.test(from) && !/\.d\.[cm]?ts$/.test(from)) {
         const outDirectory = path.relative(repo.root, options.outDir).split(path.sep).join('/');
-        const rootDirectory = options.rootDir ? path.relative(repo.root, options.rootDir).split(path.sep).join('/') : path.posix.dirname(from);
-        const relative = rootDirectory === '' ? from : path.posix.relative(rootDirectory, from);
-        if (!relative.startsWith('..')) {
-          const emitted = path.posix.join(outDirectory, relative.replace(/\.[cm]?tsx?$/, (extension) => emittedExtension[extension] ?? '.js'));
-          variants.add(emitted);
-          variants.add(path.posix.relative(configDirectory, emitted));
+        // rootDir when set; otherwise both defaults: TS 6 (the tsconfig's directory) and TS 5 (common source directory).
+        const roots = options.rootDir ? [path.relative(repo.root, options.rootDir).split(path.sep).join('/')]
+          : [scope.config ? path.posix.dirname(scope.config).replace(/^\.$/, '') : '', commonSourceDirectory(programFiles.get(scope.config ?? '') ?? new Set())];
+        for (const root of new Set(roots)) {
+          const relative = root === '' ? from : path.posix.relative(root, from);
+          if (!relative.startsWith('..')) paths.add(path.posix.join(outDirectory, relative.replace(/\.[cm]?tsx?$/, (extension) => emittedExtension[extension] ?? '.js')));
         }
       }
-      for (const variant of [...variants]) variants.add(variant.replace(/\.[cm]?[jt]sx?$/, ''));
-      const hit = [...variants].find((variant) => new RegExp(`(?<![\\w.-])(\\./)?${escapeRegex(variant)}(\\.[cm]?[jt]sx?)?(?![\\w/.-])`).test(text));
+      const variants = new Set<string>();
+      for (const file of paths) {
+        for (const base of [file, path.posix.relative(configDirectory, file)]) {
+          variants.add(base);
+          variants.add(base.replace(/\.[cm]?[jt]sx?$/, ''));
+          if (/^index\.[cm]?[jt]sx?$/.test(path.posix.basename(base))) variants.add(path.posix.dirname(base));
+        }
+      }
+      const hit = [...variants].filter((variant) => variant && variant !== '.').find((variant) => {
+        // A bare word (no '/' and no extension) only counts when spelled './word', so keys like "types" don't match.
+        const bare = !variant.includes('/') && !/\.[cm]?[jt]sx?$/.test(variant);
+        const prefix = bare ? '\\./' : '(\\./)?';
+        return new RegExp(`(?<![\\w.-])${prefix}${escapeRegex(variant)}(\\.[cm]?[jt]sx?)?(?![\\w/.-])`).test(text);
+      });
       if (hit) declines.push({ code: 'config-reference', file: from, detail: `${config} mentions ${hit}` });
     }
   }

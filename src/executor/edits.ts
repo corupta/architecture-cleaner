@@ -52,7 +52,15 @@ export function planEdits(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<s
           runner,
           root: repo.root,
         });
-        if (after !== site.specifier) edits.push({ file: file.path, start: site.start, end: site.end, before: site.specifier, after, kind: site.kind });
+        if (after === site.specifier) continue;
+        // The new spelling must reach the new target from the importer's new location; a spelling that is shadowed
+        // or reinterpreted (another file, another program's options) is declined here rather than left to verify.
+        const reached = resolveAfter(newFile, { ...site, specifier: after });
+        if (reached.type !== 'file' || reached.path !== newTarget) {
+          declines.push({ code: 'unsupported-specifier', file: file.path, detail: `'${site.specifier}' -> '${after}' reaches ${reached.type === 'unresolved' ? 'nothing' : reached.path} instead of ${newTarget}` });
+          continue;
+        }
+        edits.push({ file: file.path, start: site.start, end: site.end, before: site.specifier, after, kind: site.kind });
       } catch (error) {
         if (!(error instanceof SpecifierDecline)) throw error;
         declines.push({ code: error.code, file: file.path, detail: error.message });

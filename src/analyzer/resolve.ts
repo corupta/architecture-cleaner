@@ -5,7 +5,7 @@ import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import ts from 'typescript';
 import { type RepoFs, toAbsolute, toRelative } from './repo-fs.js';
-import type { RunnerConfig } from './runner-config.js';
+import { nearestConfig, type RunnerConfig } from './runner-config.js';
 import type { ModuleFormat, ReferenceSite, Resolution } from './types.js';
 
 const jestExtensions = ['', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.json'];
@@ -21,9 +21,20 @@ export interface ResolveContext {
   cacheFor(options: ts.CompilerOptions): ts.ModuleResolutionCache;
 }
 
+const trackedSets = new WeakMap<readonly string[], Set<string>>();
+function isTracked(repo: RepoFs, file: string): boolean {
+  const tracked = repo.tracked();
+  let set = trackedSets.get(tracked);
+  if (!set) trackedSets.set(tracked, (set = new Set(tracked)));
+  return set.has(file);
+}
+
 function classify(repo: RepoFs, resolvedFileName: string, external: boolean | undefined, via: 'typescript' | 'jest' | 'vitest' | 'filesystem'): Resolution {
   const relativePath = toRelative(repo, resolvedFileName);
-  if (external || relativePath.startsWith('..') || relativePath.split('/').includes('node_modules')) return { type: 'external', path: resolvedFileName, via };
+  if (relativePath.startsWith('..') || relativePath.split('/').includes('node_modules')) return { type: 'external', path: resolvedFileName, via };
+  // TS flags anything found through node_modules as external, but a workspace link (node_modules/a -> packages/a)
+  // realpaths onto a tracked repo file: that file is what moves, so it must be treated as a repo file.
+  if (external && !isTracked(repo, relativePath)) return { type: 'external', path: resolvedFileName, via };
   return { type: 'file', path: relativePath, via };
 }
 
@@ -56,8 +67,10 @@ function resolveWithTypeScript(context: ResolveContext, file: string, specifier:
 function resolveMock(context: ResolveContext, file: string, site: ReferenceSite, options: ts.CompilerOptions): Resolution {
   const { runner, repo } = context;
   const specifier = site.specifier;
-  if (site.callee?.startsWith('vi.') && runner.vitest) {
-    for (const alias of runner.vitest.aliases) {
+  const vitest = nearestConfig(runner.vitest, file);
+  const jest = nearestConfig(runner.jest, file);
+  if (site.callee?.startsWith('vi.') && vitest) {
+    for (const alias of vitest.aliases) {
       if (specifier === alias.find || specifier.startsWith(`${alias.find}/`)) {
         const found = probe(repo, alias.replacement + specifier.slice(alias.find.length), viteExtensions);
         return found ? { type: 'file', path: found, via: 'vitest' } : { type: 'unresolved' };
@@ -68,8 +81,8 @@ function resolveMock(context: ResolveContext, file: string, site: ReferenceSite,
       return found ? { type: 'file', path: found, via: 'vitest' } : { type: 'unresolved' };
     }
   }
-  if (site.callee?.startsWith('jest.') && runner.jest) {
-    for (const mapper of runner.jest.mappers) {
+  if (site.callee?.startsWith('jest.') && jest) {
+    for (const mapper of jest.mappers) {
       if (mapper.pattern.test(specifier)) {
         const mapped = specifier.replace(mapper.pattern, mapper.replacement);
         const base = isRelative(mapped) ? path.posix.join(path.posix.dirname(file), mapped) : mapped;
@@ -94,6 +107,10 @@ export function resolveSite(context: ResolveContext, file: string, format: Modul
     }
     case 'mock':
       return resolveMock(context, file, site, options);
+    case 'url-reference': {
+      const candidate = path.posix.join(path.posix.dirname(file), site.specifier);
+      return context.repo.fileExists(toAbsolute(context.repo, candidate)) ? { type: 'file', path: candidate, via: 'filesystem' } : { type: 'unresolved' };
+    }
     case 'require':
     case 'require-resolve':
     case 'import-equals':

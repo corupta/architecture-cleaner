@@ -54,11 +54,25 @@ function parseConfigHost(repo: RepoFs): ts.ParseConfigFileHost {
   };
 }
 
-export function loadScopes(repo: RepoFs): (file: string) => Scope {
+export type ScopeLookup = ((file: string) => Scope) & {
+  /** Parsed options and program files of a tsconfig (repo-relative), for every tsconfig in the repo. */
+  programs: ReadonlyMap<string, { options: ts.CompilerOptions; files: ReadonlySet<string> }>;
+};
+
+export function loadScopes(repo: RepoFs): ScopeLookup {
   const host = parseConfigHost(repo);
   const configs = repo.tracked().filter((file) => tsconfigPattern.test(file) && !file.includes('node_modules/'));
-  const parsed = new Map<string, { options: ts.CompilerOptions; files: Set<string> }>();
+  // A config that other configs extend is a base, not a program of its own (tsconfig.base.json), unless it is the
+  // directory's tsconfig.json (Nest: tsconfig.build.json extends the tsconfig.json that tsc and the IDE use).
+  const extendedBases = new Set<string>();
   for (const config of configs) {
+    const raw = ts.parseConfigFileTextToJson(config, repo.read(config) ?? '').config as { extends?: string | string[] } | undefined;
+    for (const base of [raw?.extends ?? []].flat()) {
+      if (base.startsWith('.')) extendedBases.add(path.posix.normalize(path.posix.join(path.posix.dirname(config), base.endsWith('.json') ? base : `${base}.json`)));
+    }
+  }
+  const parsed = new Map<string, { options: ts.CompilerOptions; files: Set<string> }>();
+  for (const config of configs.filter((candidate) => !extendedBases.has(candidate) || path.posix.basename(candidate) === 'tsconfig.json')) {
     const commandLine = ts.getParsedCommandLineOfConfigFile(toAbsolute(repo, config), {}, host);
     if (!commandLine) continue;
     parsed.set(config, { options: withLegacyShim(commandLine.options), files: new Set(commandLine.fileNames.map((fileName) => toRelative(repo, fileName))) });
@@ -67,7 +81,7 @@ export function loadScopes(repo: RepoFs): (file: string) => Scope {
   const isPrimary = (config: string) => path.posix.basename(config) === 'tsconfig.json';
   const byPreference = [...parsed.keys()].sort((a, b) => depth(b) - depth(a) || Number(isPrimary(b)) - Number(isPrimary(a)) || a.localeCompare(b));
   const cache = new Map<string, Scope>();
-  return (file) => {
+  const lookup = (file: string): Scope => {
     const cached = cache.get(file);
     if (cached) return cached;
     const programs = byPreference.filter((candidate) => parsed.get(candidate)!.files.has(file)).sort();
@@ -80,6 +94,7 @@ export function loadScopes(repo: RepoFs): (file: string) => Scope {
     cache.set(file, scope);
     return scope;
   };
+  return Object.assign(lookup, { programs: parsed });
 }
 
 function isAncestor(config: string, file: string): boolean {

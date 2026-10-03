@@ -94,9 +94,20 @@ export function extractSites(fileName: string, text: string): ExtractedFile {
       }
     } else if (ts.isIdentifier(node) && (node.text === '__dirname' || node.text === '__filename') && isValueReference(node)) {
       hazards.push({ kind: 'location-sensitive', detail: node.text, offset: node.getStart(sourceFile) });
-    } else if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword && ts.isPropertyAccessExpression(node.parent)
-      && ['url', 'dirname', 'filename', 'resolve'].includes(node.parent.name.text)) {
-      hazards.push({ kind: 'location-sensitive', detail: `import.meta.${node.parent.name.text}`, offset: node.getStart(sourceFile) });
+    } else if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword) {
+      // Any use of import.meta except the bundler's env/hot objects can expose the module's own location
+      // (import.meta.url, import.meta['url'], `const { url } = import.meta`, aliasing).
+      const member = ts.isPropertyAccessExpression(node.parent) ? node.parent.name.text : null;
+      if (member !== 'env' && member !== 'hot') hazards.push({ kind: 'location-sensitive', detail: `import.meta${member ? `.${member}` : ' (computed)'}`, offset: node.getStart(sourceFile) });
+    }
+    // `new URL('./x', import.meta.url)` and `import.meta.resolve('./x')` reference a file by its relative path.
+    if (ts.isNewExpression(node) && node.expression.getText(sourceFile) === 'URL' && node.arguments?.length === 2) {
+      const [first, second] = node.arguments;
+      if (first && ts.isStringLiteralLike(first) && /^\.\.?\//.test(first.text) && second?.getText(sourceFile) === 'import.meta.url') literalSite(first, 'url-reference');
+    }
+    if (ts.isCallExpression(node) && node.expression.getText(sourceFile) === 'import.meta.resolve') {
+      const [first] = node.arguments;
+      if (first && ts.isStringLiteralLike(first) && /^\.\.?\//.test(first.text)) literalSite(first, 'url-reference');
     }
     ts.forEachChild(node, visit);
     // JSDoc (`@import`, `@type {import('./x').T}`) is real module syntax in checkJs files; forEachChild skips it.
