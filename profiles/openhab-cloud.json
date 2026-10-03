@@ -1,0 +1,7 @@
+{
+  "name": "openhab-cloud",
+  "packageRoot": "",
+  "node": "system",
+  "offline": true,
+  "runner": { "kind": "mocha", "cwd": "", "args": ["--require", "tsx", "tests/mocha/unit/**/*.ts", "--recursive"] }
+}

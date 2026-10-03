@@ -1,0 +1,7 @@
+{
+  "name": "mcphub",
+  "packageRoot": "",
+  "node": "system",
+  "offline": true,
+  "runner": { "kind": "jest", "cwd": "", "config": "jest.config.cjs" }
+}
