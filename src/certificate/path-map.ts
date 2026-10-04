@@ -37,11 +37,17 @@ function similarity(from: string, to: string): number {
   return (path.posix.basename(from) === path.posix.basename(to) ? 1_000_000 : 0) + suffix * 1000 + prefix;
 }
 
-/** Pairs equal-key sources and destinations: greedy by similarity, then lexical order (deterministic). */
-function pairGroup(sources: string[], destinations: string[]): [string, string][] {
+/**
+ * Pairs equal-key sources and destinations: first where the unambiguous files of the source's directory went (two
+ * identical `index.ts` barrels follow their own feature's files), then by similarity, then lexical order (deterministic).
+ */
+function pairGroup(sources: string[], destinations: string[], destinationDirectory: (directory: string) => string | undefined): [string, string][] {
   if (sources.length === 1 && destinations.length === 1) return [[sources[0]!, destinations[0]!]];
   const candidates: { from: string; to: string; score: number }[] = [];
-  for (const from of sources) for (const to of destinations) candidates.push({ from, to, score: similarity(from, to) });
+  for (const from of sources) {
+    const followed = destinationDirectory(path.posix.dirname(from));
+    for (const to of destinations) candidates.push({ from, to, score: (followed === path.posix.dirname(to) ? 1_000_000_000 : 0) + similarity(from, to) });
+  }
   candidates.sort((x, y) => y.score - x.score || x.from.localeCompare(y.from) || x.to.localeCompare(y.to));
   const usedFrom = new Set<string>();
   const usedTo = new Set<string>();
@@ -53,6 +59,20 @@ function pairGroup(sources: string[], destinations: string[]): [string, string][
     pairs.push([from, to]);
   }
   return pairs;
+}
+
+/** Directory → the directory most of its matched files went to (none on a tie). */
+function directoryVotes(forward: ReadonlyMap<string, string>): (directory: string) => string | undefined {
+  const votes = new Map<string, Map<string, number>>();
+  for (const [from, to] of forward) {
+    const counts = votes.get(path.posix.dirname(from)) ?? new Map<string, number>();
+    counts.set(path.posix.dirname(to), (counts.get(path.posix.dirname(to)) ?? 0) + 1);
+    votes.set(path.posix.dirname(from), counts);
+  }
+  return (directory) => {
+    const ranked = [...(votes.get(directory) ?? [])].sort(([, a], [, b]) => b - a);
+    return ranked.length && (ranked.length === 1 || ranked[0]![1] > ranked[1]![1]) ? ranked[0]![0] : undefined;
+  };
 }
 
 export function inferPathMap(base: CommitTree, head: CommitTree, baseViews: Views, headViews: Views): PathMap {
@@ -77,7 +97,10 @@ export function inferPathMap(base: CommitTree, head: CommitTree, baseViews: View
   destinations = destinations.filter((file) => !inverse.has(file));
 
   const ambiguous: PathMap['ambiguous'] = [];
-  const matchBy = (keyOf: (tree: 'base' | 'head', file: string) => string | undefined) => {
+  type KeyOf = (tree: 'base' | 'head', file: string) => string | undefined;
+  const oidOf: KeyOf = (tree, file) => (tree === 'base' ? base : head).entries.get(file)?.oid;
+  const spanKeyOf: KeyOf = (tree, file) => (tree === 'base' ? baseViews : headViews)(file)?.key;
+  const groupsBy = (keyOf: KeyOf) => {
     const groups = new Map<string, { sources: string[]; destinations: string[] }>();
     const group = (key: string) => {
       let entry = groups.get(key);
@@ -92,16 +115,38 @@ export function inferPathMap(base: CommitTree, head: CommitTree, baseViews: View
       const key = keyOf('head', file);
       if (key !== undefined) group(key).destinations.push(file);
     }
-    for (const [key, entry] of groups) {
-      if (!entry.sources.length || !entry.destinations.length) continue;
-      if (entry.sources.length > 1 || entry.destinations.length > 1) ambiguous.push({ key, sources: [...entry.sources].sort(), destinations: [...entry.destinations].sort() });
-      for (const [from, to] of pairGroup(entry.sources, entry.destinations)) link(from, to);
-    }
-    sources = sources.filter((file) => !forward.has(file));
-    destinations = destinations.filter((file) => !inverse.has(file));
+    return [...groups].filter(([, entry]) => entry.sources.length && entry.destinations.length);
   };
-  matchBy((tree, file) => (tree === 'base' ? base : head).entries.get(file)?.oid);
-  matchBy((tree, file) => (tree === 'base' ? baseViews : headViews)(file)?.key);
+  const unlinked = () => {
+    sources = [...base.entries.keys()].filter((file) => !forward.has(file));
+    destinations = [...head.entries.keys()].filter((file) => !inverse.has(file));
+  };
+  // Unique matches first, by blob then modulo specifiers; groups of identical candidates wait for that evidence.
+  const deferred: { key: string; sources: string[]; destinations: string[] }[] = [];
+  for (const keyOf of [oidOf, spanKeyOf]) {
+    for (const [key, entry] of groupsBy(keyOf)) {
+      if (entry.sources.length === 1 && entry.destinations.length === 1) link(entry.sources[0]!, entry.destinations[0]!);
+      else deferred.push({ key, ...entry });
+    }
+    const waiting = { sources: new Set(deferred.flatMap((group) => group.sources)), destinations: new Set(deferred.flatMap((group) => group.destinations)) };
+    sources = sources.filter((file) => !forward.has(file) && !waiting.sources.has(file));
+    destinations = destinations.filter((file) => !inverse.has(file) && !waiting.destinations.has(file));
+  }
+  const destinationDirectory = directoryVotes(forward);
+  const pairAmbiguous = (key: string, groupSources: string[], groupDestinations: string[]) => {
+    const free = { sources: groupSources.filter((file) => !forward.has(file)), destinations: groupDestinations.filter((file) => !inverse.has(file)) };
+    if (!free.sources.length || !free.destinations.length) return;
+    ambiguous.push({ key, sources: [...free.sources].sort(), destinations: [...free.destinations].sort() });
+    for (const [from, to] of pairGroup(free.sources, free.destinations, destinationDirectory)) link(from, to);
+  };
+  for (const group of deferred) pairAmbiguous(group.key, group.sources, group.destinations);
+  // What uneven groups left over may still match modulo specifiers.
+  unlinked();
+  for (const [key, entry] of groupsBy(spanKeyOf)) {
+    if (entry.sources.length === 1 && entry.destinations.length === 1) link(entry.sources[0]!, entry.destinations[0]!);
+    else pairAmbiguous(key, entry.sources, entry.destinations);
+  }
+  unlinked();
 
   // Same path on both sides but different beyond specifiers: still that file (K2 reports the edit).
   const remaining = new Set(destinations);

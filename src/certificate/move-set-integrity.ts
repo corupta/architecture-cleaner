@@ -1,15 +1,14 @@
 // K1 move-set integrity (plan §3.4): the inferred pathMap is total and injective (nothing added, nothing
 // deleted), no case-only renames or new case collisions, git modes equal, symlinks unaffected, co-move bundles
-// complete (`__mocks__`, `__snapshots__`, declaration pairs, source maps), ignore-file match status unchanged.
+// complete (`__mocks__`, `__snapshots__`, declaration pairs, source maps), every file's status unchanged under the
+// ignore files, Docker build contexts and npm `files` lists that decide what ships.
 import path from 'node:path';
 import type { CommitTree } from './git-tree.js';
-import { ignoreKinds, ignoredPaths } from './ignore-files.js';
+import { pathScopes } from './ignore-files.js';
 import type { PathMap } from './path-map.js';
 import { type Check, type CertifyContext, type Finding, result, type Violation } from './types.js';
 
 const title = 'Move-set integrity';
-// Ignore files that decide what ships (git, npm pack, docker build context) block; tool ignores are findings.
-const blockingIgnores = new Set(['.gitignore', '.npmignore', '.dockerignore']);
 
 // A declaration file and its implementation are one module (TS reads one, Node loads the other).
 const declarationPairs: [RegExp, string][] = [[/\.d\.ts$/, '.js'], [/\.d\.ts$/, '.jsx'], [/\.d\.mts$/, '.mjs'], [/\.d\.cts$/, '.cjs'],
@@ -19,13 +18,17 @@ const extensionPattern = /(\.d)?\.[^./]+$/;
 const stemOf = (file: string) => path.posix.basename(file).replace(extensionPattern, '');
 const extensionOf = (file: string) => extensionPattern.exec(path.posix.basename(file))?.[0] ?? '';
 
-function bundleViolations(base: CommitTree, pathMap: PathMap): Violation[] {
+function bundleViolations(base: CommitTree, head: CommitTree, pathMap: PathMap): Violation[] {
   const violations: Violation[] = [];
   const filesIn = new Map<string, string[]>();
   for (const file of base.entries.keys()) {
     const directory = path.posix.dirname(file);
     filesIn.set(directory, [...(filesIn.get(directory) ?? []), file]);
   }
+  const headFilesIn = new Map<string, string[]>();
+  for (const to of pathMap.moves.values()) headFilesIn.set(path.posix.join(path.posix.dirname(to), '__mocks__'), []);
+  for (const to of pathMap.moves.values()) headFilesIn.set(path.posix.join(path.posix.dirname(to), '__snapshots__'), []);
+  for (const file of head.entries.keys()) headFilesIn.get(path.posix.dirname(file))?.push(file);
   const expect = (member: string, expected: string, owner: string, relation: string) => {
     const actual = pathMap.map(member);
     if (actual !== expected) violations.push({ file: member, detail: `${relation} of ${owner} should be at ${expected}, is at ${actual}` });
@@ -48,6 +51,17 @@ function bundleViolations(base: CommitTree, pathMap: PathMap): Violation[] {
       if (base.entries.has(partner)) expect(partner, to.replace(pattern, suffix), from, 'declaration pair');
     }
     if (base.entries.has(`${from}.map`)) expect(`${from}.map`, `${to}.map`, from, 'source map');
+    // Arriving next to a mock or snapshot that isn't its own: Jest now picks that one up for the moved file.
+    if (!mockOf(from)) {
+      for (const mock of headFilesIn.get(path.posix.join(toDirectory, '__mocks__')) ?? []) {
+        const origin = pathMap.inverse.get(mock);
+        const own = origin !== undefined && path.posix.dirname(origin) === path.posix.join(fromDirectory, '__mocks__') && stemOf(origin) === stemOf(from);
+        if (stemOf(mock) === stemOf(to) && !own) violations.push({ file: from, detail: `moved to ${to}, next to manual mock ${mock}${origin && origin !== mock ? ` (was ${origin})` : ''}, which isn't its own` });
+      }
+    }
+    const arrivedSnapshot = path.posix.join(toDirectory, '__snapshots__', `${path.posix.basename(to)}.snap`);
+    const snapshotOrigin = pathMap.inverse.get(arrivedSnapshot);
+    if (head.entries.has(arrivedSnapshot) && snapshotOrigin !== snapshot) violations.push({ file: from, detail: `moved to ${to}, next to snapshot ${arrivedSnapshot}${snapshotOrigin && snapshotOrigin !== arrivedSnapshot ? ` (was ${snapshotOrigin})` : ''}, which isn't its own` });
   }
   // The other direction: a bundle member that moved must have moved with its owner.
   for (const [from, to] of pathMap.moves) {
@@ -70,6 +84,23 @@ function bundleViolations(base: CommitTree, pathMap: PathMap): Violation[] {
     }
   }
   return dedupe(violations);
+}
+
+// Runner configs (any Jest, Vitest or Vite config, package.json `jest`) that place snapshots with code of their own.
+const runnerConfigName = /^((jest|vitest|vite)([.-][^/]*)?\.(json|[cm]?[jt]s)|package\.json)$/;
+const customSnapshotPlacement = /\b(snapshotResolver|resolveSnapshotPath)\b/;
+const snapshotMatcher = /\b(toMatchSnapshot|toThrowErrorMatchingSnapshot)\b/;
+
+/**
+ * A custom snapshot resolver decides where a test's snapshot file lives by running code, so where a moved test's
+ * snapshot must go can't be computed here; a test that lost its snapshot writes a new one and passes (outside --ci).
+ */
+function snapshotResolverViolations(base: CommitTree, pathMap: PathMap): Violation[] {
+  const configs = [...base.entries.keys()].filter((file) => runnerConfigName.test(path.posix.basename(file)) && !file.split('/').includes('node_modules')
+    && customSnapshotPlacement.test(base.text(file) ?? ''));
+  if (configs.length === 0) return [];
+  return [...pathMap.moves].filter(([from]) => snapshotMatcher.test(base.text(from) ?? ''))
+    .map(([from, to]) => ({ file: from, detail: `moved to ${to}, and its snapshots are placed by the custom resolver in ${configs.join(', ')}: their co-move can't be checked statically` }));
 }
 
 const dedupe = (violations: Violation[]) => [...new Map(violations.map((violation) => [`${violation.file}\0${violation.detail}`, violation])).values()];
@@ -122,21 +153,26 @@ export function checkMoveSet(context: CertifyContext): { violations: Violation[]
     if (!baseCollisions.has(lower)) violations.push({ file: files[0], detail: `paths that differ only in case: ${files.join(', ')}` });
   }
   violations.push(...symlinkViolations(base, head, pathMap));
-  violations.push(...bundleViolations(base, pathMap));
+  violations.push(...bundleViolations(base, head, pathMap));
+  violations.push(...snapshotResolverViolations(base, pathMap));
 
-  const moved = [...pathMap.moves];
-  for (const kind of ignoreKinds) {
-    const scratch = path.join(context.options.workDir, 'ignore', kind);
-    const before = ignoredPaths(base, kind, moved.map(([from]) => from), path.join(scratch, 'base'));
-    const after = ignoredPaths(head, kind, moved.map(([, to]) => to), path.join(scratch, 'head'));
-    for (const [from, to] of moved) {
-      if (before.has(from) === after.has(to)) continue;
-      const detail = `${kind} status changes: ${before.has(from) ? 'ignored' : 'not ignored'} -> ${after.has(to) ? 'ignored' : 'not ignored'} at ${to}`;
-      if (blockingIgnores.has(kind)) violations.push({ file: from, detail });
+  // Every file, not only moved ones: a moved rule file (a nested .npmignore) changes what its old and new directories ship.
+  const pairs = [...pathMap.forward];
+  const scratch = path.join(context.options.workDir, 'scopes');
+  const scopesBefore = new Map(pathScopes(base, path.join(scratch, 'base')).map((scope) => [scope.id, scope]));
+  const scopesAfter = new Map(pathScopes(head, path.join(scratch, 'head')).map((scope) => [scope.id, scope]));
+  for (const id of new Set([...scopesBefore.keys(), ...scopesAfter.keys()])) {
+    const scope = (scopesBefore.get(id) ?? scopesAfter.get(id))!;
+    const before = scopesBefore.get(id)?.status(pairs.map(([from]) => from)) ?? pairs.map(() => scope.neutral);
+    const after = scopesAfter.get(id)?.status(pairs.map(([, to]) => to)) ?? pairs.map(() => scope.neutral);
+    pairs.forEach(([from, to], index) => {
+      if (before[index] === after[index]) return;
+      const detail = `${id} status changes: ${before[index]} -> ${after[index]}${from === to ? '' : ` at ${to}`}`;
+      if (scope.blocking) violations.push({ file: from, detail });
       else findings.push({ kind: 'tool-ignore-status', file: from, detail });
-    }
+    });
   }
-  if (pathMap.ambiguous.length) findings.push({ kind: 'ambiguous-match', detail: `${pathMap.ambiguous.length} groups of identical files were paired by name and path similarity` });
+  if (pathMap.ambiguous.length) findings.push({ kind: 'ambiguous-match', detail: `${pathMap.ambiguous.length} groups of identical files were paired by where their directories' other files went, then by name and path similarity` });
   const editedInPlace = [...pathMap.forward].filter(([from, to]) => from === to && base.entries.get(from)!.oid !== head.entries.get(to)!.oid).length;
   return {
     violations,

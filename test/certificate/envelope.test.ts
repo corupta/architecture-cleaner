@@ -83,6 +83,19 @@ describe('K0 envelope', () => {
       .toEqual(["frontend/vite.config.ts: test runner config can't be read statically (no static config object) and governs src/modules/user/user.ts"]);
   });
 
+  it('declines an extensionless script run by tsx, bun or deno: the analyzer reads node shebangs only', () => {
+    const seed = { 'scripts/seed': "#!/usr/bin/env -S npx tsx\nimport { user } from '@app/services/user.js';\nconsole.log(user);\n" };
+    expect(details(k0(move(seed)))).toEqual(["scripts/seed: script run by '/usr/bin/env -S npx tsx', which the analyzer doesn't read: its imports are invisible to K2 and K3"]);
+    expect(details(k0(move({ 'bin/www': "#!/usr/bin/env node\nrequire('../src/app');\n", 'scripts/deploy': '#!/bin/sh\nexec deno task deploy\n' })))).toEqual([]);
+  });
+
+  it('declines a compiler config that extends a file outside the repository (its paths would be invisible)', () => {
+    const outside = { 'tsconfig.json': JSON.stringify({ extends: '../tsconfig.shared.json', include: ['src'] }) };
+    expect(details(k0(move(outside)))).toEqual(["tsconfig.json: extends ../tsconfig.shared.json, outside the repository: options the certifier can't read"]);
+    const inside = { 'tsconfig.json': JSON.stringify({ extends: ['./tsconfig.base.json', '@tsconfig/node22/tsconfig.json'], include: ['src'] }), 'tsconfig.base.json': '{}' };
+    expect(details(k0(move(inside)))).toEqual([]);
+  });
+
   it('declines a moved file outside the package root', () => {
     const [base, head] = move();
     const outcome = k0([{ ...base, 'server/package.json': '{}', 'server/src/main.ts': 'export {};\n' }, { ...head, 'server/package.json': '{}', 'server/src/main.ts': 'export {};\n' }], { packageRoot: 'server' });

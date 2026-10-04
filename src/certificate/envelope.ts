@@ -3,7 +3,7 @@
 // diff gets no certificate. The runtime alias mechanism is K3c's.
 import path from 'node:path';
 import ts from 'typescript';
-import { stripBom } from '../analyzer/analyze.js';
+import { isSourceFile, stripBom } from '../analyzer/analyze.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import type { CommitTree } from './git-tree.js';
@@ -16,6 +16,10 @@ const declaration = /\.d\.[cm]?ts$/;
 // jest.config.js, jest.e2e.config.ts, jest-e2e.json (Nest), ...: any file Jest could be pointed at with --config.
 const jestConfigName = /^jest([.-][^/]*)?\.(json|[cm]?[jt]s)$/;
 const automockCall = /\bjest\s*\.\s*(enableAutomock|autoMockOn)\s*\(/;
+// JSON the analyzer reads as configuration.
+const manifestName = /^(package|[tj]sconfig[^/]*)\.json$/;
+// Script runners other than node that run TypeScript or JavaScript from a shebang line.
+const scriptRunner = /\b(tsx|bun|deno|esno|esr|jiti|zx)\b/;
 
 const directoryOf = (file: string) => (path.posix.dirname(file) === '.' ? '' : path.posix.dirname(file));
 const within = (file: string, directory: string) => directory === '' || file === directory || file.startsWith(`${directory}/`);
@@ -133,6 +137,14 @@ export function checkEnvelope(context: CertifyContext): { violations: Violation[
     metrics[`${side}JavaScriptFiles`] = javascript;
     if (javascript > typescript) add(side, root || undefined, `non-TS majority: ${javascript} JavaScript vs ${typescript} TypeScript source files under ${root || 'the repo root'}`);
 
+    // TypeScript decodes a UTF-16 file by its byte order mark; the analyzer reads UTF-8, so every site in it is invisible
+    // (K3 can't see its imports reach a moved file). Anywhere in the tree: K3 covers every file, not only the package.
+    for (const [file, entry] of tree.entries) {
+      if (entry.mode === '160000' || entry.mode === '120000' || !(isSourceFile(file) || (manifestName.test(path.posix.basename(file)) && !file.split('/').includes('node_modules')))) continue;
+      const bytes = tree.bytes(file);
+      if (bytes && bytes.length >= 2 && ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff))) add(side, file, 'encoded as UTF-16: TypeScript reads it, the certifier reads UTF-8 and sees none of its references');
+    }
+
     // Jest configs that can govern the package: inside it, or in a directory above it.
     const configs = [...tree.entries.keys()].filter((file) => !file.split('/').includes('node_modules') && (within(file, root) || within(root, directoryOf(file)))
       && (jestConfigName.test(path.posix.basename(file)) || path.posix.basename(file) === 'package.json'));
@@ -151,6 +163,25 @@ export function checkEnvelope(context: CertifyContext): { violations: Violation[
     }
     for (const file of files.filter((candidate) => tsSource.test(candidate) || jsSource.test(candidate))) {
       for (const call of automockCalls(file, tree.text(file) ?? '')) add(side, file, `${call} switches Jest automock on`);
+    }
+
+    // An extensionless script run by a TypeScript or JavaScript runtime other than node (`#!/usr/bin/env -S npx tsx`):
+    // the analyzer reads only node shebangs, so its imports (an alias to a moved file) are invisible to K2 and K3.
+    for (const [file, entry] of tree.entries) {
+      if (entry.mode === '160000' || entry.mode === '120000' || path.posix.basename(file).includes('.') || file.split('/').includes('node_modules')) continue;
+      const text = tree.text(file) ?? '';
+      const shebang = /^#![^\n]*/.exec(text)?.[0];
+      if (shebang && scriptRunner.test(shebang) && !/\bnode\b/.test(shebang) && /\bimport\b|\brequire\s*\(/.test(text)) add(side, file, `script run by '${shebang.slice(2).trim()}', which the analyzer doesn't read: its imports are invisible to K2 and K3`);
+    }
+
+    // A compiler config that extends a file outside the repository takes options (paths, baseUrl, module) the
+    // certifier can't read: it would resolve every site without them (an alias it can't see stays "unresolved").
+    for (const file of [...tree.entries.keys()].filter((candidate) => /^[tj]sconfig[^/]*\.json$/.test(path.posix.basename(candidate)) && !candidate.split('/').includes('node_modules'))) {
+      const extended = ts.parseConfigFileTextToJson(file, tree.text(file) ?? '').config?.extends as unknown;
+      for (const entry of (Array.isArray(extended) ? extended : [extended]).filter((value): value is string => typeof value === 'string')) {
+        const target = path.posix.normalize(path.posix.join(directoryOf(file), entry));
+        if (path.posix.isAbsolute(entry) || (/^\.\.?(\/|$)/.test(entry) && (target === '..' || target.startsWith('../')))) add(side, file, `extends ${entry}, outside the repository: options the certifier can't read`);
+      }
     }
 
     // Symlinks beside a moved file, or pointing at one or at a directory that holds one (the analyzer reads a tracked

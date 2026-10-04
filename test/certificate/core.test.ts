@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { checkByteSpans } from '../../src/certificate/byte-spans.js';
 import { createContext } from '../../src/certificate/certify.js';
 import { commitRepoFs } from '../../src/certificate/commit-fs.js';
+import { checkEnvelope } from '../../src/certificate/envelope.js';
 import { readCommitTree } from '../../src/certificate/git-tree.js';
 import { dockerIgnored, dockerPatterns } from '../../src/certificate/ignore-files.js';
 import { checkMoveSet } from '../../src/certificate/move-set-integrity.js';
@@ -109,6 +110,19 @@ describe('pathMap inference', () => {
     );
   });
 
+  it('pairs identical barrels by where the rest of their directory went, even into renamed directories', () => {
+    const barrel = "export * from './service';\n";
+    withContext(
+      { 'src/users/index.ts': barrel, 'src/users/service.ts': 'export const users = 1;\n', 'src/teams/index.ts': barrel, 'src/teams/service.ts': 'export const teams = 1;\n' },
+      { 'src/modules/account/index.ts': barrel, 'src/modules/account/service.ts': 'export const users = 1;\n', 'src/modules/group/index.ts': barrel, 'src/modules/group/service.ts': 'export const teams = 1;\n' },
+      ({ pathMap }) => {
+        expect(pathMap.map('src/users/index.ts')).toBe('src/modules/account/index.ts');
+        expect(pathMap.map('src/teams/index.ts')).toBe('src/modules/group/index.ts');
+        expect(pathMap.ambiguous).toHaveLength(1);
+      },
+    );
+  });
+
   it('infers a swap of two files whose importers were rewritten', () => {
     withContext(
       { 'src/a.ts': 'export const a = 1;\n', 'src/b.ts': 'export const b = 2;\n', 'src/main.ts': "import { a } from './a';\nimport { b } from './b';\nexport const sum = a + b;\n" },
@@ -142,6 +156,19 @@ describe('committed-tree file system', () => {
     expect(baseFs.tracked()).toEqual(['src/a.ts']);
     expect(baseFs.directoryExists(path.join(shadow, 'src'))).toBe(true);
     expect(baseFs.entries(path.join(shadow, 'src')).files).toEqual(['a.ts']);
+  });
+});
+
+describe('K0 on bytes the analyzer reads', () => {
+  it('declines a UTF-16 source file: TypeScript decodes it by its byte order mark, the analyzer sees none of its imports', () => {
+    const utf16 = (text: string) => Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
+    const user = utf16("import { config } from '../config';\nexport const user = () => config;\n");
+    const config = 'export const config = 1;\n';
+    const outcome = withContext({ 'src/config.ts': config, 'src/services/user.ts': user }, { 'src/config.ts': config, 'src/modules/user/user.ts': user }, (context) => checkEnvelope(context));
+    expect(outcome.violations).toEqual([
+      { file: 'src/services/user.ts', detail: 'encoded as UTF-16: TypeScript reads it, the certifier reads UTF-8 and sees none of its references (base)' },
+      { file: 'src/modules/user/user.ts', detail: 'encoded as UTF-16: TypeScript reads it, the certifier reads UTF-8 and sees none of its references (head)' },
+    ]);
   });
 });
 
@@ -180,6 +207,29 @@ describe('K1 move-set integrity', () => {
     )).toEqual(['snapshot of src/a.test.ts should be at test/__snapshots__/a.test.ts.snap, is at src/__snapshots__/a.test.ts.snap']);
   });
 
+  it('declines a moved snapshot test when a custom snapshot resolver places its snapshots (a lost snapshot is rewritten and passes)', () => {
+    const resolver = "module.exports = {\n  resolveSnapshotPath: (testPath, extension) => testPath.replace('/src/', '/snapshots/') + extension,\n};\n";
+    const config = "module.exports = { snapshotResolver: '<rootDir>/snapshot-resolver.js' };\n";
+    const test = "it('renders', () => expect(1).toMatchSnapshot());\n";
+    const snapshot = 'exports[`renders 1`] = `2`;\n';
+    expect(violations(
+      { 'jest.config.js': config, 'snapshot-resolver.js': resolver, 'src/services/render.test.ts': test, 'snapshots/services/render.test.ts.snap': snapshot },
+      { 'jest.config.js': config, 'snapshot-resolver.js': resolver, 'src/modules/render.test.ts': test, 'snapshots/services/render.test.ts.snap': snapshot },
+    )).toEqual(["moved to src/modules/render.test.ts, and its snapshots are placed by the custom resolver in jest.config.js: their co-move can't be checked statically"]);
+    expect(violations({ 'jest.config.js': config, 'src/services/a.test.ts': "it('a', () => {});\n" }, { 'jest.config.js': config, 'src/modules/a.test.ts': "it('a', () => {});\n" })).toEqual([]);
+  });
+
+  it('rejects a module that arrives next to a manual mock or snapshot that is not its own (Jest picks it up)', () => {
+    const client = "export const name = () => 'real';\n";
+    const mock = "export const name = () => 'mocked';\n";
+    expect(violations({ 'src/lib/client.ts': client, 'src/__mocks__/client.ts': mock }, { 'src/client.ts': client, 'src/__mocks__/client.ts': mock }))
+      .toEqual(["moved to src/client.ts, next to manual mock src/__mocks__/client.ts, which isn't its own"]);
+    const test = "it('x', () => expect(1).toMatchSnapshot());\n";
+    const stale = 'exports[`x 1`] = `2`;\n';
+    expect(violations({ 'src/a/x.test.ts': test, 'src/b/__snapshots__/x.test.ts.snap': stale }, { 'src/b/x.test.ts': test, 'src/b/__snapshots__/x.test.ts.snap': stale }))
+      .toEqual(["moved to src/b/x.test.ts, next to snapshot src/b/__snapshots__/x.test.ts.snap, which isn't its own"]);
+  });
+
   it('rejects a split declaration pair', () => {
     expect(violations(
       { 'legacy/x.js': 'exports.x = 1;\n', 'legacy/x.d.ts': 'export declare const x: number;\n' },
@@ -198,6 +248,45 @@ describe('K1 move-set integrity', () => {
     expect(violations(base, head)).toEqual(['deleted: no file in head has its content (modulo specifiers)']);
     expect(withContext(base, head, (context) => checkMoveSet(context).violations.map((violation) => violation.detail), true))
       .toEqual(['.gitignore status changes: not ignored -> ignored at src/generated/a.ts']);
+  });
+
+  it('keeps every file\'s status under a moved ignore file, not only the moved files\' (a nested .npmignore that moved ships a fixture)', () => {
+    const files = { 'lib/x.js': 'exports.x = 1;\n', 'lib/x.fixture.js': "exports.secret = 'hunter2';\n" };
+    expect(violations({ ...files, 'lib/.npmignore': '*.fixture.js\n' }, { ...files, 'lib/legacy/.npmignore': '*.fixture.js\n' }))
+      .toEqual(['.npmignore status changes: ignored -> not ignored']);
+  });
+
+  it('keeps what npm pack ships: package.json files entries are anchored at the package, and a move out of a package leaves it', () => {
+    const manifest = JSON.stringify({ name: 'lib', version: '1.0.0', main: 'src/index.js', files: ['src', '!src/fixtures'] });
+    const index = (specifier: string) => `module.exports = require('${specifier}');\n`;
+    expect(violations({ 'package.json': manifest, 'src/index.js': index('./util'), 'src/util.js': 'exports.u = 1;\n' }, { 'package.json': manifest, 'src/index.js': index('../lib/util'), 'lib/util.js': 'exports.u = 1;\n' }))
+      .toEqual(['package.json files status changes: packed by npm -> not packed by npm at lib/util.js']);
+    expect(violations({ 'package.json': manifest, 'src/util.js': 'exports.u = 1;\n' }, { 'package.json': manifest, 'src/fixtures/util.js': 'exports.u = 1;\n' }))
+      .toEqual(['package.json files status changes: packed by npm -> not packed by npm at src/fixtures/util.js']);
+    expect(violations({ 'package.json': manifest, 'src/util.js': 'exports.u = 1;\n' }, { 'package.json': manifest, 'src/lib/util.js': 'exports.u = 1;\n' })).toEqual([]);
+    const nested = { 'package.json': '{ "private": true }', 'packages/a/package.json': '{ "name": "a" }', 'packages/b/package.json': '{ "name": "b" }' };
+    expect(violations({ ...nested, 'packages/a/x.ts': 'export {};\n' }, { ...nested, 'packages/b/x.ts': 'export {};\n' })).toEqual([
+      'packages/a/package.json status changes: packed by npm -> not packed by npm at packages/b/x.ts',
+      'packages/b/package.json status changes: not packed by npm -> packed by npm at packages/b/x.ts',
+    ]);
+  });
+
+  it('keeps the checkout attributes git gives a moved file (a renamed win-*.sh loses eol=crlf, so its checked-out bytes change)', () => {
+    const script = '#!/bin/sh\nprintf "%s|" hello\n';
+    const attributes = 'win-*.sh text eol=crlf\n*.png binary\n';
+    expect(violations({ '.gitattributes': attributes, 'scripts/win-hello.sh': script }, { '.gitattributes': attributes, 'scripts/tools/hello.sh': script }))
+      .toEqual(['.gitattributes status changes: text=set eol=crlf -> no checkout attributes at scripts/tools/hello.sh']);
+    expect(violations({ '.gitattributes': attributes, 'scripts/win-hello.sh': script }, { '.gitattributes': attributes, 'tools/win-hello.sh': script })).toEqual([]);
+  });
+
+  it('anchors a Dockerfile-specific ignore file at every enclosing build context', () => {
+    const tree = (file: string) => ({ 'server/Dockerfile.dockerignore': 'src/legacy\nserver/legacy\n', [file]: 'export {};\n' });
+    expect(violations(tree('server/src/a.ts'), tree('server/src/legacy/a.ts'))).toEqual([
+      'server/Dockerfile.dockerignore (build context server) status changes: sent to the build context -> not sent to the build context at server/src/legacy/a.ts',
+    ]);
+    expect(violations(tree('server/a.ts'), tree('server/legacy/a.ts'))).toEqual([
+      'server/Dockerfile.dockerignore (build context .) status changes: sent to the build context -> not sent to the build context at server/legacy/a.ts',
+    ]);
   });
 
   it('reads .dockerignore with Docker semantics (anchored at the context)', () => {
@@ -230,6 +319,51 @@ describe('K2 byte-span confinement', () => {
 
   it('rejects a rewritten span that breaks out of its literal', () => {
     expect(violations({ 'src/a.ts': importer('./b') }, { 'src/a.ts': importer("./b' + '") })[0]).toMatch(/sites|outside/);
+  });
+
+  it('rejects a span whose callee is a local binding, not the module loader (a host require handed in resolves from the host)', () => {
+    const plugin = (specifier: string) => `export function run(require: (id: string) => { b: string }) {\n  return require('${specifier}').b;\n}\n`;
+    const b = 'export const b = 1;\n';
+    expect(violations({ 'src/plugin.ts': plugin('./b'), 'src/b.ts': b }, { 'src/plugins/plugin.ts': plugin('../b'), 'src/b.ts': b }))
+      .toEqual(["line 2: require('../b') calls the 'require' declared on line 1, not the module loader: '../b' isn't a specifier relative to this file"]);
+    // Moved with its target, the span needs no edit, and still names a path relative to the host, not to this file.
+    expect(violations({ 'src/plugin.ts': plugin('./b'), 'src/b.ts': b }, { 'src/plugins/plugin.ts': plugin('./b'), 'src/plugins/b.ts': b })).toHaveLength(1);
+    const genuine = (specifier: string) => [
+      "import { createRequire } from 'node:module';", "import { jest } from '@jest/globals';", 'declare const vi: { mock(id: string): void };',
+      'const require = createRequire(import.meta.url);', `jest.mock('${specifier}');`, `vi.mock('${specifier}');`, `export const b = require('${specifier}');`, '',
+    ].join('\n');
+    expect(violations({ 'src/a.ts': genuine('./b'), 'src/b.ts': b }, { 'src/a.ts': genuine('./lib/b'), 'src/lib/b.ts': b })).toEqual([]);
+  });
+
+  it('rejects a loader call the span extractor does not read, in a moved file or reaching a moved file from an unmoved one', () => {
+    const user = (specifier: string) => `const config = (require)('${specifier}').config;\nconst other = require(('${specifier}') as string).config;\nexport const user = () => [config, other];\n`;
+    const config = 'export const config = 1;\n';
+    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/modules/user/user.ts': user('../config'), 'src/config.ts': config })).toEqual([
+      "line 1: (require)('../config') loads a module in a form the span extractor doesn't read, so neither K2 nor K3 sees its specifier",
+      "line 2: require(('../config') as string) loads a module in a form the span extractor doesn't read, so neither K2 nor K3 sees its specifier",
+    ]);
+    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/services/user.ts': user('../config'), 'src/lib/config.ts': config })).toEqual([
+      "line 1: (require)('../config') may load moved src/config.ts (now src/lib/config.ts) in a form the span extractor doesn't read, so its specifier can't follow the move",
+      "line 2: require(('../config') as string) may load moved src/config.ts (now src/lib/config.ts) in a form the span extractor doesn't read, so its specifier can't follow the move",
+    ]);
+    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config, 'src/x.ts': config }, { 'src/services/user.ts': user('../config'), 'src/config.ts': config, 'src/lib/x.ts': config })).toEqual([]);
+    // A URL without ./ still resolves against the file; one with a scheme doesn't.
+    const urls = "export const data = new URL('data.json', import.meta.url);\nexport const home = new URL('https://x.test/', import.meta.url);\n";
+    expect(violations({ 'src/services/urls.ts': urls }, { 'src/modules/urls.ts': urls }))
+      .toEqual(["line 1: new URL('data.json', import.meta.url) loads a module in a form the span extractor doesn't read, so neither K2 nor K3 sees its specifier"]);
+  });
+
+  it('rejects a component file the span extractor does not read that imports a moved module, or that moves with relative imports', () => {
+    const component = '<script setup lang="ts">\nimport { user } from "@/services/user";\nimport Avatar from "./Avatar.vue";\n</script>\n';
+    const user = 'export const user = 1;\n';
+    expect(violations({ 'src/components/User.vue': component, 'src/services/user.ts': user }, { 'src/components/User.vue': component, 'src/modules/user/user.ts': user }))
+      .toEqual(["line 2: '@/services/user' may name moved src/services/user.ts (now src/modules/user/user.ts) in a file the span extractor doesn't read, so it can't follow the move"]);
+    expect(violations({ 'src/components/User.vue': component }, { 'src/modules/user/User.vue': component }))
+      .toEqual(["moved to src/modules/user/User.vue; line 3: './Avatar.vue' is a relative import in a file the span extractor doesn't read, so it can't follow the move"]);
+    expect(violations({ 'src/components/User.vue': component, 'src/lib/clock.ts': user }, { 'src/components/User.vue': component, 'src/time/clock.ts': user })).toEqual([]);
+    // An alias belongs to its own package: web's `$lib/services/album.service` never names the server's file (immich).
+    const packages = { 'web/package.json': '{}', 'server/package.json': '{}', 'web/src/Album.svelte': '<script>\nimport { album } from "$lib/services/album.service";\n</script>\n' };
+    expect(violations({ ...packages, 'server/src/services/album.service.ts': user }, { ...packages, 'server/src/modules/album/album.service.ts': user })).toEqual([]);
   });
 
   it('rejects changed content in non-source and non-UTF-8 files', () => {
