@@ -16,25 +16,53 @@ export interface RunnerSpec {
   args?: string[];
 }
 
-/** One K8 oracle: a command run in the head worktree (and, for `compare-base`, in the base worktree too). */
-export interface OracleSpec {
-  name: string;
-  /** Repo-relative working directory inside the worktree. */
+/**
+ * A command of a K8 oracle. In every string `{worktree}` (the commit's fresh worktree), `{scratch}` (an empty
+ * directory outside it) and `{artifacts}` (the run's log directory) are substituted; an argv element that is exactly
+ * `{quarantine}` expands to the oracle's quarantine patterns.
+ */
+export interface OracleStep {
+  /** Worktree-relative directory, or a directory under `{scratch}` (created). */
   cwd: string;
-  /** argv; `{worktree}`, `{scratch}` and `{artifacts}` are substituted. */
+  /** argv; a relative executable with a slash (`node_modules/.bin/tsc`) is resolved against `cwd`. */
   command: string[];
-  /**
-   * exit-zero: the command must exit 0.
-   * tests: the runner's JSON report (`report` path) is compared per file and per case with the base run.
-   * artifact-identical: the file `artifact` must be byte-identical between the base and head runs.
-   */
+}
+
+/**
+ * One K8 oracle, run on the head worktree and, when the verdict needs it, on the base worktree (base runs are cached).
+ * exit-zero: every step exits 0 on head; when head and base both fail, their `diagnostics` must be equal modulo the pathMap.
+ * tests: the runner's JSON `report` on head equals base's per file (load status) and per case (file + name + ordinal).
+ * artifact-identical: the produced `artifact` is byte-identical to what the base produces.
+ * Every step (setup included) must exit 0 on head unless it fails on base too; tests compare the exit code with base's.
+ * Before each oracle the worktree is reset to its commit (tracked files restored, untracked and ignored files removed,
+ * the node_modules links kept), so no oracle sees what an earlier check or oracle left behind.
+ */
+export interface OracleSpec extends OracleStep {
+  /** Unique within the profile; a path segment ([A-Za-z0-9._-]). */
+  name: string;
   kind: 'exit-zero' | 'tests' | 'artifact-identical';
-  /** For tests: path of the JSON report the command writes ({artifacts} substituted). */
+  /** Steps run first, in order (builds the oracle needs). */
+  setup?: OracleStep[];
+  /** Files written before the steps: path under `{scratch}` → content (both substituted). */
+  files?: Record<string, string>;
+  /** Worktree-relative paths the environment must provide (prerequisite builds reached through node_modules links). */
+  requires?: string[];
+  /** exit-zero: format of the diagnostics compared when base fails too. */
+  diagnostics?: 'tsc';
+  /** tests: report format (default: the profile's runner kind). */
+  format?: RunnerKind;
+  /** tests: path of the JSON report the command writes. */
   report?: string;
-  /** For artifact-identical: path of the produced artifact ({scratch}/{worktree} substituted). */
+  /** tests: base repo-relative test files left out on both sides (network-dependent); head gets their mapped paths. */
+  quarantine?: string[];
+  /** artifact-identical: path of the produced artifact. */
   artifact?: string;
-  /** Commands to run first in the same worktree (builds that the oracle needs). */
-  setup?: string[][];
+  /**
+   * artifact-identical: repo-relative path of a tracked file that is what the base produces (immich's OpenAPI spec).
+   * Head is compared with that base blob; only on a mismatch does the base run too, to tell a stale file from a change.
+   */
+  reference?: string;
+  /** Per step (default 1800). */
   timeoutSeconds?: number;
 }
 

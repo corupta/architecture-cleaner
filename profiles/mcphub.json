@@ -3,5 +3,34 @@
   "packageRoot": "",
   "node": "system",
   "offline": true,
-  "runner": { "kind": "jest", "cwd": "", "config": "jest.config.cjs" }
+  "runner": { "kind": "jest", "cwd": "", "config": "jest.config.cjs" },
+  "oracles": [
+    {
+      "name": "tsc",
+      "kind": "exit-zero",
+      "cwd": "",
+      "command": ["node_modules/.bin/tsc", "--outDir", "{scratch}/dist", "--incremental", "false", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["node_modules/.bin/tsc"]
+    },
+    {
+      "name": "unit",
+      "kind": "tests",
+      "format": "jest",
+      "cwd": "",
+      "command": ["node_modules/.bin/jest", "--ci", "--watchAll=false", "--json", "--outputFile={artifacts}/report.json", "--testPathIgnorePatterns", "/node_modules/", "{quarantine}"],
+      "report": "{artifacts}/report.json",
+      "quarantine": [
+        "tests/integration/sse-service-real-client.test.ts",
+        "tests/services/oauthClientRegistration.test.ts",
+        "tests/services/mcpService-passthrough-headers.test.ts",
+        "tests/services/mcpService-request-options.test.ts",
+        "tests/services/mcpService-oauth-static-auth-header.test.ts",
+        "tests/services/mcpService-targeted-reload.test.ts",
+        "tests/services/mcpService-header-env-from-config.test.ts"
+      ],
+      "requires": ["node_modules/.bin/jest"],
+      "timeoutSeconds": 900
+    }
+  ]
 }

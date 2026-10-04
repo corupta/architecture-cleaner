@@ -4,5 +4,39 @@
   "node": "24.21.0",
   "offline": true,
   "env": { "TZ": "UTC" },
-  "runner": { "kind": "vitest", "cwd": "server", "config": "server/test/vitest.config.mjs" }
+  "runner": { "kind": "vitest", "cwd": "server", "config": "server/test/vitest.config.mjs" },
+  "oracles": [
+    {
+      "name": "tsc",
+      "kind": "exit-zero",
+      "cwd": "server",
+      "command": ["node_modules/.bin/tsc", "--noEmit", "--incremental", "false", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["server/node_modules/.bin/tsc"]
+    },
+    {
+      "name": "unit",
+      "kind": "tests",
+      "format": "vitest",
+      "cwd": "server",
+      "command": ["node_modules/.bin/vitest", "--config", "test/vitest.config.mjs", "--run", "--reporter=dot", "--reporter=json", "--outputFile.json={artifacts}/report.json"],
+      "report": "{artifacts}/report.json",
+      "requires": ["server/node_modules/.bin/vitest", "server/node_modules/@immich/plugin-sdk/dist/index.js", "packages/plugin-sdk/node_modules/@immich/sdk/build/index.js"],
+      "timeoutSeconds": 1200
+    },
+    {
+      "name": "openapi",
+      "kind": "artifact-identical",
+      "setup": [
+        { "cwd": "server", "command": ["rm", "-rf", "dist"] },
+        { "cwd": "server", "command": ["node_modules/.bin/nest", "build"] },
+        { "cwd": "{scratch}", "command": ["mkdir", "-p", "open-api"] }
+      ],
+      "cwd": "{scratch}/server",
+      "command": ["node", "{worktree}/server/dist/bin/sync-open-api.js"],
+      "artifact": "{scratch}/open-api/immich-openapi-specs.json",
+      "reference": "open-api/immich-openapi-specs.json",
+      "requires": ["server/node_modules/.bin/nest"]
+    }
+  ]
 }

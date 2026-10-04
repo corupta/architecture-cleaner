@@ -3,5 +3,33 @@
   "packageRoot": "",
   "node": "system",
   "offline": true,
-  "runner": { "kind": "mocha", "cwd": "", "args": ["--require", "tsx", "tests/mocha/unit/**/*.ts", "--recursive"] }
+  "runner": { "kind": "mocha", "cwd": "", "args": ["--require", "tsx", "tests/mocha/unit/**/*.ts", "--recursive"] },
+  "oracles": [
+    {
+      "name": "typecheck",
+      "kind": "exit-zero",
+      "cwd": "",
+      "command": ["npm", "run", "typecheck", "--", "--incremental", "false", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["node_modules/.bin/tsc"]
+    },
+    {
+      "name": "unit",
+      "kind": "tests",
+      "format": "mocha",
+      "cwd": "",
+      "command": ["npm", "run", "test:unit", "--", "--reporter", "json", "--reporter-option", "output={artifacts}/report.json"],
+      "report": "{artifacts}/report.json",
+      "requires": ["node_modules/.bin/mocha", "node_modules/tsx/package.json"],
+      "timeoutSeconds": 600
+    },
+    {
+      "name": "tests-typecheck",
+      "kind": "exit-zero",
+      "cwd": "",
+      "files": { "{scratch}/tsconfig.tests.json": "{\"extends\": \"{worktree}/tsconfig.json\", \"compilerOptions\": {\"noEmit\": true, \"incremental\": false, \"rootDir\": \"{worktree}\", \"declaration\": false, \"declarationMap\": false}, \"include\": [\"{worktree}/src/**/*\", \"{worktree}/tests/mocha/unit/**/*\"], \"exclude\": []}" },
+      "command": ["node_modules/.bin/tsc", "-p", "{scratch}/tsconfig.tests.json", "--pretty", "false"],
+      "diagnostics": "tsc"
+    }
+  ]
 }
