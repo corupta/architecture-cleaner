@@ -7,7 +7,7 @@ import path from 'node:path';
 import type ts from 'typescript';
 import { stripBom } from '../analyzer/analyze.js';
 import { nearestConfig, type RunnerConfig } from '../analyzer/runner-config.js';
-import type { ModuleFormat, ReferenceSite, Resolution } from '../analyzer/types.js';
+import type { ReferenceSite, Resolution } from '../analyzer/types.js';
 
 export interface SpecifierForm {
   /**
@@ -132,10 +132,11 @@ const fixedText = (mechanism: string) => mechanism === 'package' || mechanism ==
 
 /**
  * Why the rewrite `before` → `after` of one site changes its form ([] when it keeps it). `targets` are the resolved
- * paths on each side (equal modulo the pathMap when resolution identity holds).
+ * paths on each side (equal modulo the pathMap when resolution identity holds). `urlSyntax`: the site is resolved as
+ * a URL (ESM, `import()`, URL references, anything Vite transforms), where '?', '#' and '%' are syntax.
  */
 export function formChanges(
-  site: { before: string; after: string; kind: ReferenceSite['kind']; format: ModuleFormat },
+  site: { before: string; after: string; urlSyntax: boolean },
   forms: { before: SpecifierForm; after: SpecifierForm },
   targets: { before: string | null; after: string | null },
 ): string[] {
@@ -150,10 +151,23 @@ export function formChanges(
   const indexRenamedAway = renamed && before.shape === 'directory' && targets.after !== null && !isIndexStem(stemOf(targets.after));
   if (before.shape !== after.shape && !(indexRenamedAway && after.shape === 'file' && after.ending === '')) problems.push(`index style ${before.shape} -> ${after.shape}`);
   else if (before.shape === 'file' && after.shape === 'file' && before.ending !== after.ending) problems.push(`ending ${JSON.stringify(before.ending)} -> ${JSON.stringify(after.ending)}`);
-  // ESM specifiers are URLs: '?', '#' and '%' change what loads (a second instance, a fragment, a decoded name).
-  // import() and url references are URL-resolved even in CommonJS. A leading '#' is a subpath import.
-  const urlResolved = site.format === 'esm' || site.kind === 'dynamic-import' || site.kind === 'url-reference';
+  // URL-resolved specifiers: '?', '#' and '%' change what loads (a second instance, a fragment, a decoded name).
+  // A leading '#' is a subpath import.
   const urlText = after.mechanism.startsWith('subpath-import:') ? site.after.slice(1) : site.after;
-  if (urlResolved && /[#?%]/.test(urlText)) problems.push(`rewritten ESM specifier contains '#', '?' or '%'`);
+  if (site.urlSyntax && /[#?%]/.test(urlText)) problems.push(`rewritten specifier contains '#', '?' or '%', which an ESM or Vite resolver reads as URL syntax`);
+  // An empty segment keeps a distinct ESM URL for the same file (a second module instance); '.' and '..' inside the
+  // path are no form any rewrite needs (the contract writes the shortest path).
+  if (!fixedText(after.mechanism) && !isNormalForm(site.after)) problems.push(`rewritten specifier is not in normal form (empty, '.' or '..' segments inside the path)`);
   return problems;
+}
+
+/** `./` or a run of `../` (or a leading `/`), then no empty, '.' or '..' segments; a trailing slash is a style of its own. */
+function isNormalForm(specifier: string): boolean {
+  const segments = specifier.split('/');
+  let index = 0;
+  if (segments[0] === '.' || segments[0] === '') index = 1;
+  else while (segments[index] === '..') index++;
+  const rest = segments.slice(index);
+  if (rest.length > 0 && rest[rest.length - 1] === '') rest.pop();
+  return rest.every((segment) => segment !== '' && segment !== '.' && segment !== '..');
 }

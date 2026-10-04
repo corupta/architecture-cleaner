@@ -55,7 +55,7 @@ describe('K0 envelope', () => {
 
   it('declines a tracked symlink in a directory that holds a moved file', () => {
     expect(details(k0(move({ 'src/services/current': { link: 'user.ts' } }, { 'src/services/current': { link: 'user.ts' } }))))
-      .toEqual(['src/services/current: tracked symlink in src/services, which holds a moved file']);
+      .toEqual(['src/services/current: tracked symlink in src/services, which holds a moved file', 'src/services/current: tracked symlink to src/services/user.ts, which holds moved file src/services/user.ts (base)']);
     expect(details(k0(move({ 'src/other/current': { link: 'x.ts' } })))).toEqual([]);
   });
 

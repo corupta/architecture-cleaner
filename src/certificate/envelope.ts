@@ -21,6 +21,21 @@ const directoryOf = (file: string) => (path.posix.dirname(file) === '.' ? '' : p
 const within = (file: string, directory: string) => directory === '' || file === directory || file.startsWith(`${directory}/`);
 const stemOf = (file: string) => path.posix.basename(file).replace(/\.[^.]+$/, '');
 
+/** The repo path a tracked symlink names (followed through tracked symlinks), or null when it leaves the repository. */
+function symlinkTarget(tree: CommitTree, link: string): string | null {
+  let current = link;
+  for (let depth = 0; depth < 8; depth++) {
+    const text = tree.text(current) ?? '';
+    if (path.posix.isAbsolute(text)) return null;
+    const target = path.posix.normalize(path.posix.join(directoryOf(current), text)).replace(/\/$/, '');
+    if (target === '..' || target.startsWith('../')) return null;
+    const normalized = target === '.' ? '' : target;
+    if (tree.entries.get(normalized)?.mode !== '120000') return normalized;
+    current = normalized;
+  }
+  return null;
+}
+
 /** `automock` settings other than `false` in a Jest config: JSON (also package.json `jest` and its projects) or a JS/TS file. */
 function automockSettings(file: string, text: string): string[] {
   if (file.endsWith('.json')) {
@@ -138,8 +153,14 @@ export function checkEnvelope(context: CertifyContext): { violations: Violation[
       for (const call of automockCalls(file, tree.text(file) ?? '')) add(side, file, `${call} switches Jest automock on`);
     }
 
+    // Symlinks beside a moved file, or pointing at one or at a directory that holds one (the analyzer reads a tracked
+    // symlink as its target's text, one level deep, and never follows a symlinked directory; Node does both).
     for (const [file, entry] of tree.entries) {
-      if (entry.mode === '120000' && movedDirectories.has(directoryOf(file))) add(side, file, `tracked symlink in ${directoryOf(file) || 'the repo root'}, which holds a moved file`);
+      if (entry.mode !== '120000') continue;
+      if (movedDirectories.has(directoryOf(file))) add(side, file, `tracked symlink in ${directoryOf(file) || 'the repo root'}, which holds a moved file`);
+      const target = symlinkTarget(tree, file);
+      const reached = target === null ? undefined : locations.find((location) => location.side === side && within(location.file, target));
+      if (target !== null && reached) add(side, file, `tracked symlink to ${target || 'the repo root'}, which holds moved file ${reached.file}`);
     }
 
     for (const entry of loadRunnerConfig(context.fs[side]).unreadable) {
@@ -187,6 +208,19 @@ export function checkEnvelope(context: CertifyContext): { violations: Violation[
         if (family.test(sibling) && !declaration.test(sibling) && stemOf(sibling) === stemOf(file)) add(side, file, `same-stem pair with ${sibling}: TypeScript reads one, Node and Jest may load the other`);
       }
     }
+  }
+  // The certifier reads every node_modules path from the environment, never from the commits.
+  for (const [file, entry] of context.base.entries) {
+    if (!file.split('/').includes('node_modules')) continue;
+    const to = pathMap.forward.get(file);
+    const change = to === undefined ? 'deleted' : to !== file ? `moved to ${to}` : context.head.entries.get(to)!.oid !== entry.oid || context.head.entries.get(to)!.mode !== entry.mode ? 'edited' : null;
+    if (change) for (const side of ['base', 'head'] as const) add(side, file, `tracked file under node_modules changes (${change}): the certifier reads node_modules from the environment, not the commits`);
+  }
+  for (const file of context.head.entries.keys()) {
+    const from = pathMap.inverse.get(file);
+    if (!file.split('/').includes('node_modules') || (from !== undefined && from.split('/').includes('node_modules'))) continue;
+    const change = from === undefined ? 'added' : `moved from ${from}`;
+    for (const side of ['base', 'head'] as const) add(side, file, `tracked file under node_modules changes (${change}): the certifier reads node_modules from the environment, not the commits`);
   }
   if (options.profile?.runner?.args?.includes('--automock')) for (const side of ['base', 'head'] as const) add(side, undefined, `profile ${options.profile.name} runs the test runner with --automock`);
   const violations = [...found.values()].map(({ file, detail, sides }) => ({ ...(file ? { file } : {}), detail: sides.size === 2 ? detail : `${detail} (${[...sides][0]})` }));

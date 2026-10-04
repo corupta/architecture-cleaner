@@ -48,7 +48,7 @@ describe('K3a resolution identity', () => {
       { 'tsconfig.json': commonjs, 'jest.config.js': jest, 'src/services/user.ts': 'export const user = 1;\n', 'src/user.test.ts': test('./services/user') },
       { 'tsconfig.json': commonjs, 'jest.config.js': jest, 'src/modules/user.ts': 'export const user = 1;\n', 'src/user.test.ts': "import { user } from './modules/user';\njest.mock('./services/user');\ntest('x', () => user);\n" },
     );
-    expect(details(outcome)).toEqual(["src/user.test.ts: line 2: mock './services/user': expected file src/modules/user.ts (jest), got unresolved"]);
+    expect(details(outcome)).toEqual(["src/user.test.ts: line 2: jest.mock './services/user': expected file src/modules/user.ts (jest), got unresolved"]);
   });
 
   it('fails a stale vi.mock that the Vite model leaves unresolved but TypeScript resolves', () => {
@@ -57,7 +57,7 @@ describe('K3a resolution identity', () => {
       { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/x.ts': 'export const x = 1;\n', 'src/x.test.ts': "import { x } from './x.js';\nvi.mock('./x.js');\nexport const t = x;\n" },
       { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/lib/x.ts': 'export const x = 1;\n', 'src/x.test.ts': "import { x } from './lib/x.js';\nvi.mock('./x.js');\nexport const t = x;\n" },
     );
-    expect(details(outcome)).toEqual(["src/x.test.ts: line 2: mock './x.js': as a module path (TypeScript) expected file src/lib/x.ts, got unresolved"]);
+    expect(details(outcome)).toEqual(["src/x.test.ts: line 2: vi.mock './x.js': as a module path (TypeScript) expected file src/lib/x.ts, got unresolved"]);
   });
 
   it('fails relative -> alias at the same file (form class)', () => {
@@ -152,7 +152,7 @@ describe('K3a resolution identity', () => {
       { 'package.json': '{ "type": "module" }', 'tsconfig.json': nodenext, 'src/x.ts': 'export const x = 1;\n', 'src/a.ts': "import { x } from './x.js';\nexport const a = x;\n" },
       { 'package.json': '{ "type": "module" }', 'tsconfig.json': nodenext, 'src/50%off/x.ts': 'export const x = 1;\n', 'src/a.ts': "import { x } from './50%off/x.js';\nexport const a = x;\n" },
     );
-    expect(details(outcome)).toEqual(["src/a.ts: form class changes: line 1: import './x.js' -> './50%off/x.js': rewritten ESM specifier contains '#', '?' or '%'"]);
+    expect(details(outcome)).toEqual(["src/a.ts: form class changes: line 1: import './x.js' -> './50%off/x.js': rewritten specifier contains '#', '?' or '%', which an ESM or Vite resolver reads as URL syntax"]);
   });
 
   it('fails a rewritten bare package specifier that still reaches the same file', () => {
@@ -172,8 +172,8 @@ describe('K3a resolution identity', () => {
     expect(alone.findings.map((finding) => finding.kind)).toEqual(['unresolved-relative-moved']);
     const split = k3a({ ...base, 'src/services/user.ts': user }, { 'tsconfig.json': commonjs, 'jest.config.js': jest, 'src/modules/a.test.ts': mockTest, 'src/services/user.ts': user });
     expect(details(split)).toEqual([
-      "src/modules/a.test.ts: unresolved './virtual' named src/services/virtual like other sites in base; they now name src/modules/virtual, src/services/virtual",
-      "src/services/user.ts: unresolved './virtual' named src/services/virtual like other sites in base; they now name src/modules/virtual, src/services/virtual",
+      "src/modules/a.test.ts: line 1: unresolved jest.mock './virtual' named src/services/virtual like other sites in base; they now name src/modules/virtual, src/services/virtual",
+      "src/services/user.ts: line 1: unresolved jest.mock './virtual' named src/services/virtual like other sites in base; they now name src/modules/virtual, src/services/virtual",
     ]);
   });
 
@@ -200,14 +200,14 @@ describe('K3a resolution identity', () => {
     expect(details(referenced)).toContain('src/a.ts: /// <reference types="env" />: expected file types/env/index.d.ts (typescript), got unresolved');
   });
 
-  it('fails moves inside a workspace package that the environment links into node_modules', () => {
+  it('resolves through a workspace link into the commits, so a dropped deep-import rewrite fails', () => {
     const outcome = k3a(
       { '.gitignore': 'node_modules\n', 'tsconfig.json': commonjs, 'a/util.ts': 'export const util = 1;\n', 'src/main.ts': "import { util } from 'a/util';\nexport const main = util;\n" },
       { '.gitignore': 'node_modules\n', 'tsconfig.json': commonjs, 'a/lib/util.ts': 'export const util = 1;\n', 'src/main.ts': "import { util } from 'a/util';\nexport const main = util;\n" },
       { 'node_modules/.keep': '' },
       (root) => fs.symlinkSync('../a', path.join(root, 'node_modules/a')),
     );
-    expect(details(outcome)).toContain('node_modules/a: links the workspace package a/, where 1 files moved (a/util.ts): resolution through the link reads the environment checkout, not the commits, so it is not certified');
+    expect(details(outcome)).toEqual(["src/main.ts: line 1: import 'a/util': expected file a/lib/util.ts (typescript), got unresolved"]);
   });
 
   it('fails added and deleted source files', () => {
@@ -240,7 +240,7 @@ describe('specifier form class', () => {
 
   it('allows a directory specifier to name the file once the index is renamed away', () => {
     const forms = { before: form('./users', 'src/users/index.ts'), after: form('./users/users', 'src/users/users.ts') };
-    expect(formChanges({ before: './users', after: './users/users', kind: 'import', format: 'cjs' }, forms, { before: 'src/users/index.ts', after: 'src/users/users.ts' })).toEqual([]);
+    expect(formChanges({ before: './users', after: './users/users', urlSyntax: false }, forms, { before: 'src/users/index.ts', after: 'src/users/users.ts' })).toEqual([]);
   });
 });
 
