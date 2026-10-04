@@ -63,7 +63,9 @@ async function main(): Promise<number> {
   const survivors = result.mutants.filter((mutant) => mutant.effectivelySurvived).length;
   log(`${result.mutants.length} mutants, ${survivors} survived; controls: ${result.controls.map((control) => `${control.subject}=${control.verdict}`).join(' ')}; ${(result.durationMs / 1000).toFixed(0)} s`);
   log(`wrote ${path.join(values.out, 'report.md')}`);
-  return survivors || result.controls.some((control) => control.verdict !== 'pass') ? 1 : 0;
+  // A known-good result that fails its control invalidates its row. A hunt case's identity control may fail K0 by
+  // design (JS-only repros sit outside the envelope); its kills are discounted against that control instead.
+  return survivors || result.controls.some((control) => control.verdict !== 'pass' && !control.subject.startsWith('hunt:')) ? 1 : 0;
 }
 
 main().then((code) => process.exit(code), (error) => {

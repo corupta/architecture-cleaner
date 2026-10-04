@@ -156,7 +156,7 @@ export async function certify(options: CertifyOptions): Promise<Certificate> {
       },
       checks: results,
       verdict: results.some((check) => check.status === 'fail' || check.status === 'error') ? 'fail' : 'pass',
-      scope: k8?.status === 'pass' ? 'full' : 'static',
+      scope: k8?.status === 'pass' || k8?.status === 'fail' ? 'full' : 'static',
       residualRisk,
     };
     return { ...certificate, digest: digestOf(certificate) };
