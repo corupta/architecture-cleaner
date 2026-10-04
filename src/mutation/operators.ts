@@ -4,7 +4,10 @@
 // reject without K8.
 import path from 'node:path';
 import ts from 'typescript';
+import { moduleFormat } from '../analyzer/analyze.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
+import { overlayRepoFs } from '../analyzer/repo-fs.js';
+import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import { nearestConfig } from '../analyzer/runner-config.js';
 import type { ResolvedSite, SiteKind } from '../analyzer/types.js';
 import { ignoredPaths } from '../certificate/ignore-files.js';
@@ -416,16 +419,26 @@ export const operators: Operator[] = [
         const key = `${posix.dirname(file)}\0${splitExtension(file)[1]}`;
         if (!byDirectory.has(key) && inPackage(subject, file) && !isToolConfig(file) && !isCoMoveArtifact(file)) byDirectory.set(key, { directory: posix.dirname(file), ...contextOf(file) });
       }
+      // A directory's context is a hint; the moved file's own context at its destination decides (a `**/*spec.ts`
+      // exclude keeps a spec out of the build program wherever it goes, so such a move is not a mutant).
+      const contextAt = (file: string, to: string) => {
+        const moved = overlayRepoFs(subject.headFs, new Map([[file, to]]), new Map());
+        return { programs: loadScopes(moved)(to).programs.join(' + ') || 'no program', format: moduleFormat(moved, to) };
+      };
       return touchedSources(subject).filter((file) => inPackage(subject, file) && movable(subject, file) && !isToolConfig(file)).flatMap((file) => {
         const own = contextOf(file);
         const extension = splitExtension(file)[1];
-        return [...byDirectory].filter(([key, context]) => key.endsWith(`\0${extension}`) && (context.programs !== own.programs || context.format !== own.format)).slice(0, 2).map(([, { directory, ...context }]) => {
+        return [...byDirectory].filter(([key, context]) => key.endsWith(`\0${extension}`) && (context.programs !== own.programs || context.format !== own.format)).map(([, { directory, ...context }]) => {
           const to = posix.join(directory, posix.basename(file));
           return {
             variant: context.format !== own.format ? 'module-format' : 'tsconfig-scope',
             key: `${file}->${directory}`,
-            description: `${file} (${own.format}, ${own.programs}) moved to ${to} (${context.format}, ${context.programs}), importers rewritten`,
-            build: () => moveWithImporters(subject, file, to),
+            description: `${file} (${own.format}, ${own.programs}) moved to ${to}, importers rewritten`,
+            build: () => {
+              const destination = contextAt(file, to);
+              if (subject.headTree.entries.has(to) || (destination.programs === own.programs && destination.format === own.format)) return null;
+              return moveWithImporters(subject, file, to);
+            },
           };
         });
       });

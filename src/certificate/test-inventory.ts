@@ -171,12 +171,12 @@ async function jestInventory(context: CertifyContext, name: string, cwd: string,
   const binary = createRequire(path.join(cwd, 'package.json')).resolve('jest/bin/jest');
   const config = runner.config ? ['--config', path.join(root, runner.config)] : [];
   const common = [binary, ...config, '--ci', '--no-watchman', `--cacheDirectory=${path.join(scratch, 'jest-cache')}`];
-  const list = await spawnTargetNode(context, path.join(scratch, 'list'), cwd, [...common, '--listTests', '--json'], probeTimeoutMs);
+  const list = await spawnTargetNode(context, path.join(scratch, 'list'), cwd, [...common, '--listTests', '--json'], probeTimeoutMs, runner.environment);
   const listed = listedTests(list.stdout);
   if (!listed) return { ok: false, failure: `jest --listTests exited with ${list.status}: ${firstWords(list.stderr || list.stdout, 2000)}`, network: list.network };
   const report = path.join(scratch, 'report.json');
   fs.rmSync(report, { force: true });
-  const run = await spawnTargetNode(context, path.join(scratch, 'run'), cwd, [...common, '--json', `--outputFile=${report}`, `--testNamePattern=${noTestName}`, '--passWithNoTests', '--silent'], probeTimeoutMs);
+  const run = await spawnTargetNode(context, path.join(scratch, 'run'), cwd, [...common, '--json', `--outputFile=${report}`, `--testNamePattern=${noTestName}`, '--passWithNoTests', '--silent'], probeTimeoutMs, runner.environment);
   fs.writeFileSync(path.join(scratch, 'run.stderr.log'), run.stderr);
   if (!fs.existsSync(report)) return { ok: false, failure: `jest exited with ${run.status} without a report: ${firstWords(run.stderr, 2000)}`, network: run.network };
   const parsed = JSON.parse(fs.readFileSync(report, 'utf8')) as JestReport;
@@ -185,7 +185,7 @@ async function jestInventory(context: CertifyContext, name: string, cwd: string,
     const loaded = file.status !== 'failed';
     return { project: 'jest', file: file.name, loaded, ...(loaded ? {} : { error: file.message ?? 'failed' }), tests: file.assertionResults.map((test) => ({ name: test.fullName, mode: test.status })) };
   });
-  const mocks = await runProbe<InventoryOutput>(context, `${name}-mocks`, jestMocksProbe, { root, cwd, ...(runner.config ? { config: runner.config } : {}) }, probeTimeoutMs);
+  const mocks = await runProbe<InventoryOutput>(context, `${name}-mocks`, jestMocksProbe, { root, cwd, ...(runner.config ? { config: runner.config } : {}) }, probeTimeoutMs, runner.environment);
   if (!mocks.ok) return { ok: false, failure: `jest haste map: ${mocks.failure}`, network: mocks.network };
   return {
     ok: true,
@@ -408,7 +408,7 @@ async function inventoryOf(context: CertifyContext, runner: Runner, side: Side, 
     cwd,
     ...(runner.config ? { config: runner.config } : {}),
     ...(runner.kind === 'mocha' ? { arguments: mochaArguments(root, runner) } : {}),
-  }, probeTimeoutMs);
+  }, probeTimeoutMs, runner.environment);
 }
 
 async function checkRunner(context: CertifyContext, runner: Runner, label: string): Promise<RunnerOutcome> {
