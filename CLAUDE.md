@@ -14,7 +14,9 @@ The gate session (S2) ran on 2026-10-02; [docs/gates.md](docs/gates.md) has the 
 
 S3 ran on 2026-10-02/03; [docs/sessions/s3.md](docs/sessions/s3.md) has the report. It shipped the scaffold, the analyzer and the move executor. On immich, a 292-file R1-style step passed every oracle offline, with the OpenAPI spec byte-identical.
 
-Next is S4 (certifier, mutation harness, `ac certify` on our branches and the G3 branches, storyboard draft), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
+S4 ran on 2026-10-03/04; [docs/sessions/s4.md](docs/sessions/s4.md) has the report. It shipped `ac certify` (K0–K4, K6, K8; K5 and K7 not built), the mutation harness and the hunt corpus. Our three branches certify PASS with every check, the four G3 branches FAIL, and no mutant survives the static checks. The storyboard draft for corupta's Oct 9 review is [docs/storyboard.md](docs/storyboard.md).
+
+Next is S5 (LLM gateway, seeds, the draft-editor planner with Ultra, validator, plan.yaml), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
 
 ## Decided (revisable with a reason)
 
