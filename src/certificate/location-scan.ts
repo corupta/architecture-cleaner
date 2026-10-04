@@ -2,14 +2,16 @@
 // 1. moved files contain no path-exposing APIs: location tokens (__dirname, import.meta.*, require.resolve, ...),
 //    loaders that resolve relative to their caller (non-literal require/import()/mocks, createRequire, caller-location
 //    libraries), cwd-relative literal paths, stack inspection, process.argv[1], @jest-environment paths;
+//    path strings in moved files name nothing beside them that stays behind (`toMatchFileSnapshot`, caller-relative
+//    helpers), and moved files import no unmoved module that reads its caller's location from the stack;
 // 2. non-moved files load nothing by a computed path whose static part names a moved file or points into a
-//    directory whose tracked contents changed (hunt SEM-5);
+//    directory whose tracked contents changed (hunt SEM-5), and their globs keep their matches' sorted order;
 // 3. no old path survives as a string in code, config, infra or CI (old-path-scan.ts; docs and comments: findings).
 import path from 'node:path';
 import ts from 'typescript';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import type { CommitTree } from './git-tree.js';
-import { emittedLayouts, type EmittedLayout, globToRegExp, scanOldPaths } from './old-path-scan.js';
+import { emittedLayouts, type EmittedLayout, globOrderChange, globToRegExp, scanOldPaths } from './old-path-scan.js';
 import { type Binding, describeCallee, type Evaluate, familyOf, locate, type Located, moduleBindings, pathEvaluator, type PathValue, unwrapExpression } from './path-expressions.js';
 import { isScannedSource } from './spans.js';
 import { type Check, type CertifyContext, type Finding, result, type Violation } from './types.js';
@@ -55,6 +57,8 @@ interface Hazard {
   what: string;
   /** A location token whose value can be evaluated at the old and the new location. */
   token?: boolean;
+  /** Reads its caller's location (stack frames, caller-location libraries): its callers' moves change what it does. */
+  observesCaller?: boolean;
 }
 
 interface ScannedFile {
@@ -65,6 +69,8 @@ interface ScannedFile {
   stackText: ts.Node[];
   sinks: Sink[];
   opaqueLoads: ts.Node[];
+  /** Path-like string literals outside reference sites: what they name beside the file must move along with it. */
+  relativeStrings: ts.StringLiteralLike[];
 }
 
 const lineOf = (sourceFile: ts.SourceFile, node: ts.Node) => sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
@@ -81,6 +87,29 @@ function calleeText(expression: ts.Expression): string | null {
 }
 
 const isLiteral = (node: ts.Expression | undefined) => node !== undefined && ts.isStringLiteralLike(unwrapExpression(node));
+// Matchers that resolve a path argument against the test file (vitest, jest-specific-snapshot).
+const fileRelativeMatchers = new Set(['toMatchFileSnapshot', 'toMatchSpecificSnapshot']);
+
+/** Objects handed to `Error.captureStackTrace(holder)`: their `.stack` is a stack trace whatever their name. */
+function stackHolders(sourceFile: ts.SourceFile): Set<string> {
+  const holders = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && calleeText(node.expression) === 'Error.captureStackTrace' && node.arguments[0] && ts.isIdentifier(unwrapExpression(node.arguments[0]))) {
+      holders.add((unwrapExpression(node.arguments[0]) as ts.Identifier).text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return holders;
+}
+
+/** A string literal that is a value (not a property name, a type, or a module specifier of a declaration). */
+function isValueString(node: ts.StringLiteralLike): boolean {
+  const parent = node.parent;
+  if ((ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) || ts.isPropertySignature(parent) || ts.isMethodDeclaration(parent)) && parent.name === node) return false;
+  if (ts.isLiteralTypeNode(parent) || ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent) || ts.isExternalModuleReference(parent) || ts.isModuleDeclaration(parent)) return false;
+  return !ts.isImportTypeNode(parent.parent);
+}
 
 /** Walks one file and records everything K4 looks at; which of it counts depends on whether the file moved. */
 export function scanFile(file: string, text: string): ScannedFile {
@@ -91,7 +120,8 @@ export function scanFile(file: string, text: string): ScannedFile {
   const stackText: ts.Node[] = [];
   const sinks: Sink[] = [];
   const opaqueLoads: ts.Node[] = [];
-  const catchVariables = new Set<string>();
+  const relativeStrings: ts.StringLiteralLike[] = [];
+  const errorVariables = stackHolders(sourceFile);
   const relativeValue = (node: ts.Expression | undefined, requirePathLike: boolean) => node !== undefined
     && evaluate(node).some((value) => (value.anchor === 'string' && (!requirePathLike || pathLike(value.text))) || value.anchor === 'cwd');
   const addSink = (sink: Sink) => {
@@ -107,7 +137,8 @@ export function scanFile(file: string, text: string): ScannedFile {
     if (ts.isCallExpression(inner) && inner.expression.kind === ts.SyntaxKind.ImportKeyword && isLiteral(inner.arguments[0])) return;
     hazards.push({ node: call, what: `${name}(${excerpt(sourceFile, argument)}) with a computed specifier (resolved relative to this file)` });
     addSink({ kind: 'module', node: argument, call: name, recursive: false, strings: 'module' });
-    if (evaluate(argument).length === 0) opaqueLoads.push(call);
+    // Nothing static, or only a cwd/empty start (`import(path.resolve(file))`): the path comes from elsewhere.
+    if (evaluate(argument).every((value) => value.anchor !== 'repo' && !value.complete && /^\.?\/?$/.test(value.text))) opaqueLoads.push(call);
   };
   const optionValue = (call: ts.CallExpression | ts.NewExpression, name: string): ts.Expression | undefined => {
     for (const argument of call.arguments ?? []) {
@@ -148,10 +179,11 @@ export function scanFile(file: string, text: string): ScannedFile {
   };
 
   const visit = (node: ts.Node): void => {
-    if (ts.isCatchClause(node) && node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) catchVariables.add(node.variableDeclaration.name.text);
+    if (ts.isCatchClause(node) && node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) errorVariables.add(node.variableDeclaration.name.text);
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && familyOf(node.moduleSpecifier.text) === 'caller-location') {
-      hazards.push({ node, what: `imports ${node.moduleSpecifier.text}, which observes its caller's file location` });
+      hazards.push({ node, what: `imports ${node.moduleSpecifier.text}, which observes its caller's file location`, observesCaller: true });
     }
+    if (ts.isStringLiteralLike(node) && isValueString(node) && pathLike(node.text) && !/^[a-z][a-z0-9+.-]*:/i.test(node.text)) relativeStrings.push(node);
     if (ts.isCallExpression(node)) {
       const text = calleeText(node.expression);
       const callee = describeCallee(node.expression, bindings);
@@ -166,7 +198,8 @@ export function scanFile(file: string, text: string): ScannedFile {
       } else if (text === 'import.meta.glob' && node.arguments[0]) addSink({ kind: 'glob', node: node.arguments[0], call: text, recursive: true, strings: 'module' });
       else if (text === 'process.cwd') hazards.push({ node, what: 'process.cwd()' });
       else if (callee?.name === 'createRequire') hazards.push({ node, what: `createRequire(${node.arguments[0] ? excerpt(sourceFile, node.arguments[0]) : ''})` });
-      else if (callee?.name === 'getCallSites' || callee?.name === 'getCallSite' || family === 'caller-location') hazards.push({ node, what: `${excerpt(sourceFile, node.expression)}() reads the caller's file location` });
+      else if (callee?.name === 'getCallSites' || callee?.name === 'getCallSite' || family === 'caller-location') hazards.push({ node, what: `${excerpt(sourceFile, node.expression)}() reads the caller's file location`, observesCaller: true });
+      else if (callee && fileRelativeMatchers.has(callee.name) && callee.receiver !== undefined) hazards.push({ node, what: `${callee.name}(${node.arguments[0] ? excerpt(sourceFile, node.arguments[0]) : ''}) resolves its path against the test file` });
       else if (callee?.name === 'commandDir') hazards.push({ node, what: `${excerpt(sourceFile, node.expression)}() loads a directory relative to this file` });
       else if (family === 'path' && (callee!.name === 'join' || callee!.name === 'resolve')) {
         if (node.arguments.length === 0 ? callee!.name === 'resolve' : relativeValue(node.arguments[0], false)) hazards.push({ node, what: `cwd-relative path ${excerpt(sourceFile, node)}` });
@@ -225,10 +258,10 @@ export function scanFile(file: string, text: string): ScannedFile {
       if (objectText === 'require' && requireMembers.has(member)) hazards.push({ node, what: `require.${member}` });
       else if (objectText === 'module' && moduleMembers.has(member)) hazards.push({ node, what: `module.${member}` });
       else if (objectText === 'process' && member === 'mainModule') hazards.push({ node, what: 'process.mainModule' });
-      else if (objectText === 'Error' && member === 'prepareStackTrace') hazards.push({ node, what: 'Error.prepareStackTrace (reads stack frames, which name files)' });
+      else if (objectText === 'Error' && member === 'prepareStackTrace') hazards.push({ node, what: 'Error.prepareStackTrace (reads stack frames, which name files)', observesCaller: true });
       else if (objectText === 'Error' && member === 'captureStackTrace') stackText.push(node);
-      else if (member === 'stack' && isErrorLike(object, catchVariables)) {
-        if (stackUse(node) === 'inspect') hazards.push({ node, what: `${excerpt(sourceFile, node.parent)}: inspects a stack trace, whose frames name files` });
+      else if (member === 'stack' && isErrorLike(object, errorVariables)) {
+        if (stackUse(node) === 'inspect') hazards.push({ node, what: `${excerpt(sourceFile, node.parent)}: inspects a stack trace, whose frames name files`, observesCaller: true });
         else stackText.push(node);
       } else if (member === 'argv' && calleeText(object) === 'process') {
         const parent = node.parent;
@@ -247,7 +280,7 @@ export function scanFile(file: string, text: string): ScannedFile {
     if (pragma && pragma[2]!.replace(/\*\/$/, '').includes('/')) hazards.push({ node: sourceFile, what: `@${pragma[1]}-environment ${pragma[2]} names a path` });
   }
   visit(sourceFile);
-  return { sourceFile, bindings, hazards, stackText, sinks, opaqueLoads };
+  return { sourceFile, bindings, hazards, stackText, sinks, opaqueLoads, relativeStrings };
 }
 
 /** `__dirname` as an expression, not as a declared name or a property key. */
@@ -259,9 +292,9 @@ function isValueReference(identifier: ts.Identifier): boolean {
   return true;
 }
 
-function isErrorLike(expression: ts.Expression, catchVariables: ReadonlySet<string>): boolean {
+function isErrorLike(expression: ts.Expression, errorVariables: ReadonlySet<string>): boolean {
   const node = unwrapExpression(expression);
-  if (ts.isIdentifier(node)) return errorName.test(node.text) || catchVariables.has(node.text);
+  if (ts.isIdentifier(node)) return errorName.test(node.text) || errorVariables.has(node.text);
   if (ts.isPropertyAccessExpression(node)) return errorName.test(node.name.text);
   if (ts.isNewExpression(node) || ts.isCallExpression(node)) return /(^|\.)\w*Error$/.test(node.expression.getText());
   return false;
@@ -368,6 +401,14 @@ function withSources(file: string, layouts: readonly EmittedLayout[]): string[] 
   return candidates;
 }
 
+/** `x.js` beside `x.ts` is x.ts's emitted twin: run from an outDir, `join(__dirname, 'x.js')` reaches the compiled x.ts. */
+function emittedTwins(file: string): string[] {
+  const emitted = /\.(m|c)?js$/.exec(file);
+  if (!emitted) return [file];
+  const stem = file.slice(0, -emitted[0].length);
+  return [file, ...(emitted[1] === 'm' ? ['.mts'] : emitted[1] === 'c' ? ['.cts'] : ['.ts', '.tsx']).map((extension) => stem + extension)];
+}
+
 function moduleCandidates(file: string): string[] {
   const candidates = [file, ...sourceExtensions.map((extension) => file + extension), ...sourceExtensions.map((extension) => `${file}/index${extension}`)];
   const emitted = /\.(m|c)?jsx?$/.exec(file);
@@ -394,7 +435,7 @@ function checkLocated(location: Located, sink: Sink, file: string, index: DiffIn
     return null;
   }
   for (const candidate of withSources(location.path, index.layouts)) {
-    const hit = (sink.kind === 'module' ? moduleCandidates(candidate) : [candidate]).find((target) => index.moved.has(target) || index.destinations.has(target));
+    const hit = (sink.kind === 'module' ? moduleCandidates(candidate) : emittedTwins(candidate)).find((target) => index.moved.has(target) || index.destinations.has(target));
     if (hit) return `names ${describeMove(index, hit)}`;
     if (sink.kind === 'module' || !index.isDirectory(candidate)) continue;
     if (sink.kind === 'enumerate' && !sink.recursive) {
@@ -476,6 +517,8 @@ function checkSinks(scanned: ScannedFile, file: string, context: CertifyContext,
           const pattern = globToRegExp(location.path);
           const changed = [...index.moved].filter(([from, to]) => pattern.test(from) !== pattern.test(to));
           if (changed.length) report(sink, `matches a different set of files (${changed.length} moved, e.g. ${changed[0]![0]} -> ${changed[0]![1]})`);
+          const reordered = changed.length ? null : globOrderChange(pattern, context);
+          if (reordered) report(sink, `matches the same files in a different order: ${reordered}`);
           continue;
         }
         const problem = checkLocated(location, sink, file, index, context.options.packageRoot);
@@ -508,10 +551,55 @@ function locationDetail(scanned: ScannedFile, hazard: Hazard, from: string, to: 
 }
 
 /**
+ * Path strings in a moved file that name something beside it in base which does not keep its place relative to the
+ * file: whatever resolves them against the file (`toMatchFileSnapshot`, a caller-location helper, `readBeside('x.txt')`)
+ * now reaches something else. A string resolved against the cwd almost never names a file beside the module. Strings
+ * inside a location-token expression are that hazard's business. A string that names a module only by module
+ * resolution (`'../lib/format'`) can be a module path only to a loader: this file's computed loaders are hazards, so
+ * it counts only when the repository has an opaque load (`opaqueLoads`); otherwise it is a finding.
+ */
+function strandedStrings(context: CertifyContext, moved: MovedScan, opaqueLoads: readonly string[]): { violations: Violation[]; findings: Finding[] } {
+  const { scanned, from, to } = moved;
+  const { sourceFile } = scanned;
+  const sites = context.views.base(from)?.sites ?? [];
+  const violations: Violation[] = [];
+  const findings: Finding[] = [];
+  const covered = scanned.hazards.filter((hazard) => hazard.token).map((hazard) => pathExpressionAround(hazard.node, scanned.bindings));
+  const directory = (file: string) => path.posix.dirname(file).replace(/^\.$/, '');
+  const resolveFrom = (file: string, text: string) => path.posix.normalize(path.posix.join(directory(file) || '.', text)).replace(/\/+$/, '').replace(/^\.$/, '');
+  for (const literal of scanned.relativeStrings) {
+    const [start, end] = [literal.getStart(sourceFile), literal.getEnd()];
+    // './', '..': fragments (`specifier.startsWith('./')`), not names; as paths they come with a location token.
+    if (literal.text.startsWith('/') || /^[./]*$/.test(literal.text) || sites.some((site) => site.start < end && site.end > start)) continue;
+    if (covered.some((outer) => outer.getStart(sourceFile) <= start && end <= outer.getEnd())) continue;
+    const before = resolveFrom(from, literal.text);
+    if (before.startsWith('..')) continue;
+    const { base } = context;
+    const exact = base.entries.has(before) ? [before] : base.directories.has(before) ? [...base.entries.keys()].filter((file) => file.startsWith(`${before}/`)) : [];
+    const module = exact.length === 0 && /^\.\.?(\/|$)/.test(literal.text) ? moduleCandidates(before).find((file) => base.entries.has(file)) : undefined;
+    const after = resolveFrom(to, literal.text);
+    // A file keeps its place when its head path is the string resolved from the new location, plus the same rest.
+    // The file's own name (a logger label) names nothing else wherever the file goes.
+    const stranded = [...exact, ...(module ? [module] : [])].find((file) => file !== from && context.pathMap.map(file) !== after + file.slice(before.length));
+    if (!stranded) continue;
+    const detail = `moved to ${to}; line ${lineOf(sourceFile, literal)}: '${literal.text}' names ${stranded} beside the file in base; from the new location it names ${after + stranded.slice(before.length) || '.'}, while ${stranded} is at ${context.pathMap.map(stranded)}`;
+    if (module && opaqueLoads.length === 0) findings.push({ kind: 'relative-path-string', file: from, detail: `${detail}; no load in the repository takes an opaque path` });
+    else violations.push({ file: from, detail: module ? `${detail}; the opaque load at ${opaqueLoads[0]} can take it as a module path` : detail });
+  }
+  return { violations, findings };
+}
+
+interface MovedScan {
+  scanned: ScannedFile;
+  from: string;
+  to: string;
+}
+
+/**
  * `copy`: `to` is an added file whose content is `from`'s (modulo specifiers); reported at `to`.
  * `added`: `to` is an added file with no base counterpart (from === to, read from head); its uses are reported as is.
  */
-function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 'move' | 'copy' | 'added' = 'move'): { violations: Violation[]; findings: Finding[] } {
+function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 'move' | 'copy' | 'added' = 'move'): { violations: Violation[]; findings: Finding[]; moved?: MovedScan } {
   const copy = kind !== 'move';
   const text = kind === 'added' ? context.head.text(to) : context.base.text(from);
   const violations: Violation[] = [];
@@ -535,7 +623,26 @@ function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 
     const where = { file: copy ? to : from, detail: kind === 'added' ? 'added with no base counterpart;' : copy ? `a copy of ${from};` : `moved to ${to};` };
     findings.push({ kind: 'stack-text', file: where.file, detail: `${where.detail} ${scanned.stackText.length} stack-trace reads passed along as text (line ${lineOf(sourceFile, scanned.stackText[0]!)}); their frames now name the new path` });
   }
-  return { violations, findings };
+  return { violations, findings, ...(kind === 'move' ? { moved: { scanned, from, to } } : {}) };
+}
+
+/**
+ * Moved files that import a module which reads its caller's location (an in-repo `callerDirectory()` built on stack
+ * frames, a wrapper around callsites): the module's behavior follows its callers' paths. Direct importers only; a
+ * caller reached through another unmoved wrapper is a residual.
+ */
+function movedCallers(context: CertifyContext, observers: ReadonlyMap<string, string>): Violation[] {
+  if (observers.size === 0) return [];
+  const analysis = context.analyses().base;
+  const violations: Violation[] = [];
+  for (const [from, to] of context.pathMap.moves) {
+    const targets = new Set((analysis.files.get(from)?.sites ?? []).flatMap((site) => (site.resolution.type === 'file' ? [site.resolution.path] : [])));
+    for (const target of targets) {
+      const observer = observers.get(target);
+      if (observer) violations.push({ file: from, detail: `moved to ${to}; imports ${target}, which reads its caller's location (${observer}): it now sees ${to}` });
+    }
+  }
+  return violations;
 }
 
 export function checkLocations(context: CertifyContext): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number> } {
@@ -551,8 +658,10 @@ export function checkLocations(context: CertifyContext): { violations: Violation
 
   let movedScanned = 0;
   let movedHazards = 0;
+  const movedScans: MovedScan[] = [];
   for (const [from, to] of pathMap.moves) {
     const outcome = scanMovedFile(context, from, to);
+    if (outcome.moved) movedScans.push(outcome.moved);
     movedScanned++;
     movedHazards += outcome.violations.length;
     violations.push(...outcome.violations);
@@ -571,20 +680,35 @@ export function checkLocations(context: CertifyContext): { violations: Violation
 
   let computedScanned = 0;
   let computedViolations = 0;
+  const opaqueLoads: string[] = [];
+  const callerObservers = new Map<string, string>();
   if (pathMap.moves.size) {
     for (const file of sources) {
       if (pathMap.map(file) !== file) continue;
       const text = base.text(file);
       if (text === undefined || !isScannedSource(file, text)) continue;
       computedScanned++;
-      const outcome = checkSinks(scanFile(file, text), file, context, index);
+      const scanned = scanFile(file, text);
+      const outcome = checkSinks(scanned, file, context, index);
       computedViolations += outcome.violations.length;
       violations.push(...outcome.violations);
       findings.push(...outcome.findings);
+      for (const node of scanned.opaqueLoads) opaqueLoads.push(`${file} line ${lineOf(scanned.sourceFile, node)}`);
+      const observer = scanned.hazards.find((hazard) => hazard.observesCaller);
+      if (observer) callerObservers.set(file, `line ${lineOf(scanned.sourceFile, observer.node)}: ${observer.what}`);
     }
   }
+  const callerViolations = movedCallers(context, callerObservers);
+  movedHazards += callerViolations.length;
+  violations.push(...callerViolations);
+  for (const moved of movedScans) {
+    const outcome = strandedStrings(context, moved, opaqueLoads);
+    movedHazards += outcome.violations.length;
+    violations.push(...outcome.violations);
+    findings.push(...outcome.findings);
+  }
 
-  const oldPaths = scanOldPaths(context, layouts);
+  const oldPaths = scanOldPaths(context, layouts, opaqueLoads);
   violations.push(...oldPaths.violations);
   findings.push(...oldPaths.findings);
   return {

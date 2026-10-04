@@ -138,7 +138,23 @@ const classify = (value: PathValue): PathValue | null => {
 };
 
 const maxAlternatives = 4;
-const dedupe = (values: PathValue[]) => [...new Map(values.map((value) => [`${value.anchor}\0${value.text}\0${value.complete}`, value])).values()].slice(0, maxAlternatives);
+
+const commonPrefix = (texts: string[]) => texts.reduce((prefix, text) => {
+  let length = 0;
+  while (length < prefix.length && prefix[length] === text[length]) length++;
+  return prefix.slice(0, length);
+});
+
+/**
+ * Distinct values; past `maxAlternatives`, each anchor's values widen to their common prefix with a dynamic rest, so
+ * the 5th branch of a conditional still counts (as part of a wider value) instead of being dropped.
+ */
+const dedupe = (values: PathValue[]): PathValue[] => {
+  const distinct = [...new Map(values.map((value) => [`${value.anchor}\0${value.text}\0${value.complete}`, value])).values()];
+  if (distinct.length <= maxAlternatives) return distinct;
+  const anchors = [...new Set(distinct.map((value) => value.anchor))];
+  return anchors.map((anchor) => ({ anchor, text: commonPrefix(distinct.filter((value) => value.anchor === anchor).map((value) => value.text)), complete: false }));
+};
 
 /** Appends text (or a dynamic part) to a value, as string concatenation does. */
 function append(value: PathValue, next: PathValue | null): PathValue {

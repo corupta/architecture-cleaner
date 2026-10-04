@@ -5,9 +5,11 @@
 //   equal, collected without running test bodies or hooks (vitest `collect`, jest with a never-matching
 //   `--testNamePattern`, mocha's own loader with every file loaded on its own). G3: 2,337/2,337 cases passed
 //   while 66 spec files failed to load, so load status is compared per file, not as totals;
-// - jest's haste mock map (name → manual mock) is equal modulo the pathMap, with no new duplicate names.
-// Snapshot counters (`snapshot.added == 0` under `--ci`) need a real run: K8's. Statically, snapshot files must
-// co-move with their tests, which K1 checks.
+// - jest's haste mock map (name → manual mock) is equal modulo the pathMap, with no new duplicate names;
+// - jest: each test file's projects are equal (`--listTests` merges them; a project sets setupFiles, environment);
+// - each test file's snapshot file, as the runner's own resolver computes it (`resolveSnapshotPath`, jest's
+//   `snapshotResolver`), is the mapped base snapshot file, or untracked on both sides.
+// Snapshot counters (`snapshot.added == 0` under `--ci`) need a real run: K8's.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -47,6 +49,10 @@ interface InventoryOutput {
   /** jest: the haste mock map (name → absolute path) and the duplicate names it warned about. */
   mocks?: Record<string, string>;
   duplicateMocks?: { name: string; paths: string[] }[];
+  /** jest: every test file of every project, from each project's own SearchSource. */
+  projectFiles?: { project: string; file: string }[];
+  /** Each test file's snapshot file (absolute), from the runner's snapshot resolver. */
+  snapshots?: { project: string; file: string; snapshot: string }[];
 }
 
 const vitestProbe = probeSource(String.raw`
@@ -56,6 +62,11 @@ async function main() {
   const files = specifications.map((specification) => ({ project: specification.project.name, file: specification.moduleId }));
   // Load every file (vitest 5 defaults to parsing them statically, which never sees a broken import).
   const { testModules, unhandledErrors } = await vitest.collect(undefined, { staticParse: false });
+  const snapshots = [];
+  for (const specification of specifications) {
+    const snapshot = await vitest.snapshot.resolvePath(specification.moduleId, { config: specification.project.serializedConfig });
+    snapshots.push({ project: specification.project.name, file: specification.moduleId, snapshot });
+  }
   const modules = testModules.map((module) => {
     const errors = module.errors();
     const record = {
@@ -68,23 +79,34 @@ async function main() {
     return record;
   });
   await vitest.close();
-  return { runner, files, modules, unhandled: (unhandledErrors || []).map((error) => (error && error.message) || String(error)) };
+  return { runner, files, modules, snapshots, unhandled: (unhandledErrors || []).map((error) => (error && error.message) || String(error)) };
 }
 `);
 
 const jestMocksProbe = probeSource(String.raw`
 async function main() {
-  const { configs, Runtime, runner } = await openJest();
+  const { configs, Runtime, fromCore, runner } = await openJest();
+  const { SearchSource } = fromCore('@jest/core');
+  const { buildSnapshotResolver } = fromCore('jest-snapshot');
   const mocks = {};
   const duplicateMocks = [];
+  const projectFiles = [];
+  const snapshots = [];
   for (const [index, config] of configs.entries()) {
     const project = (config.displayName && (config.displayName.name || config.displayName)) || 'project ' + index;
     const warnings = [];
     const capture = (...parts) => warnings.push(parts.join(' '));
     const hasteConsole = { log: capture, info: capture, warn: capture, error: capture, debug: capture };
     const hasteMap = await Runtime.createHasteMap(config, { console: hasteConsole, maxWorkers: 2, resetCache: true, watch: false, watchman: false });
-    const { moduleMap } = await hasteMap.build();
+    const { hasteFS, moduleMap } = await hasteMap.build();
     for (const [name, file] of moduleMap.getRawModuleMap().mocks) mocks[project + '\u0000' + name] = path.resolve(config.rootDir, file);
+    const searchSource = new SearchSource({ config, hasteFS, moduleMap, resolver: Runtime.createResolver(config, moduleMap) });
+    const snapshotResolver = await buildSnapshotResolver(config);
+    for (const file of hasteFS.getAllFiles()) {
+      if (!searchSource.isTestFilePath(file)) continue;
+      projectFiles.push({ project, file });
+      snapshots.push({ project, file, snapshot: snapshotResolver.resolveSnapshotPath(file) });
+    }
     for (const warning of warnings) {
       const match = /duplicate manual mock found: (\S+)/.exec(warning);
       if (!match) continue;
@@ -92,7 +114,7 @@ async function main() {
       duplicateMocks.push({ name: project + '\u0000' + match[1], paths });
     }
   }
-  return { runner, files: [], modules: [], mocks, duplicateMocks };
+  return { runner, files: [], modules: [], mocks, duplicateMocks, projectFiles, snapshots };
 }
 `);
 
@@ -265,6 +287,8 @@ function compareInventories(context: CertifyContext, roots: Record<Side, string>
   const unhandled = { base: base.unhandled?.length ?? 0, head: head.unhandled?.length ?? 0 };
   if (unhandled.head > unhandled.base) violations.push({ detail: `${unhandled.head} errors during collection outside any test file in head, ${unhandled.base} in base: ${firstWords(head.unhandled![0] ?? '')}` });
   const mockMetrics = compareMocks(context, roots, base, head, violations);
+  const projectChanges = compareProjects(context, roots, base, head, violations);
+  const snapshotChanges = compareSnapshots(context, roots, base, head, violations);
   const count = (output: InventoryOutput) => output.modules.reduce((total, module) => total + module.tests.length, 0);
   const unloadable = (output: InventoryOutput) => output.modules.filter((module) => !module.loaded).length;
   return {
@@ -286,9 +310,62 @@ function compareInventories(context: CertifyContext, roots: Record<Side, string>
       lostTests,
       uncollected,
       ...mockMetrics,
+      ...(base.projectFiles ? { projectChanges } : {}),
+      snapshotFileChanges: snapshotChanges,
       snapshots: snapshotNote,
     },
   };
+}
+
+/** jest: every test file belongs to the same projects (mapped); a project brings its own setupFiles and environment. */
+function compareProjects(context: CertifyContext, roots: Record<Side, string>, base: InventoryOutput, head: InventoryOutput, violations: Violation[]): number {
+  if (!base.projectFiles || !head.projectFiles) return 0;
+  const membership = (side: Side, output: InventoryOutput, map: (file: string) => string) => {
+    const projects = new Map<string, string[]>();
+    for (const entry of output.projectFiles!) {
+      const file = map(repoPath(entry.file, roots[side]));
+      projects.set(file, [...(projects.get(file) ?? []), entry.project].sort());
+    }
+    return projects;
+  };
+  const before = membership('base', base, context.pathMap.map);
+  const after = membership('head', head, (file) => file);
+  let changed = 0;
+  for (const file of new Set([...before.keys(), ...after.keys()])) {
+    const [was, now] = [before.get(file) ?? [], after.get(file) ?? []];
+    if (was.join('\0') === now.join('\0')) continue;
+    changed++;
+    const list = (projects: string[]) => (projects.length ? projects.map((project) => `'${project}'`).join(', ') : 'none');
+    violations.push({ file, detail: `jest projects: ${list(was)} in base${context.pathMap.inverse.has(file) && context.pathMap.inverse.get(file) !== file ? ` (as ${context.pathMap.inverse.get(file)})` : ''}, ${list(now)} in head (a project brings its own setupFiles, environment and transforms)` });
+  }
+  return changed;
+}
+
+/**
+ * Each test file reads the snapshot file its runner's resolver names: in head it must be the mapped base snapshot
+ * file, or untracked on both sides. A custom resolver (`resolveSnapshotPath`, `snapshotResolver`) that keys
+ * snapshots by test path strands them when the test moves: under --ci the test fails, without it the snapshot is
+ * rewritten and the assertion passes vacuously.
+ */
+function compareSnapshots(context: CertifyContext, roots: Record<Side, string>, base: InventoryOutput, head: InventoryOutput, violations: Violation[]): number {
+  if (!base.snapshots || !head.snapshots) return 0;
+  const key = (project: string, file: string) => `${project}\0${file}`;
+  const headSnapshots = new Map(head.snapshots.map((entry) => [key(entry.project, repoPath(entry.file, roots.head)), repoPath(entry.snapshot, roots.head)]));
+  let changed = 0;
+  for (const entry of base.snapshots) {
+    const file = repoPath(entry.file, roots.base);
+    const to = context.pathMap.map(file);
+    const after = headSnapshots.get(key(entry.project, to));
+    if (after === undefined) continue;
+    const before = repoPath(entry.snapshot, roots.base);
+    const [trackedBefore, trackedAfter] = [context.base.entries.has(before), context.head.entries.has(after)];
+    if (!trackedBefore && !trackedAfter) continue;
+    if (trackedBefore && trackedAfter && context.pathMap.map(before) === after) continue;
+    changed++;
+    const state = (tracked: boolean) => (tracked ? 'tracked' : 'not tracked');
+    violations.push({ file: to, detail: `snapshot file: base reads ${before} (${state(trackedBefore)}), head reads ${after} (${state(trackedAfter)})${trackedBefore ? `; ${before} is at ${context.pathMap.map(before)} in head` : ''}` });
+  }
+  return changed;
 }
 
 function compareMocks(context: CertifyContext, roots: Record<Side, string>, base: InventoryOutput, head: InventoryOutput, violations: Violation[]): Record<string, number> {
@@ -388,7 +465,8 @@ export const testInventory: Check = {
       if (outcome.violations?.length) {
         const unloadable = Number(runnerMetrics.headUnloadable) > Number(runnerMetrics.baseUnloadable) ? [`${runnerMetrics.headUnloadable} of ${runnerMetrics.headFiles} test files fail to load (base: ${runnerMetrics.baseUnloadable})`] : [];
         const parts = [['files that no longer load', runnerMetrics.loadRegressions], ['dropped test files', runnerMetrics.droppedFiles], ['new test files', runnerMetrics.newFiles],
-          ['files with changed cases', runnerMetrics.caseChanges], ['lost tests', runnerMetrics.lostTests], ['manual mock changes', runnerMetrics.manualMockChanges], ['new duplicate mock names', runnerMetrics.newDuplicateMockNames]]
+          ['files with changed cases', runnerMetrics.caseChanges], ['lost tests', runnerMetrics.lostTests], ['manual mock changes', runnerMetrics.manualMockChanges], ['new duplicate mock names', runnerMetrics.newDuplicateMockNames],
+          ['files in other jest projects', runnerMetrics.projectChanges], ['test files reading another snapshot file', runnerMetrics.snapshotFileChanges]]
           .filter(([, count]) => Number(count) > 0).map(([part, count]) => `${count} ${part}`);
         const counts = [...unloadable, ...parts];
         summaries.push(`${name}: ${outcome.violations.length} violations${counts.length ? ` (${counts.join(', ')})` : `: ${firstWords(outcome.violations[0]!.detail)}`}`);

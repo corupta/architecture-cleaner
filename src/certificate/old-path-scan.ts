@@ -3,9 +3,10 @@
 // directory if f is an index file, its emitted path under every tsconfig outDir that compiles it, and every
 // directory the move emptied (plus its emitted mirror). A path-like token is compared after anchoring it at the
 // file's directory, each ancestor of it, and the package root, so `src/services/x.ts` in server/package.json and
-// `../src/services/x.ts` in server/test/ both hit. Glob tokens in code and config are matched instead: a glob
-// whose match set over the moved files changes is a hit. Hits inside K2 specifier spans are K3's business.
-// Documentation files and comments only produce findings.
+// `../src/services/x.ts` in server/test/ both hit, as do a directory a move enters or leaves (`files: ["dist/x"]`)
+// and a handler reference (`dist/handlers/create.handler`). Glob tokens in code and config are matched instead: a
+// glob whose match set over the moved files changes is a hit, and in code also one whose sorted matches reorder.
+// Hits inside K2 specifier spans are K3's business. Documentation files and comments only produce findings.
 import path from 'node:path';
 import ts from 'typescript';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
@@ -95,6 +96,30 @@ export function globToRegExp(pattern: string): RegExp {
   return new RegExp(`^${source}$`);
 }
 
+const codeUnitOrder = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const localeOrder = (a: string, b: string) => a.localeCompare(b, 'en');
+
+/**
+ * For a glob whose match set the moves keep: the first position where the sorted match list differs (base mapped
+ * through the pathMap vs head), under `.sort()`'s code-unit order or glob 7's locale order. A loader that registers
+ * what it matches in that order (routes, middleware, handlers: first match wins) behaves differently.
+ */
+export function globOrderChange(pattern: RegExp, context: CertifyContext): string | null {
+  const { base, head, pathMap } = context;
+  if (![...pathMap.moves].some(([from]) => pattern.test(from))) return null;
+  const baseMatches = [...base.entries.keys()].filter((file) => pattern.test(file));
+  const headMatches = [...head.entries.keys()].filter((file) => pattern.test(file));
+  for (const [name, order] of [['code-unit', codeUnitOrder], ['locale', localeOrder]] as const) {
+    const before = [...baseMatches].sort(order).map((file) => pathMap.map(file));
+    const after = [...headMatches].sort(order);
+    const index = before.findIndex((file, position) => file !== after[position]);
+    if (index === -1) continue;
+    const was = pathMap.inverse.get(after[index]!) ?? after[index]!;
+    return `in ${name} sorted order, match ${index + 1} is ${pathMap.inverse.get(before[index]!) ?? before[index]} in base (now ${before[index]}) but ${after[index]} in head (was ${was})`;
+  }
+  return null;
+}
+
 /** Longest common directory of a program's non-declaration files: TS 5's default rootDir. */
 function commonSourceDirectory(files: ReadonlySet<string>): string {
   const directories = [...files].filter((file) => !/\.d\.[cm]?ts$/.test(file)).map((file) => path.posix.dirname(file).split('/'));
@@ -182,6 +207,15 @@ function buildNeedles(context: CertifyContext, layouts: readonly EmittedLayout[]
 
 const tokenPattern = /(?:[\w@$~+\-./*?]|\[[\w@$~+\-./*?!^,]*\]|\{[\w@$~+\-./*?,]*\})+/g;
 const globCharacters = /[*?[{]/;
+// `<module path>.<export>`: a Lambda/serverless handler (`dist/handlers/create.handler`), a Procfile-style entry.
+const handlerReference = /^(.+)\.([A-Za-z_$][\w$]*)$/;
+const fileExtensions = new Set(['js', 'mjs', 'cjs', 'jsx', 'ts', 'mts', 'cts', 'tsx', 'json', 'map', 'snap', 'html', 'css', 'scss', 'yml', 'yaml', 'md', 'txt', 'sh', 'sql', 'hbs']);
+
+/** The module part of a token shaped like a handler reference: an extensionless path, then `.export`. */
+function handlerModule(token: string, allowed: boolean): string | null {
+  const match = allowed ? handlerReference.exec(token) : null;
+  return match && !fileExtensions.has(match[2]!.toLowerCase()) && !moduleExtension.test(match[1]!) ? match[1]! : null;
+}
 
 /**
  * Repo-relative readings of a path-like token: anchored at each base (a bare file name only at its own directory),
@@ -291,7 +325,11 @@ export function coverageGated(text: string): boolean {
   return false;
 }
 
-export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedLayout[]): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number> } {
+/**
+ * `opaqueLoads` names the module loads of the repository whose path K4 can't evaluate (`import(table[name])`): any of
+ * them can take a relative path string from anywhere, so such a string naming a moved file is then a violation.
+ */
+export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedLayout[], opaqueLoads: readonly string[]): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number> } {
   const { head, pathMap, views } = context;
   const violations: Violation[] = [];
   const findings: Finding[] = [];
@@ -312,6 +350,16 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
     }
     return changed;
   };
+  const orders = new Map<string, Needle | null>();
+  const globOrder = (pattern: string) => {
+    if (!orders.has(pattern)) {
+      const regex = globToRegExp(pattern);
+      const detail = globOrderChange(regex, context);
+      const [from, to] = moves.find(([source]) => regex.test(source)) ?? ['', ''];
+      orders.set(pattern, detail ? { from, to, form: `glob ${pattern} whose matches keep their set but not their order (${detail})` } : null);
+    }
+    return orders.get(pattern)!;
+  };
   const emptiedAncestor = (candidate: string) => {
     for (let directory = candidate; directory && directory !== '.' && directory !== '/'; directory = path.posix.dirname(directory)) {
       const needle = emptied.get(directory);
@@ -319,6 +367,28 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
     }
     return undefined;
   };
+  // A directory named in config means everything below it (`files: ["dist/handlers"]`, `COPY src/lib`, `include`): a
+  // move into or out of it changes what the consumer gets, even when the directory keeps other files.
+  const crossed = new Map<string, [string, string]>();
+  for (const [from, to] of moves) {
+    const fromAncestors = ancestors(from);
+    const toAncestors = ancestors(to);
+    for (const directory of [...fromAncestors.filter((ancestor) => !toAncestors.includes(ancestor)), ...toAncestors.filter((ancestor) => !fromAncestors.includes(ancestor))]) {
+      if (directory && directory !== context.options.packageRoot && !crossed.has(directory)) crossed.set(directory, [from, to]);
+    }
+  }
+  const crossedDirectory = (candidate: string): Needle | undefined => {
+    const sources = [candidate, ...layouts.filter((layout) => under(layout.outDir, candidate) && candidate !== layout.outDir)
+      .map((layout) => path.posix.join(layout.rootDir, relativeTo(layout.outDir, candidate)))];
+    for (const directory of sources) {
+      const crossing = crossed.get(directory);
+      if (crossing) return { from: crossing[0], to: crossing[1], form: `directory ${directory}${directory === candidate ? '' : ` (as ${candidate})`}, whose contents change with the move` };
+    }
+    return undefined;
+  };
+  for (const directory of crossed.keys()) interesting.add(path.posix.basename(directory));
+  const namesBasePath = (candidate: string) => context.base.entries.has(candidate) || context.base.directories.has(candidate)
+    || ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.json'].some((extension) => context.base.entries.has(candidate + extension));
 
   const files = [...head.entries.values()].filter((entry) => entry.mode !== '160000' && entry.mode !== '120000' && !entry.path.split('/').includes('node_modules')
     && !binaryExtensions.has(path.posix.extname(entry.path).slice(1).toLowerCase())).map((entry) => entry.path);
@@ -331,6 +401,8 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
     metrics.textFilesScanned++;
     const text = bytes.toString('utf8');
     const documentation = isDocumentation(file);
+    const fileCategory = category(file);
+    const codeFile = fileCategory === 'code';
     const bases = [...new Set([...ancestors(file), context.options.packageRoot])];
     const hits: Hit[] = [];
     for (const match of text.matchAll(tokenPattern)) {
@@ -350,6 +422,13 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
             hits.push({ file, offset: match.index!, token, glob: true, needle: { from, to, form: `glob ${anchored} whose matches change (${changed.length} moved files, e.g. ${from} -> ${to})` } });
             break;
           }
+          // In code a glob feeds a loader (routing-controllers `controllers`, entity lists) that registers in match order;
+          // only a glob that names its directory (`dist/controllers/**/*.js`, not `**/*.ts`) is anchored well enough.
+          const reordered = codeFile && /[^/.]\//.test(pattern.slice(0, pattern.search(globCharacters))) ? globOrder(anchored) : null;
+          if (reordered) {
+            hits.push({ file, offset: match.index!, token, glob: true, needle: reordered });
+            break;
+          }
           if (inEmptied) {
             hits.push({ file, offset: match.index!, token, glob: true, needle: { ...inEmptied, form: `glob ${anchored} inside a ${inEmptied.form}` } });
             break;
@@ -357,15 +436,26 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
         }
         continue;
       }
-      if (!token.split('/').some((segment) => interesting.has(segment))) continue;
-      for (const candidate of readings(token, bases, context.options.packageRoot)) {
+      // A bare `user.name` in code is a property access; a handler without a directory only counts in infra files.
+      const module = handlerModule(token, token.includes('/') || fileCategory === 'infra');
+      const segments = (module ? `${token}/${module}` : token).split('/');
+      if (!segments.some((segment) => interesting.has(segment))) continue;
+      const candidates = readings(token, bases, context.options.packageRoot);
+      const needleOf = (candidate: string): Needle | undefined => {
         const exact = needles.get(candidate);
-        const directory = exact ? undefined : emptiedAncestor(candidate);
-        if (exact) hits.push({ file, offset: match.index!, token, needle: exact[0]! });
-        else if (directory) hits.push({ file, offset: match.index!, token, needle: { ...directory, form: candidate === directory.from || emptied.get(candidate) ? directory.form : `path inside a ${directory.form} (${directory.from})` } });
-        else continue;
-        break;
+        if (exact) return exact[0]!;
+        const directory = emptiedAncestor(candidate);
+        if (directory) return { ...directory, form: candidate === directory.from || emptied.get(candidate) ? directory.form : `path inside a ${directory.form} (${directory.from})` };
+        return crossedDirectory(candidate);
+      };
+      let needle = candidates.map(needleOf).find((found) => found !== undefined);
+      // `dist/handlers/create.handler` names dist/handlers/create(.js), unless the whole token names a base file.
+      if (!needle && module && !candidates.some(namesBasePath)) {
+        needle = [...readings(module, bases, context.options.packageRoot), ...readings(`${module}.js`, bases, context.options.packageRoot)]
+          .map((candidate) => needles.get(candidate)?.[0]).find((found) => found !== undefined);
+        if (needle) needle = { ...needle, form: `${needle.form}, as a handler reference` };
       }
+      if (needle) hits.push({ file, offset: match.index!, token, needle });
     }
     if (hits.length === 0) continue;
     const sites = views.head(file)?.sites ?? [];
@@ -406,13 +496,15 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
       }
       const keys = syntax ? syntax.keys(hit.offset) : /\.ya?ml$/.test(file) ? yamlKeys(lines, lineIndex) : [];
       if (hit.glob && keys.some((key) => substitutionKeys.has(key))) continue;
-      if (category(file) === 'code' && /^\.\.?\//.test(hit.token)) {
-        // A './x' string in code means whatever its consumer resolves it against; consumers in this file are part 2's.
-        findings.push({ kind: 'relative-path-string', file, detail: `${where}; not consumed as a path in this file` });
+      const relativeInCode = codeFile && /^\.\.?\//.test(hit.token);
+      if (relativeInCode && opaqueLoads.length === 0) {
+        // A './x' string in code means whatever its consumer resolves it against; consumers in this file are part 2's,
+        // and with no opaque module load in the repository, nothing else can take it as a module path.
+        findings.push({ kind: 'relative-path-string', file, detail: `${where}; not consumed as a path in this file, and no load in the repository takes an opaque path` });
         continue;
       }
       const coverage = coverageFiles.test(path.posix.basename(file)) || keys.some((key) => coverageKey.test(key));
-      const at = `[${category(file)}${keys.length ? ` at ${keys.join('.')}` : ''}]`;
+      const at = `[${fileCategory}${keys.length ? ` at ${keys.join('.')}` : ''}]`;
       // Coverage scope is only behavior when it gates something: a coverage report that measures other files changes
       // no test outcome and no runtime; a threshold or check-coverage can flip a CI gate.
       if (coverage && !coverageGated(text)) {
@@ -422,7 +514,8 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
       }
       if (coverage) metrics.coverageViolations++;
       metrics.oldPathViolations++;
-      violations.push({ file, detail: `${where} ${at}${coverage ? '; a coverage setting with a threshold: the CI gate measures a different file set' : ''}` });
+      const opaque = relativeInCode ? `; the opaque load at ${opaqueLoads[0]} can take it as a module path` : '';
+      violations.push({ file, detail: `${where} ${at}${coverage ? '; a coverage setting with a threshold: the CI gate measures a different file set' : ''}${opaque}` });
     }
   }
   metrics.oldPathFindings = findings.length;
