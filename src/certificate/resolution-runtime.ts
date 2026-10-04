@@ -11,6 +11,7 @@
 // the runtime isn't known to be the file's consumer, so a site that this Node can't resolve but TypeScript can (a
 // bundler's, a test runner's or an unknown alias layer's specifier) is left to K3a and K3b: it may stay unresolved or
 // reach map(TypeScript's target), nothing else. What Node does resolve must still resolve to map(base) everywhere.
+import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { createSiteResolver, isSourceFile, moduleFormat, type SiteResolver, stripBom } from '../analyzer/analyze.js';
@@ -19,7 +20,7 @@ import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import type { ModuleFormat, ReferenceSite, Resolution } from '../analyzer/types.js';
 import type { CommitTree } from './git-tree.js';
 import { detectRuntimes, hasAliasLayer, type Runtime, type RuntimeDetection } from './runtime-mechanism.js';
-import { buildSkeleton, installedPackage, type Layout, type Mode, type ProbeFile, type ProbeOutput, type ProbeToken, runProbe, type Skeleton } from './runtime-probe.js';
+import { buildSkeleton, type EmitMirror, installedPackage, type Layout, type Mode, type ProbeFile, type ProbeOutput, type ProbeToken, runProbe, type Skeleton } from './runtime-probe.js';
 import { type CertifyContext, type Check, type Finding, result, type Side, type Violation } from './types.js';
 
 const title = 'Resolution identity under the runtime';
@@ -32,9 +33,11 @@ const inlineTypeImport = /(?<![@\w$.])import\s*\{[^}]*\}\s*from\s*['"]$/;
 const declarationPattern = /\.d(\.[^./]+)?\.[cm]?ts$/;
 const isTypeScript = (file: string) => /\.(c|m)?tsx?$/.test(file) && !declarationPattern.test(file);
 const isRelative = (specifier: string) => /^\.\.?(\/|$)/.test(specifier);
+/** A specifier Node looks up in node_modules (and NODE_PATH): not relative, absolute, a subpath import or a URL. */
+const isBare = (specifier: string) => !isRelative(specifier) && !specifier.startsWith('/') && !specifier.startsWith('#') && !/^[a-z][a-z0-9+.-]*:/i.test(specifier);
 const maxViolations = 300;
 const maxFindings = 100;
-const emitModel = 'in place: each source at its own path with the runtime extension (.ts->.js, .mts->.mjs, .cts->.cjs), as with a fixed rootDir';
+const emitModel = 'in place: each source at its own path with the runtime extension (.ts->.js, .mts->.mjs, .cts->.cjs), as with a fixed rootDir; outDir links to rootDir';
 
 type Token =
   | { type: 'file'; files: string[]; suffix: string }
@@ -109,6 +112,19 @@ function sameToken(expected: Token, actual: Token): boolean {
     case 'unresolved':
       return true;
   }
+}
+
+/** Longest common directory of a program's non-declaration files: TypeScript's default rootDir before 6.0. */
+function commonSourceDirectory(files: ReadonlySet<string>): string {
+  const directories = [...files].filter((file) => !declarationPattern.test(file)).map((file) => path.posix.dirname(file).split('/'));
+  const first = directories[0] ?? [];
+  let length = first.length;
+  for (const parts of directories) {
+    let shared = 0;
+    while (shared < length && parts[shared] === first[shared]) shared++;
+    length = shared;
+  }
+  return first.slice(0, length).join('/').replace(/^\.$/, '');
 }
 
 /** The file Node loads for a declaration TypeScript resolved (`x.d.ts` -> `x.js`). */
@@ -249,8 +265,22 @@ export async function checkRuntimeResolution(context: CertifyContext) {
   const skeletonStarted = performance.now();
   const layouts = new Set<Layout>(runtimes.flatMap((runtime): Layout[] => (runtime.loads === 'source' ? ['source'] : runtime.build === 'nest-cli' ? ['emit', 'source'] : ['emit'])));
   const workDir = path.resolve(options.workDir, 'k3c');
+  // Each emitting program's outDir mirrors its rootDir. Unset, that is the tsconfig's directory from TS 6 on and the
+  // sources' common directory before (which a move can change), by the TypeScript the environment installs.
+  const typescriptManifest = installedPackage(path.join(context.environment.checkout, packageRoot), 'typescript');
+  const inferredRootDir = typescriptManifest !== undefined && Number(JSON.parse(fs.readFileSync(path.join(typescriptManifest, 'package.json'), 'utf8')).version.split('.')[0]) < 6;
+  const mirrorsOf = (side: Side): EmitMirror[] => runtimes.filter((runtime) => runtime.loads === 'emit').flatMap((runtime) => {
+    const tsconfig = path.posix.join(packageRoot, runtime.tsconfig);
+    const program = scopes[side].programs.get(tsconfig);
+    if (program?.options.outDir === undefined) return [];
+    const relative = (absolute: string) => path.relative(context.fs[side].root, absolute).split(path.sep).join('/');
+    const outDir = relative(program.options.outDir);
+    const rootDir = program.options.rootDir !== undefined ? relative(program.options.rootDir)
+      : inferredRootDir ? commonSourceDirectory(program.files) : path.posix.dirname(tsconfig).replace(/^\.$/, '');
+    return outDir.startsWith('..') || rootDir.startsWith('..') ? [] : [{ outDir, rootDir }];
+  });
   const skeletons = { base: {}, head: {} } as Record<Side, Partial<Record<Layout, Skeleton>>>;
-  for (const side of sides) for (const layout of layouts) skeletons[side][layout] = buildSkeleton(trees[side], path.join(workDir, side, layout), layout, context.environment);
+  for (const side of sides) for (const layout of layouts) skeletons[side][layout] = buildSkeleton(trees[side], path.join(workDir, side, layout), layout, context.environment, mirrorsOf(side));
   const skeletonMs = Math.round(performance.now() - skeletonStarted);
 
   const probeStarted = performance.now();
@@ -301,7 +331,7 @@ export async function checkRuntimeResolution(context: CertifyContext) {
           ...(runtime.hooks.includes('tsconfig-paths') ? ['--require', 'tsconfig-paths/register'] : []),
         ],
         ...(runtime.loader === 'tsx' ? { tsx: true } : {}),
-        ...(options.profile?.env ? { extraEnvironment: options.profile.env } : {}),
+        extraEnvironment: { ...options.profile?.env, ...(runtime.nodePath.length ? { NODE_PATH: runtime.nodePath.map((directory) => path.join(cwd, directory)).join(path.delimiter) } : {}) },
         offline: options.profile?.offline ?? true,
         input: { skeleton: resolutionSkeleton.root, environment: context.environment.checkout, moduleAlias: runtime.hooks.includes('module-alias'), ...(nest ? { nestTsconfig: runtime.tsconfig } : {}), files: probeFiles },
         timeoutMs: 10 * 60_000,
@@ -433,6 +463,16 @@ export async function checkRuntimeResolution(context: CertifyContext) {
     }
   }
 
+  // Bare specifiers `require` leaves unresolved in base: what a NODE_PATH K3c can't model may serve.
+  let unresolvedBare = 0;
+  for (const runtime of modeled) {
+    for (const file of filesOf('base')) {
+      resolved.get(runtime.id)!.base.get(file)!.forEach(({ token, mode }, position) => {
+        if (token.type === 'unresolved' && mode === 'require' && isBare(sitesOf('base', file)[position]!.site.specifier)) unresolvedBare++;
+      });
+    }
+  }
+
   // Base, the files a runtime loads: an alias the runtime can't follow is an unknown mechanism; a site it can't
   // resolve but TypeScript can (a latent crash, or an import tsc elides) and an alias it maps elsewhere are findings.
   for (const runtime of modeled) {
@@ -474,9 +514,15 @@ export async function checkRuntimeResolution(context: CertifyContext) {
   }
   if (unresolvedInAdded > 20) findings.push({ kind: 'added-file-unresolved', detail: `${unresolvedInAdded - 20} more unresolved runtime sites in ${added.length} added files` });
   for (const mechanism of new Set(detection.base.unsupported.map((entry) => entry.mechanism))) {
-    const evidence = detection.base.unsupported.filter((entry) => entry.mechanism === mechanism).map((entry) => entry.evidence);
-    if (aliasSites.base + aliasSites.head > 0) violations.push({ detail: `runtime alias mechanism not modeled: ${mechanism} (${evidence[0]}), and ${aliasSites.base + aliasSites.head} sites resolve through tsconfig paths/baseUrl` });
-    else findings.push({ kind: 'runtime-mechanism-not-modeled', detail: `${mechanism} (${evidence.join('; ')}); no site resolves through tsconfig paths/baseUrl` });
+    const entries = detection.base.unsupported.filter((entry) => entry.mechanism === mechanism);
+    const evidence = entries.map((entry) => entry.evidence);
+    const bare = entries.some((entry) => entry.reaches === 'bare-specifiers') ? unresolvedBare : 0;
+    const exposed = [
+      ...(aliasSites.base + aliasSites.head ? [`${aliasSites.base + aliasSites.head} sites resolve through tsconfig paths/baseUrl`] : []),
+      ...(bare ? [`${bare} bare specifiers that require leaves unresolved in base may resolve through it`] : []),
+    ];
+    if (exposed.length) violations.push({ detail: `runtime alias mechanism not modeled: ${mechanism} (${evidence[0]}), and ${exposed.join('; ')}` });
+    else findings.push({ kind: 'runtime-mechanism-not-modeled', detail: `${mechanism} (${evidence.join('; ')}); no site resolves through tsconfig paths/baseUrl${entries[0]!.reaches ? ' and every bare specifier resolves without it' : ''}` });
   }
 
   const total = violations.length;

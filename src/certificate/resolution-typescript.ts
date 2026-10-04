@@ -89,6 +89,30 @@ function unextractedSites(file: string, text: string): ReferenceSite[] {
   return sites;
 }
 
+const resolveCall = /\brequire\s*\.\s*resolve\s*\(|\bimport\s*\.\s*meta\s*\.\s*resolve\s*\(/;
+
+/**
+ * `require.resolve('./x', { paths })` and `import.meta.resolve('./x', parent)`: relative specifiers resolved from
+ * the directories the second argument names, not from the file, so no K3 resolver computes their target.
+ */
+function resolvedElsewhere(file: string, text: string): { call: string; specifier: string; offset: number }[] {
+  if (!resolveCall.test(text)) return [];
+  const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKindOf(file));
+  const calls: { call: string; specifier: string; offset: number }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && node.arguments.length >= 2) {
+      const call = node.expression.getText(sourceFile).replace(/\s/g, '');
+      const [specifier] = node.arguments;
+      if ((call === 'require.resolve' || call === 'import.meta.resolve') && specifier && ts.isStringLiteralLike(specifier) && isRelative(specifier.text)) {
+        calls.push({ call, specifier: specifier.text, offset: specifier.getStart(sourceFile) });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return calls;
+}
+
 /** Modules TypeScript imports into a file on its own: `tslib` (importHelpers) and the JSX runtime (react-jsx). */
 function implicitImports(file: string, text: string, options: ts.CompilerOptions): { name: string; reason: string }[] {
   const imports: { name: string; reason: string }[] = [];
@@ -148,7 +172,7 @@ export function checkTypeScriptResolution(context: CertifyContext): { violations
   const violations = new Map<string, Violation>();
   const add = (file: string, detail: string) => violations.set(`${file}\0${detail}`, { file, detail });
   const findings: Finding[] = [];
-  const counts = { resolutionMismatches: 0, formChanges: 0, contextChanges: 0, typeDirectiveMismatches: 0, workspaceLinks: 0, virtualModuleSplits: 0, unresolvedMoves: 0 };
+  const counts = { resolutionMismatches: 0, formChanges: 0, contextChanges: 0, typeDirectiveMismatches: 0, workspaceLinks: 0, virtualModuleSplits: 0, unresolvedMoves: 0, unmodeledResolutions: 0 };
   const metrics = { files: 0, sites: 0, resolutions: 0, multiProgramFiles: 0, rewrittenSpecifiers: 0, typeDirectives: 0, implicitImports: 0, unextractedSites: 0, addedFiles: 0, deletedFiles: 0 };
   // Unresolved relative sites name a path that no tracked file has (virtual mocks, generated or untracked files).
   const virtualPaths: { file: string; baseFile: string; label: string; virtual: boolean; specifier: string; before: string; after: string }[] = [];
@@ -428,6 +452,17 @@ export function checkTypeScriptResolution(context: CertifyContext): { violations
     }
   }
 
+  // Resolved from directories a call names, not from the file: with files moving, nothing shows the target stayed.
+  if (pathMap.moves.size) {
+    for (const file of head.analysis.files.values()) {
+      const text = head.read(file.path) ?? '';
+      for (const { call, specifier, offset } of resolvedElsewhere(file.path, text)) {
+        counts.unmodeledResolutions++;
+        add(file.path, `line ${lineAt(text, offset)}: ${call}('${specifier}', …) resolves from the directories its second argument names, which no K3 resolver models, so a move may change its target`);
+      }
+    }
+  }
+
   for (const file of head.analysis.files.values()) {
     const origin = pathMap.inverse.get(file.path);
     if (origin === undefined) {
@@ -445,7 +480,7 @@ export const typescriptResolution: Check = {
     const { violations, findings, metrics } = checkTypeScriptResolution(context);
     const kinds: [keyof typeof metrics, string][] = [['resolutionMismatches', 'resolution mismatches'], ['formChanges', 'form-class changes'], ['contextChanges', 'program or format changes'],
       ['typeDirectiveMismatches', 'type directive mismatches'], ['workspaceLinks', 'workspace links over moves'], ['virtualModuleSplits', 'virtual module splits'],
-      ['unresolvedMoves', 'unresolved relative sites that moved'], ['addedFiles', 'added source files'], ['deletedFiles', 'deleted source files']];
+      ['unresolvedMoves', 'unresolved relative sites that moved'], ['unmodeledResolutions', 'resolutions from other directories'], ['addedFiles', 'added source files'], ['deletedFiles', 'deleted source files']];
     const summary = violations.length
       ? `${violations.length} violations (${kinds.filter(([key]) => metrics[key]).map(([key, label]) => `${metrics[key]} ${label}`).join(', ')})`
       : `${metrics.sites} sites in ${metrics.files} files resolve to map(base) under every program (${metrics.multiProgramFiles} files in several); ${metrics.rewrittenSpecifiers} rewritten specifiers keep their form`;

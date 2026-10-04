@@ -7,12 +7,51 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { PathMap } from './path-map.js';
 import type { RunnerKind, RunnerSpec } from './profile.js';
+import { shellCommands } from './runtime-mechanism.js';
 import { nodeBinary, targetEnvironment } from './toolchain.js';
 import type { CertifyContext, Side } from './types.js';
 
 export interface Runner extends RunnerSpec {
   /** 'profile' when the target profile names it, 'detected' when found in the trees. */
   origin: 'profile' | 'detected';
+  /**
+   * The resolution environment the package script that runs the runner sets (`NODE_PATH=src jest`): NODE_PATH adds
+   * lookup roots for bare specifiers (Node's and jest-resolve's), NODE_OPTIONS node flags such as `--conditions`.
+   */
+  environment: Readonly<Record<string, string>>;
+}
+
+const resolutionVariables = ['NODE_PATH', 'NODE_OPTIONS'];
+const launchers = new Set(['cross-env', 'npx', 'env', 'exec', 'pnpm', 'yarn', 'bun', 'npm']);
+
+/** The NODE_PATH and NODE_OPTIONS that the first script running `kind` (`test` first) sets for it, inline or by `export`. */
+function scriptEnvironment(manifest: string | undefined, kind: RunnerKind): Record<string, string> {
+  let scripts: Record<string, unknown>;
+  try {
+    scripts = JSON.parse(manifest ?? '{}').scripts ?? {};
+  } catch {
+    return {};
+  }
+  for (const name of ['test', 'test:unit', ...Object.keys(scripts)]) {
+    const script = scripts[name];
+    if (typeof script !== 'string') continue;
+    const exported: Record<string, string> = {};
+    for (const command of shellCommands(script)) {
+      const inline: Record<string, string> = {};
+      let index = command[0] === 'export' ? 1 : 0;
+      for (; index < command.length; index++) {
+        const variable = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/s.exec(command[index]!);
+        if (variable) inline[variable[1]!] = variable[2]!;
+        else if (!launchers.has(path.posix.basename(command[index]!)) && !['exec', 'run', '--'].includes(command[index]!)) break;
+      }
+      if (command[0] === 'export') Object.assign(exported, inline);
+      else if (path.posix.basename(command[index] ?? '') === kind) {
+        const environment = { ...exported, ...inline };
+        return Object.fromEntries(resolutionVariables.filter((variable) => environment[variable] !== undefined).map((variable) => [variable, environment[variable]!]));
+      }
+    }
+  }
+  return {};
 }
 
 const jestConfigPattern = /(^|\/)jest\.config\.(js|cjs|mjs|ts|cts|mts|json)$/;
@@ -43,12 +82,13 @@ function scriptsInvoking(manifest: string | undefined, command: string): string[
 
 /** The runners of the base tree: the profile's, or every jest/vitest/mocha configuration found in the tree. */
 export function runnersOf(context: CertifyContext): Runner[] {
+  const environmentOf = (kind: RunnerKind, cwd: string) => scriptEnvironment(context.base.text(cwd ? `${cwd}/package.json` : 'package.json'), kind);
   const runner = context.options.profile?.runner;
-  if (runner) return [{ ...runner, origin: 'profile' }];
+  if (runner) return [{ ...runner, origin: 'profile', environment: environmentOf(runner.kind, runner.cwd) }];
   const found = new Map<string, Runner>();
   const add = (kind: RunnerKind, cwd: string, config?: string) => {
     const key = `${kind}\0${cwd}\0${config ?? ''}`;
-    if (!found.has(key)) found.set(key, { kind, cwd, ...(config ? { config } : {}), origin: 'detected' });
+    if (!found.has(key)) found.set(key, { kind, cwd, ...(config ? { config } : {}), origin: 'detected', environment: environmentOf(kind, cwd) });
   };
   const files = [...context.base.entries.keys()].filter((file) => !file.split('/').includes('node_modules')).sort();
   for (const file of files) {
@@ -122,14 +162,18 @@ export interface SpawnOutcome {
 
 const tail = (text: string, length = 4000) => (text.length > length ? `…${text.slice(-length)}` : text);
 
-/** Runs `node <arguments>` under the target's Node, offline, in CI mode, from `cwd`. */
-export function spawnTargetNode(context: CertifyContext, scratch: string, cwd: string, nodeArguments: string[], timeoutMs: number): Promise<SpawnOutcome> {
+/**
+ * Runs `node <arguments>` under the target's Node, offline, in CI mode, from `cwd`, with `environment` (a runner's
+ * script environment) on top; its NODE_OPTIONS add to the offline preload's.
+ */
+export function spawnTargetNode(context: CertifyContext, scratch: string, cwd: string, nodeArguments: string[], timeoutMs: number, environment: Readonly<Record<string, string>> = {}): Promise<SpawnOutcome> {
   fs.mkdirSync(scratch, { recursive: true });
   const profile = context.options.profile;
   const node = profile?.node ?? 'system';
   const offlineLog = path.join(scratch, 'network.log');
   fs.rmSync(offlineLog, { force: true });
-  const env = targetEnvironment({ node, offlineLog, ...(profile?.env ? { extra: profile.env } : {}) });
+  const offline = targetEnvironment({ node, offlineLog, ...(profile?.env ? { extra: profile.env } : {}) });
+  const env = { ...offline, ...environment, ...(environment.NODE_OPTIONS ? { NODE_OPTIONS: `${offline.NODE_OPTIONS ?? ''} ${environment.NODE_OPTIONS}`.trim() } : {}) };
   const started = performance.now();
   return new Promise((resolve, reject) => {
     const child = spawn(nodeBinary(node), nodeArguments, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
@@ -187,7 +231,7 @@ export type ProbeResult<T> = { ok: true; output: T; durationMs: number; network:
  * Writes `source` and `input` to `<workDir>/runner-probe/<name>/` and runs the source under the target's Node from
  * `input.cwd`. The source is a module built by `probeSource`: it reads the input and writes the output file.
  */
-export async function runProbe<T>(context: CertifyContext, name: string, source: string, input: ProbeInput, timeoutMs: number): Promise<ProbeResult<T>> {
+export async function runProbe<T>(context: CertifyContext, name: string, source: string, input: ProbeInput, timeoutMs: number, environment: Readonly<Record<string, string>> = {}): Promise<ProbeResult<T>> {
   const scratch = path.join(context.options.workDir, 'runner-probe', name);
   fs.rmSync(scratch, { recursive: true, force: true });
   fs.mkdirSync(scratch, { recursive: true });
@@ -196,7 +240,7 @@ export async function runProbe<T>(context: CertifyContext, name: string, source:
   const outputPath = path.join(scratch, 'output.json');
   fs.writeFileSync(script, source);
   fs.writeFileSync(inputPath, JSON.stringify({ ...input, scratch }));
-  const outcome = await spawnTargetNode(context, scratch, input.cwd, ['--experimental-import-meta-resolve', '--no-warnings', script, inputPath, outputPath], timeoutMs);
+  const outcome = await spawnTargetNode(context, scratch, input.cwd, ['--experimental-import-meta-resolve', '--no-warnings', script, inputPath, outputPath], timeoutMs, environment);
   fs.writeFileSync(path.join(scratch, 'stderr.log'), outcome.stderr);
   fs.writeFileSync(path.join(scratch, 'stdout.log'), outcome.stdout);
   const failed = (failure: string): ProbeResult<T> => ({ ok: false, failure, durationMs: outcome.durationMs, network: outcome.network });

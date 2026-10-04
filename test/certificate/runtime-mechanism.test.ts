@@ -82,6 +82,35 @@ describe('runtime mechanism detection', () => {
     expect(ids).toEqual(['node/emit+module-alias']);
   });
 
+  it('reads the environment a launch inherits: NODE_OPTIONS flags, NODE_PATH, through npm scripts, export and Dockerfile ENV', () => {
+    const scripts = (start: string) => detect({ 'package.json': manifest({ scripts: { build: 'tsc', start, serve: 'NODE_PATH=dist npm start' } }) });
+    expect(scripts('node dist/main.js').runtimes.map(({ id, nodePath }) => [id, nodePath])).toEqual([['node/emit', []], ['node/emit{NODE_PATH=dist}', ['dist']]]);
+    expect(scripts('cross-env NODE_OPTIONS="-r tsconfig-paths/register --conditions=development" node dist/main.js').ids)
+      .toEqual(['node/emit+tsconfig-paths[development]', 'node/emit+tsconfig-paths[development]{NODE_PATH=dist}']);
+    expect(detect({ 'package.json': manifest({}), 'bin/start.sh': '#!/bin/sh\nexport NODE_PATH=./dist/\nexec node dist/main.js\n' }).ids).toEqual(['node/emit{NODE_PATH=dist}']);
+    expect(detect({ 'package.json': manifest({}), Dockerfile: 'FROM node\nENV NODE_OPTIONS --conditions=production\nCMD ["node", "dist/main.js"]\n' }).ids).toEqual(['node/emit[production]']);
+    expect(detect({ 'package.json': manifest({}), Dockerfile: 'FROM node\nENV NODE_PATH=/app/dist\nCMD ["node", "dist/main.js"]\n' }))
+      .toMatchObject({ ids: ['node/emit'], unsupported: ['NODE_PATH with an absolute or computed directory'] });
+    expect(detect({ 'package.json': manifest({ scripts: { start: 'TS_NODE_PROJECT=tsconfig.app.json ts-node -r tsconfig-paths/register src/main.ts' } }) }).unsupported)
+      .toEqual(['TS_NODE_PROJECT (the runtime reads another tsconfig or baseUrl)']);
+  });
+
+  it('reads the tracked env files node --env-file and dotenv-cli load; the inherited environment wins', () => {
+    const files = { '.env.production': 'NODE_PATH=dist\nexport NODE_OPTIONS="--conditions=production"\n', '.env': '# local\nNODE_PATH=build\n' };
+    expect(detect({ ...files, 'package.json': manifest({ scripts: { start: 'node --env-file=.env.production dist/main.js' } }) }).ids).toEqual(['node/emit[production]{NODE_PATH=dist}']);
+    expect(detect({ ...files, 'package.json': manifest({ scripts: { start: 'NODE_PATH=lib node --env-file .env.production dist/main.js' } }) }).ids).toEqual(['node/emit[production]{NODE_PATH=lib}']);
+    expect(detect({ ...files, 'package.json': manifest({ scripts: { start: 'dotenv -- node dist/main.js', prod: 'dotenv -e .env.production -v NODE_OPTIONS= -- node dist/main.js' } }) }).ids)
+      .toEqual(['node/emit{NODE_PATH=build}', 'node/emit{NODE_PATH=dist}']);
+  });
+
+  it("reads a pm2 ecosystem file's apps: script, interpreter, node_args and every env block", () => {
+    const ecosystem = "module.exports = {\n  apps: [\n    { name: 'api', script: 'dist/main.js', node_args: '-r tsconfig-paths/register', env: { NODE_ENV: 'production' }, env_staging: { NODE_PATH: 'dist' } },\n    { name: 'worker', script: 'src/worker.ts', interpreter: 'tsx' },\n  ],\n};\n";
+    expect(detect({ 'package.json': manifest({ scripts: { start: 'pm2-runtime start ecosystem.config.js --env staging' } }), 'ecosystem.config.js': ecosystem }).ids)
+      .toEqual(['node/emit+tsconfig-paths', 'node/emit+tsconfig-paths{NODE_PATH=dist}', 'tsx/source']);
+    expect(detect({ 'package.json': manifest({ scripts: { start: 'pm2 start ecosystem.config.js' } }), 'ecosystem.config.js': "module.exports = { apps: [{ script: 'dist/main.js', env: { NODE_PATH: process.env.NODE_PATH } }] };\n" }).unsupported)
+      .toEqual(['pm2 ecosystem file that is not a literal apps list']);
+  });
+
   it('lists the mechanisms it does not model', () => {
     expect(detect({ 'package.json': manifest({ scripts: { build: 'tsc && tsc-alias', start: 'node dist/main.js' } }) }).unsupported).toEqual(['tsc-alias']);
     expect(detect({ 'package.json': manifest({ scripts: { build: 'webpack --mode production', start: 'node dist/main.js' } }) }).unsupported).toEqual(['bundler or transpiler (webpack)']);

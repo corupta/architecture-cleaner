@@ -5,7 +5,9 @@
 //   module runner and `vi.mock` call; mock sites also ask `@vitest/mocker`'s `findMockRedirect` (`__mocks__`);
 // - jest: `jest-config` readConfigs, then `jest-runtime`'s haste map and Resolver: `resolveModule` with the
 //   runtime's conditions (CJS or ESM per `extensionsToTreatAsEsm`), `getMockModule`, `resolveStubModuleName`, and
-//   whether a sibling `__mocks__/<basename>` exists (what jest-runtime checks before using a manual mock);
+//   whether a sibling `__mocks__/<basename>` exists (what jest-runtime checks before using a manual mock). Not
+//   only the files in a project's `roots`: every module its tests and setup files load (resolved, mapped or
+//   mocked), however far from the roots, since moduleNameMapper rewrites their specifiers too;
 // - mocha: mocha's own option loading and `--require` handling (registers e.g. tsx), then Node's
 //   `Module._resolveFilename` (CJS files) or `import.meta.resolve` (ESM files) through the registered hooks.
 // Type-level sites (triple-slash, declare module, typeof import) and `new URL(…, import.meta.url)` are not module
@@ -40,6 +42,8 @@ interface ResolutionOutput {
   projects: { name: string; root: string; [detail: string]: unknown }[];
   /** project → repo-relative importer → one output per requested site. */
   results: Record<string, Record<string, SiteOutput[]>>;
+  /** jest: project → the resolved importers outside its `roots` (loaded by its tests, never collected from). */
+  outsideRoots?: Record<string, string[]>;
 }
 
 const vitestProbe = probeSource(String.raw`
@@ -110,6 +114,7 @@ async function main() {
   const { globalConfig, configs, Runtime, runner } = await openJest();
   const projects = [];
   const results = {};
+  const outsideRoots = {};
   for (const [index, config] of configs.entries()) {
     const name = (config.displayName && (config.displayName.name || config.displayName)) || 'project ' + index;
     const hasteMap = await Runtime.createHasteMap(config, { maxWorkers: 2, resetCache: false, watch: false, watchman: false });
@@ -121,9 +126,17 @@ async function main() {
     const esm = { conditions: [...new Set(['import', 'default', ...environment.conditions])] };
     projects.push({ name, root: config.rootDir, roots: config.roots, testEnvironment: config.testEnvironment, conditions: environment.conditions, environmentError: environment.error || null });
     const output = (results[name] = {});
-    for (const entry of input.files) {
-      const from = path.join(input.root, entry.file);
-      if (!config.roots.some((root) => from.startsWith(root + path.sep))) continue;
+    const outside = (outsideRoots[name] = []);
+    const entries = new Map(input.files.map((entry) => [path.join(input.root, entry.file), entry]));
+    const inRoots = (file) => config.roots.some((root) => file.startsWith(root + path.sep));
+    const pending = [...entries.keys()].filter(inRoots).concat(config.setupFiles, config.setupFilesAfterEnv);
+    const visited = new Set();
+    while (pending.length) {
+      const from = pending.pop();
+      const entry = entries.get(from);
+      if (!entry || visited.has(from)) continue;
+      visited.add(from);
+      if (!inRoots(from)) outside.push(entry.file);
       const asEsm = typeof Resolver.unstable_shouldLoadAsEsm === 'function' && Resolver.unstable_shouldLoadAsEsm(from, config.extensionsToTreatAsEsm);
       const options = asEsm ? esm : cjs;
       const attempt = (call) => {
@@ -149,9 +162,10 @@ async function main() {
         record.sibling = sibling && fs.existsSync(sibling) ? sibling : null;
         return record;
       });
+      for (const record of output[entry.file]) for (const id of [record.id, record.mock, record.stub, record.sibling]) if (id && path.isAbsolute(id)) pending.push(id);
     }
   }
-  return { runner, projects, results };
+  return { runner, projects, results, outsideRoots };
 }
 `);
 
@@ -218,7 +232,7 @@ interface Tally {
   unresolvedTextChanged: number;
   mockChanged: number;
   addedDangling: number;
-  /** Importers under the runner's cwd but outside every project's roots (not resolved by the runner). */
+  /** Importers under the runner's cwd that no project resolves (jest: outside its roots and loaded by none of its tests). */
   outsideRoots: number;
 }
 
@@ -260,7 +274,7 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
       ...(spec.config ? { config: spec.config } : {}),
       ...(runner.kind === 'mocha' ? { arguments: mochaArguments(roots[side], spec) } : {}),
       files: inputs[side],
-    }, probeTimeoutMs);
+    }, probeTimeoutMs, runner.environment);
   }));
   const [base, head] = outcomes as [typeof outcomes[0], typeof outcomes[1]];
   for (const [side, outcome] of [['base', base], ['head', head]] as const) {
@@ -281,13 +295,20 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
     }
     const baseResults = base.output.results[project.name] ?? {};
     const headResults = head.output.results[project.name] ?? {};
+    const outsideBefore = new Set(base.output.outsideRoots?.[project.name] ?? []);
+    const outsideAfter = new Set(head.output.outsideRoots?.[project.name] ?? []);
     for (const pair of pairs) {
       const before = baseResults[pair.base];
       const after = headResults[pair.head];
       if (!before && !after) continue;
-      if (!before || !after) {
-        const [was, now] = before ? ['in', 'outside'] : ['outside', 'in'];
+      const inRoots = { base: before !== undefined && !outsideBefore.has(pair.base), head: after !== undefined && !outsideAfter.has(pair.head) };
+      if (inRoots.base !== inRoots.head) {
+        const [was, now] = inRoots.base ? ['in', 'outside'] : ['outside', 'in'];
         violations.push({ file: pair.head, detail: `moved from ${was} to ${now} the roots of ${runner.kind} project '${project.name}' (was ${pair.base})` });
+        continue;
+      }
+      if (!before || !after) {
+        violations.push({ file: pair.head, detail: `loaded by the tests of ${runner.kind} project '${project.name}' in ${before ? 'base' : 'head'} only (was ${pair.base})` });
         continue;
       }
       tally.files++;
@@ -342,7 +363,7 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
   tally.outsideRoots = pairs.filter((pair) => !resolvedAnywhere(base.output, pair.base) && !resolvedAnywhere(head.output, pair.head)).length;
   Object.assign(metrics, { ...tally, addedFiles: added.length });
   if (pairs.length && tally.outsideRoots === pairs.length) {
-    return { violations, findings, metrics, error: `${runner.kind} resolved none of the ${pairs.length} source files under '${runner.cwd || '.'}' (all outside its roots): nothing was compared` };
+    return { violations, findings, metrics, error: `${runner.kind} resolved none of the ${pairs.length} source files under '${runner.cwd || '.'}' (none in its roots or loaded by its tests): nothing was compared` };
   }
   return { violations, findings, metrics };
 }

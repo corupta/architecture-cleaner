@@ -50,7 +50,17 @@ function verbatimConfigs(tree: CommitTree): Set<string> {
   return verbatim;
 }
 
-export function buildSkeleton(tree: CommitTree, root: string, layout: Layout, environment: Environment): Skeleton {
+/** A program's output directory and the root its sources are laid out from (repo-relative; '' is the repo root). */
+export interface EmitMirror {
+  outDir: string;
+  rootDir: string;
+}
+
+/**
+ * `mirrors` (emit layout): the in-place stubs stand for what tsc emits under each outDir, so a link from outDir to
+ * rootDir lets paths that name the output (NODE_PATH, module-alias targets, package.json main and imports) reach them.
+ */
+export function buildSkeleton(tree: CommitTree, root: string, layout: Layout, environment: Environment, mirrors: readonly EmitMirror[] = []): Skeleton {
   fs.rmSync(root, { recursive: true, force: true });
   fs.mkdirSync(root, { recursive: true });
   const verbatim = verbatimConfigs(tree);
@@ -81,6 +91,15 @@ export function buildSkeleton(tree: CommitTree, root: string, layout: Layout, en
     }
     const keep = path.posix.basename(file) === 'package.json' || verbatim.has(file);
     fs.writeFileSync(target, keep ? (tree.bytes(file) ?? '') : file.endsWith('.json') ? '{}' : '');
+  }
+  if (layout === 'emit') {
+    for (const { outDir, rootDir } of mirrors) {
+      const link = path.join(root, outDir);
+      // Tracked files already there (or an outDir that is, or contains, the sources) leave nothing to mirror.
+      if (outDir === '' || outDir === rootDir || rootDir.startsWith(`${outDir}/`) || fs.lstatSync(link, { throwIfNoEntry: false })) continue;
+      fs.mkdirSync(path.dirname(link), { recursive: true });
+      fs.symlinkSync(path.relative(path.dirname(link), path.join(root, rootDir)) || '.', link);
+    }
   }
   const checkout = fs.realpathSync(environment.checkout);
   for (const linked of environment.linked) linkInstalled(path.join(environment.checkout, linked, 'node_modules'), path.join(root, linked, 'node_modules'), root, checkout);
