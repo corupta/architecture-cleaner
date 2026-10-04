@@ -507,8 +507,13 @@ function locationDetail(scanned: ScannedFile, hazard: Hazard, from: string, to: 
   return { detail: `${hazard.what}: ${expression} pointed at ${old.text} (${state(old)} in base), now at ${now.text} (${state(now)} in head)`, unchanged: false };
 }
 
-function scanMovedFile(context: CertifyContext, from: string, to: string): { violations: Violation[]; findings: Finding[] } {
-  const text = context.base.text(from);
+/**
+ * `copy`: `to` is an added file whose content is `from`'s (modulo specifiers); reported at `to`.
+ * `added`: `to` is an added file with no base counterpart (from === to, read from head); its uses are reported as is.
+ */
+function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 'move' | 'copy' | 'added' = 'move'): { violations: Violation[]; findings: Finding[] } {
+  const copy = kind !== 'move';
+  const text = kind === 'added' ? context.head.text(to) : context.base.text(from);
   const violations: Violation[] = [];
   const findings: Finding[] = [];
   if (text === undefined || !isScannedSource(from, text)) return { violations, findings };
@@ -517,16 +522,18 @@ function scanMovedFile(context: CertifyContext, from: string, to: string): { vio
   for (const hazard of scanned.hazards) {
     const line = lineOf(sourceFile, hazard.node);
     let detail = hazard.what;
-    if (hazard.token) {
+    if (hazard.token && kind !== 'added') {
       const located = locationDetail(scanned, hazard, from, to, context);
       // A directory-only rename keeps every location-derived value (only when the whole expression evaluates).
       if (located.unchanged) continue;
       detail = located.detail;
     }
-    violations.push({ file: from, detail: `moved to ${to}; line ${line}: ${detail}` });
+    const where = kind === 'added' ? 'added with no base counterpart;' : copy ? `a copy of ${from};` : `moved to ${to};`;
+    violations.push({ file: copy ? to : from, detail: `${where} line ${line}: ${detail}` });
   }
   if (scanned.stackText.length) {
-    findings.push({ kind: 'stack-text', file: from, detail: `moved to ${to}; ${scanned.stackText.length} stack-trace reads passed along as text (line ${lineOf(sourceFile, scanned.stackText[0]!)}); their frames now name the new path` });
+    const where = { file: copy ? to : from, detail: kind === 'added' ? 'added with no base counterpart;' : copy ? `a copy of ${from};` : `moved to ${to};` };
+    findings.push({ kind: 'stack-text', file: where.file, detail: `${where.detail} ${scanned.stackText.length} stack-trace reads passed along as text (line ${lineOf(sourceFile, scanned.stackText[0]!)}); their frames now name the new path` });
   }
   return { violations, findings };
 }
@@ -552,6 +559,16 @@ export function checkLocations(context: CertifyContext): { violations: Violation
     findings.push(...outcome.findings);
   }
 
+  // Added files (K1 already rejects them) that observe their location: named, so a copy-instead-of-move restructure
+  // shows which copies would break once wired in.
+  let copyHazards = 0;
+  for (const added of pathMap.added) {
+    const outcome = added.copyOf ? scanMovedFile(context, added.copyOf, added.path, 'copy') : scanMovedFile(context, added.path, added.path, 'added');
+    copyHazards += outcome.violations.length;
+    violations.push(...outcome.violations);
+    findings.push(...outcome.findings);
+  }
+
   let computedScanned = 0;
   let computedViolations = 0;
   if (pathMap.moves.size) {
@@ -573,7 +590,7 @@ export function checkLocations(context: CertifyContext): { violations: Violation
   return {
     violations,
     findings,
-    metrics: { movedFilesScanned: movedScanned, movedFileHazards: movedHazards, filesScannedForComputedPaths: computedScanned, computedPathViolations: computedViolations, ...oldPaths.metrics },
+    metrics: { movedFilesScanned: movedScanned, movedFileHazards: movedHazards, copiedFileHazards: copyHazards, filesScannedForComputedPaths: computedScanned, computedPathViolations: computedViolations, ...oldPaths.metrics },
   };
 }
 
@@ -583,7 +600,7 @@ export const locationScan: Check = {
   run(context) {
     const { violations, findings, metrics } = checkLocations(context);
     const summary = violations.length
-      ? `${metrics.movedFileHazards} path-exposing uses in moved files, ${metrics.computedPathViolations} computed paths into changed directories, ${metrics.oldPathViolations} old paths in code/config (${metrics.coverageViolations} in coverage settings)`
+      ? `${metrics.movedFileHazards} path-exposing uses in moved files${metrics.copiedFileHazards ? ` (and ${metrics.copiedFileHazards} in added files)` : ''}, ${metrics.computedPathViolations} computed paths into changed directories, ${metrics.oldPathViolations} old paths in code/config (${metrics.coverageViolations} in coverage settings)`
       : `${metrics.movedFilesScanned} moved files expose no location; no computed path reaches a change; no old path in code, config or CI (${metrics.oldPathFindings} findings in docs, comments or ungated coverage settings)`;
     return result('K4', title, { summary, violations, findings, metrics });
   },

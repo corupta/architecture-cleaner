@@ -268,6 +268,20 @@ describe('K4 old-path strings', () => {
     expect(coverageGated("coverage: { include: ['src/v2/**'] }")).toBe(false);
   });
 
+  it('names location-observing code in added files: copies, and files with no base counterpart (G3 copy-instead-of-move)', async () => {
+    const original = "import { join } from 'node:path';\nexport const migrations = join(import.meta.dirname, '..', 'schema/migrations');\n";
+    const repo = commitPair({ 'src/repositories/database.repository.ts': original }, {}, {
+      'src.backup/repositories/database.repository.ts': original,
+      'src/features/database/repositories/database.repository.ts': original.replace("'node:path'", '"node:path"'),
+    });
+    const outcome = await scan(repo);
+    expect(details(outcome)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^src\.backup\/repositories\/database\.repository\.ts: a copy of src\/repositories\/database\.repository\.ts; line 2: import\.meta\.dirname/),
+      'src/features/database/repositories/database.repository.ts: added with no base counterpart; line 2: import.meta.dirname',
+    ]));
+    expect(outcome.metrics.copiedFileHazards).toBe(2);
+  });
+
   it('skips old paths inside specifier spans (K3 judges those)', async () => {
     const repo = commitPair({
       'src/services/x.ts': 'export const x = 1;\n',
