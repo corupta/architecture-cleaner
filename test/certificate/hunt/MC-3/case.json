@@ -1,0 +1,25 @@
+{
+  "id": "MC-3",
+  "report": "MC-3",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "Workspace package deep-imported through a node_modules symlink: the move applies and breaks the importing package",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'a/util' reached a/util.ts through the node_modules/a -> ../a link; it now resolves to nothing"
+    },
+    {
+      "check": "K3c",
+      "reason": "Node: ERR_MODULE_NOT_FOUND for node_modules/a/util.ts"
+    }
+  ],
+  "notes": "environment/ holds the workspace link node_modules/a -> ../a (untracked). It points back into the tracked tree, so the certifier sees the checkout's working tree (head) through it.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-3/min",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-3/min",
+    "environment": "untracked installs from /tmp/ac-confirm2-multi-config-MC-3/min: node_modules"
+  }
+}

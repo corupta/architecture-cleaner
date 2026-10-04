@@ -1,0 +1,22 @@
+{
+  "id": "RK-03",
+  "report": "RK-03",
+  "source": "bug-hunt.json",
+  "lens": "reference-kinds",
+  "title": "/// <reference types=\"./relative\" /> is never extracted or rewritten; moving the importer breaks tsc",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "/// <reference types=\"./types/globals\" /> no longer resolves from src/platform/app.ts (TS2688)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-reference-kinds-RK-03/r1",
+    "after": "staged index of /tmp/ac-confirm-reference-kinds-RK-03/r1",
+    "good": "constructed from before/ as the correct output: git mv src/app.ts src/platform/app.ts; src/platform/app.ts: \"\\\"./types/globals\\\"\" -> \"\\\"../types/globals\\\"\""
+  },
+  "identityControl": true
+}

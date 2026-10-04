@@ -1,0 +1,24 @@
+{
+  "id": "JSM-3",
+  "report": "JSM-3",
+  "source": "bug-hunt-round2.json",
+  "lens": "js-and-mixed",
+  "title": "A UTF-8 BOM in package.json makes moduleFormat report cjs, so module-format-change is missed (or raised falsely)",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "src/legacy/util.js is CommonJS under src/legacy/package.json while the BOM-prefixed root package.json says module: the named ESM import breaks"
+    },
+    {
+      "check": "K0",
+      "reason": "nested package.json \"type\" over movable code (plan 2.5)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-js-and-mixed-JSM-3/a/repo",
+    "after": "staged index of /tmp/ac-confirm2-js-and-mixed-JSM-3/a/repo"
+  }
+}

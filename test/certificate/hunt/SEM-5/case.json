@@ -1,0 +1,20 @@
+{
+  "id": "SEM-5",
+  "report": "SEM-5",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "A non-moved file that loads a moved file by path string or non-literal import()/require() breaks",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "src/main.ts forks join(__dirname, 'worker.js'): a path string that reaches the moved src/worker.ts"
+    }
+  ],
+  "notes": "Variant 5a (fork by path). contractAllows=true for the executor; S3 assigned it to the certifier (K4).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-5/a",
+    "after": "staged index of /tmp/ac-confirm-semantic-preservation-SEM-5/a"
+  }
+}

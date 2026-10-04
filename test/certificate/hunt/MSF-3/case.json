@@ -1,0 +1,12 @@
+{
+  "id": "MSF-3",
+  "report": "MSF-3",
+  "source": "bug-hunt.json",
+  "lens": "move-set-and-fs",
+  "title": "Mid-apply git mv failure leaves the repo half-moved (temp-name suffix pushes a legal 248-byte basename over NAME_MAX)",
+  "severity": "crash-or-unverified",
+  "applicable": false,
+  "expectedChecks": [],
+  "notes": "Crash mid-apply (File name too long on the temp name): the repo is left half-moved, with a .ac-move-0 temp file staged and unstaged edits. There is no complete output tree to certify; the partial state is the executor's crash, not a move.",
+  "origin": {}
+}

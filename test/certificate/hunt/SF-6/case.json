@@ -1,0 +1,25 @@
+{
+  "id": "SF-6",
+  "report": "SF-6",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "moduleSuffixes target: the platform suffix is written into the specifier ('./platform' -> '../platform.ios')",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'./platform' -> '../platform.ios': the moduleSuffixes suffix is written into the specifier, a form-class change (same file under tsconfig.json)"
+    },
+    {
+      "check": "K3c",
+      "reason": "Node resolution changes from unresolved ('./platform' has no platform.js) to resolved ('../platform.ios'): an unresolved site must stay unresolved"
+    }
+  ],
+  "notes": "The confirmation repo (/tmp/ac-confirm-specifier-forms-SF-6/repo) has the same base blobs but no staged output; the hunt repo has the executor output staged.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-hunt-specifier-forms/module-suffixes",
+    "after": "staged index of /tmp/ac-hunt-specifier-forms/module-suffixes",
+    "good": "constructed from before/ as the correct output: git mv src/main.ts src/app/main.ts; src/app/main.ts: \"'./platform'\" -> \"'../platform'\""
+  }
+}

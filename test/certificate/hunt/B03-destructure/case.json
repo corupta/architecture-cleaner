@@ -1,0 +1,20 @@
+{
+  "id": "B03-destructure",
+  "report": "B03",
+  "source": "bug-hunt-round2.json",
+  "lens": "fix-variants",
+  "title": "import.meta['url'] and `const { url } = import.meta` in a moved file are not flagged location-sensitive",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "the moved src/reader.js destructures { url } from import.meta"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-fix-variants-B03/destructure",
+    "after": "staged index of /tmp/ac-confirm2-fix-variants-B03/destructure"
+  }
+}

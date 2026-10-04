@@ -1,0 +1,24 @@
+{
+  "id": "JSM-1",
+  "report": "JSM-1",
+  "source": "bug-hunt-round2.json",
+  "lens": "js-and-mixed",
+  "title": "An explicit pathmap that sends x.js and x.d.ts to different places is applied, splitting the declaration pair",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "greet.js and greet.d.ts moved to different directories (declaration pair split)"
+    },
+    {
+      "check": "K3c",
+      "reason": "'./types/greet' has no runtime file (greet.js is in src/lib)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-js-and-mixed-JSM-1/repo",
+    "after": "staged index of /tmp/ac-confirm2-js-and-mixed-JSM-1/repo"
+  }
+}

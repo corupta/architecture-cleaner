@@ -1,0 +1,24 @@
+{
+  "id": "SF-2-sibling",
+  "report": "SF-2",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "Trailing-slash directory specifier loses its slash ('./lib/' -> '../lib'); with a sibling lib.ts the move is unverified",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'../lib' resolves to src/lib.ts; './lib/' reached src/lib/index.ts"
+    },
+    {
+      "check": "K3c",
+      "reason": "Node loads lib.js instead of lib/index.js for require('../lib')"
+    }
+  ],
+  "notes": "The report's variant with a sibling src/lib.ts. The executor's own verifier rolled this output back ('unverified'); /tmp/ac-confirm-specifier-forms-SF-2/expected holds the same bad tree applied by hand (tsc TS2305).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-specifier-forms-SF-2/sibling",
+    "after": "constructed from before/ as the report describes the buggy output: git mv src/main.ts src/app/main.ts; src/app/main.ts: \"'./lib/'\" -> \"'../lib'\""
+  }
+}

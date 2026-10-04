@@ -1,0 +1,21 @@
+{
+  "id": "SF-2",
+  "report": "SF-2",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "Trailing-slash directory specifier loses its slash ('./lib/' -> '../lib'); with a sibling lib.ts the move is unverified",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'./lib/' -> '../lib': the trailing-slash (directory-only) form is dropped, a form-class change"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-specifier-forms-SF-2/plain",
+    "after": "staged index of /tmp/ac-confirm-specifier-forms-SF-2/plain",
+    "good": "constructed from before/ as the correct output: git mv src/main.ts src/app/main.ts; src/app/main.ts: \"'./lib/'\" -> \"'../lib/'\""
+  }
+}

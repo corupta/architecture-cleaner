@@ -1,0 +1,21 @@
+{
+  "id": "SEM-3",
+  "report": "SEM-3",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "A test moved out of the runner's include/roots is applied, and the test silently stops running",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K6",
+      "reason": "vitest list loses test/math.spec.ts: the moved spec is outside test.include ['test/**/*.spec.ts']"
+    }
+  ],
+  "notes": "Vitest repo (runner: vitest): the loader links this repo's node_modules into the checkout, as the confirmer did.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-3/vitest-include",
+    "after": "staged index of /tmp/ac-confirm-semantic-preservation-SEM-3/vitest-include"
+  },
+  "runner": "vitest"
+}

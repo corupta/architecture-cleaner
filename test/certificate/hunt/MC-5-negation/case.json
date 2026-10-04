@@ -1,0 +1,21 @@
+{
+  "id": "MC-5-negation",
+  "report": "MC-5",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "Jest test-set exclusions ignored: testMatch '!' negations and testPathIgnorePatterns",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K6",
+      "reason": "testMatch '!**/fixtures/**' drops the moved test from the Jest test list"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-5/negation-old",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-5/negation-old"
+  },
+  "runner": "jest"
+}

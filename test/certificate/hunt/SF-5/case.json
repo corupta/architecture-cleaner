@@ -1,0 +1,24 @@
+{
+  "id": "SF-5",
+  "report": "SF-5",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "Extensionless JSON require ('./config/data' -> data.json) is classified unresolved and left untouched, so the move breaks runtime",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "require('./config/data') reached src/config/data.json by CJS extension probing and is left untouched in the moved src/app/main.ts, so it resolves to nothing"
+    },
+    {
+      "check": "K3c",
+      "reason": "Node: Cannot find module './config/data' from src/app/"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-specifier-forms-SF-5/repo",
+    "after": "staged index of /tmp/ac-confirm-specifier-forms-SF-5/repo"
+  }
+}

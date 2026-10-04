@@ -1,0 +1,21 @@
+{
+  "id": "MSF-4",
+  "report": "MSF-4",
+  "source": "bug-hunt.json",
+  "lens": "move-set-and-fs",
+  "title": "Non-UTF-8 bytes outside the specifier are corrupted in edited files",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K2",
+      "reason": "byte 0xE9 in the comment became EF BF BD: a byte outside the specifier span changed (base file is not valid UTF-8)"
+    }
+  ],
+  "notes": "The confirmation repo has no staged output; the hunt repo (r6-latin1.sh) has it. No good/ tree: the executor contract declines any edit to a non-UTF-8 file (unsupported-encoding), and K2 rejects such edits by design.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-hunt-move-set-and-fs/r6",
+    "after": "staged index of /tmp/ac-hunt-move-set-and-fs/r6"
+  },
+  "identityControl": true
+}

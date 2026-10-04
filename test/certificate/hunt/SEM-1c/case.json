@@ -1,0 +1,29 @@
+{
+  "id": "SEM-1c",
+  "report": "SEM-1",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "Resolution follows a declaration file (x.d.ts / x.css.d.ts) rather than the runtime file, so moving one half of the pair breaks runtime while tsc stays clean",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "button.module.css.d.ts moved away from the asset it declares (src/components/button.module.css never moves): split pair"
+    },
+    {
+      "check": "K3b",
+      "reason": "vitest resolves './button.module.css' from src/modules/button/ to nothing"
+    },
+    {
+      "check": "K3c",
+      "reason": "the runtime import './button.module.css' fails from src/modules/button/"
+    }
+  ],
+  "notes": "Vitest repo (runner: vitest): the loader links this repo's node_modules into the checkout, as the confirmer did.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-1/c",
+    "after": "staged index of /tmp/ac-confirm-semantic-preservation-SEM-1/c"
+  },
+  "runner": "vitest"
+}

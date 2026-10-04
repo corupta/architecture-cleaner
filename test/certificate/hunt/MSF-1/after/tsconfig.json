@@ -1,0 +1,1 @@
+{ "compilerOptions": { "module": "commonjs", "allowJs": true, "checkJs": true, "noEmit": true, "strict": true, "ignoreDeprecations": "6.0" }, "include": ["src"] }

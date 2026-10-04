@@ -1,0 +1,24 @@
+{
+  "id": "RK-06",
+  "report": "RK-06",
+  "source": "bug-hunt.json",
+  "lens": "reference-kinds",
+  "title": "import.meta.resolve('./x') in a moved file is neither rewritten nor declined; it resolves to a different path",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "the moved file calls import.meta.resolve('./worker.ts'), a module-relative path API"
+    },
+    {
+      "check": "K3c",
+      "reason": "import.meta.resolve('./worker.ts') now points at src/modules/spawn/worker.ts, which doesn't exist"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-reference-kinds-RK-06/r",
+    "after": "staged index of /tmp/ac-confirm-reference-kinds-RK-06/r"
+  }
+}

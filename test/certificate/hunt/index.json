@@ -1,0 +1,500 @@
+{
+  "SF-1": {
+    "report": "SF-1",
+    "title": "paths key with a suffix ('@x/*.js') gets the ending twice: '@x/foo.js' -> '@x/bar.js.js'",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": [
+      "identity",
+      "good"
+    ]
+  },
+  "SF-2": {
+    "report": "SF-2",
+    "title": "Trailing-slash directory specifier loses its slash ('./lib/' -> '../lib'); with a sibling lib.ts the move is unverified",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": [
+      "good"
+    ]
+  },
+  "SF-2-sibling": {
+    "report": "SF-2",
+    "title": "Trailing-slash directory specifier loses its slash ('./lib/' -> '../lib'); with a sibling lib.ts the move is unverified",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SF-3": {
+    "report": "SF-3",
+    "title": "Directory-form specifier ('./users') is kept after the index file is renamed or moved to a non-index name, so a plain barrel move is unverified",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a",
+      "K3c"
+    ],
+    "controls": [
+      "good"
+    ]
+  },
+  "SF-4": {
+    "report": "SF-4",
+    "title": "rootDirs virtual-relative import becomes a physical cross-root path ('./b' -> '../../generated/b'), which breaks merged-output runtime",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SF-5": {
+    "report": "SF-5",
+    "title": "Extensionless JSON require ('./config/data' -> data.json) is classified unresolved and left untouched, so the move breaks runtime",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SF-6": {
+    "report": "SF-6",
+    "title": "moduleSuffixes target: the platform suffix is written into the specifier ('./platform' -> '../platform.ios')",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a",
+      "K3c"
+    ],
+    "controls": [
+      "good"
+    ]
+  },
+  "SF-6-android": {
+    "report": "SF-6",
+    "title": "moduleSuffixes target: the platform suffix is written into the specifier ('./platform' -> '../platform.ios')",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": []
+  },
+  "RK-01": {
+    "report": "RK-01",
+    "title": "Moving a .js that has a sibling .d.ts applies with no rewrite; importers break at runtime",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "RK-02": {
+    "report": "RK-02",
+    "title": "Moving a .d.ts that has a sibling .js rewrites importers to the declaration's new folder; runtime breaks",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "RK-03": {
+    "report": "RK-03",
+    "title": "/// <reference types=\"./relative\" /> is never extracted or rewritten; moving the importer breaks tsc",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": [
+      "identity",
+      "good"
+    ]
+  },
+  "RK-04": {
+    "report": "RK-04",
+    "title": "JSDoc @import tags and import('...') JSDoc types in checkJs files are not extracted; moving the target breaks tsc",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": [
+      "good"
+    ]
+  },
+  "RK-05": {
+    "report": "RK-05",
+    "title": "declare module '<paths-alias>' augmentation is not rewritten while the alias imports are; tsc breaks",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": [
+      "good"
+    ]
+  },
+  "RK-06": {
+    "report": "RK-06",
+    "title": "import.meta.resolve('./x') in a moved file is neither rewritten nor declined; it resolves to a different path",
+    "applicable": true,
+    "expectedChecks": [
+      "K4",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "MSF-1": {
+    "report": "MSF-1",
+    "title": "Moving one half of a .js/.d.ts pair is applied and breaks runtime require()",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "MSF-2": {
+    "report": "MSF-2",
+    "title": "Moving a .d.ts that is a typeRoots/types entry applies and breaks tsc",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": []
+  },
+  "MSF-3": {
+    "report": "MSF-3",
+    "title": "Mid-apply git mv failure leaves the repo half-moved (temp-name suffix pushes a legal 248-byte basename over NAME_MAX)",
+    "applicable": false,
+    "expectedChecks": [],
+    "controls": []
+  },
+  "MSF-4": {
+    "report": "MSF-4",
+    "title": "Non-UTF-8 bytes outside the specifier are corrupted in edited files",
+    "applicable": true,
+    "expectedChecks": [
+      "K2"
+    ],
+    "controls": [
+      "identity"
+    ]
+  },
+  "MSF-5": {
+    "report": "MSF-5",
+    "title": "Moving a tracked relative symlink applies and leaves it dangling",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3a"
+    ],
+    "controls": []
+  },
+  "MSF-6": {
+    "report": "MSF-6",
+    "title": "ESM specifier written with a raw '#' (or '%') in the path: tsc OK, Node fails",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SEM-1": {
+    "report": "SEM-1",
+    "title": "Resolution follows a declaration file (x.d.ts / x.css.d.ts) rather than the runtime file, so moving one half of the pair breaks runtime while tsc stays clean",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SEM-1b": {
+    "report": "SEM-1",
+    "title": "Resolution follows a declaration file (x.d.ts / x.css.d.ts) rather than the runtime file, so moving one half of the pair breaks runtime while tsc stays clean",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SEM-1c": {
+    "report": "SEM-1",
+    "title": "Resolution follows a declaration file (x.d.ts / x.css.d.ts) rather than the runtime file, so moving one half of the pair breaks runtime while tsc stays clean",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3b",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SEM-2": {
+    "report": "SEM-2",
+    "title": "Moving a file into a workspace that has a nested node_modules silently switches which copy of a bare package it loads",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
+  },
+  "SEM-3": {
+    "report": "SEM-3",
+    "title": "A test moved out of the runner's include/roots is applied, and the test silently stops running",
+    "applicable": true,
+    "expectedChecks": [
+      "K6"
+    ],
+    "controls": []
+  },
+  "SEM-4": {
+    "report": "SEM-4",
+    "title": "Moving an entry file applies even though package.json main/bin points at its emitted path (dist/...)",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "SEM-5": {
+    "report": "SEM-5",
+    "title": "A non-moved file that loads a moved file by path string or non-literal import()/require() breaks",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "SEM-5b": {
+    "report": "SEM-5",
+    "title": "A non-moved file that loads a moved file by path string or non-literal import()/require() breaks",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "SEM-6": {
+    "report": "SEM-6",
+    "title": "A move that changes the parse variant (.ts -> .tsx) is applied and breaks tsc",
+    "applicable": true,
+    "expectedChecks": [
+      "K1"
+    ],
+    "controls": [
+      "identity"
+    ]
+  },
+  "B01": {
+    "report": "B01",
+    "title": "An explicitly requested split of a .js/.d.ts pair is applied: tsc passes, but the runtime require breaks",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "B02": {
+    "report": "B02",
+    "title": "import.meta.resolve / new URL(..., import.meta.url) in a non-moved file that targets a moved file goes stale silently",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c",
+      "K4"
+    ],
+    "controls": []
+  },
+  "B03": {
+    "report": "B03",
+    "title": "import.meta['url'] and `const { url } = import.meta` in a moved file are not flagged location-sensitive",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "B03-destructure": {
+    "report": "B03",
+    "title": "import.meta['url'] and `const { url } = import.meta` in a moved file are not flagged location-sensitive",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "B03-alias": {
+    "report": "B03",
+    "title": "import.meta['url'] and `const { url } = import.meta` in a moved file are not flagged location-sensitive",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "B04": {
+    "report": "B04",
+    "title": "A '#' (URL-significant) character is written into a dynamic import() inside a CJS file",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
+  },
+  "B05": {
+    "report": "B05",
+    "title": "package-resolution-change misses a nested node_modules package that is a single file (node_modules/dep.js)",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
+  },
+  "B06": {
+    "report": "B06",
+    "title": "Jest test scope is ignored for JSON configs (jest.config.json, package.json \"jest\") and for testPathIgnorePatterns",
+    "applicable": true,
+    "expectedChecks": [
+      "K6"
+    ],
+    "controls": []
+  },
+  "MC-1": {
+    "report": "MC-1",
+    "title": "`${configDir}` paths substitutions cause a spurious alias-escape decline, and the outcome depends on cwd",
+    "applicable": false,
+    "expectedChecks": [],
+    "controls": [
+      "good"
+    ]
+  },
+  "MC-2": {
+    "report": "MC-2",
+    "title": "File in several programs is resolved only under one config: tsc regression in the other program (per-config paths)",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a"
+    ],
+    "controls": [
+      "identity"
+    ]
+  },
+  "MC-3": {
+    "report": "MC-3",
+    "title": "Workspace package deep-imported through a node_modules symlink: the move applies and breaks the importing package",
+    "applicable": true,
+    "expectedChecks": [
+      "K3a",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "MC-4": {
+    "report": "MC-4",
+    "title": "Only the last Jest config is kept: per-package Jest roots and moduleNameMapper are silently ignored in a monorepo",
+    "applicable": true,
+    "expectedChecks": [
+      "K6"
+    ],
+    "controls": []
+  },
+  "MC-4-mapper": {
+    "report": "MC-4",
+    "title": "Only the last Jest config is kept: per-package Jest roots and moduleNameMapper are silently ignored in a monorepo",
+    "applicable": true,
+    "expectedChecks": [
+      "K3b"
+    ],
+    "controls": []
+  },
+  "MC-5": {
+    "report": "MC-5",
+    "title": "Jest test-set exclusions ignored: testMatch '!' negations and testPathIgnorePatterns",
+    "applicable": true,
+    "expectedChecks": [
+      "K6"
+    ],
+    "controls": []
+  },
+  "MC-5-negation": {
+    "report": "MC-5",
+    "title": "Jest test-set exclusions ignored: testMatch '!' negations and testPathIgnorePatterns",
+    "applicable": true,
+    "expectedChecks": [
+      "K6"
+    ],
+    "controls": []
+  },
+  "MC-6": {
+    "report": "MC-6",
+    "title": "Emitted-path config-reference misses nested entries when rootDir is unset",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "JSM-1": {
+    "report": "JSM-1",
+    "title": "An explicit pathmap that sends x.js and x.d.ts to different places is applied, splitting the declaration pair",
+    "applicable": true,
+    "expectedChecks": [
+      "K1",
+      "K3c"
+    ],
+    "controls": []
+  },
+  "JSM-2": {
+    "report": "JSM-2",
+    "title": "package.json \"main\" in directory form (\"./lib\") is not treated as a config reference to lib/index.js",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": []
+  },
+  "JSM-3": {
+    "report": "JSM-3",
+    "title": "A UTF-8 BOM in package.json makes moduleFormat report cjs, so module-format-change is missed (or raised falsely)",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c",
+      "K0"
+    ],
+    "controls": []
+  },
+  "JSM-4": {
+    "report": "JSM-4",
+    "title": "MSF-6 is a partial fix: import() from a CJS file is not checked for '#'/'?'/'%', but Node resolves import() as an ESM URL",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
+  },
+  "JSM-5": {
+    "report": "JSM-5",
+    "title": "Extensionless shebang scripts (e.g. Express-generator bin/www) are never scanned, so their require() breaks when the target moves",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
+  },
+  "JSM-6": {
+    "report": "JSM-6",
+    "title": "SEM-3 is a partial fix: Jest roots/testMatch in JSON configs (package.json \"jest\", jest.config.json) are ignored, so test-runner-scope is missed",
+    "applicable": true,
+    "expectedChecks": [
+      "K6"
+    ],
+    "controls": []
+  }
+}

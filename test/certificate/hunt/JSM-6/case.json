@@ -1,0 +1,21 @@
+{
+  "id": "JSM-6",
+  "report": "JSM-6",
+  "source": "bug-hunt-round2.json",
+  "lens": "js-and-mixed",
+  "title": "SEM-3 is a partial fix: Jest roots/testMatch in JSON configs (package.json \"jest\", jest.config.json) are ignored, so test-runner-scope is missed",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K6",
+      "reason": "package.json jest.roots ['<rootDir>/src']: tests/sum.test.js leaves the Jest test list"
+    }
+  ],
+  "notes": "package.json 'jest' variant (jest.config.json is .../JSM-6/json). Jest isn't installed here (runner: jest; see the README).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-js-and-mixed-JSM-6/pkg/repo",
+    "after": "staged index of /tmp/ac-confirm2-js-and-mixed-JSM-6/pkg/repo"
+  },
+  "runner": "jest"
+}

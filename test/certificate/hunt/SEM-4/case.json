@@ -1,0 +1,20 @@
+{
+  "id": "SEM-4",
+  "report": "SEM-4",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "Moving an entry file applies even though package.json main/bin points at its emitted path (dist/...)",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "package.json main 'dist/index.js' is the emitted path of the moved src/index.ts (old-path scan, dist/ equivalent)"
+    }
+  ],
+  "notes": "contractAllows=true for the executor (emit layout is K7), but the step breaks `node .`; the certifier must reject it.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-4/repo",
+    "after": "staged index of /tmp/ac-confirm-semantic-preservation-SEM-4/repo"
+  }
+}

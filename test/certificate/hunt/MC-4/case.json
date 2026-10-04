@@ -1,0 +1,21 @@
+{
+  "id": "MC-4",
+  "report": "MC-4",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "Only the last Jest config is kept: per-package Jest roots and moduleNameMapper are silently ignored in a monorepo",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K6",
+      "reason": "packages/a Jest roots ['<rootDir>/src']: packages/a/tests/sum.test.ts leaves packages/a's test list"
+    }
+  ],
+  "notes": "Jest isn't installed here (runner: jest; see the README).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-4/bug",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-4/bug"
+  },
+  "runner": "jest"
+}

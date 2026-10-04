@@ -1,0 +1,22 @@
+{
+  "id": "SF-1",
+  "report": "SF-1",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "paths key with a suffix ('@x/*.js') gets the ending twice: '@x/foo.js' -> '@x/bar.js.js'",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'@x/foo.js' -> '@x/bar.js.js': the paths-key form changes (star capture 'foo' becomes 'bar.js', ending doubled); TS still reaches src/x/bar.ts, so only the form-class rule can reject it"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-specifier-forms-SF-1/repo",
+    "after": "staged index of /tmp/ac-confirm-specifier-forms-SF-1/repo",
+    "good": "constructed from before/ as the correct output: git mv src/x/foo.ts src/x/bar.ts; src/main.ts: \"'@x/foo.js'\" -> \"'@x/bar.js'\""
+  },
+  "identityControl": true
+}

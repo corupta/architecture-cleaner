@@ -1,0 +1,21 @@
+{
+  "id": "RK-04",
+  "report": "RK-04",
+  "source": "bug-hunt.json",
+  "lens": "reference-kinds",
+  "title": "JSDoc @import tags and import('...') JSDoc types in checkJs files are not extracted; moving the target breaks tsc",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "JSDoc @import and {import('./user').User} in the checkJs file src/show.js no longer resolve (TS2307)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-reference-kinds-RK-04/full",
+    "after": "staged index of /tmp/ac-confirm-reference-kinds-RK-04/full",
+    "good": "constructed from before/ as the correct output: git mv src/user.ts src/modules/user/user.ts; src/show.js: \"@import { User } from './user'\" -> \"@import { User } from './modules/user/user'\"; src/show.js: \"import('./user')\" -> \"import('./modules/user/user')\""
+  }
+}

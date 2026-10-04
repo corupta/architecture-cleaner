@@ -1,0 +1,24 @@
+{
+  "id": "RK-02",
+  "report": "RK-02",
+  "source": "bug-hunt.json",
+  "lens": "reference-kinds",
+  "title": "Moving a .d.ts that has a sibling .js rewrites importers to the declaration's new folder; runtime breaks",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "src/lib/greet.d.ts moved without its implementation src/lib/greet.js"
+    },
+    {
+      "check": "K3c",
+      "reason": "'./types/greet' has no runtime file (greet.js stayed in src/lib)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-reference-kinds-RK-02/repo",
+    "after": "staged index of /tmp/ac-confirm-reference-kinds-RK-02/repo"
+  }
+}

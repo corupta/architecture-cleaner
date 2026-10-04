@@ -1,0 +1,24 @@
+{
+  "id": "SEM-1",
+  "report": "SEM-1",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "Resolution follows a declaration file (x.d.ts / x.css.d.ts) rather than the runtime file, so moving one half of the pair breaks runtime while tsc stays clean",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "src/greet.js moved without its declaration src/greet.d.ts"
+    },
+    {
+      "check": "K3c",
+      "reason": "import './greet' loaded src/greet.js at runtime; it is now unresolved"
+    }
+  ],
+  "notes": "Variant 1a (move the .js half). 1b and 1c are SEM-1b and SEM-1c.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-1/a",
+    "after": "constructed from before/ as the report describes the buggy output: git mv src/greet.js src/lib/greet.js"
+  }
+}

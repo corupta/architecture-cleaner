@@ -1,0 +1,24 @@
+{
+  "id": "SF-4",
+  "report": "SF-4",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "rootDirs virtual-relative import becomes a physical cross-root path ('./b' -> '../../generated/b'), which breaks merged-output runtime",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'./b' reached generated/b.ts through rootDirs (virtual merged directory); '../../generated/b' is a physical cross-root path, a form-class change"
+    },
+    {
+      "check": "K3c",
+      "reason": "in the merged output rootDirs declares, '../../generated/b' doesn't exist (runtime main = 1 before, crash after)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-specifier-forms-SF-4/repo",
+    "after": "staged index of /tmp/ac-confirm-specifier-forms-SF-4/repo"
+  }
+}

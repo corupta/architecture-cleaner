@@ -1,0 +1,20 @@
+{
+  "id": "B04",
+  "report": "B04",
+  "source": "bug-hunt-round2.json",
+  "lens": "fix-variants",
+  "title": "A '#' (URL-significant) character is written into a dynamic import() inside a CJS file",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "import('./c#/util.mjs') from a CJS file goes through the ESM URL resolver: '#' starts a fragment"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-fix-variants-B04/repo",
+    "after": "staged index of /tmp/ac-confirm2-fix-variants-B04/repo"
+  }
+}

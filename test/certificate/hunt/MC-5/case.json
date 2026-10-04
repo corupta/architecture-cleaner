@@ -1,0 +1,21 @@
+{
+  "id": "MC-5",
+  "report": "MC-5",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "Jest test-set exclusions ignored: testMatch '!' negations and testPathIgnorePatterns",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K6",
+      "reason": "testPathIgnorePatterns '/fixtures/' drops the moved src/fixtures/sum.test.ts from the Jest test list"
+    }
+  ],
+  "notes": "Pre-fix build's applied output (now declined by the executor). Jest isn't installed here (runner: jest; see the README).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-5/ignore-old",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-5/ignore-old"
+  },
+  "runner": "jest"
+}

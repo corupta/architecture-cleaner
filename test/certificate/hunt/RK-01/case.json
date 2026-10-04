@@ -1,0 +1,24 @@
+{
+  "id": "RK-01",
+  "report": "RK-01",
+  "source": "bug-hunt.json",
+  "lens": "reference-kinds",
+  "title": "Moving a .js that has a sibling .d.ts applies with no rewrite; importers break at runtime",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "src/lib/greet.js moved without its declaration src/lib/greet.d.ts (declaration pair split)"
+    },
+    {
+      "check": "K3c",
+      "reason": "require('./lib/greet') loaded src/lib/greet.js at runtime; it is now unresolved"
+    }
+  ],
+  "notes": "The confirmation repo /tmp/ac-confirm-reference-kinds-RK-01/r stages a copy (A greet.js, old one still in the index) rather than the executor's rename; the hunt repo has the rename.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-hunt-reference-kinds/r01",
+    "after": "staged index of /tmp/ac-hunt-reference-kinds/r01"
+  }
+}

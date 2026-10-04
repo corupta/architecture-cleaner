@@ -1,0 +1,20 @@
+{
+  "id": "SF-6-android",
+  "report": "SF-6",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "moduleSuffixes target: the platform suffix is written into the specifier ('./platform' -> '../platform.ios')",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "under tsconfig.android.json './platform' reached src/platform.android.ts; '../platform.ios' reaches src/platform.ios.ts"
+    }
+  ],
+  "notes": "SF-6 plus the confirmer's second program (tsconfig.android.json, added to both commits), which makes the behavior change visible to TypeScript itself.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-hunt-specifier-forms/module-suffixes + write tsconfig.android.json",
+    "after": "staged index of /tmp/ac-hunt-specifier-forms/module-suffixes + write tsconfig.android.json"
+  }
+}

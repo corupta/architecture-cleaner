@@ -1,0 +1,25 @@
+{
+  "id": "SF-3",
+  "report": "SF-3",
+  "source": "bug-hunt.json",
+  "lens": "specifier-forms",
+  "title": "Directory-form specifier ('./users') is kept after the index file is renamed or moved to a non-index name, so a plain barrel move is unverified",
+  "severity": "crash-or-unverified",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "'./modules/user' resolves to nothing; './users' reached src/users/index.ts, mapped to src/modules/user/user.ts"
+    },
+    {
+      "check": "K3c",
+      "reason": "require('./modules/user') fails at runtime (no index file there)"
+    }
+  ],
+  "notes": "'unverified' in the report: the executor emitted this edit, its verifier caught it and rolled back. Any other agent could commit it, so the certifier must reject it.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-specifier-forms-SF-3/moved",
+    "after": "constructed from before/ as the report describes the buggy output: git mv src/users/index.ts src/modules/user/user.ts; src/main.ts: \"'./users'\" -> \"'./modules/user'\"",
+    "good": "constructed from before/ as the correct output: git mv src/users/index.ts src/modules/user/user.ts; src/main.ts: \"'./users'\" -> \"'./modules/user/user'\""
+  }
+}

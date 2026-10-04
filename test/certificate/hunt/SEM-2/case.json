@@ -1,0 +1,21 @@
+{
+  "id": "SEM-2",
+  "report": "SEM-2",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "Moving a file into a workspace that has a nested node_modules silently switches which copy of a bare package it loads",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "bare 'dep' from packages/x/report.ts loads packages/x/node_modules/dep (2.0) instead of node_modules/dep (1.0); TS sees @types/dep both times"
+    }
+  ],
+  "notes": "environment/ holds the untracked installs: node_modules/dep 1.0 with @types/dep, packages/x/node_modules/dep 2.0 (untyped).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-2/after",
+    "after": "staged index of /tmp/ac-confirm-semantic-preservation-SEM-2/after",
+    "environment": "untracked installs from /tmp/ac-confirm-semantic-preservation-SEM-2/after: node_modules, packages/x/node_modules"
+  }
+}

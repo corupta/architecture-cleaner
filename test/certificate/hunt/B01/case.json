@@ -1,0 +1,24 @@
+{
+  "id": "B01",
+  "report": "B01",
+  "source": "bug-hunt-round2.json",
+  "lens": "fix-variants",
+  "title": "An explicitly requested split of a .js/.d.ts pair is applied: tsc passes, but the runtime require breaks",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "greet.js and greet.d.ts moved to different directories (declaration pair split)"
+    },
+    {
+      "check": "K3c",
+      "reason": "'./types/greet' has no runtime file (greet.js is in src/lib)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-fix-variants-B01/repo",
+    "after": "staged index of /tmp/ac-confirm2-fix-variants-B01/repo"
+  }
+}

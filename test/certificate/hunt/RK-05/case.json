@@ -1,0 +1,21 @@
+{
+  "id": "RK-05",
+  "report": "RK-05",
+  "source": "bug-hunt.json",
+  "lens": "reference-kinds",
+  "title": "declare module '<paths-alias>' augmentation is not rewritten while the alias imports are; tsc breaks",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "declare module '@app/models/user' no longer resolves (TS2664) while the imports moved to '@app/modules/user/user'"
+    }
+  ],
+  "notes": "good/ is the confirmer's hand fix left unstaged in the working tree (augmentation rewritten too).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-reference-kinds-RK-05/r",
+    "after": "staged index of /tmp/ac-confirm-reference-kinds-RK-05/r",
+    "good": "index paths of /tmp/ac-confirm-reference-kinds-RK-05/r with their working-tree content (the confirmer's hand fix)"
+  }
+}

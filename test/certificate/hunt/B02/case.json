@@ -1,0 +1,24 @@
+{
+  "id": "B02",
+  "report": "B02",
+  "source": "bug-hunt-round2.json",
+  "lens": "fix-variants",
+  "title": "import.meta.resolve / new URL(..., import.meta.url) in a non-moved file that targets a moved file goes stale silently",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "import.meta.resolve('./task.js') and new URL('./task.js', import.meta.url) in src/worker.js now point at a missing file"
+    },
+    {
+      "check": "K4",
+      "reason": "src/worker.js builds a URL to the moved src/task.js from import.meta"
+    }
+  ],
+  "notes": "JS variant; the confirmation repo has no staged output (the TS variant in .../B02/ts does).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-fix-variants-B02/repo",
+    "after": "constructed from before/ as the report describes the buggy output: git mv src/task.js src/jobs/task.js"
+  }
+}

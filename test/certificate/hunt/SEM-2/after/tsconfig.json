@@ -1,0 +1,1 @@
+{ "compilerOptions": { "module": "commonjs", "target": "es2020", "strict": true, "types": [] }, "include": ["src", "packages"] }

@@ -1,0 +1,1 @@
+{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node10", "strict": true, "ignoreDeprecations": "6.0" }, "include": ["src"] }

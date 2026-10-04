@@ -1,0 +1,20 @@
+{
+  "id": "MSF-2",
+  "report": "MSF-2",
+  "source": "bug-hunt.json",
+  "lens": "move-set-and-fs",
+  "title": "Moving a .d.ts that is a typeRoots/types entry applies and breaks tsc",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "compilerOptions.types ['env'] under typeRoots ['./typings'] no longer finds typings/env/index.d.ts (TS2688); the file leaves the program"
+    }
+  ],
+  "notes": "The confirmation repo /tmp/ac-confirm-move-set-and-fs-MSF-2/repo has nothing staged; the hunt repo has the executor's applied rename (same .d.ts and src blobs, tsconfig as in the report).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-hunt-move-set-and-fs/typeroots",
+    "after": "staged index of /tmp/ac-hunt-move-set-and-fs/typeroots"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "MC-4-mapper",
+  "report": "MC-4",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "Only the last Jest config is kept: per-package Jest roots and moduleNameMapper are silently ignored in a monorepo",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3b",
+      "reason": "jest.mock('@mocks/db') maps through packages/a's moduleNameMapper to test-mocks/db, which moved: it now resolves to nothing"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-4/mapper-bug",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-4/mapper-bug"
+  },
+  "runner": "jest"
+}

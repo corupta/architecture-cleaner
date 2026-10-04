@@ -1,0 +1,20 @@
+{
+  "id": "SEM-5b",
+  "report": "SEM-5",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "A non-moved file that loads a moved file by path string or non-literal import()/require() breaks",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "import(`./plugins/${name}`) in src/main.ts: a non-literal reference whose static prefix covers the moved src/plugins/csv.ts"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-semantic-preservation-SEM-5/b",
+    "after": "staged index of /tmp/ac-confirm-semantic-preservation-SEM-5/b"
+  }
+}

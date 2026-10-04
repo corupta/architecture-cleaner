@@ -1,0 +1,21 @@
+{
+  "id": "SEM-6",
+  "report": "SEM-6",
+  "source": "bug-hunt.json",
+  "lens": "semantic-preservation",
+  "title": "A move that changes the parse variant (.ts -> .tsx) is applied and breaks tsc",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "extension changes .ts -> .tsx (parse variant): the moved file no longer parses the same"
+    }
+  ],
+  "notes": "The confirmation repo has a half-staged state; the hunt repo has the executor output staged.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-hunt-semantic/ts-to-tsx",
+    "after": "staged index of /tmp/ac-hunt-semantic/ts-to-tsx"
+  },
+  "identityControl": true
+}

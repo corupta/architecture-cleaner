@@ -1,0 +1,20 @@
+{
+  "id": "JSM-5",
+  "report": "JSM-5",
+  "source": "bug-hunt-round2.json",
+  "lens": "js-and-mixed",
+  "title": "Extensionless shebang scripts (e.g. Express-generator bin/www) are never scanned, so their require() breaks when the target moves",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "bin/www (extensionless node script) require('../app') no longer resolves"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-js-and-mixed-JSM-5/repo",
+    "after": "staged index of /tmp/ac-confirm2-js-and-mixed-JSM-5/repo"
+  }
+}

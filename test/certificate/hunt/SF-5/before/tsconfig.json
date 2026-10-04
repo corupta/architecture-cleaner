@@ -1,0 +1,1 @@
+{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node10", "strict": true, "resolveJsonModule": true, "esModuleInterop": true, "outDir": "dist", "rootDir": "src" }, "include": ["src"] }

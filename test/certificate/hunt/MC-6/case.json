@@ -1,0 +1,20 @@
+{
+  "id": "MC-6",
+  "report": "MC-6",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "Emitted-path config-reference misses nested entries when rootDir is unset",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "package.json script 'node app/dist/src/run.js' names the emitted path of the moved app/src/run.ts"
+    }
+  ],
+  "notes": "The confirmer's TS-version-independent repro (app/tsconfig.json without rootDir, script names app/dist/src/run.js); the reported packages/cli case relies on TS 5 emit semantics.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-6/min2",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-6/min2"
+  }
+}

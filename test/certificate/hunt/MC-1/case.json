@@ -1,0 +1,15 @@
+{
+  "id": "MC-1",
+  "report": "MC-1",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "`${configDir}` paths substitutions cause a spurious alias-escape decline, and the outcome depends on cwd",
+  "severity": "unjustified-decline",
+  "applicable": false,
+  "expectedChecks": [],
+  "notes": "Unjustified decline (alias-escape with ${configDir} paths): no bad tree was applied. good/ is the expected correct move, a false-FAIL control for the certifier.",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-1/r1",
+    "good": "constructed from before/ as the correct output: git mv packages/a/src/foo.ts packages/a/src/lib/foo.ts; packages/a/src/main.ts: \"'@/foo'\" -> \"'@/lib/foo'\""
+  }
+}

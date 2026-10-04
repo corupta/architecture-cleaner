@@ -1,0 +1,21 @@
+{
+  "id": "B06",
+  "report": "B06",
+  "source": "bug-hunt-round2.json",
+  "lens": "fix-variants",
+  "title": "Jest test scope is ignored for JSON configs (jest.config.json, package.json \"jest\") and for testPathIgnorePatterns",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K6",
+      "reason": "jest roots ['<rootDir>/src'] (jest.config.json): tests/sum.test.ts leaves the Jest test list"
+    }
+  ],
+  "notes": "jest.config.json variant (pkg and ignore variants: .../B06/pkg, .../B06/ignore). Only dry runs on disk; the tree is the dry run edit applied. Jest isn't installed here (runner: jest; see the README).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-fix-variants-B06/json",
+    "after": "constructed from before/ as the report describes the buggy output: git mv src/sum.test.ts tests/sum.test.ts; tests/sum.test.ts: \"'./sum'\" -> \"'../src/sum'\""
+  },
+  "runner": "jest"
+}

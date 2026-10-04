@@ -1,0 +1,20 @@
+{
+  "id": "JSM-2",
+  "report": "JSM-2",
+  "source": "bug-hunt-round2.json",
+  "lens": "js-and-mixed",
+  "title": "package.json \"main\" in directory form (\"./lib\") is not treated as a config reference to lib/index.js",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "package.json main \"./lib\" names lib/index.js through its directory; the moved file is no longer the package entry"
+    }
+  ],
+  "notes": "main \"./lib\" variant (b: \"lib\", c: \"lib/\" fail the same way).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-js-and-mixed-JSM-2/a/repo",
+    "after": "staged index of /tmp/ac-confirm2-js-and-mixed-JSM-2/a/repo"
+  }
+}

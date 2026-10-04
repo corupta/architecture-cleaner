@@ -1,0 +1,24 @@
+{
+  "id": "MSF-5",
+  "report": "MSF-5",
+  "source": "bug-hunt.json",
+  "lens": "move-set-and-fs",
+  "title": "Moving a tracked relative symlink applies and leaves it dangling",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K1",
+      "reason": "a tracked symlink moved: its relative target ../shared/config.ts now dangles from src/platform/"
+    },
+    {
+      "check": "K3a",
+      "reason": "'./platform/config' resolves to a dangling link (TS2307)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm-move-set-and-fs-MSF-5/repo",
+    "after": "staged index of /tmp/ac-confirm-move-set-and-fs-MSF-5/repo"
+  }
+}

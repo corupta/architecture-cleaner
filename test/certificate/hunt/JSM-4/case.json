@@ -1,0 +1,20 @@
+{
+  "id": "JSM-4",
+  "report": "JSM-4",
+  "source": "bug-hunt-round2.json",
+  "lens": "js-and-mixed",
+  "title": "MSF-6 is a partial fix: import() from a CJS file is not checked for '#'/'?'/'%', but Node resolves import() as an ESM URL",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "import('./c#/feature.mjs') from src/loader.cjs: '#' starts a URL fragment"
+    }
+  ],
+  "notes": "Pre-fix build's applied output (now declined by the executor).",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-js-and-mixed-JSM-4/repo",
+    "after": "staged index of /tmp/ac-confirm2-js-and-mixed-JSM-4/repo"
+  }
+}

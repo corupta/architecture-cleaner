@@ -1,0 +1,21 @@
+{
+  "id": "MC-2",
+  "report": "MC-2",
+  "source": "bug-hunt-round2.json",
+  "lens": "multi-config",
+  "title": "File in several programs is resolved only under one config: tsc regression in the other program (per-config paths)",
+  "severity": "wrong-output",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3a",
+      "reason": "under tsconfig.spec.json '@env/config' reached src/env/test/config.ts; in head it resolves to nothing (TS2307)"
+    }
+  ],
+  "notes": "",
+  "origin": {
+    "before": "HEAD of /tmp/ac-confirm2-multi-config-MC-2/env-swap",
+    "after": "staged index of /tmp/ac-confirm2-multi-config-MC-2/env-swap"
+  },
+  "identityControl": true
+}
