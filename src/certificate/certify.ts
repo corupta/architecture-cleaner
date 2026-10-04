@@ -10,7 +10,7 @@ import type { Analysis } from '../analyzer/types.js';
 import { byteSpanConfinement } from './byte-spans.js';
 import { commitRepoFs, createEnvironment } from './commit-fs.js';
 import { envelope } from './envelope.js';
-import { readCommitTree } from './git-tree.js';
+import { type CommitTree, readCommitTree } from './git-tree.js';
 import { locationScan } from './location-scan.js';
 import { moveSetIntegrity } from './move-set-integrity.js';
 import { oracles } from './oracles.js';
@@ -40,6 +40,14 @@ export const residualRisk = [
   'CI triggers and review routing keyed by path (workflow `paths`, CODEOWNERS)',
 ];
 
+const analyzerInputs = /(^|\/)(package|tsconfig[^/]*|jest[^/]*)\.json$|\.[cm]?[jt]sx?$/;
+
+/** Loads every blob the analyzer reads with one `git cat-file --batch` per tree (one process per file otherwise). */
+export function prefetchAnalyzerInputs(tree: CommitTree): void {
+  tree.prefetch([...tree.entries.keys()].filter((file) => !file.split('/').includes('node_modules')
+    && (analyzerInputs.test(file) || !path.posix.basename(file).includes('.'))));
+}
+
 export function createContext(options: CertifyOptions): { context: CertifyContext; cleanup(): void } {
   fs.mkdirSync(options.workDir, { recursive: true });
   const base = readCommitTree(options.repo, options.base);
@@ -47,7 +55,7 @@ export function createContext(options: CertifyOptions): { context: CertifyContex
   const views = { base: spanViews(base), head: spanViews(head) };
   const pathMap = inferPathMap(base, head, views.base, views.head);
   const environment = createEnvironment(options.environment, [base, head], path.join(options.workDir, 'shadow'));
-  const fsBySide = { base: commitRepoFs(base, environment.shadowRoot), head: commitRepoFs(head, environment.shadowRoot) };
+  const fsBySide = { base: commitRepoFs(base, environment.shadowRoot, environment.checkout), head: commitRepoFs(head, environment.shadowRoot, environment.checkout) };
   let analyses: Record<Side, Analysis> | undefined;
   const worktrees = new Map<Side, string>();
   const context: CertifyContext = {
@@ -59,6 +67,10 @@ export function createContext(options: CertifyOptions): { context: CertifyContex
     environment,
     fs: fsBySide,
     analyses() {
+      if (!analyses) {
+        prefetchAnalyzerInputs(base);
+        prefetchAnalyzerInputs(head);
+      }
       analyses ??= {
         base: analyzeRepo(fsBySide.base, { runner: loadRunnerConfig(fsBySide.base) }),
         head: analyzeRepo(fsBySide.head, { runner: loadRunnerConfig(fsBySide.head) }),

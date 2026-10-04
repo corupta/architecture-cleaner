@@ -16,6 +16,8 @@ export interface RepoFs {
   directoryExists(absolutePath: string): boolean;
   /** Direct children of an absolute directory, for tsconfig include/exclude matching. */
   entries(absolutePath: string): { files: string[]; directories: string[] };
+  /** Real path for module identity (default: the disk's, identity for paths that don't exist). */
+  realpath?(absolutePath: string): string;
 }
 
 export const toAbsolute = (repo: RepoFs, relativePath: string) => path.join(repo.root, relativePath);
@@ -123,6 +125,7 @@ export function moduleResolutionHost(repo: RepoFs): ts.ModuleResolutionHost {
     // Real paths through workspace symlinks (node_modules/a -> packages/a), so a repo file reached through a
     // package link is still recognised as that repo file. Virtual (moved) paths don't exist on disk: identity.
     realpath: (fileName) => {
+      if (repo.realpath) return repo.realpath(fileName);
       try {
         return fs.realpathSync(fileName);
       } catch {
