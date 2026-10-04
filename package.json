@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "ac": "node dist/cli/main.js"
+    "ac": "node dist/cli/main.js",
+    "mutants": "node dist/mutation/run.js"
   },
   "dependencies": {
     "typescript": "6.0.3"
