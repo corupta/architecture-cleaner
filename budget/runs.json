@@ -2,6 +2,7 @@
   "_doc": "Hard caps in USD (plan §5). The gateway refuses a call whose pre-send estimate would cross its run cap or the global cap. ledger.jsonl is the source of truth for spend; the spike's runs are carried over as one line each.",
   "globalCap": 50,
   "runs": {
-    "s5": { "cap": 3 }
+    "s5": { "cap": 3 },
+    "s6": { "cap": 3 }
   }
 }
