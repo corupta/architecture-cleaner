@@ -15,8 +15,9 @@ export interface TransportResponse {
 /** Sends one chat completion and resolves with the raw answer, whatever its status; rejects only when no answer came. */
 export type Transport = (body: RequestBody) => Promise<TransportResponse>;
 
-/** The call outlived the timeout. The server may still have run and billed it, so the gateway never retries it. */
-export class TransportTimeoutError extends Error {}
+/** No answer arrived, yet the server may have run and billed the call: it outlived the timeout, or its answer was lost
+ * after the headers. The gateway never retries it and charges its estimate. */
+export class PossiblyBilledError extends Error {}
 
 export const tokenFactoryBaseUrl = 'https://api.tokenfactory.nebius.com/v1/';
 /** Ultra with n=3 and 64k max_tokens, not streamed, can run many minutes. */
@@ -41,6 +42,19 @@ export function apiKeyFrom(repoRoot: string): string {
 }
 
 const headerRecord = (headers: Headers) => Object.fromEntries(headers.entries());
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** undici's connect timeout (TCP and TLS) or the OS's: the request was never sent. */
+function isConnectTimeout(error: unknown): boolean {
+  let current = error;
+  while (current instanceof Error) {
+    const { code, syscall } = current as NodeJS.ErrnoException;
+    if (code === 'UND_ERR_CONNECT_TIMEOUT' || (code === 'ETIMEDOUT' && syscall === 'connect')) return true;
+    if (current instanceof AggregateError && current.errors.some(isConnectTimeout)) return true;
+    current = current.cause;
+  }
+  return false;
+}
 
 /** undici's fetch with header and body timeouts past the request timeout: a non-streamed completion sends its headers
  * only when it is done, and undici's default headersTimeout is 300 s. */
@@ -60,19 +74,34 @@ export async function createSdkTransport(apiKey: string, send?: typeof fetch): P
   return async (body) => {
     // The SDK throws on a non-2xx answer after consuming its body; keep the exact text so the cassette can hold it.
     let failure: TransportResponse | undefined;
+    let connectTimedOut = false;
     const fetchKeepingFailures = async (input: string | URL | Request, init?: RequestInit) => {
-      const response = await sendRequest(input, init);
+      let response: Response;
+      try {
+        response = await sendRequest(input, init);
+      } catch (error) {
+        connectTimedOut = isConnectTimeout(error);
+        throw error;
+      }
       if (!response.ok) failure = { status: response.status, headers: headerRecord(response.headers), bodyText: await response.clone().text() };
       return response;
     };
+    let response: Response;
     try {
       const params = body as unknown as ChatCompletionCreateParamsNonStreaming;
-      const response = await client.withOptions({ fetch: fetchKeepingFailures }).chat.completions.create(params).asResponse();
-      return { status: response.status, headers: headerRecord(response.headers), bodyText: await response.text() };
+      response = await client.withOptions({ fetch: fetchKeepingFailures }).chat.completions.create(params).asResponse();
     } catch (error) {
       if (failure) return failure;
-      if (error instanceof APIConnectionTimeoutError) throw new TransportTimeoutError(`no answer within ${requestTimeoutMilliseconds / 60_000} min`);
+      // The SDK reports a connect timeout as a timeout too, but nothing was sent then: an ordinary, retryable failure.
+      if (connectTimedOut) throw new Error('connect timed out, nothing was sent', { cause: error });
+      if (error instanceof APIConnectionTimeoutError) throw new PossiblyBilledError(`no answer within ${requestTimeoutMilliseconds / 60_000} min`);
       throw error;
+    }
+    // Headers came, so the completion ran (a non-streamed one sends them only when done): a lost body is a lost billed answer.
+    try {
+      return { status: response.status, headers: headerRecord(response.headers), bodyText: await response.text() };
+    } catch (error) {
+      throw new PossiblyBilledError(`${response.status} answer lost while reading its body: ${errorMessage(error)}`);
     }
   };
 }

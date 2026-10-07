@@ -5,11 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { type CassetteRecord, requestHash } from '../../src/gateway/cassette.js';
+import { costUsd, estimateUsd, readRuns, readSpent } from '../../src/gateway/budget.js';
+import { type CassetteRecord, loadCassette, requestHash } from '../../src/gateway/cassette.js';
 import { createGateway } from '../../src/gateway/gateway.js';
+import { models } from '../../src/gateway/models.js';
 import { buildRequestBody, type RequestBody, RequestRuleError } from '../../src/gateway/request.js';
-import { type Transport, type TransportResponse, TransportTimeoutError } from '../../src/gateway/transport.js';
-import { type CassetteMode, GatewayError, type StructuredRequest } from '../../src/gateway/types.js';
+import { PossiblyBilledError, type Transport, type TransportResponse } from '../../src/gateway/transport.js';
+import { type CassetteMode, GatewayError, type ModelKey, type StructuredRequest } from '../../src/gateway/types.js';
 
 const sdk = vi.hoisted(() => ({ constructed: 0 }));
 vi.mock('openai', () => ({
@@ -79,6 +81,7 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(directory, { recursive: true, force: true }));
 
 const readJsonLines = (file: string) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []);
+const repoRoot = path.resolve(import.meta.dirname, '../..');
 
 function setup(options: { runs?: object; ledgerLines?: object[] } = {}) {
   const runsPath = path.join(directory, 'runs.json');
@@ -92,7 +95,10 @@ function setup(options: { runs?: object; ledgerLines?: object[] } = {}) {
   const sleeps: number[] = [];
   const gateway = (mode: CassetteMode, transport?: Transport, runId = 'test') =>
     createGateway({ runId, mode, cassettePath, ledgerPath, runsPath, transport, sleep: async (milliseconds) => void sleeps.push(milliseconds) });
-  return { ledgerPath, cassettePath, sleeps, gateway, ledger: () => readJsonLines(ledgerPath), cassette: () => readJsonLines(cassettePath) as CassetteRecord[] };
+  const ledger = () => readJsonLines(ledgerPath);
+  // Outcome lines: everything but the reservation a live call appends before it sends.
+  const outcomes = () => ledger().filter((line) => line.reservedUsd === undefined);
+  return { runsPath, ledgerPath, cassettePath, sleeps, gateway, ledger, outcomes, cassette: () => readJsonLines(cassettePath) as CassetteRecord[] };
 }
 
 function handWrittenRecord(request: StructuredRequest<Answer>, occurrence: number, bodyText: string, status = 200): CassetteRecord {
@@ -325,25 +331,137 @@ describe('budget', () => {
   });
 
   it('charges a 2xx answer without usage the full estimate', async () => {
-    const { gateway, ledger } = setup();
+    const { gateway, outcomes } = setup();
     const result = await gateway('record', fakeTransport(ok(completion([{ content: '{"answer": 1}' }], null))).send).structured(ask());
-    const [line] = ledger();
+    const [line] = outcomes();
     expect(result.usage).toBeNull();
     expect(line.costUsd).toBe(line.estimateUsd);
     expect(result.costUsd).toBe(line.estimateUsd);
   });
+
+  const malformedRuns: [string, object][] = [
+    ['a misnamed cap', { globalCap: 50, runs: { test: { capUsd: 1 } } }],
+    ['a bare number', { globalCap: 50, runs: { test: 1 } }],
+    ['a string cap', { globalCap: 50, runs: { test: { cap: '1' } } }],
+    ['a negative cap', { globalCap: 50, runs: { test: { cap: -1 } } }],
+    ['a null run', { globalCap: 50, runs: { test: null } }],
+    ['a malformed other run', { globalCap: 50, runs: { test: { cap: 3 }, other: {} } }],
+    ['a string globalCap', { globalCap: '50', runs: { test: { cap: 3 } } }],
+  ];
+  it.each(malformedRuns)('fail closed on runs.json with %s, before anything is sent', async (_name, runs) => {
+    const { gateway, runsPath, ledgerPath } = setup({ runs });
+    expect(() => readRuns(runsPath)).toThrow(/needs a numeric/);
+    const fake = fakeTransport(answered(1));
+    expect(await rejection(gateway('record', fake.send).structured(ask()))).toMatchObject({ message: expect.stringMatching(/needs a numeric/) });
+    expect(fake.bodies).toHaveLength(0);
+    expect(fs.existsSync(ledgerPath)).toBe(false);
+  });
+
+  it('hold the caps across processes: a reservation is on disk before the send', async () => {
+    const { gateway, ledgerPath, cassettePath, runsPath } = setup({ runs: { globalCap: 50, runs: { test: { cap: 0.015 } } } });
+    // Another spelling of the ledger's path shares no in-process state with `gateway`, as another process would not.
+    const otherProcessLedger = ledgerPath.replace(`${path.sep}budget${path.sep}`, `${path.sep}budget${path.sep}.${path.sep}`);
+    const other = createGateway({ runId: 'test', mode: 'record', cassettePath, ledgerPath: otherProcessLedger, runsPath, transport: fakeTransport(answered(2)).send, sleep: async () => {} });
+    let finishUltra!: (response: TransportResponse) => void;
+    const bodies: RequestBody[] = [];
+    const ultra = gateway('record', (body) => {
+      bodies.push(body);
+      return new Promise((resolve) => (finishUltra = resolve));
+    }).structured(ask({ maxTokens: 3000 }));
+    await vi.waitFor(() => expect(bodies).toHaveLength(1));
+    try {
+      expect(await rejection(other.structured(ask({ model: 'lightning', maxTokens: 30_000 })))).toMatchObject({ code: 'budget' });
+    } finally {
+      finishUltra(ok(completion([{ content: '{"answer": 1}' }], { prompt_tokens: 10, completion_tokens: 10 })));
+      await ultra;
+    }
+    expect((await other.structured(ask({ model: 'lightning', maxTokens: 30_000 }))).choices[0]!.value).toEqual({ answer: 2 });
+  });
+
+  it('read, check and append under a lock file that another process holds, and take over a stale one', async () => {
+    const { gateway, ledgerPath, ledger } = setup();
+    const lockPath = `${ledgerPath}.lock`;
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    fs.writeFileSync(lockPath, '4242\n');
+    const fake = fakeTransport(answered(1), answered(2));
+    const live = gateway('record', fake.send);
+    const waiting = live.structured(ask());
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(fake.bodies).toHaveLength(0);
+    expect(ledger()).toHaveLength(0);
+    fs.rmSync(lockPath);
+    expect((await waiting).choices[0]!.value).toEqual({ answer: 1 });
+
+    fs.writeFileSync(lockPath, '4242\n');
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60_000);
+    fs.utimesSync(lockPath, tenMinutesAgo, tenMinutesAgo);
+    expect((await live.structured(ask({ maxTokens: 2000 }))).choices[0]!.value).toEqual({ answer: 2 });
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  it('charge a call its estimate from before the send until its outcome, so a process killed mid-call stays charged', async () => {
+    const { gateway, ledgerPath, ledger } = setup();
+    let finish!: (response: TransportResponse) => void;
+    const bodies: RequestBody[] = [];
+    const call = gateway('record', (body) => {
+      bodies.push(body);
+      return new Promise((resolve) => (finish = resolve));
+    }).structured(ask());
+    await vi.waitFor(() => expect(bodies).toHaveLength(1));
+    let reservation: { callId: string; reservedUsd: number };
+    try {
+      // What the next process reads if this one is killed now.
+      [reservation] = ledger();
+      expect(reservation.reservedUsd).toBe(estimateUsd('ultra', bodies[0]!));
+      expect(readSpent(ledgerPath, 'test')).toEqual({ run: reservation.reservedUsd, global: reservation.reservedUsd });
+    } finally {
+      finish(answered(1));
+      await call;
+    }
+    expect(ledger()[1]).toMatchObject({ callId: reservation.callId, costUsd: 0.007 });
+    expect(readSpent(ledgerPath, 'test')).toEqual({ run: 0.007, global: 0.007 });
+  });
+
+  it('keep counting a reservation that never got its outcome', async () => {
+    const { gateway, ledger } = setup({ ledgerLines: [{ runId: 'test', key: 'killed:0', callId: 'killed', reservedUsd: 2.999 }] });
+    const fake = fakeTransport(answered(1));
+    expect(await rejection(gateway('record', fake.send).structured(ask()))).toMatchObject({ code: 'budget' });
+    expect(fake.bodies).toHaveLength(0);
+    expect(ledger()[1]).toMatchObject({ refused: true, runSpent: 2.999 });
+  });
+
+  it('read the committed ledger as before: lines without a callId count their costUsd', () => {
+    const committed = path.join(repoRoot, 'budget/ledger.jsonl');
+    const lines = readJsonLines(committed) as { runId?: string; costUsd?: number }[];
+    const sum = (runId?: string) => lines.reduce((total, line) => (typeof line.costUsd === 'number' && (runId === undefined || line.runId === runId) ? total + line.costUsd : total), 0);
+    expect(readSpent(committed, 's5')).toEqual({ run: sum('s5'), global: sum() });
+  });
+
+  it('estimate at least the worst case of every recorded call: its real prompt tokens, every choice at max_tokens', () => {
+    const modelKeys = new Map(Object.entries(models).map(([key, model]) => [model.id, key as ModelKey]));
+    const records = [...loadCassette(path.join(repoRoot, 'cassettes/s5-immich.jsonl')).values()].filter((record) => record.usage);
+    expect(records.length).toBeGreaterThan(0);
+    for (const record of records) {
+      const request = record.request as RequestBody;
+      const model = modelKeys.get(record.model)!;
+      const worstCase = costUsd(model, { promptTokens: record.usage!.promptTokens, completionTokens: request.max_tokens * (request.n ?? 1), reasoningTokens: null });
+      expect(estimateUsd(model, request), record.key).toBeGreaterThanOrEqual(worstCase);
+    }
+  });
 });
 
 describe('ledger and cassette records', () => {
-  it('get one line per live call and nothing for replays; the cassette holds content only', async () => {
+  it('get a reservation and an outcome line per live call and nothing for replays; the cassette holds content only', async () => {
     const { gateway, ledger, cassette } = setup();
     const headers = { 'x-ratelimit-remaining-requests': '599', 'x-request-id': 'req-1', 'content-type': 'application/json', 'set-cookie': 'session=1' };
     const auto = gateway('auto', fakeTransport(ok(completion([{ content: '{"answer": 1}' }]), headers)).send);
     const live = await auto.structured(ask({ templateKwargs: { medium_effort: true } }));
     expect(live).toMatchObject({ replayed: false, costUsd: 0.007, usage: { promptTokens: 1000, completionTokens: 2000, reasoningTokens: 1500 } });
-    const [line] = ledger();
+    const [reservation, line] = ledger();
+    expect(Object.keys(reservation).sort()).toEqual(['callId', 'key', 'model', 'reservedUsd', 'runId', 'ts']);
+    expect(reservation).toMatchObject({ runId: 'test', key: live.key, callId: line.callId, reservedUsd: line.estimateUsd });
     expect(Object.keys(line).sort()).toEqual(
-      ['attempts', 'completionTokens', 'costUsd', 'estimateUsd', 'finishReasons', 'key', 'latencyMs', 'model', 'n', 'promptTokens', 'rateLimit', 'reasoningTokens', 'runId', 'status', 'ts'].sort(),
+      ['attempts', 'callId', 'completionTokens', 'costUsd', 'estimateUsd', 'finishReasons', 'key', 'latencyMs', 'model', 'n', 'promptTokens', 'rateLimit', 'reasoningTokens', 'runId', 'status', 'ts'].sort(),
     );
     expect(line).toMatchObject({ runId: 'test', model: 'nvidia/Nemotron-3-Ultra-550b-a55b', key: live.key, status: 200, n: 1, attempts: 1, promptTokens: 1000, completionTokens: 2000, reasoningTokens: 1500, costUsd: 0.007, finishReasons: ['stop'], rateLimit: { 'x-ratelimit-remaining-requests': '599' } });
     const [record] = cassette();
@@ -353,32 +471,32 @@ describe('ledger and cassette records', () => {
 
     const again = gateway('auto', fakeTransport().send);
     expect(await again.structured(ask({ templateKwargs: { medium_effort: true } }))).toMatchObject({ replayed: true, key: live.key, costUsd: 0.007 });
-    expect(ledger()).toHaveLength(1);
+    expect(ledger()).toHaveLength(2);
     expect(again.spent()).toEqual({ run: 0.007, global: 0.007 });
   });
 });
 
 describe('http answers and retries', () => {
   it('record a 4xx answer, throw it, and replay it as the same GatewayError', async () => {
-    const { gateway, ledger, cassette } = setup();
+    const { gateway, outcomes, cassette } = setup();
     const errorBody = '{"detail": "n must be 1 when using greedy sampling"}';
     const fake = fakeTransport({ status: 400, headers: {}, bodyText: errorBody });
     const error = await rejection(gateway('record', fake.send).structured(ask({ n: 3 })));
     expect(error).toMatchObject({ code: 'http', status: 400 });
     expect(fake.bodies).toHaveLength(1);
     expect(cassette()[0]!.response).toEqual({ status: 400, headers: {}, body: errorBody });
-    expect(ledger()[0]).toMatchObject({ status: 400, costUsd: 0, promptTokens: null });
+    expect(outcomes()[0]).toMatchObject({ status: 400, costUsd: 0, promptTokens: null });
 
     const replayed = await rejection(gateway('replay', fakeTransport().send).structured(ask({ n: 3 })));
     expect(replayed).toMatchObject({ code: 'http', status: 400 });
     expect((replayed as GatewayError).message).toMatch(/n must be 1/);
     const auto = await rejection(gateway('auto', fakeTransport().send).structured(ask({ n: 3 })));
     expect(auto).toMatchObject({ code: 'http', status: 400 });
-    expect(ledger()).toHaveLength(1);
+    expect(outcomes()).toHaveLength(1);
   });
 
   it('retry 429 and 5xx with backoff, honour retry-after up to 60 s, and record only the final answer', async () => {
-    const { gateway, ledger, cassette, sleeps } = setup();
+    const { gateway, outcomes, cassette, sleeps } = setup();
     const fake = fakeTransport(
       { status: 503, headers: {}, bodyText: 'busy' },
       { status: 429, headers: { 'Retry-After': '7' }, bodyText: 'slow down' },
@@ -389,8 +507,8 @@ describe('http answers and retries', () => {
     expect(result.choices[0]!.value).toEqual({ answer: 5 });
     expect(sleeps).toEqual([1000, 7000, 60_000]);
     expect(cassette().map((record) => record.response.status)).toEqual([200]);
-    expect(ledger()).toHaveLength(1);
-    expect(ledger()[0]).toMatchObject({ status: 200, attempts: 4 });
+    expect(outcomes()).toHaveLength(1);
+    expect(outcomes()[0]).toMatchObject({ status: 200, attempts: 4 });
   });
 
   it('give up after 4 retries, record the final 5xx; replay reproduces it while auto calls again', async () => {
@@ -408,19 +526,34 @@ describe('http answers and retries', () => {
     expect((await gateway('replay', fakeTransport().send).structured(ask())).choices[0]!.value).toEqual({ answer: 6 });
   });
 
-  it('retry transport errors, but never a timeout, which is charged its estimate', async () => {
-    const { gateway, ledger, cassette, sleeps } = setup();
+  it('retry transport errors, but never a possibly billed one, which is charged its estimate', async () => {
+    const { gateway, outcomes, cassette, sleeps } = setup();
     const flaky = fakeTransport(new Error('socket hang up'), answered(7));
     expect((await gateway('record', flaky.send).structured(ask())).choices[0]!.value).toEqual({ answer: 7 });
     expect(sleeps).toEqual([1000]);
 
-    const timingOut = fakeTransport(new TransportTimeoutError('no answer within 20 min'), answered(8));
+    const timingOut = fakeTransport(new PossiblyBilledError('no answer within 20 min'), answered(8));
     expect(await rejection(gateway('record', timingOut.send).structured(ask()))).toMatchObject({ code: 'transport' });
     expect(timingOut.bodies).toHaveLength(1);
-    const timedOut = ledger()[1];
+    const timedOut = outcomes()[1];
     expect(timedOut).toMatchObject({ status: null, attempts: 1, error: 'no answer within 20 min' });
     expect(timedOut.costUsd).toBe(timedOut.estimateUsd);
     expect(cassette()).toHaveLength(1);
+  });
+
+  it.each([504, 524])('never resend a gateway timeout (%i), which may have run on upstream; charge its estimate, and let auto call again', async (status) => {
+    const { gateway, outcomes, sleeps } = setup();
+    const failing = fakeTransport(...Array.from({ length: 5 }, () => ({ status, headers: {}, bodyText: '<html>gateway timeout</html>' })));
+    expect(await rejection(gateway('record', failing.send).structured(ask({ n: 3 })))).toMatchObject({ code: 'http', status });
+    expect(failing.bodies).toHaveLength(1);
+    expect(sleeps).toEqual([]);
+    const [line] = outcomes();
+    expect(line).toMatchObject({ status, attempts: 1 });
+    expect(line.costUsd).toBe(line.estimateUsd);
+
+    const healed = fakeTransport(answered(6));
+    expect((await gateway('auto', healed.send).structured(ask({ n: 3 }))).choices[0]!.value).toEqual({ answer: 6 });
+    expect(healed.bodies).toHaveLength(1);
   });
 });
 
@@ -501,7 +634,7 @@ describe('pacing and the default transport', () => {
   });
 
   it('build the SDK only on the first live call, after the budget check', async () => {
-    const { gateway, ledgerPath } = setup();
+    const { gateway, ledgerPath, outcomes } = setup();
     const savedKey = process.env.NEBIUS_API_KEY;
     process.env.NEBIUS_API_KEY = 'test-key';
     try {
@@ -513,6 +646,8 @@ describe('pacing and the default transport', () => {
       if (savedKey === undefined) delete process.env.NEBIUS_API_KEY;
       else process.env.NEBIUS_API_KEY = savedKey;
     }
-    expect(fs.existsSync(ledgerPath)).toBe(false);
+    // Nothing was sent, so the reservation settled at $0.
+    expect(outcomes()).toMatchObject([{ attempts: 0, status: null, costUsd: 0, error: 'the SDK was constructed' }]);
+    expect(readSpent(ledgerPath, 'test')).toEqual({ run: 0, global: 0 });
   });
 });

@@ -2,9 +2,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { errors as undiciErrors } from 'undici';
 import { describe, expect, it } from 'vitest';
+import { createGateway } from '../../src/gateway/gateway.js';
 import { buildRequestBody } from '../../src/gateway/request.js';
-import { apiKeyFrom, createSdkTransport, TransportTimeoutError } from '../../src/gateway/transport.js';
+import { apiKeyFrom, createSdkTransport, PossiblyBilledError } from '../../src/gateway/transport.js';
 import type { StructuredRequest } from '../../src/gateway/types.js';
 
 const body = buildRequestBody({
@@ -64,21 +66,105 @@ describe('SDK transport', () => {
     expect(failing).toHaveLength(1);
   });
 
-  it('reports a timeout as TransportTimeoutError and other failures as they are', async () => {
+  const failureOf = (promise: Promise<unknown>) => promise.then(
+    () => undefined,
+    (failure: unknown) => failure,
+  );
+
+  it('reports a timeout after the request was sent as possibly billed, and other failures as they are', async () => {
     const send = await createSdkTransport('test-key', fakeFetch);
     stubFetch(async () => {
-      throw new TypeError('fetch failed', { cause: new Error('Connect Timeout Error') });
+      throw new TypeError('fetch failed', { cause: new undiciErrors.HeadersTimeoutError() });
     });
-    await expect(send(body)).rejects.toBeInstanceOf(TransportTimeoutError);
+    await expect(send(body)).rejects.toBeInstanceOf(PossiblyBilledError);
     stubFetch(async () => {
       throw new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED') });
     });
-    const error = await send(body).then(
-      () => undefined,
-      (failure: unknown) => failure,
-    );
+    const error = await failureOf(send(body));
     expect(error).toBeInstanceOf(Error);
-    expect(error).not.toBeInstanceOf(TransportTimeoutError);
+    expect(error).not.toBeInstanceOf(PossiblyBilledError);
+  });
+
+  it('reports a connect timeout, which sent nothing, as an ordinary failure, though the SDK calls it a timeout', async () => {
+    const send = await createSdkTransport('test-key', fakeFetch);
+    const connectTimeouts = [new undiciErrors.ConnectTimeoutError(), Object.assign(new Error('connect ETIMEDOUT 10.0.0.1:443'), { code: 'ETIMEDOUT', syscall: 'connect' })];
+    for (const cause of connectTimeouts) {
+      stubFetch(async () => {
+        throw new TypeError('fetch failed', { cause });
+      });
+      const error = await failureOf(send(body));
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(PossiblyBilledError);
+      expect((error as Error).message).toBe('connect timed out, nothing was sent');
+    }
+  });
+
+  it('reports a 2xx answer whose body is lost as possibly billed', async () => {
+    const send = await createSdkTransport('test-key', fakeFetch);
+    stubFetch(async () => lostBody());
+    const error = await failureOf(send(body));
+    expect(error).toBeInstanceOf(PossiblyBilledError);
+    expect((error as Error).message).toBe('200 answer lost while reading its body: terminated');
+  });
+});
+
+/** A 200 whose connection drops mid-body, as undici reports a socket closed after the headers. */
+const lostBody = () =>
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"id":"x","choices":['));
+        controller.error(new TypeError('terminated'));
+      },
+    }),
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  );
+
+describe('SDK transport behind the gateway', () => {
+  const answer = JSON.stringify({ id: 'x', object: 'chat.completion', choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: '{"answer": 1}' } }], usage: { prompt_tokens: 100, completion_tokens: 10 } });
+  const request = { model: 'ultra', messages: [{ role: 'user', content: 'Answer.' }], schemaName: 'answer', schema: {}, parse: (value) => value, maxTokens: 64_000, n: 3 } satisfies StructuredRequest<unknown>;
+
+  async function liveGateway() {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-transport-'));
+    const runsPath = path.join(directory, 'runs.json');
+    fs.writeFileSync(runsPath, JSON.stringify({ globalCap: 50, runs: { test: { cap: 3 } } }));
+    const ledgerPath = path.join(directory, 'ledger.jsonl');
+    const sleeps: number[] = [];
+    const gateway = createGateway({ runId: 'test', mode: 'record', cassettePath: path.join(directory, 'cassette.jsonl'), ledgerPath, runsPath, transport: await createSdkTransport('test-key', fakeFetch), sleep: async (milliseconds) => void sleeps.push(milliseconds) });
+    const outcomes = () => fs.readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)).filter((line) => line.reservedUsd === undefined);
+    return { gateway, sleeps, outcomes, cleanUp: () => fs.rmSync(directory, { recursive: true, force: true }) };
+  }
+
+  it('never resends an answer lost after its 2xx headers, and charges its estimate', async () => {
+    const { gateway, sleeps, outcomes, cleanUp } = await liveGateway();
+    try {
+      const calls = stubFetch(async () => lostBody());
+      await expect(gateway.structured(request)).rejects.toMatchObject({ code: 'transport' });
+      expect(calls).toHaveLength(1);
+      expect(sleeps).toEqual([]);
+      const [line] = outcomes();
+      expect(line).toMatchObject({ attempts: 1, status: null, error: '200 answer lost while reading its body: terminated' });
+      expect(line.costUsd).toBe(line.estimateUsd);
+    } finally {
+      cleanUp();
+    }
+  });
+
+  it('retries a connect timeout and charges only the answer', async () => {
+    const { gateway, sleeps, outcomes, cleanUp } = await liveGateway();
+    try {
+      let attempt = 0;
+      const calls = stubFetch(async () => {
+        if (attempt++ === 0) throw new TypeError('fetch failed', { cause: new undiciErrors.ConnectTimeoutError() });
+        return new Response(answer, { status: 200 });
+      });
+      expect((await gateway.structured(request)).choices[0]!.value).toEqual({ answer: 1 });
+      expect(calls).toHaveLength(2);
+      expect(sleeps).toEqual([1000]);
+      expect(outcomes()).toMatchObject([{ attempts: 2, status: 200, costUsd: 0.00013 }]);
+    } finally {
+      cleanUp();
+    }
   });
 });
 
