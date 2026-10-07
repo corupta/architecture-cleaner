@@ -1,20 +1,42 @@
-# Next session: S5 (LLM gateway, seeds, draft-editor planner, validator, plan.yaml)
+# Next session: S6 (orchestrator R0–R4, findings log, boundary rules, end to end on immich)
 
-Opening prompt for S5, from [sessions/s4.md](sessions/s4.md). Paste it as the first message.
+Opening prompt for S6, from [sessions/s5.md](sessions/s5.md). Paste it as the first message.
 
 ```
-Session S5 for architecture-cleaner: the LLM gateway, the seeds draft, the draft-editor planner with Ultra, the validator and critic, and `ac plan` → plan.yaml.
+Session S6 for architecture-cleaner: the orchestrator (R0–R4), the findings log, boundary rules, and the whole ladder end to end on immich.
 
-Read CLAUDE.md, docs/sessions/s4.md, docs/plan.md §2.2, §2.4, §3.2, §3.5, §3.6 and §5, docs/gates.md (G1, the "Decided" line and "Plan corrections" 1, 2 and 6), docs/gates/immich-plan.md and docs/gates/tf-probes.md. Mode: execution, high autonomy, branch s5/planner from main; merge when the exit criteria hold. LLM calls only through the new gateway, with a ledger cap of $3 for the whole session (plan §5 "build-phase prompt iteration"); the global cap stays the hard ~$43 left.
+Read CLAUDE.md, docs/sessions/s5.md, docs/sessions/s4.md (item 10, carry-overs), docs/plan.md §2.3–2.5, §3.2, §3.4 and §3.5, docs/plans/immich/plan.md and docs/storyboard.md. If corupta rated or edited docs/plans/immich/plan.yaml, use his version; otherwise use it as committed. Mode: execution, high autonomy, branch s6/orchestrator from main; merge when the exit criteria hold. LLM calls only through src/gateway, under a new budget run s6 (add it to budget/runs.json, cap $3); the plan replays from cassettes/s5-immich.jsonl unless it has to change.
 
-Port, don't copy, from branch spike/gates (read with `git show spike/gates:spike/<path>`):
-1. src/gateway/: the recording gateway (spike/llm/gateway.mjs, client.mjs, prices.json, runs.json) as an in-process client (no listening server; never a live endpoint on our key). openai SDK against Token Factory with NEBIUS_API_KEY from .env. Cassettes as JSONL keyed by hash(model, messages, tools, params) with record / replay (fail on a miss) / auto. A budget ledger: cost = usage × the pinned price table, a pre-send estimate refused over the run cap or the global cap. The plan §3.6 request rules: json_schema strict, reasoning only through chat_template_kwargs (never reasoning_effort), always temperature 1.0 / top_p 0.95 and max_tokens, never parse content on finish_reason length, read reasoning_content only. Tests run in replay mode only.
-2. src/planner/facts.ts and seeds.ts: facts per file from src/analyzer (role, exports, resolved edges through barrels, table/repository access, pins and hazards per plan §2.4), and the seeds draft (spike/g1/baselines.mjs seedsWithPropagation: stems, name-token assignment, label propagation over import + table edges, consumer rules), with per-file confidence and a contested list.
-3. src/planner/edit.ts: the draft editor (spike/g1/planner.mjs runEditPlanner, v1): Ultra with medium_effort, json_schema strict output = one entry per draft group (final bare name and kind module|shared|platform; equal names merge) plus moves for misplaced files only, each with a one-line rationale. It never lists every file. The evaluate round stays off. K candidates via n=K at T=1.0 if Ultra accepts n>1 (probe it once, cheaply; otherwise sequential).
-4. src/planner/validate.ts: the deterministic validator and scorer (spike/g1/metrics: TurboMQ, cross-edge ratio, cycles; banned names; names only from the repo's own vocabulary; pins respected) and the critic (Ultra, 1 call), whose suggestions go back through the validator, never straight to execution.
-5. `ac plan <repo> [--root server]` → plan.yaml (editable: groups → files, with confidence and contested flags) and plan.md (readable, like docs/gates/immich-plan.md); plan.yaml → one pathMap per module step that `ac move` consumes.
-Apply corupta's notes on the G1 immich plan: move the registries out of shared/infra into platform/; merge the *-admin modules into their domains; revisit the asset / asset-media / asset-file split and the `app` module. His bar: small improvements over the planner's choices, under 10% of placements.
+Build:
+1. src/orchestrator/, `ac run <repo> --profile <name>`:
+   - R0 preflight and baseline: inventory, tsc, tests ×2 with flaky quarantine, the §2.5 declines.
+   - Then plan.yaml → steps (`ac steps`). For each step: `ac move`, commit, `ac certify` (static checks; --oracles at the end of each rung), and the certificate trailers on the commit.
+   - On FAIL: roll back and replan the step at most twice (pin the offending files and log a finding), else pin and log.
+   - Rungs: R1 is the module steps; R2 is the platform and shared/ steps `ac plan` already emits; R3 is filename normalization with its observability guard (§2.3); R4 is boundary rules.
+2. src/findings/: the findings log, recorded and never fixed:
+   - deterministic findings: module cycles, back-edges, multi-writer tables, BaseService's god injection, K4's findings, the validator's plan warnings;
+   - Lightning narration, text only;
+   - rendered for the PR body and the report.
+3. R4: a dependency-cruiser config with
+   - a module DAG allow-list from the plan's quotient graph;
+   - barrel-less public files;
+   - shared is a leaf;
+   - platform ↛ modules;
+   - controller ↛ persistence;
+   - folder-scope cycles.
+   Today's violations are frozen with --baseline. An anti-vacuity check proves each rule fires on a synthetic violation in a scratch copy.
+4. End to end on immich server/ @ 02063972e8: the whole ladder on a branch in ~/ac-targets/immich, every commit certified, with the run's timeline and cost.
+5. S4 carry-overs (s4.md item 10):
+   - executor: the config-reference decline sees package-root-relative globs (the coverage miss); unwrap parenthesized and cast loader calls; read tsx/bun/deno shebangs and jest*.json; apply .js→.ts to Vite/Jest mock specifiers;
+   - certifier: K3b for vitest modules outside the project root; repeated baseline runs for flaky K8 tests; ambiguity findings list the alternatives; K5/K7 if time allows.
+   Take storyboard decision 2 (the single-step fallback) at the end of S6.
+6. S5 carry-overs (s5.md):
+   - The planner's ranking is a heuristic: keep every candidate visible.
+   - Consider a sub-feature warning for platform concerns (http-response extends http) and folding one-file platform concerns.
+   - The Lightning one-liners for ambiguous files (plan §3.5) aren't built.
+   - Check the Nebius console bill against the ledger: n>1 billing, cache hits.
+   - Gateway gaps the review left open: a connection that drops after the send but before the headers arrive is still retried at $0; a stale ledger lock is only taken over after 30 s.
 
-Exit criteria: `ac plan` on immich server/ in record mode within the cap, then reproduced byte-identically in replay mode with the network blocked; every module step's pathMap verifies with `ac move --dry-run`; one module step applied in a scratch branch and certified PASS by `ac certify --profile immich` (static checks; plus --oracles if time allows); the plan's cost in the ledger; docs/sessions/s5.md (10 lines) ending with the S6 opening prompt (orchestrator R0–R4, findings log, boundary rules, end to end on immich, plus the S4 carry-overs listed in s4.md).
+Exit criteria: the full ladder on immich (every R1 module step, R2, R3, R4), every commit certified PASS by the static checks and the last commit of each rung by --oracles too; the findings log rendered; the anti-vacuity check green; docs/sessions/s6.md (10 lines) ending with the S7 opening prompt (reporter and replay site v1, scramble tool, benchmark runner and runs, the judges' --replay build).
 Log weird-but-not-blocking observations with /log-anomaly.
 ```

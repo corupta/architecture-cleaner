@@ -306,22 +306,25 @@ Estimate 20–32 focused hours (MVP cut 16–20).
      - resolved symbol-level edges (through barrels);
      - table/repository reads and writes;
      - pin/hazard flags;
-     - a Lightning one-liner (ambiguous files only).
+     - a Lightning one-liner (ambiguous files only; not built in S5).
    - Plus the module quotient graph with SCCs, the table-access matrix, entrypoints and pins.
+   - **S5:** edges also include **member** edges (`this.albumRepository` typed through an injected property), so a service that never imports its repository still points at it; registries are a role of their own.
 2. **Seeds** (deterministic):
    - stems from models/repositories/controllers/routes and table names;
    - name-token assignment with prefix merging;
    - weighted label propagation on import + table edges;
    - consumer rules for cross-cutting files;
    - output: a draft plan with per-file confidence and a contested list.
+   - **S5 rules from corupta's G1 review:** audience qualifiers (`admin`, `public`, `internal`) don't make a domain (`auth-admin` → auth); generic words (`app`, `api`, `main`, …) never anchor a group; registries get their own label.
 3. **Planner = draft editor** (after G1; the §6 pivot):
    - Input: the facts plus the seeds draft as numbered groups G1..Gn.
    - Output (`json_schema` strict): one entry per draft group (final bare name and kind; equal names merge), plus moves for misplaced files only, each with a one-line rationale. The model never lists every file. G1's v0 did: it dropped 10–15% of hoppscotch's 189 ids and 26–45% of kaneo's 456, listed up to 259 duplicate entries on immich, or collapsed to one group.
    - Model: Ultra with `medium_effort`. It made the best edits on hoppscotch and H1 and the only real immich edit, though it also lowered the kaneo draft by 9 points. Super only with an explicit `temperature` and a reasoning cap: at default effort 11 completions truncated at 32k–64k tokens, and at `low_effort` it mostly returned the draft unchanged (0 moves in 5 of 8 samples; one sample made 87 moves and lost 29 points).
    - Optional tools (`file_facts`, `evaluate_plan`) stay, but **the evaluate round is off by default**. In G1 it hurt 6 of 17 samples, 4 by more than 10 points. We suspect, but haven't tested, that the cycle and cross-edge feedback rewards merging.
    - Job: name modules; merge or split seeds; decide contested files; pick multi-writer owners; propose findings.
-4. **K candidates** come from one call with `n=K` (Super reports the input once in `usage`; Ultra's `n>1` is unprobed) at an explicit T=1.0 and top_p=0.95. TF decodes Super greedily when `temperature` is unset. GT-free selection is an **open problem**: TurboMQ ranked the unedited draft first on immich. Until it's solved, rank by validator metrics plus the critic, and show the alternatives in `plan.md`.
-5. **Critic** (Ultra, 1 call): reviews the winner. Its suggestions go back through the validator, never straight to execution.
+   - **S5 output shape, after seven live iterations on immich:** `groups` is an object with one required key per draft group, `"<id>:<label>"` (Ultra skipped 26 of 81 groups in an array, and with bare ids it named groups off by a few ids); moves name files by path (with numeric ids, rationales landed on neighbouring files). `shared/` is one flat folder of concept-named files, so the model only names modules and platform concerns.
+4. **K candidates** come from one call with `n=K` (Super and Ultra report the input once in `usage`; Ultra accepts `n>1`, S5) at an explicit T=1.0 and top_p=0.95. TF decodes Super greedily when `temperature` is unset. GT-free selection is an **open problem**: TurboMQ ranked the unedited draft first on immich (G1), and the least-edited sample again in S5. S5 ranks by **validator warnings** (the layout rules: one-file module, sub-feature, impure shared, feature in platform, registry outside platform, merge without a shared word or edge) among plans that keep ≥90% of the draft's TurboMQ, and `plan.md` lists every candidate.
+5. **Critic** (Ultra, 1 call): reviews the winner, reading the plan by path. Each suggestion goes back through the validator on its own and is kept only if it adds no error and no warning (S5: ungated, it split the registries into one-file groups to dodge a warning). Never straight to execution.
 6. **Dual-opinion flag** (credit: structure-sweep): files where the plan disagrees with the graph majority are listed as "contested". `plan.yaml` can be edited between `plan` and `apply`.
 
 ### 3.6 LLM gateway (Token Factory facts verified 2026-10-01)
@@ -355,6 +358,7 @@ Estimate 20–32 focused hours (MVP cut 16–20).
   - cost per call = `usage` × the pinned price table;
   - a pre-send estimate is refused if it would exceed the run cap or the global cap;
   - the ledger is committed, and it feeds the cost chart.
+- **Built in S5** (`src/gateway/`): in process, no listening server; the SDK is constructed only for a live call, so a replay needs neither key nor network. Records hold no timestamps, so a cassette is reproducible content; the key adds an occurrence count, so K identical sequential requests get K records. A 4xx answer is recorded and replays as the same error. Non-streamed completions send headers only when done, so requests go through undici with header and body timeouts of 21 min (its default is 300 s). Caps: `budget/runs.json`; ledger: `budget/ledger.jsonl`; cassettes: `cassettes/`. After the S5 review, a reservation line charging the estimate goes to the ledger before each send, under a lock file around read-check-append, and the outcome line settles it. That way caps hold across processes and when a process is killed mid-call. A 2xx answer whose body is lost and a 504/524 count as possibly billed: they're not retried and are charged the estimate. The estimate counts one byte per input token.
 
 ### 3.7 Our repo (feature folders, dogfooding)
 
@@ -425,6 +429,8 @@ Estimate 20–32 focused hours (MVP cut 16–20).
 | **Reserve** | **$17** | Never used for anything judge-facing or live |
 
 **Actuals after S2 (2026-10-02):** $7.54 spent. Probes $0.025, G1 $1.70, G3 immich $4.93 (stopped by the hard cap), G3 mcphub $0.86, smoke test $0.014. Left: about $43 of $51. With no caching discount, one 33-minute generic-agent run resent 15.3M input tokens. Agent loops are the budget risk, not planner runs.
+
+**Actuals after S5 (2026-10-07):** $8.82 in the ledger (`budget/ledger.jsonl`, the spike's runs carried over). S5 spent $1.29 of its $3 cap: the n>1 probe $0.00006, seven planner iterations $0.91, a first final plan $0.18 and, after the review fixes changed the prompt, the committed immich plan $0.1961 (one n=3 Ultra edit, one critic call). Caps live in `budget/runs.json` (global $50).
 
 ## 6. Gates (ran 2026-10-02, see [gates.md](gates.md)). Decision: Tue Oct 6
 
@@ -643,6 +649,7 @@ Still open:
 - Promo-code expiry.
 - ts-morph/TS 6 spike items. The analyzer spike used the raw TS 6.0.3 API on 5 repos (immich at two SHAs, hoppscotch, kaneo, mcphub, realworld), covering NodeNext, Bundler and node10 with `ignoreDeprecations`. Every internal specifier resolved at base except mcphub's 8 pre-existing broken ones (test scripts importing `./src/...`, and a CSS import).
 - dependency-cruiser attribution through barrels.
-- A GT-free plan-selection objective (§3.5).
-- Whether Ultra accepts `n>1` (§3.5 K candidates).
-- Whether `usage` equals billing for `n>1`. Check the console bill.
+- A GT-free plan-selection objective (§3.5). S5 ranks by validator warnings under a TurboMQ floor; a heuristic, not a solution.
+- Whether `usage` equals billing for `n>1`, and whether TF's prompt-cache hits (13,056 of ~17k tokens on S5's Ultra calls) are discounted. Check the console bill (/workspace/.anomalies/2026-10-07-tf-prompt-cache-hits-unpriced.md).
+
+Closed in S5: Ultra accepts `n>1` (`cassettes/s5-probes.jsonl`; the prompt is counted once in `usage`).
