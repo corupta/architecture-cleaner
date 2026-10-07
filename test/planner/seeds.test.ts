@@ -1,4 +1,4 @@
-// Seeds draft: anchors, prefix merging, the three review rules, propagation and confidence on small synthetic facts,
+// Seeds draft: anchors, prefix merging, the four review rules, propagation and confidence on small synthetic facts,
 // plus parity with the G1 spike's seedsWithPropagation on the immich view (golden recorded from the spike).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { nameTokens, seedDraft, stemTokens } from '../../src/planner/seeds.js';
 import type { Edge, Facts, FileFact } from '../../src/planner/types.js';
 
-const allRulesOff = { audienceQualifiers: false, genericAnchors: false, registries: false };
+const allRulesOff = { audienceQualifiers: false, genericAnchors: false, registries: false, attestedSingulars: false };
 
 function factsOf(files: [string, string][], edges: [string, string, number?][] = []): Facts {
   const sorted = [...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
@@ -141,6 +141,45 @@ describe('rule (c): registries', () => {
   });
 });
 
+describe('rule (d): attested singulars', () => {
+  const facts = factsOf([
+    ['src/app/redis-cache/redis-cache.service.ts', 'service'],
+    ['src/app/redis-cache/redis-cache.module.ts', 'module'],
+    ['src/helper/redis.helper.ts', 'helper'],
+    ['src/plugins/slack/events/task-status-changed.ts', 'other'],
+    ['src/plugins/github/events/task-status-changed.ts', 'other'],
+    ['src/plugins/gitea/events/task-status-changed.ts', 'other'],
+    ['src/task/controllers/update-task-status.ts', 'controller'],
+    ['src/routes/albums.ts', 'route'],
+    ['src/services/album.service.ts', 'service'],
+    ['src/services/categories.service.ts', 'service'],
+  ]);
+
+  it('drops a plural ending only where the repo spells the singular', () => {
+    expect(labelsOf(facts)).toEqual({
+      'src/app/redis-cache/redis-cache.module.ts': 'redis-cache',
+      'src/app/redis-cache/redis-cache.service.ts': 'redis-cache',
+      'src/helper/redis.helper.ts': 'redis',
+      'src/plugins/gitea/events/task-status-changed.ts': 'task-status',
+      'src/plugins/github/events/task-status-changed.ts': 'task-status',
+      'src/plugins/slack/events/task-status-changed.ts': 'task-status',
+      'src/routes/albums.ts': 'album',
+      'src/services/album.service.ts': 'album',
+      'src/services/categories.service.ts': 'categories',
+      'src/task/controllers/update-task-status.ts': 'task-status',
+    });
+  });
+
+  it("guesses like the spike when off (redis → redi, status → statu)", () => {
+    expect(labelsOf(facts, { attestedSingulars: false })).toMatchObject({
+      'src/app/redis-cache/redis-cache.service.ts': 'redi-cache',
+      'src/helper/redis.helper.ts': 'redi',
+      'src/plugins/slack/events/task-status-changed.ts': 'task-statu',
+      'src/services/categories.service.ts': 'category',
+    });
+  });
+});
+
 describe('propagation and confidence', () => {
   const facts = factsOf([
     ['src/services/album.service.ts', 'service'],
@@ -188,7 +227,7 @@ describe('propagation and confidence', () => {
 });
 
 // Parity: the spike's view of immich exactly as spike/g1/plan-real.mjs builds it (realEntities with the immich pins
-// and location-sensitive files, buildView), adapted to Facts; with the three rules off the draft must match the golden.
+// and location-sensitive files, buildView), adapted to Facts; with the four rules off the draft must match the golden.
 const graphPath = path.join(os.homedir(), 'ac-work/g1/immich.graph.json');
 
 interface SpikeGraph {
@@ -197,7 +236,7 @@ interface SpikeGraph {
 }
 
 describe.skipIf(!fs.existsSync(graphPath))('parity with the G1 spike on immich', () => {
-  it('gives the spike assignment and confidence with rules (a)(b)(c) off', () => {
+  it('gives the spike assignment and confidence with rules (a)(b)(c)(d) off', () => {
     const graph = JSON.parse(fs.readFileSync(graphPath, 'utf8')) as SpikeGraph;
     const golden = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'golden/immich-g1-seeds.json'), 'utf8')) as {
       assignment: Record<string, string>; confidence: Record<string, string>; contested: string[];

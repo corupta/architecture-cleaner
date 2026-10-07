@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { GatewayError, type Gateway, type ModelKey, type TemplateKwargs } from '../gateway/types.js';
 import { displayPath } from './facts.js';
 import type { Draft, Facts, PlanEdit } from './types.js';
-import { bannedModuleNames, sharedGroupName } from './validate.js';
+import { bannedModuleNames, bannedWords, sharedGroupName } from './validate.js';
 
 
 const groupKinds = ['module', 'shared', 'platform'] as const;
@@ -16,7 +16,7 @@ export const layoutText = `Target layout:
 - modules/<name>: one per business feature. <name> is a singular kebab-case domain noun spelled exactly as the repo spells it (route prefixes, table names, file stems): never abbreviated (sysmeta), never a synonym (configuration for config, db for database, metrics for telemetry), never invented.
 - shared/: one flat folder of pure code (no I/O, no framework; never services, repositories, controllers, guards or interceptors) used by at least two modules. Files keep their names, so every shared group is named "${sharedGroupName}".
 - platform/<concern>: plumbing such as config, database client, logging, generic HTTP middleware, queue, mail transport, telemetry, and composition roots (DI registries, the root application module, route tables). <concern> is the repo's word for the concern, never "platform".
-Banned module names: ${[...bannedModuleNames].join(', ')}.`;
+Banned module names: ${[...bannedModuleNames].join(', ')}. No name of any kind contains these words: ${[...bannedWords].join(', ')}.`;
 
 export const placementRules = `- Files that import each other heavily belong together; a file used by only one module belongs inside that module, not in shared/.
 - Tables a file reads or writes are strong evidence for its feature; the module that writes a table usually owns it.

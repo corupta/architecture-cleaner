@@ -5,6 +5,11 @@ import path from 'node:path';
 export const sourceExtension = /\.(ts|tsx|mts|cts)$/;
 export const declarationExtension = /\.d\.(ts|mts|cts)$/;
 export const testPattern = /(\.|\/)(spec|test|e2e-spec)\.(ts|tsx|mts|cts)$|(^|\/)(__tests__|__mocks__|test|tests|e2e)\//;
+/**
+ * Test support named as such (`*.service.mock.ts`, `mcp.test-utils.ts`, `fixtures/`): code, not a test, but part of
+ * the oracle with the tests that import it, so it is pinned (plan §2.4).
+ */
+export const testSupportPattern = /(^|[./_-])(mocks?|stubs?|fakes?|fixtures?|test[-_]?(utils?|helpers?))\.(ts|tsx|mts|cts)$|(^|\/)(__fixtures__|fixtures|mocks|stubs|testing|test-utils|test-helpers)\//i;
 /** `album.service.spec.ts` → `album.service`; null for files that aren't named as a test. */
 export const testedStem = (fileName: string) => /^(.*)\.(spec|test|e2e-spec)\.(ts|tsx|mts|cts)$/.exec(fileName)?.[1] ?? null;
 

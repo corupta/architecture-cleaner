@@ -10,7 +10,7 @@ import type { RepoFs } from '../analyzer/repo-fs.js';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import { checkFiles, createEdgeCollector, createProgram, sourcePathMapper, type CheckedFile } from './facts-checker.js';
 import { choosePin, directoryPins, directoryPrefix, entrypointPins, scriptPins, type PinCandidate } from './facts-pins.js';
-import { declarationExtension, roleOf, sourceExtension, testedStem, testPattern } from './facts-roles.js';
+import { declarationExtension, roleOf, sourceExtension, testedStem, testPattern, testSupportPattern } from './facts-roles.js';
 import { isBarrel, isGenerated, scanRoutes, scanTables } from './facts-scan.js';
 import type { Facts, FileFact, Pin } from './types.js';
 
@@ -82,6 +82,7 @@ export function buildFacts(repo: RepoFs, options: BuildFactsOptions): Facts {
   });
   for (const file of code) {
     addPins(file, directoryPins(file, moduleRoot));
+    if (testSupportPattern.test(file)) addPins(file, [{ reason: 'test', detail: 'test support (mock, fixture or test util)' }]);
     if (isGenerated(repo.read(repoPath(file)) ?? '')) addPins(file, [{ reason: 'generated', detail: 'generated-code banner in the leading comment' }]);
     addPins(file, hazardPins(file));
     const sourceFile = sourceFileOf(file);

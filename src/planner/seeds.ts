@@ -6,14 +6,17 @@
 // ties are broken by code-unit order (a < b) where the spike used localeCompare. Isolated files with no name tokens
 // get a kebab label of their path instead of the spike's `(empty)/<path>`.
 //
-// Three rules from corupta's review of the G1 immich plan, each on by default:
+// Three rules from corupta's review of the G1 immich plan, and one from the S5 review, each on by default:
 //   (a) audienceQualifiers: `admin`, `public`, `internal` are dropped from a name's tokens when other tokens remain
 //       (auth-admin.service → auth, config-public.controller → config), so an audience variant joins its feature.
 //   (b) genericAnchors: an anchor made only of generic names (app, api, main, …) is never an anchor; files whose only
 //       anchor would be one fall through to propagation (app.module.ts, api.service.ts).
 //   (c) registries: files with role `registry` (DI/route tables) get label `registry` with confidence `seed`; neither
 //       `shared` nor `registry` votes in propagation, so composition roots don't pull their members into one group.
+//   (d) attestedSingulars: a plural ending is dropped only where the repo spells the singular (albums → album), so
+//       `redis` and `status` stay as spelled instead of the spike's `redi` and `statu`.
 import path from 'node:path';
+import { attestedSingular, naiveSingular, repoWords } from './facts-words.js';
 import type { Confidence, Draft, Facts } from './types.js';
 
 export interface SeedOptions {
@@ -27,6 +30,8 @@ export interface SeedOptions {
   genericAnchors?: boolean;
   /** Rule (c). */
   registries?: boolean;
+  /** Rule (d). */
+  attestedSingulars?: boolean;
 }
 
 interface SeedNode {
@@ -48,25 +53,27 @@ const roleWordsInStem = new Set(['controller', 'service', 'module', 'resolver', 
 const audienceQualifiers = new Set(['admin', 'public', 'internal']);
 const genericNames = new Set(['app', 'api', 'main', 'index', 'common', 'core', 'base', 'misc', 'general', 'helper', 'util', 'lib', 'manager', 'shared', 'platform', 'default']);
 
-const singular = (token: string) => (token.length > 3 && token.endsWith('ies') ? `${token.slice(0, -3)}y`
-  : token.length > 3 && token.endsWith('s') && !token.endsWith('ss') ? token.slice(0, -1) : token);
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+/** The word lists above are English, so a token matches them in either number; the label keeps the repo's spelling. */
+const listed = (words: ReadonlySet<string>, token: string) => words.has(token) || words.has(naiveSingular(token));
+
+type Singular = (token: string) => string;
 
 /** `TeamCollectionService` / `team-collections.service` → team, collection (singular, role words dropped). */
-export function nameTokens(name: string): string[] {
+export function nameTokens(name: string, singular: Singular = naiveSingular): string[] {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase()
-    .split(/[-._]+/).filter(Boolean).map(singular).filter((token) => !roleWordsInStem.has(token));
+    .split(/[-._]+/).filter(Boolean).map(singular).filter((token) => !listed(roleWordsInStem, token));
 }
 
 /** Tokens of the file name without extension and role suffix: `src/services/shared-link.service.ts` → shared, link. */
-export function stemTokens(key: string): string[] {
-  return nameTokens(path.posix.basename(key).replace(/\.(ts|tsx|mts|cts)$/, '').replace(roleSuffix, ''));
+export function stemTokens(key: string, singular: Singular = naiveSingular): string[] {
+  return nameTokens(path.posix.basename(key).replace(/\.(ts|tsx|mts|cts)$/, '').replace(roleSuffix, ''), singular);
 }
 
 /** Tokens of the primary exported symbol (TeamCollectionService → team, collection); survives opaque file names. */
-export function exportTokens(node: { primaryExport: string | null; exports: string[] }): string[] {
+export function exportTokens(node: { primaryExport: string | null; exports: string[] }, singular: Singular = naiveSingular): string[] {
   const symbol = node.primaryExport ?? node.exports[0];
-  return symbol && symbol !== 'default' ? nameTokens(symbol) : [];
+  return symbol && symbol !== 'default' ? nameTokens(symbol, singular) : [];
 }
 
 function findSubsequence(tokens: string[], anchor: string[]): number {
@@ -83,7 +90,7 @@ function findSubsequence(tokens: string[], anchor: string[]): number {
 function anchorsOf(nodes: SeedNode[], tokensOf: (node: SeedNode) => string[], banGeneric: boolean): string[][] {
   const anchors = new Map<string, string[]>();
   const frequency = new Map<string, number>();
-  const allowed = (tokens: string[]) => !banGeneric || !tokens.every((token) => genericNames.has(token));
+  const allowed = (tokens: string[]) => !banGeneric || !tokens.every((token) => listed(genericNames, token));
   for (const node of nodes) {
     const tokens = tokensOf(node);
     if (entityRoles.has(node.type) && tokens.length && allowed(tokens)) anchors.set(tokens.join('-'), tokens);
@@ -91,7 +98,7 @@ function anchorsOf(nodes: SeedNode[], tokensOf: (node: SeedNode) => string[], ba
     for (let start = 0; start < tokens.length; start++) {
       for (const length of [1, 2]) {
         const slice = tokens.slice(start, start + length);
-        if (slice.length !== length || slice.some((token) => genericTokens.has(token) || token.length < 3)) continue;
+        if (slice.length !== length || slice.some((token) => listed(genericTokens, token) || token.length < 3)) continue;
         seen.add(slice.join('-'));
       }
     }
@@ -113,11 +120,14 @@ function bestAnchor(tokens: string[], anchors: string[][]): string[] | null {
 }
 
 export function seedDraft(facts: Facts, options: SeedOptions = {}): Draft {
-  const { iterations = 10, sharedSpread = 3, audienceQualifiers: dropQualifiers = true, genericAnchors: banGeneric = true, registries = true } = options;
+  const { iterations = 10, sharedSpread = 3, audienceQualifiers: dropQualifiers = true, genericAnchors: banGeneric = true, registries = true,
+    attestedSingulars = true } = options;
+  const words = attestedSingulars ? repoWords(facts) : null;
+  const singular = words ? attestedSingular((word) => words.has(word)) : naiveSingular;
   const nodes: SeedNode[] = facts.files.map((file) => ({ key: file.path, type: file.role, exports: file.exports, primaryExport: file.primaryExport }));
   const tokensOf = (node: SeedNode) => {
-    const tokens = stemTokens(node.key);
-    const unqualified = dropQualifiers ? tokens.filter((token) => !audienceQualifiers.has(token)) : tokens;
+    const tokens = stemTokens(node.key, singular);
+    const unqualified = dropQualifiers ? tokens.filter((token) => !listed(audienceQualifiers, token)) : tokens;
     return unqualified.length ? unqualified : tokens;
   };
   const anchors = anchorsOf(nodes, tokensOf, banGeneric);
@@ -145,7 +155,7 @@ export function seedDraft(facts: Facts, options: SeedOptions = {}): Draft {
       labels.set(node.key, anchor.join('-'));
       confidence.set(node.key, 'seed');
     } else {
-      const named = tokens.length ? tokens : exportTokens(node);
+      const named = tokens.length ? tokens : exportTokens(node, singular);
       fallbackLabel.set(node.key, named.length ? named.join('-') : node.key.replace(/\.(ts|tsx|mts|cts)$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-'));
     }
   }

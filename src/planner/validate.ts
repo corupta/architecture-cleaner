@@ -2,51 +2,36 @@
 // group-name rules, checkEdit (drops or repairs what the model got wrong), applyEdit (edit → Plan), validatePlan
 // (issues + graph metrics) and rankCandidates. Nothing here calls a model, and every list comes out sorted.
 import { displayPath, fileNamed } from './facts.js';
+import { attestedSingular, naiveSingular, repoWords, wordsOf } from './facts-words.js';
 import { planMetrics, plannedEdges } from './metrics.js';
 import { groupKey, type Confidence, type Draft, type Facts, type GroupKind, type Issue, type Placement, type Plan, type PlanEdit, type Validation } from './types.js';
 
 const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** The G1 spike's singular(): `categories` → category, `albums` → album; `access` and words of ≤3 letters stay. */
-const singular = (token: string) =>
-  token.length > 3 && token.endsWith('ies') ? `${token.slice(0, -3)}y` : token.length > 3 && token.endsWith('s') && !token.endsWith('ss') ? token.slice(0, -1) : token;
-
-/** Lowercased, singularised words of a name: camel/Pascal case, kebab, snake, dots and slashes all split. */
-export function nameTokens(name: string): string[] {
-  return name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase()
-    .split(/[^a-z0-9]+/).filter(Boolean).map(singular);
-}
-
-const pathTokens = (filePath: string) => filePath.replace(/(\.d)?\.[mc]?[jt]sx?$/, '').split('/').flatMap(nameTokens);
-
-/** The repo's own words: path segments and stems (movable and pinned files), exported symbols, tables, routes. */
+/**
+ * The repo's own words as it spells them: path segments and stems (movable and pinned files), exported symbols,
+ * tables, routes. No guessed singulars: `redis` is a word, `redi` is not (checkName singularises against this set).
+ */
 export function vocabularyOf(facts: Facts): Set<string> {
-  const tokens = new Set<string>();
-  const add = (words: string[]) => words.forEach((word) => tokens.add(word));
-  for (const file of facts.files) {
-    add(pathTokens(file.path));
-    for (const symbol of file.exports) add(nameTokens(symbol));
-    for (const table of [...file.tables.reads, ...file.tables.writes]) add(nameTokens(table));
-    for (const route of file.routes) add(nameTokens(route));
-  }
-  for (const pin of facts.pins) add(pathTokens(pin.path));
-  return new Set([...tokens].sort(byCodeUnit));
+  return new Set([...repoWords(facts)].sort(byCodeUnit));
 }
 
 const namePattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-// Junk drawers and layout words: never a module, and never a shared/platform concept either (`shared/shared`).
-const junkNames = ['common', 'core', 'misc', 'general', 'helper', 'helpers', 'util', 'utils', 'lib', 'base', 'manager', 'shared', 'platform',
-  'module', 'modules'];
+// Junk drawers, and the layout's own words: never a module, and never a shared/platform concept either (`shared/shared`).
+const junkWords = ['common', 'core', 'misc', 'general', 'helper', 'helpers', 'util', 'utils', 'lib', 'base', 'manager'];
+const junkNames = [...junkWords, 'shared', 'platform', 'module', 'modules'];
 const typeWords = ['controller', 'controllers', 'service', 'services', 'repository', 'repositories', 'dto', 'dtos', 'model', 'models',
   'entity', 'entities', 'type', 'types', 'interface', 'interfaces', 'middleware', 'middlewares', 'command', 'commands'];
 export const bannedModuleNames = new Set([...junkNames, 'app', 'api', 'main', 'index', 'src', ...typeWords]);
 // A platform concern is named for what it does (http, logging), never for a file type (`platform/middleware`).
 const bannedConceptNames = new Set([...junkNames, ...typeWords]);
+// Type words and plain junk words ban a compound name too (`common-util`, `user-controller`, `platform/app-repository`).
+// The rest ban only the whole name: `shared-link`, `api-key` and ghostfolio's `base-currency` are features.
+export const bannedWords = new Set(['common', 'misc', 'helper', 'util', 'lib', ...typeWords].map(naiveSingular));
 // Plumbing words a shared/platform group may use even when the repo never says them.
 const plumbingWords = new Set(['config', 'configuration', 'database', 'db', 'logger', 'logging', 'log', 'http', 'queue', 'job', 'telemetry',
   'metric', 'registry', 'bootstrap', 'event', 'cache', 'mail', 'email', 'storage', 'crypto', 'auth', 'security', 'validation', 'error',
-  'environment', 'env', 'process', 'websocket', 'cron', 'schedule', 'health', 'maintenance', 'response', 'request', 'file', 'media', 'i18n']
-  .map(singular));
+  'environment', 'env', 'process', 'websocket', 'cron', 'schedule', 'health', 'maintenance', 'response', 'request', 'file', 'media', 'i18n']);
 
 /** Seeds labels that name a place in the layout, not a feature. */
 const nonDomainLabels = new Set(['shared', 'registry']);
@@ -61,8 +46,9 @@ const impureRoles = new Set(['service', 'repository', 'controller', 'guard', 'in
 export const canonicalGroup = (name: string, kind: GroupKind) => ({ name: kind === 'shared' ? sharedGroupName : name, kind });
 
 /**
- * Issues for a final group name (already without a `modules/`-style prefix): bare kebab case, not a junk drawer or a
- * type word, and only the repo's own words (plus the plumbing list for shared/platform). The model never invents terms.
+ * Issues for a final group name (already without a `modules/`-style prefix): bare kebab case, no junk-drawer or type
+ * word in it, and only the repo's own words (plus the plumbing list for shared/platform). The model never invents
+ * terms. A plural word passes when the repo spells it, or spells its singular (`albums` for album, never `redi`).
  */
 export function checkName(name: string, kind: GroupKind, vocabulary: ReadonlySet<string>): Issue[] {
   const group = groupKey({ kind, name });
@@ -71,11 +57,12 @@ export function checkName(name: string, kind: GroupKind, vocabulary: ReadonlySet
   }
   if (!namePattern.test(name)) return [{ severity: 'error', code: 'bad-name', group, detail: `"${name}" is not a bare kebab-case name` }];
   const banned = kind === 'module' ? bannedModuleNames : bannedConceptNames;
-  if (banned.has(name) || banned.has(singular(name))) {
-    const why = kind === 'module' ? 'a junk drawer or a type word, not a feature' : `a junk drawer, not a ${kind} concept`;
-    return [{ severity: 'error', code: 'banned-name', group, detail: `"${name}" is ${why}` }];
-  }
-  const foreign = [...new Set(nameTokens(name).filter((token) => !vocabulary.has(token) && (kind === 'module' || !plumbingWords.has(token))))];
+  const why = `a junk drawer or a type word, not ${kind === 'module' ? 'a feature' : `a ${kind} concept`}`;
+  if (banned.has(name) || banned.has(naiveSingular(name))) return [{ severity: 'error', code: 'banned-name', group, detail: `"${name}" is ${why}` }];
+  const bannedWord = wordsOf(name).find((word) => bannedWords.has(naiveSingular(word)));
+  if (bannedWord) return [{ severity: 'error', code: 'banned-name', group, detail: `"${name}" contains "${bannedWord}": ${why}` }];
+  const isWord = (word: string) => vocabulary.has(word) || (kind !== 'module' && plumbingWords.has(word));
+  const foreign = [...new Set(wordsOf(name).map(attestedSingular(isWord)).filter((word) => !isWord(word)))];
   if (foreign.length) {
     const source = kind === 'module' ? "the repo's vocabulary" : "the repo's vocabulary or the plumbing list";
     return [{ severity: 'error', code: 'foreign-name', group, detail: `"${name}" uses words not in ${source}: ${foreign.join(', ')}` }];
@@ -293,11 +280,11 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
   // evidence for the merge (S5: a sample that named groups by misread ids merged machine-learning into user).
   for (const group of groups) {
     const groupMembers = members.get(group)!;
-    const nameWords = new Set(nameTokens(groupMembers[0]!.name));
+    const nameWords = new Set(wordsOf(groupMembers[0]!.name).map(naiveSingular));
     const merged = new Map<string, Set<string>>();
     for (const placement of groupMembers) {
       const label = draft.assignment.get(placement.path)!;
-      if (placement.source !== 'draft' || nonDomainLabels.has(label) || nameTokens(label).some((word) => nameWords.has(word))) continue;
+      if (placement.source !== 'draft' || nonDomainLabels.has(label) || wordsOf(label).map(naiveSingular).some((word) => nameWords.has(word))) continue;
       if (!merged.has(label)) merged.set(label, new Set());
       merged.get(label)!.add(placement.path);
     }

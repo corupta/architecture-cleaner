@@ -47,6 +47,11 @@ export interface PlanRun {
 
 export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOptions): Promise<PlanRun> {
   const facts = buildFacts(repo, { packageRoot: options.packageRoot, moduleRoot: options.moduleRoot, pins: options.pins });
+  // Nothing movable means a wrong root, not an empty plan: fail before the n=K edit and the critic spend anything.
+  if (!facts.files.length) {
+    const where = `${facts.packageRoot ? `${facts.packageRoot}/` : ''}${facts.moduleRoot || '.'}/`;
+    throw new Error(`no movable files under ${where} (${facts.pins.length} pinned): check --root and --module-root, or the profile`);
+  }
   const draft = seedDraft(facts);
   const prompt = editPrompt(facts, draft);
   const { groupIds } = prompt;

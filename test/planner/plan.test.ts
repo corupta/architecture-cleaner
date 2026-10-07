@@ -71,7 +71,8 @@ const plan = async (mode: 'record' | 'replay') => {
   const run = await planRepo(gitRepoFs(repoRoot), gateway, options);
   return { run, outputs: planOutputs(run, { name: 'fixture' }, options) };
 };
-const ledgerLines = () => fs.readFileSync(files.ledgerPath, 'utf8').trim().split('\n');
+// A call's outcome line carries its cost; a reservation line before it (if the ledger writes one) does not.
+const ledgerCalls = () => fs.readFileSync(files.ledgerPath, 'utf8').trim().split('\n').filter((line) => typeof (JSON.parse(line) as { costUsd?: unknown }).costUsd === 'number');
 
 describe('ac plan, recorded then replayed', async () => {
   const recorded = await plan('record');
@@ -87,7 +88,7 @@ describe('ac plan, recorded then replayed', async () => {
   it('records two calls (n=3 edit, critic) in the cassette and the ledger', () => {
     expect(recorded.run.editRun).toMatchObject({ sampling: 'n', calls: 1 });
     expect(recorded.run.candidates).toHaveLength(3);
-    expect(ledgerLines()).toHaveLength(2);
+    expect(ledgerCalls()).toHaveLength(2);
     expect(fs.readFileSync(files.cassettePath, 'utf8').trim().split('\n')).toHaveLength(2);
     expect(recorded.outputs.get('plan.md')).toContain('- Cost: **$0.0036** in 2 calls (1800 prompt, 600 completion tokens, 200 of them reasoning)');
   });
@@ -96,12 +97,29 @@ describe('ac plan, recorded then replayed', async () => {
     const replayed = await plan('replay');
     expect([...replayed.outputs.keys()]).toEqual([...recorded.outputs.keys()]);
     for (const [file, content] of recorded.outputs) expect(replayed.outputs.get(file), file).toBe(content);
-    expect(ledgerLines()).toHaveLength(2);
+    expect(ledgerCalls()).toHaveLength(2);
   });
 
   it('fails a replay whose prompt changed (a cassette miss), instead of calling out', async () => {
     fs.appendFileSync(path.join(repoRoot, 'server/src/utils/date.ts'), 'export const epoch = 0;\n');
     git('-c', 'user.name=fixture', '-c', 'user.email=fixture@ac.invalid', 'commit', '-q', '-am', 'change');
     await expect(plan('replay')).rejects.toSatisfy((error) => error instanceof GatewayError && error.code === 'replay-miss');
+  });
+});
+
+describe('ac plan on a root with nothing to plan', () => {
+  it('fails before any model call, so a mistyped --root spends nothing', async () => {
+    let calls = 0;
+    const counting: Transport = async (body) => {
+      calls++;
+      return fakeUltra(body);
+    };
+    const paths = { ledgerPath: path.join(temporary, 'empty-root.ledger.jsonl'), runsPath: files.runsPath, cassettePath: path.join(temporary, 'empty-root.jsonl') };
+    const gateway = createGateway({ runId: 'test', mode: 'record', ...paths, transport: counting, apiKey: 'test-key' });
+    // The fixture's code is under server/src; the repo root has no src/.
+    await expect(planRepo(gitRepoFs(repoRoot), gateway, { ...options, packageRoot: '' }))
+      .rejects.toThrow('no movable files under src/ (0 pinned): check --root and --module-root, or the profile');
+    expect(calls).toBe(0);
+    expect(fs.existsSync(paths.ledgerPath)).toBe(false);
   });
 });

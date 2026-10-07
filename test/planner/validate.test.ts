@@ -149,9 +149,10 @@ describe('vocabulary and names', () => {
   ], [], ['src/schema/tables/categories.table.ts', 'src/types/global.d.ts']);
   const vocabulary = vocabularyOf(facts);
 
-  it("collects the repo's own words, singularised", () => {
-    for (const token of ['src', 'service', 'album', 'user', 'repository', 'immich', 'server', 'start', 'shared', 'link', 'activity', 'admin',
-      'util', 'media', 'helper', 'schema', 'table', 'category', 'type', 'global']) expect(vocabulary).toContain(token);
+  it("collects the repo's own words as spelled", () => {
+    for (const token of ['src', 'services', 'service', 'album', 'user', 'users', 'repository', 'immich', 'server', 'start', 'shared', 'links',
+      'activities', 'admin', 'utils', 'media', 'helpers', 'schema', 'tables', 'table', 'categories', 'types', 'global']) expect(vocabulary).toContain(token);
+    for (const guess of ['link', 'activity', 'category']) expect(vocabulary).not.toContain(guess);
     expect(vocabulary).not.toContain('d');
     expect(vocabulary).not.toContain('ts');
     expect([...vocabulary]).toEqual([...vocabulary].sort());
@@ -171,6 +172,36 @@ describe('vocabulary and names', () => {
     }
     expect(codes(checkName('core', 'platform', vocabulary))).toEqual(['banned-name']);
     expect(codes(checkName('platform', 'platform', vocabulary))).toEqual(['banned-name']);
+  });
+
+  it('bans a junk or type word anywhere in a name, and the layout and generic words only as the whole name', () => {
+    // Every word is the repo's own, so only the ban can fire.
+    const everyWord = new Set(['album', 'api', 'app', 'base', 'common', 'controller', 'currency', 'database', 'dto', 'helper', 'key', 'link',
+      'logging', 'manager', 'middleware', 'misc', 'repository', 'service', 'shared', 'src', 'user', 'util']);
+    for (const name of ['common-util', 'shared-util', 'base-service', 'user-controller', 'album-dto', 'service-helper', 'src-util', 'user-services']) {
+      expect(codes(checkName(name, 'module', everyWord)), name).toEqual(['banned-name']);
+    }
+    for (const name of ['app-repository', 'misc-util', 'database-repository', 'logging-middleware']) {
+      expect(codes(checkName(name, 'platform', everyWord)), name).toEqual(['banned-name']);
+    }
+    expect(checkName('app-repository', 'platform', everyWord)[0]!.detail).toBe('"app-repository" contains "repository": a junk drawer or a type word, not a platform concept');
+    for (const name of ['shared-link', 'api-key', 'app-user', 'base-currency', 'link-manager']) expect(checkName(name, 'module', everyWord), name).toEqual([]);
+    expect(checkName('database', 'platform', everyWord)).toEqual([]);
+  });
+
+  it('singularises a name only against words the repo spells, so a guessed singular is foreign', () => {
+    const words = vocabularyOf(factsOf([
+      'src/app/redis-cache/redis-cache.service.ts',
+      'src/helper/redis.helper.ts',
+      'src/plugins/slack/events/task-status-changed.ts',
+      ['src/services/album.service.ts', { routes: ['albums'] }],
+    ]));
+    for (const word of ['redis', 'status', 'album', 'albums']) expect(words).toContain(word);
+    for (const guess of ['redi', 'statu']) expect(words).not.toContain(guess);
+    const [issue] = checkName('redi-cache', 'module', words);
+    expect(issue).toMatchObject({ code: 'foreign-name', detail: '"redi-cache" uses words not in the repo\'s vocabulary: redi' });
+    expect(codes(checkName('task-statu', 'module', words))).toEqual(['foreign-name']);
+    for (const name of ['redis-cache', 'redis', 'task-status', 'album', 'albums']) expect(checkName(name, 'module', words), name).toEqual([]);
   });
 
   it('knows one shared group: shared/ is flat', () => {

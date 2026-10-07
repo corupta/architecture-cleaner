@@ -1,5 +1,6 @@
 // Planner facts on a synthetic Nest-style package in a temp git repo: roles, registry detection, symbol edges through
-// a barrel, member edges through an inherited parameter property, tables, routes, co-located tests and every pin reason.
+// a barrel, member edges through an inherited parameter property, tables, routes, co-located tests and every pin reason,
+// test support included.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { gitRepoFs, type RepoFs } from '../../src/analyzer/repo-fs.js';
 import { buildFacts } from '../../src/planner/facts.js';
+import { testSupportPattern } from '../../src/planner/facts-roles.js';
 import type { Facts } from '../../src/planner/types.js';
 
 const services = ['album', 'user', 'asset', 'tag', 'person', 'library', 'partner', 'session'];
@@ -107,6 +109,9 @@ const files: Record<string, string> = {
     '',
   ].join('\n'),
   'server/src/__tests__/smoke.test.ts': 'export const smoke = 1;\n',
+  'server/src/services/album.service.mock.ts': "import type { AlbumService } from './album.service.js';\nexport const albumServiceMock = {} as AlbumService;\n",
+  'server/src/utils/strings.test-utils.ts': "export const sample = 'Album';\n",
+  'server/src/fixtures/albums.ts': 'export const albums = [{ id: 1 }];\n',
   'server/test/e2e.ts': "import '../src/main.js';\n",
 };
 
@@ -257,15 +262,18 @@ describe('pins', () => {
       ['src/cli.ts', 'entrypoint'],
       ['src/dtos/index.ts', 'barrel'],
       ['src/emails/welcome.ts', 'script-reference'],
+      ['src/fixtures/albums.ts', 'test'],
       ['src/generated/client.ts', 'generated'],
       ['src/legacy/old.ts', 'profile'],
       ['src/main.ts', 'entrypoint'],
       ['src/plugins/loader.ts', 'dynamic-reference'],
       ['src/schema/tables/album.table.ts', 'migration-or-schema'],
+      ['src/services/album.service.mock.ts', 'test'],
       ['src/services/album.service.test.ts', 'location-sensitive'],
       ['src/types/global.d.ts', 'ambient-declaration'],
       ['src/utils/paths.spec.ts', 'test'],
       ['src/utils/paths.ts', 'location-sensitive'],
+      ['src/utils/strings.test-utils.ts', 'test'],
       ['src/workers/thumbnail.ts', 'worker-or-bin'],
     ]);
     expect(pin('src/cli.ts')?.detail).toBe('package.json bin → dist/cli.js');
@@ -275,6 +283,18 @@ describe('pins', () => {
     expect(pin('src/utils/paths.spec.ts')?.detail).toBe('subject src/utils/paths.ts is pinned');
     expect(pin('src/schema/tables/album.table.ts')?.detail).toBe('under src/schema/');
     expect(pin('src/legacy/old.ts')?.detail).toBe('profile pin src/legacy/**');
+  });
+
+  it('pins test support (mocks, test utils, fixtures): part of the oracle, so it never moves', () => {
+    for (const file of ['src/services/album.service.mock.ts', 'src/utils/strings.test-utils.ts', 'src/fixtures/albums.ts']) {
+      expect(pin(file), file).toEqual({ path: file, reason: 'test', detail: 'test support (mock, fixture or test util)' });
+      expect(fileFact(file), file).toBeUndefined();
+    }
+    for (const file of ['src/app/portfolio/calculator/portfolio-calculator-test-utils.ts', 'src/testing/factory.ts', 'src/utils/testHelpers.ts']) {
+      expect(testSupportPattern.test(file), file).toBe(true);
+    }
+    // hoppscotch's mock-server is a feature.
+    expect(testSupportPattern.test('src/mock-server/mock-server.service.ts')).toBe(false);
   });
 });
 
