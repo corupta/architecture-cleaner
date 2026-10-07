@@ -1,0 +1,78 @@
+// `ac plan`: facts → seeds draft → K Nemotron edits → the validator filters and ranks them → the critic reviews the
+// winner → the final plan (plan §3.5). Every LLM output passes the deterministic validator before it counts.
+import type { RepoFs } from '../analyzer/repo-fs.js';
+import type { Gateway } from '../gateway/types.js';
+import { applyCritique, runCritic, type CriticRun, type CriticSettings, type Suggestion } from './critic.js';
+import { editPrompt, runEdit, type EditRun, type EditSettings } from './edit.js';
+import { buildFacts } from './facts.js';
+import { seedDraft } from './seeds.js';
+import type { Draft, Facts, Issue, Plan, PlanEdit, Validation } from './types.js';
+import { applyEdit, checkEdit, rankCandidates, validatePlan } from './validate.js';
+
+export interface PlanOptions {
+  packageRoot: string;
+  moduleRoot: string;
+  /** Extra package-relative pin globs from the target profile. */
+  pins: string[];
+  edit: EditSettings;
+  /** null: no critic call. */
+  critic: CriticSettings | null;
+}
+
+export interface Candidate {
+  label: string;
+  error?: string;
+  edit?: PlanEdit;
+  /** What the validator dropped from the edit before applying it. */
+  dropped: Issue[];
+  plan: Plan;
+  validation: Validation;
+  reasoningChars: number;
+}
+
+export interface PlanRun {
+  facts: Facts;
+  draft: Draft;
+  groupIds: Map<string, string>;
+  /** The draft as a plan (labels as module names): the baseline every candidate is compared with. */
+  draftCandidate: Candidate;
+  candidates: Candidate[];
+  /** Best-ranked candidate, or the draft when no edit came back. */
+  winner: Candidate;
+  editRun: EditRun;
+  criticRun: (CriticRun & { suggestions: Suggestion[] }) | null;
+  plan: Plan;
+  validation: Validation;
+}
+
+export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOptions): Promise<PlanRun> {
+  const facts = buildFacts(repo, { packageRoot: options.packageRoot, moduleRoot: options.moduleRoot, pins: options.pins });
+  const draft = seedDraft(facts);
+  const prompt = editPrompt(facts, draft);
+  const { groupIds } = prompt;
+  const asCandidate = (label: string, edit: PlanEdit, extra: Partial<Candidate> = {}): Candidate => {
+    const { accepted, issues } = checkEdit(facts, draft, edit, groupIds);
+    const plan = applyEdit(facts, draft, accepted, groupIds);
+    return { label, edit, dropped: issues, plan, validation: validatePlan(facts, draft, plan), reasoningChars: 0, ...extra };
+  };
+  const draftCandidate = asCandidate('seeds draft', { groups: [], moves: [] });
+  delete draftCandidate.edit;
+
+  const editRun = await runEdit(gateway, prompt, options.edit);
+  const candidates = editRun.candidates.map((candidate) =>
+    candidate.edit
+      ? asCandidate(candidate.label, candidate.edit, { reasoningChars: candidate.reasoningChars })
+      : { ...draftCandidate, label: candidate.label, error: candidate.error ?? 'no edit', reasoningChars: candidate.reasoningChars });
+  const ranked = rankCandidates(candidates.filter((candidate) => !candidate.error), draftCandidate.validation.metrics.turboMqSum);
+  const winner = ranked[0] ?? draftCandidate;
+
+  let criticRun: PlanRun['criticRun'] = null;
+  let plan = winner.plan;
+  if (options.critic && winner !== draftCandidate) {
+    const run = await runCritic(gateway, facts, winner.plan, winner.validation, options.critic);
+    const applied = run.critique ? applyCritique(facts, draft, winner.plan, run.critique) : { plan: winner.plan, suggestions: [] };
+    criticRun = { ...run, suggestions: applied.suggestions };
+    plan = applied.plan;
+  }
+  return { facts, draft, groupIds, draftCandidate, candidates, winner, editRun, criticRun, plan, validation: validatePlan(facts, draft, plan) };
+}

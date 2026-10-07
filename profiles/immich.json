@@ -5,6 +5,7 @@
   "offline": true,
   "env": { "TZ": "UTC" },
   "runner": { "kind": "vitest", "cwd": "server", "config": "server/test/vitest.config.mjs" },
+  "plan": { "moduleRoot": "src" },
   "oracles": [
     {
       "name": "tsc",

@@ -78,6 +78,8 @@ export interface Profile {
   offline?: boolean;
   runner?: RunnerSpec;
   oracles?: OracleSpec[];
+  /** `ac plan`: the package-relative directory to plan (default `src`) and extra package-relative pin globs. */
+  plan?: { moduleRoot?: string; pins?: string[] };
 }
 
 /** A profile by name (profiles/<name>.json in this package) or by path. */
