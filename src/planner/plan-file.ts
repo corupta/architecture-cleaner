@@ -26,8 +26,9 @@ export interface PlanFile {
   pinned: Pin[];
 }
 
-const plainScalar = /^[A-Za-z0-9_./@][A-Za-z0-9_./@+-]*$/;
-const reservedScalar = /^(true|false|yes|no|on|off|null|~|y|n|[-+]?(\d|\.\d).*)$/i;
+// `@` can't start a plain scalar (a reserved indicator), and `.inf`/`.nan` read back as numbers.
+const plainScalar = /^[A-Za-z0-9_./][A-Za-z0-9_./@+-]*$/;
+const reservedScalar = /^(true|false|yes|no|on|off|null|~|y|n|[-+]?(\d|\.\d).*|\.(inf|nan))$/i;
 /** A YAML flow scalar: plain when unambiguous, else a JSON string (valid YAML double-quoted). */
 const scalar = (text: string) => (plainScalar.test(text) && !reservedScalar.test(text) ? text : JSON.stringify(text));
 

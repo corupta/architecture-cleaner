@@ -1,5 +1,5 @@
-// What `ac plan` writes: plan.yaml (editable), plan.md (readable), plan.json (every candidate, for analysis) and one
-// step file per group. Pure functions of the run, so a replay writes the same bytes as the recording.
+// What `ac plan` writes: plan.yaml (editable), plan.md (readable), plan.json (every candidate, for analysis) and, when
+// the plan is valid, one step file per group. Pure functions of the run, so a replay writes the same bytes as the recording.
 import type { ModelKey, TemplateKwargs } from '../gateway/types.js';
 import type { CriticSettings } from './critic.js';
 import type { EditSettings } from './edit.js';
@@ -14,7 +14,7 @@ export const modelLabel = (model: ModelKey, kwargs: TemplateKwargs) =>
 
 const code = (text: string) => `\`${text}\``;
 
-/** File name (`steps/` for step files) → content. */
+/** File name (`steps/` for step files) → content. An invalid plan gets no step files: fix plan.yaml, then `ac steps`. */
 export function planOutputs(run: PlanRun, target: { name: string }, settings: { edit: EditSettings; critic: CriticSettings | null }): Map<string, string> {
   const { facts } = run;
   const packageLabel = facts.packageRoot ? `${facts.packageRoot}/` : '';
@@ -40,6 +40,6 @@ export function planOutputs(run: PlanRun, target: { name: string }, settings: { 
     ['plan.yaml', writePlanYaml(planFile, `ac plan for ${target.name} ${packageLabel} @ ${sha}`)],
     ['plan.md', markdown],
     ['plan.json', `${JSON.stringify(record, null, 1)}\n`],
-    ...steps.map((step) => [`steps/${stepFileName(step)}`, stepJson(step)] as [string, string]),
+    ...(run.validation.valid ? steps.map((step) => [`steps/${stepFileName(step, steps.length)}`, stepJson(step)] as [string, string]) : []),
   ]);
 }

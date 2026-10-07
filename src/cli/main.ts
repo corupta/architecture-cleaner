@@ -20,7 +20,7 @@ import { defaultEditSettings } from '../planner/edit.js';
 import { planRepo } from '../planner/plan.js';
 import { planOutputs } from '../planner/outputs.js';
 import { readPlanYaml } from '../planner/plan-file.js';
-import { stepFileName, stepJson, stepsOf, type Step } from '../planner/steps.js';
+import { checkGroupKeys, stepFileName, stepJson, stepsOf, type Step } from '../planner/steps.js';
 
 const usage = `usage:
   ac analyze <repo> [--json]
@@ -62,7 +62,7 @@ function writeSteps(outDirectory: string, steps: Step[]) {
   const directory = path.join(outDirectory, 'steps');
   fs.rmSync(directory, { recursive: true, force: true });
   fs.mkdirSync(directory, { recursive: true });
-  for (const step of steps) fs.writeFileSync(path.join(directory, stepFileName(step)), stepJson(step));
+  for (const step of steps) fs.writeFileSync(path.join(directory, stepFileName(step, steps.length)), stepJson(step));
 }
 
 interface PlanFlags {
@@ -100,7 +100,13 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const gateway = createGateway({ runId, mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${runId}.jsonl`)) });
   const edit = { ...defaultEditSettings, samples: Number(flags.samples ?? defaultEditSettings.samples) };
   const critic = flags['no-critic'] ? null : defaultCriticSettings;
-  const run = await planRepo(gitRepoFs(repo), gateway, { packageRoot, moduleRoot, pins: profile?.plan?.pins ?? [], edit, critic });
+  let run;
+  try {
+    run = await planRepo(gitRepoFs(repo), gateway, { packageRoot, moduleRoot, pins: profile?.plan?.pins ?? [], edit, critic });
+  } catch (error) {
+    console.error(`ac plan: ${error instanceof Error ? error.message : String(error)}`);
+    return 2;
+  }
 
   const outputs = planOutputs(run, { name: profile?.name ?? path.basename(path.resolve(repo)) }, { edit, critic });
   fs.rmSync(path.join(out, 'steps'), { recursive: true, force: true });
@@ -113,11 +119,20 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   console.log(`plan: ${run.validation.metrics.groups} groups, ${run.facts.files.length} files, ${run.facts.pins.length} pinned, ${steps.length} steps → ${out}`);
   const cost = `cost of this plan: $${(run.editRun.costUsd + (run.criticRun?.costUsd ?? 0)).toFixed(4)}`;
   console.log(mode === 'replay' ? `${cost} when recorded; this replay spent $0` : `${cost}; ledger: run ${runId} $${spent.run.toFixed(4)}, global $${spent.global.toFixed(4)}`);
-  return run.validation.valid ? 0 : 1;
+  if (run.validation.valid) return 0;
+  console.error(`the plan is invalid, so no steps were written (plan.md lists the validator errors); fix ${path.join(out, 'plan.yaml')}, then run ac steps on it`);
+  return 1;
 }
 
 function stepsCommand(planYaml: string, outFlag: string | undefined): number {
-  const steps = stepsOf(readPlanYaml(fs.readFileSync(planYaml, 'utf8')));
+  const planFile = readPlanYaml(fs.readFileSync(planYaml, 'utf8'));
+  const issues = checkGroupKeys(planFile);
+  if (issues.length) {
+    for (const issue of issues) console.error(`${issue.severity} ${issue.code}: ${issue.detail}`);
+    console.error('no steps written');
+    return 1;
+  }
+  const steps = stepsOf(planFile);
   const out = path.resolve(outFlag ?? path.dirname(planYaml));
   writeSteps(out, steps);
   console.log(`${steps.length} steps, ${steps.reduce((sum, step) => sum + step.moves.size, 0)} moves → ${path.join(out, 'steps')}`);

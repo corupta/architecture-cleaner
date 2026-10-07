@@ -101,7 +101,7 @@ export function planMarkdown(run: PlanRun, context: ReportContext): string {
     lines.push(`| ${reason} (${count}) | ${pins.slice(0, 10).map((pin) => code(display(pin.path))).join(', ')}${pins.length > 10 ? `, … ${pins.length - 10} more` : ''} |`);
   }
 
-  lines.push('', '## Steps', '', '| step | rung | group | moves (with tests) | kept in a subfolder (basename collision) |', '|---|---|---|---|---|');
+  lines.push('', '## Steps', '', '| step | rung | group | moves (with tests) | kept in a subfolder (name clash) |', '|---|---|---|---|---|');
   for (const step of context.steps) lines.push(`| ${step.index} | ${step.rung} | ${step.group} | ${step.moves.size} | ${step.disambiguated.map((path) => code(display(path))).join(', ') || '—'} |`);
   return `${lines.join('\n')}\n`;
 }

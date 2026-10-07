@@ -60,6 +60,21 @@ describe('plan.yaml', () => {
     expect(() => readPlanYaml(text.replace('module/album:', 'modules/Album:'))).toThrow(/group keys/);
   });
 
+  it('quotes values YAML would misread: a leading @ (reserved) and .inf/.nan (numbers)', () => {
+    const typesFacts: Facts = { ...facts, packageRoot: '@scope/server', moduleRoot: '.', files: [file(1, '@types/custom/helper.ts', ['.inf']), file(2, '.nan')],
+      pins: [{ path: '@types/custom/index.d.ts', reason: 'ambient-declaration', detail: 'typeRoots' }] };
+    const typesPlan: Plan = { placements: [placement('@types/custom/helper.ts', 'module', 'helper'), placement('.nan', 'module', 'helper')] };
+    const written = writePlanYaml(planFileOf(typesFacts, typesPlan), 'ac plan for @scope/server');
+    expect(written).toContain('packageRoot: "@scope/server"');
+    expect(written).toContain('- { path: "@types/custom/helper.ts", tests: [".inf"], confidence: seed }');
+    const read = readPlanYaml(written);
+    expect(read.packageRoot).toBe('@scope/server');
+    expect(read.groups.get('module/helper')!.map((entry) => [entry.path, ...entry.tests])).toEqual([['.nan'], ['@types/custom/helper.ts', '.inf']]);
+    expect(read.pinned[0]!.path).toBe('@types/custom/index.d.ts');
+    expect(writePlanYaml(read, 'ac plan for @scope/server')).toBe(written);
+    expect(writePlanYaml({ ...read, packageRoot: 'packages/@scope/server' }, 'title')).toContain('packageRoot: packages/@scope/server\n');
+  });
+
   it('accepts a human edit: a renamed group and a moved line', () => {
     const edited = text.replace('platform/database:', 'platform/db:');
     expect([...readPlanYaml(edited).groups.keys()]).toEqual(['module/album', 'platform/db']);
@@ -71,7 +86,7 @@ describe('steps', () => {
 
   it('one step per group: modules are R1, then platform and shared are R2', () => {
     expect(steps.map((step) => [step.index, step.rung, step.group])).toEqual([[1, 'R1', 'module/album'], [2, 'R2', 'platform/database']]);
-    expect(stepFileName(steps[0]!)).toBe('01-module-album.json');
+    expect(stepFileName(steps[0]!, steps.length)).toBe('01-module-album.json');
   });
 
   it('moves files with their tests, repo-relative, basenames kept', () => {
