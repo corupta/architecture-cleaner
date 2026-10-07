@@ -16,7 +16,7 @@ S3 ran on 2026-10-02/03; [docs/sessions/s3.md](docs/sessions/s3.md) has the repo
 
 S4 ran on 2026-10-03/04; [docs/sessions/s4.md](docs/sessions/s4.md) has the report. It shipped `ac certify` (K0–K4, K6, K8; K5 and K7 not built), the mutation harness and the hunt corpus. Our three branches certify PASS with every check, the four G3 branches FAIL, and no mutant survives the static checks. The storyboard draft for corupta's Oct 9 review is [docs/storyboard.md](docs/storyboard.md).
 
-S5 ran on 2026-10-07; [docs/sessions/s5.md](docs/sessions/s5.md) has the report. It shipped the in-process LLM gateway (cassettes, budget ledger in `budget/`), facts, seeds, the Ultra draft editor and critic behind the validator, and `ac plan` / `ac steps`. The immich plan ([docs/plans/immich/plan.md](docs/plans/immich/plan.md)) cost $0.20 and replays byte-identically offline. All 58 of its steps dry-run clean, and the auth step certifies PASS with oracles. An adversarial review confirmed 16 defects, and all are fixed. corupta hasn't rated this plan yet.
+S5 ran on 2026-10-07; [docs/sessions/s5.md](docs/sessions/s5.md) has the report. It shipped the in-process LLM gateway (cassettes, budget ledger in `budget/`), facts, seeds, the Ultra draft editor and critic behind the validator, and `ac plan` / `ac steps`. The immich plan ([docs/plans/immich/plan.md](docs/plans/immich/plan.md)) cost $0.20 and replays byte-identically offline. All 58 of its steps dry-run clean, and the auth step certifies PASS with oracles. An adversarial review confirmed 16 defects, and all are fixed. corupta keeps the plan as committed, with no hand edits, so the tool runs unattended.
 
 Next is S6 (orchestrator R0–R4, findings log, boundary rules, end to end on immich), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
 
@@ -34,6 +34,7 @@ Next is S6 (orchestrator R0–R4, findings log, boundary rules, end to end on im
 - **Models (after G1):** Nemotron 3 Ultra (`medium_effort`) edits the deterministic seeds draft and critiques it. 3.5 Lightning fans out (it replaces Nano). Super is the G3 generic-agent baseline model, and a planner sample only with an explicit temperature and a reasoning cap.
 - **Form factor:** CLI, a static replay site as the demo URL, and a `--replay` test build. No live endpoint on our key.
 - **Demo target:** immich `server/`, provisional until the Oct 6 gate. Backups: Dokploy, mcphub.
+- **Unattended run (2026-10-07):** the demo uses Nemotron's plan as produced, with no human edits to plan.yaml. Editing stays an optional hook. Plan quality improves in the tool (validator rules, critic gate), never by hand.
 - **Timeline:** freeze Oct 20, submit Oct 28.
 
 ## Hard constraints
