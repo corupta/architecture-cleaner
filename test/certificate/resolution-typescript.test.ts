@@ -51,13 +51,47 @@ describe('K3a resolution identity', () => {
     expect(details(outcome)).toEqual(["src/user.test.ts: line 2: jest.mock './services/user': expected file src/modules/user.ts (jest), got unresolved"]);
   });
 
-  it('fails a stale vi.mock that the Vite model leaves unresolved but TypeScript resolves', () => {
+  it('fails a stale vi.mock, which the Vite model reads like Vite (./x.js is x.ts)', () => {
     const vitest = 'export default { test: {} };\n';
     const outcome = k3a(
       { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/x.ts': 'export const x = 1;\n', 'src/x.test.ts': "import { x } from './x.js';\nvi.mock('./x.js');\nexport const t = x;\n" },
       { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/lib/x.ts': 'export const x = 1;\n', 'src/x.test.ts': "import { x } from './lib/x.js';\nvi.mock('./x.js');\nexport const t = x;\n" },
     );
-    expect(details(outcome)).toEqual(["src/x.test.ts: line 2: vi.mock './x.js': as a module path (TypeScript) expected file src/lib/x.ts, got unresolved"]);
+    expect(details(outcome)).toEqual(["src/x.test.ts: line 2: vi.mock './x.js': expected file src/lib/x.ts (vitest), got unresolved"]);
+  });
+
+  it('resolves loader calls through parentheses and casts: a rewrite passes, a stale specifier fails', () => {
+    const jest = 'module.exports = { testEnvironment: "node" };\n';
+    const test = (specifier: string) => [
+      `const a = (require)('${specifier}');`,
+      `const b = (require as any)('${specifier}');`,
+      `const c = (<any>require)('${specifier}');`,
+      `(jest.mock)('${specifier}');`,
+      `(jest.requireActual as any)('${specifier}');`,
+      `(<any>jest.doMock)('${specifier}');`,
+      "test('x', () => [a, b, c]);",
+      '',
+    ].join('\n');
+    const base = { 'tsconfig.json': commonjs, 'jest.config.js': jest, 'src/services/user.ts': 'export const user = 1;\n', 'src/user.test.ts': test('./services/user') };
+    const moved = { 'tsconfig.json': commonjs, 'jest.config.js': jest, 'src/modules/user.ts': 'export const user = 1;\n' };
+    const passing = k3a(base, { ...moved, 'src/user.test.ts': test('./modules/user') });
+    expect(details(passing)).toEqual([]);
+    expect(passing.metrics).toMatchObject({ rewrittenSpecifiers: 6 });
+    const stale = test('./modules/user').replace("(require as any)('./modules/user')", "(require as any)('./services/user')").replace("(jest.mock)('./modules/user')", "(jest.mock)('./services/user')");
+    expect(details(k3a(base, { ...moved, 'src/user.test.ts': stale }))).toEqual([
+      "src/user.test.ts: line 2: require './services/user': expected file src/modules/user.ts (typescript), got unresolved",
+      "src/user.test.ts: line 4: jest.mock './services/user': expected file src/modules/user.ts (jest), got unresolved",
+    ]);
+  });
+
+  it('resolves vi.mock and vi.importActual .js specifiers to their .ts sources, wrapped or not', () => {
+    const vitest = 'export default { test: {} };\n';
+    const test = (specifier: string) => `import { x } from '${specifier}';\nvi.mock('${specifier}');\n(vi.mock as any)('${specifier}');\nawait (vi.importActual)('${specifier}');\nexport const t = x;\n`;
+    const base = { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/x.ts': 'export const x = 1;\n', 'src/x.test.ts': test('./x.js') };
+    const head = { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/lib/x.ts': 'export const x = 1;\n' };
+    expect(details(k3a(base, { ...head, 'src/x.test.ts': test('./lib/x.js') }))).toEqual([]);
+    expect(details(k3a(base, { ...head, 'src/x.test.ts': test('./lib/x.js').replace("(vi.mock as any)('./lib/x.js')", "(vi.mock as any)('./x.js')") })))
+      .toEqual(["src/x.test.ts: line 3: vi.mock './x.js': expected file src/lib/x.ts (vitest), got unresolved"]);
   });
 
   it('fails relative -> alias at the same file (form class)', () => {

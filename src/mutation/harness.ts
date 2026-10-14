@@ -16,10 +16,10 @@ import type { TreeEdits } from './edits.js';
 import { type Candidate, type Operator, operators } from './operators.js';
 import { openSubject, type Subject, type SubjectCommits, type SubjectSpec } from './subject.js';
 
-/** K0–K7 as implemented (no K5/K7 checks exist): the plan requires every mutant to die here, without K8. */
-export const staticChecks: CheckId[] = ['K0', 'K1', 'K2', 'K3a', 'K3b', 'K3c', 'K4', 'K6'];
+/** K0–K7 as implemented (K5 is K3a's compile context and K4's glob order): every mutant must die here, without K8. */
+export const staticChecks: CheckId[] = ['K0', 'K1', 'K2', 'K3a', 'K3b', 'K3c', 'K4', 'K6', 'K7'];
 /** Checks that read the committed trees only; the others run the target's runner or Node in worktrees of both commits. */
-const treeOnlyChecks = new Set<CheckId>(['K0', 'K1', 'K2', 'K3a', 'K4']);
+const treeOnlyChecks = new Set<CheckId>(['K0', 'K1', 'K2', 'K3a', 'K4', 'K7']);
 
 /**
  * The certification stages of a mutant: with `staged`, the tree-only checks first and the runner/runtime checks only

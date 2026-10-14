@@ -13,7 +13,7 @@
 // Type-level sites (triple-slash, declare module, typeof import) and `new URL(…, import.meta.url)` are not module
 // resolutions any runner performs; type-only imports are erased, so for them "unresolved" on both sides is equal.
 import path from 'node:path';
-import { moduleFormat } from '../analyzer/analyze.js';
+import { isSourceFile, moduleFormat } from '../analyzer/analyze.js';
 import type { ReferenceSite, SiteKind } from '../analyzer/types.js';
 import {
   classify, describeTarget, firstWords, headRunner, installedRunner, isUnder, mapTarget, mochaArguments, probeSource, type Runner, runnersOf, runProbe, sameTarget,
@@ -44,6 +44,8 @@ interface ResolutionOutput {
   results: Record<string, Record<string, SiteOutput[]>>;
   /** jest: project → the resolved importers outside its `roots` (loaded by its tests, never collected from). */
   outsideRoots?: Record<string, string[]>;
+  /** vitest: project → the modules outside its root that its modules and setup files load (resolved too). */
+  outsideProjectRoot?: Record<string, string[]>;
 }
 
 const vitestProbe = probeSource(String.raw`
@@ -58,42 +60,57 @@ async function main() {
   }
   const projects = [];
   const results = {};
+  const outsideProjectRoot = {};
+  const entries = new Map(input.files.map((entry) => [path.join(input.root, entry.file), entry]));
   for (const project of vitest.projects) {
     const environmentName = ['jsdom', 'happy-dom'].includes(project.config.environment) ? 'client' : 'ssr';
     const environment = project.vite.environments[environmentName] || project.vite.environments.ssr;
     const moduleDirectories = (project.config.deps && project.config.deps.moduleDirectories) || ['/node_modules/'];
     projects.push({ name: project.name, root: project.config.root, environment: environmentName });
     const projectRoot = fs.realpathSync(project.config.root);
-    const files = input.files.filter((entry) => path.join(input.root, entry.file).startsWith(projectRoot + path.sep));
+    const inRoot = (file) => file.startsWith(projectRoot + path.sep);
     const output = (results[project.name] = {});
-    const jobs = [];
-    for (const entry of files) {
-      output[entry.file] = [];
-      entry.sites.forEach((site, position) => jobs.push({ entry, site, position }));
-    }
-    await pool(jobs, 64, async ({ entry, site, position }) => {
-      const importer = path.join(input.root, entry.file);
-      const record = { id: null };
-      try {
-        const resolved = await environment.pluginContainer.resolveId(site.specifier, importer);
-        record.id = resolved ? resolved.id : null;
-      } catch (error) {
-        record.error = message(error);
+    const outside = (outsideProjectRoot[project.name] = []);
+    // Every module under the project root, then whatever they (and the setup files) load from outside it, transitively.
+    const setupFiles = (project.config.setupFiles || []).map((file) => path.resolve(project.config.root, file));
+    let frontier = [...entries.keys()].filter(inRoot).concat(setupFiles);
+    const visited = new Set();
+    while (frontier.length) {
+      const batch = [...new Set(frontier)].filter((file) => entries.has(file) && !visited.has(file));
+      frontier = [];
+      const jobs = [];
+      for (const file of batch) {
+        visited.add(file);
+        const entry = entries.get(file);
+        if (!inRoot(file)) outside.push(entry.file);
+        output[entry.file] = [];
+        entry.sites.forEach((site, position) => jobs.push({ entry, site, position }));
       }
-      if (site.mock && findMockRedirect) {
-        const file = record.id ? record.id.replace(/[?#].*$/, '') : null;
-        const external = !file || !path.isAbsolute(file) || moduleDirectories.some((directory) => file.includes(directory)) ? site.specifier : null;
+      await pool(jobs, 64, async ({ entry, site, position }) => {
+        const importer = path.join(input.root, entry.file);
+        const record = { id: null };
         try {
-          record.mock = findMockRedirect(project.config.root, file || site.specifier, external);
+          const resolved = await environment.pluginContainer.resolveId(site.specifier, importer);
+          record.id = resolved ? resolved.id : null;
         } catch (error) {
-          record.mock = null;
+          record.error = message(error);
         }
-      }
-      output[entry.file][position] = record;
-    });
+        if (site.mock && findMockRedirect) {
+          const file = record.id ? record.id.replace(/[?#].*$/, '') : null;
+          const external = !file || !path.isAbsolute(file) || moduleDirectories.some((directory) => file.includes(directory)) ? site.specifier : null;
+          try {
+            record.mock = findMockRedirect(project.config.root, file || site.specifier, external);
+          } catch (error) {
+            record.mock = null;
+          }
+        }
+        for (const id of [record.id, record.mock]) if (id && path.isAbsolute(id)) frontier.push(id.replace(/[?#].*$/, ''));
+        output[entry.file][position] = record;
+      });
+    }
   }
   await vitest.close();
-  return { runner, projects, results };
+  return { runner, projects, results, outsideProjectRoot };
 }
 `);
 
@@ -198,26 +215,35 @@ interface PairedFile {
   head: string;
   /** Indices into the file's site list that the runner resolves. */
   positions: number[];
+  /** Under the runner's cwd (outside it, a file is compared only when the tests load it). */
+  underCwd: boolean;
 }
 
 const resolvedByRunner = (site: ReferenceSite) => !notResolvedByRunners.has(site.kind);
 
-/** Base/head file pairs under the runner's cwd with comparable site lists; files whose site lists differ are violations (K2 explains them). */
+/**
+ * Base/head file pairs with comparable site lists, anywhere in the repository (the tests may load a module outside the
+ * runner's cwd or root); files under the cwd whose site lists differ are violations (K2 explains them).
+ */
 function pairFiles(context: CertifyContext, cwd: string): { pairs: PairedFile[]; added: string[]; violations: Violation[] } {
   const { pathMap, views } = context;
   const pairs: PairedFile[] = [];
   const violations: Violation[] = [];
-  for (const [from, to] of pathMap.forward) {
-    if (!isUnder(from, cwd) && !isUnder(to, cwd)) continue;
+  // Only JS/TS files and extensionless scripts can carry sites; read them in one batch per tree.
+  const candidates = [...pathMap.forward].filter(([from]) => !from.split('/').includes('node_modules') && (isSourceFile(from) || !path.posix.basename(from).includes('.')));
+  context.base.prefetch(candidates.map(([from]) => from));
+  context.head.prefetch(candidates.map(([, to]) => to));
+  for (const [from, to] of candidates) {
+    const underCwd = isUnder(from, cwd) || isUnder(to, cwd);
     const before = views.base(from);
     const after = views.head(to);
     if (!before?.source || !after?.source) continue;
     if (before.sites.length !== after.sites.length || before.sites.some((site, index) => site.kind !== after.sites[index]!.kind)) {
-      violations.push({ file: to, detail: `reference sites differ from ${from} in base (${before.sites.length} -> ${after.sites.length}); see K2` });
+      if (underCwd) violations.push({ file: to, detail: `reference sites differ from ${from} in base (${before.sites.length} -> ${after.sites.length}); see K2` });
       continue;
     }
     const positions = before.sites.flatMap((site, index) => (resolvedByRunner(site) ? [index] : []));
-    if (positions.length) pairs.push({ base: from, head: to, positions });
+    if (positions.length) pairs.push({ base: from, head: to, positions, underCwd });
   }
   const added = pathMap.added.map((entry) => entry.path).filter((file) => isUnder(file, cwd) && views.head(file)?.source);
   return { pairs, added, violations };
@@ -234,6 +260,8 @@ interface Tally {
   addedDangling: number;
   /** Importers under the runner's cwd that no project resolves (jest: outside its roots and loaded by none of its tests). */
   outsideRoots: number;
+  /** vitest: modules outside a project's root that its modules or setup files load, compared too. */
+  outsideProjectRoot: number;
 }
 
 interface RunnerOutcome {
@@ -249,7 +277,10 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
   const unapplied = unappliedArguments(runner);
   if (unapplied) return { violations: [], findings: [], metrics: {}, error: unapplied };
   const { pathMap } = context;
-  const { pairs, added, violations } = pairFiles(context, runner.cwd);
+  const paired = pairFiles(context, runner.cwd);
+  const { added, violations } = paired;
+  // Mocha's probe resolves every file it is given (no load graph to follow): only the files under its cwd.
+  const pairs = runner.kind === 'mocha' ? paired.pairs.filter((pair) => pair.underCwd) : paired.pairs;
   const findings: Finding[] = [];
   const roots = { base: context.materialize('base'), head: context.materialize('head') };
   const specs = { base: runner, head: headRunner(runner, pathMap) };
@@ -286,7 +317,7 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
     violations.push({ detail: `${runner.kind} fails to load or resolve in head: ${head.failure}` });
     return { violations, findings, metrics };
   }
-  const tally: Tally = { sites: 0, files: 0, dangling: 0, retargeted: 0, newlyResolved: 0, unresolvedTextChanged: 0, mockChanged: 0, addedDangling: 0, outsideRoots: 0 };
+  const tally: Tally = { sites: 0, files: 0, dangling: 0, retargeted: 0, newlyResolved: 0, unresolvedTextChanged: 0, mockChanged: 0, addedDangling: 0, outsideRoots: 0, outsideProjectRoot: 0 };
   const headProjects = new Set(head.output.projects.map((project) => project.name));
   for (const project of base.output.projects) {
     if (!headProjects.has(project.name)) {
@@ -360,10 +391,12 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
     }
   }
   const resolvedAnywhere = (output: ResolutionOutput, file: string) => Object.values(output.results).some((files) => files[file] !== undefined);
-  tally.outsideRoots = pairs.filter((pair) => !resolvedAnywhere(base.output, pair.base) && !resolvedAnywhere(head.output, pair.head)).length;
+  const underCwd = pairs.filter((pair) => pair.underCwd);
+  tally.outsideRoots = underCwd.filter((pair) => !resolvedAnywhere(base.output, pair.base) && !resolvedAnywhere(head.output, pair.head)).length;
+  tally.outsideProjectRoot = new Set(Object.values(base.output.outsideProjectRoot ?? {}).flat()).size;
   Object.assign(metrics, { ...tally, addedFiles: added.length });
-  if (pairs.length && tally.outsideRoots === pairs.length) {
-    return { violations, findings, metrics, error: `${runner.kind} resolved none of the ${pairs.length} source files under '${runner.cwd || '.'}' (none in its roots or loaded by its tests): nothing was compared` };
+  if (underCwd.length && tally.outsideRoots === underCwd.length) {
+    return { violations, findings, metrics, error: `${runner.kind} resolved none of the ${underCwd.length} source files under '${runner.cwd || '.'}' (none in its roots or loaded by its tests): nothing was compared` };
   }
   return { violations, findings, metrics };
 }

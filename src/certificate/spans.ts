@@ -2,8 +2,7 @@
 // Two versions of a file are the same modulo specifiers iff their chunk lists are equal (plan §3.4 K2); the
 // pathMap is inferred by hashing exactly that view (plan §3.4 Independence).
 import { createHash } from 'node:crypto';
-import path from 'node:path';
-import { isSourceFile } from '../analyzer/analyze.js';
+import { isShebangScript, isSourceFile } from '../analyzer/analyze.js';
 import { extractSites } from '../analyzer/reference-sites.js';
 import type { ReferenceSite } from '../analyzer/types.js';
 import { type CommitTree, isUtf8 } from './git-tree.js';
@@ -20,10 +19,9 @@ export interface SpanView {
   utf8: boolean;
 }
 
-/** JS/TS by extension, or an extensionless file with a `#!…node` line (`bin/www`). */
+/** JS/TS by extension, or an extensionless script whose shebang runs Node or a TypeScript runtime (`bin/www`, tsx, bun, deno). */
 export function isScannedSource(file: string, text: string): boolean {
-  if (isSourceFile(file)) return true;
-  return !path.posix.basename(file).includes('.') && !file.split('/').includes('node_modules') && /^#![^\n]*\bnode\b/.test(text);
+  return isSourceFile(file) || isShebangScript(file, text);
 }
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');

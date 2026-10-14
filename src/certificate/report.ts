@@ -6,7 +6,8 @@ const mark: Record<CheckResult['status'], string> = { pass: 'PASS', fail: 'FAIL'
 export function summarize(certificate: Certificate, { maxViolations = 8 } = {}): string {
   const lines: string[] = [];
   const short = (sha: string) => sha.slice(0, 10);
-  lines.push(`ac certify ${short(certificate.base)}..${short(certificate.head)}${certificate.packageRoot ? ` (package root ${certificate.packageRoot}/)` : ''}`);
+  lines.push(`ac certify ${short(certificate.base)}..${short(certificate.head)}${certificate.packageRoot ? ` (package root ${certificate.packageRoot}/)` : ''}${certificate.profile ? `, profile ${certificate.profile}` : ''}`);
+  lines.push(`trees: ${short(certificate.baseTree)}..${short(certificate.headTree)}`);
   const map = certificate.pathMap;
   lines.push(`pathMap: ${map.moves} moves, ${map.editedInPlace} edited in place, ${map.unchanged} unchanged, ${map.added.length} added, ${map.deleted.length} deleted`);
   lines.push('');
@@ -23,7 +24,10 @@ export function summarize(certificate: Certificate, { maxViolations = 8 } = {}):
   return lines.join('\n');
 }
 
-/** Git trailers: `git commit --trailer`-ready lines that summarize the certificate. */
+/**
+ * Git trailers: `git commit --trailer`-ready lines that summarize the certificate. They name trees, not commits, so
+ * the trailers (and the certificate) stay true when they are added by amending the certified commit.
+ */
 export function trailers(certificate: Certificate): string[] {
   const groups = new Map<string, CheckResult['status'][]>();
   for (const check of certificate.checks) {
@@ -34,7 +38,8 @@ export function trailers(certificate: Certificate): string[] {
   const checks = [...groups].map(([id, statuses]) => `${id}=${statusOf(statuses)}`).join(' ');
   return [
     `Ac-Certificate: ${certificate.verdict} (${certificate.scope}) ${checks}`,
-    `Ac-Certificate-Base: ${certificate.base}`,
+    `Ac-Certificate-Base-Tree: ${certificate.baseTree}`,
+    `Ac-Certificate-Tree: ${certificate.headTree}`,
     `Ac-Certificate-Digest: ${certificate.digest}`,
   ];
 }

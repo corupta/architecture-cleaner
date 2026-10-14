@@ -66,7 +66,7 @@ describe('K3a hardening: false passes', () => {
       { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/a.test.ts': test, 'src/lib/x.ts': 'export const x = 1;\n', 'src/b.ts': "export { x } from './lib/x';\n" },
       { 'tsconfig.json': commonjs, 'vitest.config.ts': vitest, 'src/a.test.ts': test, 'src/x.ts': 'export const x = 1;\n', 'src/b.ts': "export { x } from './x';\n" },
     );
-    expect(details(outcome)).toEqual(["src/a.test.ts: line 1: vi.mock './x.js': as a module path (TypeScript) expected unresolved, got file src/x.ts (typescript)"]);
+    expect(details(outcome)).toEqual(["src/a.test.ts: line 1: vi.mock './x.js': expected unresolved, got file src/x.ts (vitest)"]);
   });
 
   it("fails a rewritten specifier with '?' in a CommonJS file that Vitest runs", () => {

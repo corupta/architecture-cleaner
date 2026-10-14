@@ -5,8 +5,8 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, escapeRegExp, formatDiagnostic, parseTestReport,
-  parseTscDiagnostics, sha256, type TestReport, totalsOf,
+  compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, effectiveExit, escapeRegExp, excludeTests, flakyTests, formatDiagnostic,
+  parseTestReport, parseTscDiagnostics, selectTests, sha256, type TestReport, totalsOf,
 } from './oracle-reports.js';
 import { cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, readCachedRun, runOracle, stepBroken, stepOk, storeRun } from './oracle-runs.js';
 import type { OracleSpec, Profile } from './profile.js';
@@ -25,12 +25,16 @@ interface Evaluation {
   /** The oracle couldn't be evaluated (a broken base run, a missing reference): never a pass. */
   errors: Violation[];
   metrics: Metrics;
+  /** Facts about the runs (timings, log directories, cache use): the check's `run`. */
+  run: Metrics;
 }
+
+const newEvaluation = (): Evaluation => ({ summary: '', violations: [], findings: [], errors: [], metrics: {}, run: {} });
 
 const count = (value: number) => value.toLocaleString('en-US');
 
 /** Repo-relative paths of the node_modules links materialize() puts into a worktree. */
-const linksOf = (linked: string[]) => new Set(linked.map((directory) => (directory ? `${directory}/node_modules` : 'node_modules')));
+export const linksOf = (linked: string[]) => new Set(linked.map((directory) => (directory ? `${directory}/node_modules` : 'node_modules')));
 
 /** `git status` of a worktree: modified tracked files, and untracked or ignored entries other than the node_modules links. */
 function worktreeState(root: string, links: ReadonlySet<string>): { modified: string[]; extra: string[] } {
@@ -56,7 +60,7 @@ function worktreeState(root: string, links: ReadonlySet<string>): { modified: st
  * removed (what earlier checks or oracles left, e.g. a dist/ a later oracle could pick up), the node_modules links
  * kept. Returns what it found.
  */
-function resetWorktree(root: string, links: ReadonlySet<string>): { modified: string[]; extra: string[] } {
+export function resetWorktree(root: string, links: ReadonlySet<string>): { modified: string[]; extra: string[] } {
   const found = worktreeState(root, links);
   const git = (...args: string[]) => execFileSync('git', ['-C', root, '-c', 'core.hooksPath=/dev/null', ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
   if (found.modified.length) git('reset', '--hard', '-q');
@@ -66,11 +70,16 @@ function resetWorktree(root: string, links: ReadonlySet<string>): { modified: st
   return found;
 }
 
+/** The expansion of a `{quarantine}` argv element: the oracle's quarantined files (mapped to the side) as path patterns. */
+export const runnerQuarantine = (oracle: OracleSpec, map: (file: string) => string) => (oracle.quarantine ?? []).map((file) => `/${escapeRegExp(map(file))}$`);
+
 interface Session {
   context: CertifyContext;
   profile: Profile;
   head(oracle: OracleSpec): Promise<OracleRun>;
   base(oracle: OracleSpec): Promise<OracleRun>;
+  /** Another fresh run of the oracle on a side (never from the cache), for telling flaky tests from differences. */
+  again(oracle: OracleSpec, side: Side, attempt: number): Promise<OracleRun>;
   /** Resets the worktrees once more and returns what the resets found. */
   finish(): { findings: Finding[]; removed: number };
 }
@@ -89,13 +98,14 @@ function createSession(context: CertifyContext, profile: Profile, headRoot: stri
     if (found.extra.length) context.log(`K8 removed ${found.extra.length} untracked or ignored entries ${previous[side]} left in the ${side} worktree: ${found.extra.slice(0, 5).join(', ')}`);
     removed += found.extra.length;
   };
-  const quarantine = (oracle: OracleSpec, side: Side) => (oracle.quarantine ?? []).map((file) => `/${escapeRegExp(side === 'head' ? pathMap.map(file) : file)}$`);
-  const run = (oracle: OracleSpec, side: Side) => {
+  const quarantine = (oracle: OracleSpec, side: Side) => runnerQuarantine(oracle, side === 'head' ? pathMap.map : (file) => file);
+  const run = (oracle: OracleSpec, side: Side, attempt = 0) => {
     roots[side] ??= context.materialize(side);
     reset(side, `the ${oracle.name} oracle`);
     previous[side] = `the ${oracle.name} oracle`;
-    context.log(`K8 ${oracle.name} on ${side}`);
-    return runOracle({ profile, oracle, side, root: roots[side], directory: path.join(options.workDir, 'oracles', side, oracle.name), quarantine: quarantine(oracle, side) });
+    context.log(`K8 ${oracle.name} on ${side}${attempt ? ` (run ${attempt + 1})` : ''}`);
+    const directory = attempt ? path.join(options.workDir, 'oracle-reruns', side, `${oracle.name}-${attempt + 1}`) : path.join(options.workDir, 'oracles', side, oracle.name);
+    return runOracle({ profile, oracle, side, root: roots[side], directory, quarantine: quarantine(oracle, side) });
   };
   const memo = (key: string, create: () => Promise<OracleRun>) => {
     if (!runs.has(key)) runs.set(key, create());
@@ -119,6 +129,7 @@ function createSession(context: CertifyContext, profile: Profile, headRoot: stri
       const stored = readCachedRun(cached);
       return stored ? { ...stored, cached: false } : fresh;
     }),
+    again: (oracle, side, attempt) => run(oracle, side, attempt),
     finish() {
       for (const side of ['head', 'base'] as const) if (roots[side]) reset(side, 'the end of K8');
       return { findings, removed };
@@ -126,13 +137,13 @@ function createSession(context: CertifyContext, profile: Profile, headRoot: stri
   };
 }
 
-function recordRun(metrics: Metrics, name: string, run: OracleRun) {
+function recordRun(evaluation: Evaluation, name: string, run: OracleRun) {
   const main = run.steps[run.steps.length - 1];
-  metrics[`${name}.${run.side}.exit`] = main?.timedOut ? 'timeout' : (main?.exitCode ?? main?.signal ?? 'not run');
-  metrics[`${name}.${run.side}.seconds`] = Math.round(run.seconds);
-  metrics[`${name}.${run.side}.logs`] = run.directory;
-  metrics[`${name}.${run.side}.networkAttempts`] = run.networkAttempts;
-  if (run.side === 'base') metrics[`${name}.base.cached`] = run.cached;
+  evaluation.metrics[`${name}.${run.side}.exit`] = main?.timedOut ? 'timeout' : (main?.exitCode ?? main?.signal ?? 'not run');
+  evaluation.metrics[`${name}.${run.side}.networkAttempts`] = run.networkAttempts;
+  evaluation.run[`${name}.${run.side}.seconds`] = Math.round(run.seconds);
+  evaluation.run[`${name}.${run.side}.logs`] = run.directory;
+  if (run.side === 'base') evaluation.run[`${name}.base.cached`] = run.cached;
 }
 
 /** Setup steps (and, unless `exceptMain`, the command) must exit 0 on head, or fail the same way on base. */
@@ -145,7 +156,7 @@ async function judgeSteps(session: Session, oracle: OracleSpec, head: OracleRun,
       continue;
     }
     const base = await session.base(oracle);
-    recordRun(evaluation.metrics, oracle.name, base);
+    recordRun(evaluation, oracle.name, base);
     const counterpart = base.steps[index];
     if (!counterpart || stepBroken(counterpart)) evaluation.errors.push({ detail: `${oracle.name}: on base ${counterpart ? describeStep(counterpart) : `step ${index + 1} didn't run`} (log ${base.directory})` });
     else if (stepOk(counterpart)) evaluation.violations.push({ detail: `${oracle.name}: ${describeStep(step)} on head, exit 0 on base (log ${path.join(head.directory, step.log)})` });
@@ -169,9 +180,9 @@ function diagnosticsOf(run: OracleRun): Diagnostic[] {
  */
 async function exitZero(session: Session, oracle: OracleSpec): Promise<Evaluation> {
   const { pathMap } = session.context;
-  const evaluation: Evaluation = { summary: '', violations: [], findings: [], errors: [], metrics: {} };
+  const evaluation = newEvaluation();
   const head = await session.head(oracle);
-  recordRun(evaluation.metrics, oracle.name, head);
+  recordRun(evaluation, oracle.name, head);
   const headDiagnostics = oracle.diagnostics === 'tsc' ? diagnosticsOf(head) : [];
   if (oracle.diagnostics === 'tsc') evaluation.metrics[`${oracle.name}.head.diagnostics`] = headDiagnostics.length;
   if (head.steps.every(stepOk) && head.steps.length === (oracle.setup ?? []).length + 1) {
@@ -185,7 +196,7 @@ async function exitZero(session: Session, oracle: OracleSpec): Promise<Evaluatio
     return evaluation;
   }
   const base = await session.base(oracle);
-  recordRun(evaluation.metrics, oracle.name, base);
+  recordRun(evaluation, oracle.name, base);
   if (base.steps.some(stepBroken)) {
     evaluation.errors.push({ detail: `${oracle.name}: on base ${describeStep(base.steps.find(stepBroken)!)} (log ${base.directory})` });
     evaluation.summary = `${oracle.name} could not run on base`;
@@ -226,7 +237,7 @@ async function exitZero(session: Session, oracle: OracleSpec): Promise<Evaluatio
   return evaluation;
 }
 
-function loadReport(run: OracleRun, format: NonNullable<OracleSpec['format']>): TestReport | string {
+export function loadReport(run: OracleRun, format: NonNullable<OracleSpec['format']>): TestReport | string {
   if (!run.report) return `no report (${describeStep(run.steps[run.steps.length - 1]!)}; log ${run.directory})`;
   try {
     return parseTestReport(format, JSON.parse(fs.readFileSync(run.report, 'utf8')), run.root);
@@ -235,32 +246,74 @@ function loadReport(run: OracleRun, format: NonNullable<OracleSpec['format']>): 
   }
 }
 
+/** What the runs of both commits say once the excluded tests are left out. */
+interface TestVerdict {
+  /** The runner's exit codes disagree for every pair of runs. */
+  exitProblem: string | null;
+  differences: { file: string; detail: string }[];
+  snapshotProblems: string[];
+  equalFiles: number;
+  equalCases: number;
+  compared: { head: TestReport; base: TestReport };
+  /** Flaky tests in head coordinates, with the side whose runs disagreed. */
+  flaky: { file: string; name?: string; side: Side; outcomes: string[] }[];
+}
+
+/**
+ * Compares the first run of each commit with the quarantined and the flaky tests (outcomes that change between runs
+ * of one commit) left out on both sides. The runner's exit codes must agree for some pair of runs, a failure of
+ * excluded tests only counting as exit 0.
+ */
+function judgeTests(session: Session, oracle: OracleSpec, runs: Record<Side, OracleRun[]>, reports: Record<Side, TestReport[]>): TestVerdict {
+  const { pathMap, options } = session.context;
+  const flaky = [
+    ...flakyTests(reports.head).map((test) => ({ ...test, side: 'head' as Side })),
+    ...flakyTests(reports.base).map((test) => ({ ...test, file: pathMap.map(test.file), side: 'base' as Side })),
+  ];
+  const quarantined = (options.quarantine ?? []).map((entry) => ({ ...entry, file: pathMap.map(entry.file) }));
+  const excludedHead = selectTests([...quarantined, ...flaky]);
+  const excluded: Record<Side, (file: string, fullName?: string) => boolean> = { head: excludedHead, base: (file, fullName) => excludedHead(pathMap.map(file), fullName) };
+  const compared = { head: excludeTests(reports.head[0]!, excluded.head).report, base: excludeTests(reports.base[0]!, excluded.base).report };
+  const comparison = compareTestReports(compared.base, compared.head, pathMap.map);
+  const mainIndex = (oracle.setup ?? []).length;
+  const exits = (side: Side) => [...new Set(runs[side].map((run, index) => effectiveExit(run.steps[mainIndex]?.exitCode ?? null, reports[side][index]!, excluded[side])))];
+  const headExits = exits('head');
+  const baseExits = exits('base');
+  const describe = (codes: (number | null)[], side: Side) => `${codes.join(' or ')} on ${side}${runs[side].length > 1 ? ` (${runs[side].length} runs)` : ''}`;
+  const exitProblem = headExits.some((exit) => baseExits.includes(exit)) ? null : `the runner exited ${describe(headExits, 'head')}, ${describe(baseExits, 'base')}`;
+  return { exitProblem, differences: comparison.differences, snapshotProblems: comparison.snapshotProblems, equalFiles: comparison.equalFiles, equalCases: comparison.equalCases, compared, flaky };
+}
+
 /**
  * Base always runs (or comes from the cache). Per test file (base paths mapped) the load status, the file status and
  * the ordered cases must equal base's, as must the runner's exit code and overall success; no snapshot may be written.
+ * Quarantined tests (`CertifyOptions.quarantine`) are left out on both sides. On a difference both commits run again,
+ * up to `flakyRetries` times: a test whose outcome changes between runs of one commit is flaky, a finding that is left
+ * out like a quarantined one; whatever still differs is a violation.
  */
 async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> {
-  const { pathMap } = session.context;
-  const evaluation: Evaluation = { summary: '', violations: [], findings: [], errors: [], metrics: {} };
+  const { options } = session.context;
+  const evaluation = newEvaluation();
   const format = oracle.format ?? session.profile.runner?.kind;
   if (!format) throw new Error(`oracle ${oracle.name}: tests needs a format (or a profile runner)`);
   const head = await session.head(oracle);
-  recordRun(evaluation.metrics, oracle.name, head);
+  recordRun(evaluation, oracle.name, head);
   await judgeSteps(session, oracle, head, evaluation, { exceptMain: true });
   const base = await session.base(oracle);
-  recordRun(evaluation.metrics, oracle.name, base);
-  const headMain = head.steps[(oracle.setup ?? []).length];
-  const baseMain = base.steps[(oracle.setup ?? []).length];
+  recordRun(evaluation, oracle.name, base);
+  const mainIndex = (oracle.setup ?? []).length;
+  const headMain = head.steps[mainIndex];
+  const baseMain = base.steps[mainIndex];
   if (!headMain || stepBroken(headMain)) evaluation.violations.push({ detail: `${oracle.name}: ${headMain ? describeStep(headMain) : 'the runner did not run'} on head` });
   if (!baseMain || stepBroken(baseMain)) evaluation.errors.push({ detail: `${oracle.name}: on base ${baseMain ? describeStep(baseMain) : 'the runner did not run'} (log ${base.directory})` });
-  if (headMain && baseMain && !stepBroken(headMain) && !stepBroken(baseMain) && headMain.exitCode !== baseMain.exitCode) {
-    evaluation.violations.push({ detail: `${oracle.name}: the runner exited ${headMain.exitCode} on head, ${baseMain.exitCode} on base` });
-  }
   const headReport = loadReport(head, format);
   const baseReport = loadReport(base, format);
   if (typeof headReport === 'string') evaluation.violations.push({ detail: `${oracle.name}: head: ${headReport}` });
   if (typeof baseReport === 'string') evaluation.errors.push({ detail: `${oracle.name}: base: ${baseReport}` });
   if (typeof headReport === 'string' || typeof baseReport === 'string') {
+    if (headMain && baseMain && !stepBroken(headMain) && !stepBroken(baseMain) && headMain.exitCode !== baseMain.exitCode) {
+      evaluation.violations.push({ detail: `${oracle.name}: the runner exited ${headMain.exitCode} on head, ${baseMain.exitCode} on base` });
+    }
     evaluation.summary = `${oracle.name} has no report to compare`;
     return evaluation;
   }
@@ -269,19 +322,56 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
     for (const [key, value] of Object.entries(totals[side])) evaluation.metrics[`${oracle.name}.${side}.${key}`] = value;
   }
   if (!totals.base.cases) evaluation.errors.push({ detail: `${oracle.name}: no test case ran on base, so the comparison would certify nothing (log ${base.directory})` });
-  const comparison = compareTestReports(baseReport, headReport, pathMap.map);
-  for (const difference of comparison.differences) evaluation.violations.push({ file: difference.file, detail: `${oracle.name}: ${difference.detail}` });
-  for (const problem of comparison.snapshotProblems) evaluation.violations.push({ detail: `${oracle.name}: ${problem}` });
-  if (totals.base.failed || totals.base.loaded < totals.base.files) {
-    evaluation.findings.push({ kind: 'pre-existing-failure', detail: `${oracle.name} on base: ${count(totals.base.failed)} cases fail and ${count(totals.base.files - totals.base.loaded)} files fail to load; head is compared with that` });
+
+  const runs: Record<Side, OracleRun[]> = { head: [head], base: [base] };
+  const reports: Record<Side, TestReport[]> = { head: [headReport], base: [baseReport] };
+  let verdict = judgeTests(session, oracle, runs, reports);
+  const retries = options.flakyRetries ?? 2;
+  const differs = () => verdict.exitProblem !== null || verdict.differences.length > 0 || verdict.snapshotProblems.length > 0;
+  retrying: for (let attempt = 1; attempt <= retries && differs(); attempt++) {
+    for (const side of ['head', 'base'] as const) {
+      const again = await session.again(oracle, side, attempt);
+      evaluation.run[`${oracle.name}.${side}.run${attempt + 1}.logs`] = again.directory;
+      const report = loadReport(again, format);
+      if (typeof report === 'string') {
+        evaluation.errors.push({ detail: `${oracle.name}: run ${attempt + 1} on ${side}, to tell flaky tests from differences: ${report}` });
+        break retrying;
+      }
+      runs[side].push(again);
+      reports[side].push(report);
+    }
+    verdict = judgeTests(session, oracle, runs, reports);
+  }
+  if (verdict.exitProblem) evaluation.violations.push({ detail: `${oracle.name}: ${verdict.exitProblem}` });
+  for (const difference of verdict.differences) evaluation.violations.push({ file: difference.file, detail: `${oracle.name}: ${difference.detail}` });
+  for (const problem of verdict.snapshotProblems) evaluation.violations.push({ detail: `${oracle.name}: ${problem}` });
+  const flakyReported = new Set<string>();
+  for (const test of verdict.flaky) {
+    const key = `${test.file}\0${test.name ?? ''}`;
+    if (flakyReported.has(key)) continue;
+    flakyReported.add(key);
+    evaluation.findings.push({ kind: 'flaky-test', file: test.file, detail: `${oracle.name}: ${test.name === undefined ? 'the file' : `'${test.name}'`} changed outcome between runs of ${test.side} (${test.outcomes.join(', ')}); left out of the comparison` });
+  }
+  for (const entry of options.quarantine ?? []) {
+    const file = session.context.pathMap.map(entry.file);
+    evaluation.findings.push({ kind: 'quarantined-test', file, detail: `${oracle.name}: ${entry.name === undefined ? 'every test in the file' : `'${entry.name}'`} left out of the comparison on both sides: ${entry.reason}` });
   }
   if (oracle.quarantine?.length) evaluation.metrics[`${oracle.name}.quarantined`] = oracle.quarantine.length;
-  const files = Math.max(totals.base.files, totals.head.files);
-  const cases = Math.max(totals.base.cases, totals.head.cases);
-  evaluation.metrics[`${oracle.name}.filesEqual`] = comparison.equalFiles;
-  evaluation.metrics[`${oracle.name}.casesEqual`] = comparison.equalCases;
+  if (options.quarantine?.length) evaluation.metrics[`${oracle.name}.quarantineEntries`] = options.quarantine.length;
+  if (runs.head.length > 1) evaluation.metrics[`${oracle.name}.runs`] = runs.head.length;
+  evaluation.metrics[`${oracle.name}.flaky`] = flakyReported.size;
+  const compared = { head: totalsOf(verdict.compared.head), base: totalsOf(verdict.compared.base) };
+  if (compared.base.failed || compared.base.loaded < compared.base.files) {
+    evaluation.findings.push({ kind: 'pre-existing-failure', detail: `${oracle.name} on base: ${count(compared.base.failed)} cases fail and ${count(compared.base.files - compared.base.loaded)} files fail to load; head is compared with that` });
+  }
+  const files = Math.max(compared.base.files, compared.head.files);
+  const cases = Math.max(compared.base.cases, compared.head.cases);
+  evaluation.metrics[`${oracle.name}.filesEqual`] = verdict.equalFiles;
+  evaluation.metrics[`${oracle.name}.casesEqual`] = verdict.equalCases;
+  const left = totals.head.cases - compared.head.cases;
   const { head: after } = totals;
-  evaluation.summary = `${oracle.name} ${count(comparison.equalFiles)}/${count(files)} files and ${count(comparison.equalCases)}/${count(cases)} cases equal to base`
+  evaluation.summary = `${oracle.name} ${count(verdict.equalFiles)}/${count(files)} files and ${count(verdict.equalCases)}/${count(cases)} cases equal to base`
+    + `${left || flakyReported.size ? ` (${count(left)} cases left out: ${flakyReported.size} flaky, ${options.quarantine?.length ?? 0} quarantined)` : ''}`
     + ` (head: ${count(after.loaded)}/${count(after.files)} files load, ${count(after.passed)} passed, ${count(after.failed)} failed, ${count(after.skipped)} skipped)`;
   return evaluation;
 }
@@ -292,9 +382,9 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
  * which tells a stale tracked file (a finding) from a real difference.
  */
 async function artifactIdentical(session: Session, oracle: OracleSpec): Promise<Evaluation> {
-  const evaluation: Evaluation = { summary: '', violations: [], findings: [], errors: [], metrics: {} };
+  const evaluation = newEvaluation();
   const head = await session.head(oracle);
-  recordRun(evaluation.metrics, oracle.name, head);
+  recordRun(evaluation, oracle.name, head);
   await judgeSteps(session, oracle, head, evaluation, { exceptMain: false });
   const stepFailures = evaluation.violations.length ? `, but ${evaluation.violations.length} step${evaluation.violations.length === 1 ? '' : 's'} failed on head` : '';
   if (!head.artifact) {
@@ -313,7 +403,7 @@ async function artifactIdentical(session: Session, oracle: OracleSpec): Promise<
     return evaluation;
   }
   const base = await session.base(oracle);
-  recordRun(evaluation.metrics, oracle.name, base);
+  recordRun(evaluation, oracle.name, base);
   if (!base.artifact) {
     evaluation.errors.push({ detail: `${oracle.name}: ${oracle.artifact} was not produced on base (log ${base.directory})` });
     evaluation.summary = `${oracle.name} produced nothing on base`;
@@ -333,7 +423,7 @@ async function artifactIdentical(session: Session, oracle: OracleSpec): Promise<
 
 const evaluators: Record<OracleSpec['kind'], (session: Session, oracle: OracleSpec) => Promise<Evaluation>> = { 'exit-zero': exitZero, tests, 'artifact-identical': artifactIdentical };
 
-function validate(specs: OracleSpec[]) {
+export function validateOracles(specs: OracleSpec[]): void {
   const names = new Set<string>();
   for (const spec of specs) {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(spec.name) || names.has(spec.name)) throw new Error(`oracle names must be unique path segments: '${spec.name}'`);
@@ -354,7 +444,7 @@ export const oracles: Check = {
     const profile = options.profile;
     if (!options.oracles) return skipped('K8', title, 'oracles not requested (--oracles)');
     if (!profile?.oracles?.length) return skipped('K8', title, `${profile ? `the profile ${profile.name}` : 'no profile'} has no oracles`);
-    validate(profile.oracles);
+    validateOracles(profile.oracles);
     const headRoot = context.materialize('head');
     const required = [...new Set(profile.oracles.flatMap((oracle) => oracle.requires ?? []))];
     const unreachable = required.filter((file) => !fs.existsSync(path.join(headRoot, file)));
@@ -366,23 +456,21 @@ export const oracles: Check = {
       node: execFileSync(nodeBinary(profile.node), ['--version'], { encoding: 'utf8' }).trim(),
       offline: Boolean(profile.offline),
       hooksBypassed: `core.hooksPath=/dev/null (worktree add and resets); HUSKY=${targetEnvironment({ node: profile.node, ...(profile.env ? { extra: profile.env } : {}) }).HUSKY}`,
-      worktree: headRoot,
-      logs: path.join(options.workDir, 'oracles'),
-      cache: oracleCacheRoot() ?? 'off',
       prerequisitesReachable: required.join(', ') || 'none declared',
     };
+    const run: Metrics = { worktree: headRoot, logs: path.join(options.workDir, 'oracles'), cache: oracleCacheRoot() ?? 'off' };
     const session = createSession(context, profile, headRoot);
     const evaluations: Evaluation[] = [];
     for (const oracle of profile.oracles) {
       const evaluation = await evaluators[oracle.kind](session, oracle);
       for (const side of ['head', 'base'] as const) {
         const attempts = evaluation.metrics[`${oracle.name}.${side}.networkAttempts`];
-        if (typeof attempts === 'number' && attempts > 0) evaluation.findings.push({ kind: 'network-attempt', detail: `${oracle.name} on ${side}: ${attempts} network attempts refused (log ${evaluation.metrics[`${oracle.name}.${side}.logs`]}/network.jsonl)` });
+        if (typeof attempts === 'number' && attempts > 0) evaluation.findings.push({ kind: 'network-attempt', detail: `${oracle.name} on ${side}: ${attempts} network attempts refused (network.jsonl in the ${side} run's logs)` });
       }
       evaluations.push(evaluation);
     }
     const hygiene = session.finish();
-    metrics.leftoversRemoved = hygiene.removed;
+    run.leftoversRemoved = hygiene.removed;
     const violations = evaluations.flatMap((evaluation) => evaluation.violations);
     const errors = evaluations.flatMap((evaluation) => evaluation.errors);
     return result('K8', title, {
@@ -391,6 +479,7 @@ export const oracles: Check = {
       violations: [...violations, ...errors.map((error) => ({ ...error, detail: `error: ${error.detail}` }))],
       findings: [...hygiene.findings, ...evaluations.flatMap((evaluation) => evaluation.findings)],
       metrics: Object.assign(metrics, ...evaluations.map((evaluation) => evaluation.metrics)),
+      run: Object.assign(run, ...evaluations.map((evaluation) => evaluation.run)),
     });
   },
 };

@@ -3,7 +3,7 @@
 // diff gets no certificate. The runtime alias mechanism is K3c's.
 import path from 'node:path';
 import ts from 'typescript';
-import { isSourceFile, stripBom } from '../analyzer/analyze.js';
+import { isShebangScript, isSourceFile, stripBom } from '../analyzer/analyze.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import type { CommitTree } from './git-tree.js';
@@ -18,8 +18,8 @@ const jestConfigName = /^jest([.-][^/]*)?\.(json|[cm]?[jt]s)$/;
 const automockCall = /\bjest\s*\.\s*(enableAutomock|autoMockOn)\s*\(/;
 // JSON the analyzer reads as configuration.
 const manifestName = /^(package|[tj]sconfig[^/]*)\.json$/;
-// Script runners other than node that run TypeScript or JavaScript from a shebang line.
-const scriptRunner = /\b(tsx|bun|deno|esno|esr|jiti|zx)\b/;
+// Script runners that run TypeScript or JavaScript from a shebang line (the analyzer reads node, tsx, ts-node, bun, deno).
+const scriptRunner = /\b(tsx|ts-node|bun|deno|esno|esr|jiti|zx)\b/;
 
 const directoryOf = (file: string) => (path.posix.dirname(file) === '.' ? '' : path.posix.dirname(file));
 const within = (file: string, directory: string) => directory === '' || file === directory || file.startsWith(`${directory}/`);
@@ -165,13 +165,13 @@ export function checkEnvelope(context: CertifyContext): { violations: Violation[
       for (const call of automockCalls(file, tree.text(file) ?? '')) add(side, file, `${call} switches Jest automock on`);
     }
 
-    // An extensionless script run by a TypeScript or JavaScript runtime other than node (`#!/usr/bin/env -S npx tsx`):
-    // the analyzer reads only node shebangs, so its imports (an alias to a moved file) are invisible to K2 and K3.
+    // An extensionless script run by a runtime the analyzer doesn't read (`#!/usr/bin/env zx`, jiti, esno): its imports
+    // (an alias to a moved file) are invisible to K2 and K3.
     for (const [file, entry] of tree.entries) {
       if (entry.mode === '160000' || entry.mode === '120000' || path.posix.basename(file).includes('.') || file.split('/').includes('node_modules')) continue;
       const text = tree.text(file) ?? '';
       const shebang = /^#![^\n]*/.exec(text)?.[0];
-      if (shebang && scriptRunner.test(shebang) && !/\bnode\b/.test(shebang) && /\bimport\b|\brequire\s*\(/.test(text)) add(side, file, `script run by '${shebang.slice(2).trim()}', which the analyzer doesn't read: its imports are invisible to K2 and K3`);
+      if (shebang && scriptRunner.test(shebang) && !isShebangScript(file, text) && /\bimport\b|\brequire\s*\(/.test(text)) add(side, file, `script run by '${shebang.slice(2).trim()}', which the analyzer doesn't read: its imports are invisible to K2 and K3`);
     }
 
     // A compiler config that extends a file outside the repository takes options (paths, baseUrl, module) the

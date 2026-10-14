@@ -8,7 +8,7 @@ function treeOf(files: Record<string, string>): CommitTree {
   const entries = new Map(Object.keys(files).map((file) => [file, { path: file, mode: '100644', oid: file }]));
   const directories = new Set(['']);
   for (const file of Object.keys(files)) for (let slash = file.lastIndexOf('/'); slash > 0; slash = file.lastIndexOf('/', slash - 1)) directories.add(file.slice(0, slash));
-  return { commit: 'fake', entries, directories, bytes: (file) => (files[file] === undefined ? undefined : Buffer.from(files[file]!)), text: (file) => files[file], prefetch() {} };
+  return { commit: 'fake', tree: 'fake', entries, directories, bytes: (file) => (files[file] === undefined ? undefined : Buffer.from(files[file]!)), text: (file) => files[file], prefetch() {} };
 }
 function detect(files: Record<string, string>, packageRoot = '') {
   const tree = treeOf(files);

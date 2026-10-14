@@ -12,6 +12,7 @@ import ts from 'typescript';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import { isUtf8 } from './git-tree.js';
+import { commonSourceDirectory } from './resolution-runtime.js';
 import { isScannedSource } from './spans.js';
 import type { CertifyContext, Finding, Violation } from './types.js';
 
@@ -54,7 +55,8 @@ function commentMarkers(file: string): RegExp | null {
   return null;
 }
 
-function category(file: string): string {
+/** What a tracked file is to the scans: CI, infra, code or config. */
+export function category(file: string): string {
   const base = path.posix.basename(file).toLowerCase();
   if (file.startsWith('.github/') || file.startsWith('.gitlab') || file.startsWith('.circleci/') || base === '.gitlab-ci.yml' || base === 'azure-pipelines.yml'
     || base === 'jenkinsfile' || file.startsWith('.buildkite/') || base === 'codeowners') return 'CI';
@@ -63,6 +65,15 @@ function category(file: string): string {
   if (isScannedSource(file, '') && !/(^|\/)[^/]*\.config\.[cm]?[jt]s$|(^|\/)\.[^/]*rc\.[cm]?js$/.test(file)) return 'code';
   return 'config';
 }
+
+const isCharacterClass = (source: string) => {
+  try {
+    new RegExp(source);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** A glob (`**`, `*`, `?`, `[…]`, `{a,b}`) as an anchored regex over repo-relative paths. */
 export function globToRegExp(pattern: string): RegExp {
@@ -79,9 +90,11 @@ export function globToRegExp(pattern: string): RegExp {
     else if (char === '?') source += '[^/]';
     else if (char === '[') {
       const close = pattern.indexOf(']', index + 1);
-      if (close === -1) source += '\\[';
+      const characterClass = close === -1 ? null : `[${pattern.slice(index + 1, close).replace(/^!/, '^').replace(/\\/g, '\\\\')}]`;
+      // A bracket that isn't a valid class (`[tasks.playwright-install]`, a TOML table) matches itself, as in glob libraries.
+      if (characterClass === null || !isCharacterClass(characterClass)) source += '\\[';
       else {
-        source += `[${pattern.slice(index + 1, close).replace(/^!/, '^').replace(/\\/g, '\\\\')}]`;
+        source += characterClass;
         index = close;
       }
     } else if (char === '{') {
@@ -118,20 +131,6 @@ export function globOrderChange(pattern: RegExp, context: CertifyContext): strin
     return `in ${name} sorted order, match ${index + 1} is ${pathMap.inverse.get(before[index]!) ?? before[index]} in base (now ${before[index]}) but ${after[index]} in head (was ${was})`;
   }
   return null;
-}
-
-/** Longest common directory of a program's non-declaration files: TS 5's default rootDir. */
-function commonSourceDirectory(files: ReadonlySet<string>): string {
-  const directories = [...files].filter((file) => !/\.d\.[cm]?ts$/.test(file)).map((file) => path.posix.dirname(file).split('/'));
-  if (directories.length === 0) return '';
-  const first = directories[0]!;
-  let length = first.length;
-  for (const parts of directories) {
-    let shared = 0;
-    while (shared < length && parts[shared] === first[shared]) shared++;
-    length = shared;
-  }
-  return first.slice(0, length).join('/').replace(/^\.$/, '');
 }
 
 /** Every (outDir, rootDir) of the base's tsconfig programs: rootDir when set, else TS 6's and TS 5's defaults. */
@@ -306,6 +305,59 @@ interface Hit {
   glob?: boolean;
 }
 
+/** Head text files a path can be named from: not binary, not a submodule or symlink, outside node_modules. */
+export function headTextFiles(context: CertifyContext): string[] {
+  return [...context.head.entries.values()].filter((entry) => entry.mode !== '160000' && entry.mode !== '120000' && !entry.path.split('/').includes('node_modules')
+    && !binaryExtensions.has(path.posix.extname(entry.path).slice(1).toLowerCase())).map((entry) => entry.path);
+}
+
+export interface Naming {
+  file: string;
+  line: number;
+  token: string;
+  glob: boolean;
+}
+
+/**
+ * The places in `files` that name `target` with a path token or match it with a glob token, anchored like the old-path
+ * scan (the file's directory, each ancestor, the package root), outside comments; ignore files and documentation never
+ * load anything.
+ */
+export function namingsOf(context: CertifyContext, target: string, files: readonly string[]): Naming[] {
+  const namings: Naming[] = [];
+  const packageRoot = context.options.packageRoot;
+  context.head.prefetch(files);
+  for (const file of files) {
+    if (isDocumentation(file) || ignoreFiles.has(path.posix.basename(file))) continue;
+    const bytes = context.head.bytes(file);
+    if (!bytes || bytes.subarray(0, 8000).includes(0) || !isUtf8(bytes)) continue;
+    const text = bytes.toString('utf8');
+    if (!text.includes(path.posix.basename(target).replace(/^\./, '')) && !globCharacters.test(text)) continue;
+    const bases = [...new Set([...ancestors(file), packageRoot])];
+    const markers = commentMarkers(file);
+    let syntax: ReturnType<typeof syntaxOf> | undefined;
+    for (const match of text.matchAll(tokenPattern)) {
+      const token = match[0].replace(/[.]+$/, '');
+      if (token.length < 3) continue;
+      const glob = globCharacters.test(token);
+      // Like the old-path scan: a run of stars or brackets without a name in it (a banner, `********`) isn't a glob.
+      if (glob && !/[A-Za-z0-9]/.test(token.replace(/\{[^}]*\}|\[[^\]]*\]/g, ''))) continue;
+      const hit = glob
+        ? bases.some((base) => {
+          const anchored = path.posix.normalize(path.posix.join(base, token.replace(/^!/, '').replace(/^\.?\//, '')));
+          return !anchored.startsWith('..') && globToRegExp(anchored).test(target);
+        })
+        : readings(token, bases, packageRoot).includes(target);
+      if (!hit) continue;
+      const line = text.slice(0, match.index).split('\n').length;
+      syntax ??= syntaxOf(file, text);
+      if (syntax ? syntax.inComment(match.index) : markers !== null && markers.test(text.split('\n')[line - 1] ?? '')) continue;
+      namings.push({ file, line, token, glob });
+    }
+  }
+  return namings;
+}
+
 /**
  * Whether a config gates on coverage: Jest `coverageThreshold` / Vitest `coverage.thresholds` with a nonzero number,
  * or nyc/c8 `check-coverage`. Text-level, and it errs toward "gated" (any nonzero number inside the threshold object).
@@ -390,8 +442,7 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
   const namesBasePath = (candidate: string) => context.base.entries.has(candidate) || context.base.directories.has(candidate)
     || ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.json'].some((extension) => context.base.entries.has(candidate + extension));
 
-  const files = [...head.entries.values()].filter((entry) => entry.mode !== '160000' && entry.mode !== '120000' && !entry.path.split('/').includes('node_modules')
-    && !binaryExtensions.has(path.posix.extname(entry.path).slice(1).toLowerCase())).map((entry) => entry.path);
+  const files = headTextFiles(context);
   head.prefetch(files);
   for (const file of files) {
     const traceStart = performance.now();

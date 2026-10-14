@@ -28,7 +28,7 @@ const runnerNodeModules = {
   jest: process.env.AC_HUNT_JEST_NODE_MODULES ?? (fs.existsSync(path.join(jestNodeModules, 'jest')) ? jestNodeModules : undefined),
 };
 // AC_HUNT_CHECKS=K3a,K3c narrows the run to some checks (while developing one).
-const staticChecks = (process.env.AC_HUNT_CHECKS?.split(',') ?? ['K0', 'K1', 'K2', 'K3a', 'K3b', 'K3c', 'K4', 'K6']) as CheckId[];
+const staticChecks = (process.env.AC_HUNT_CHECKS?.split(',') ?? ['K0', 'K1', 'K2', 'K3a', 'K3b', 'K3c', 'K4', 'K6', 'K7']) as CheckId[];
 const storedDirectoryNames = new Map([['_node_modules', 'node_modules'], ['_dist', 'dist']]);
 
 const cases: HuntCase[] = fs.readdirSync(corpus, { withFileTypes: true })

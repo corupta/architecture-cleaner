@@ -54,6 +54,48 @@ describe('K3b under vitest (its own Vite resolver)', () => {
     expect(check.metrics.unresolvedTextChanged).toBe(1);
   });
 
+  it('resolves a vi.mock through parentheses and casts: the rewrite passes, the stale specifier fails', async () => {
+    const wrap = (files: Record<string, string>, file: string) => ({ ...files, [file]: files[file]!.replace("vi.mock('", "(vi.mock as any)('") });
+    const base = wrap(vitestRepo, 'src/services/billing.test.ts');
+    const head = wrap(vitestRepoMoved, 'src/modules/billing/billing.test.ts');
+    expect(head['src/modules/billing/billing.test.ts']).toContain("(vi.mock as any)('../../services/gateway.js')");
+    const passing = await k3b(base, head, localNodeModules);
+    expect(passing.violations).toEqual([]);
+    expect(passing.status).toBe('pass');
+    const stale = variant(head, {}, { 'src/modules/billing/billing.test.ts': [["(vi.mock as any)('../../services/gateway.js')", "(vi.mock as any)('./gateway.js')"]] });
+    const failing = await k3b(base, stale, localNodeModules);
+    expect(failing.status).toBe('fail');
+    expect(failing.violations).toEqual([{ file: 'src/modules/billing/billing.test.ts', detail: "site 2 './gateway.js' (mock): base src/services/gateway.ts, head unresolved; manual mock base src/services/__mocks__/gateway.ts, head unresolved" }]);
+  });
+
+  it('checks modules outside the project root that the tests load (a helper under test/, a setup file)', async () => {
+    // Vitest's root is src/; the tests load test/helpers/clock.ts and the setup file test/setup.ts from outside it.
+    const repo = {
+      'package.json': JSON.stringify({ name: 'outside-root', private: true, type: 'module', scripts: { test: 'vitest run' } }),
+      'vitest.config.mjs': "export default { test: { root: 'src', include: ['**/*.test.ts'], setupFiles: ['../test/setup.ts'] } };\n",
+      'src/lib/clock.ts': 'export const now = () => 1;\n',
+      'src/lib/zone.ts': "export const zone = 'UTC';\n",
+      'src/billing.test.ts': "import { expect, it } from 'vitest';\nimport { frozen } from '../test/helpers/clock.js';\n\nit('bills', () => expect(frozen()).toBe(1));\n",
+      'test/helpers/clock.ts': "import { now } from '../../src/lib/clock.js';\n\nexport const frozen = () => now();\n",
+      'test/setup.ts': "import { zone } from '../src/lib/zone.js';\n\nprocess.env.TZ = zone;\n",
+    };
+    const moves = { 'src/lib/clock.ts': 'src/time/clock.ts', 'src/lib/zone.ts': 'src/time/zone.ts' };
+    const moved = variant(repo, moves, {
+      'test/helpers/clock.ts': [["'../../src/lib/clock.js'", "'../../src/time/clock.js'"]],
+      'test/setup.ts': [["'../src/lib/zone.js'", "'../src/time/zone.js'"]],
+    });
+    const good = await k3b(repo, moved, localNodeModules);
+    expect(good.violations).toEqual([]);
+    expect(good.status).toBe('pass');
+    expect(good.metrics.outsideProjectRoot).toBe(2);
+    const stale = await k3b(repo, variant(repo, moves, { 'test/setup.ts': [["'../src/lib/zone.js'", "'../src/time/zone.js'"]] }), localNodeModules);
+    expect(stale.status).toBe('fail');
+    expect(stale.violations.map((violation) => violation.file)).toContain('test/helpers/clock.ts');
+    const staleSetup = await k3b(repo, variant(repo, moves, { 'test/helpers/clock.ts': [["'../../src/lib/clock.js'", "'../../src/time/clock.js'"]] }), localNodeModules);
+    expect(staleSetup.status).toBe('fail');
+    expect(staleSetup.violations.map((violation) => violation.file)).toContain('test/setup.ts');
+  });
+
   it('applied executor fixture vitest-mocks passes', async () => {
     const fixture = path.join(fixturesDirectory, 'vitest-mocks');
     const check = await k3b(filesOf(path.join(fixture, 'before')), filesOf(path.join(fixture, 'after')), localNodeModules);

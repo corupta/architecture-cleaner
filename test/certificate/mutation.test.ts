@@ -132,6 +132,17 @@ describe('operators on the jest-mocks fixture', () => {
   });
 });
 
+describe('M33: boundary-rule configs that are not proven inert', () => {
+  it('adds the config off the package root, executable or as a symlink: K1 kills each, and accepts the inert one', async () => {
+    const subject = open('paths-alias');
+    const mutants = built(operator('M33').candidates(subject));
+    expect([...new Set(mutants.map(({ candidate }) => candidate.variant))]).toEqual(['off-root', 'executable', 'symlink']);
+    for (const { edits } of mutants) expect(await certifyMutant(subject, edits, ['K1'])).toEqual({ K1: 'fail' });
+    const inert: TreeEdits = new Map([['.dependency-cruiser.json', { bytes: Buffer.from('{}\n'), mode: '100644' }]]);
+    expect(await certifyMutant(subject, inert, ['K1'])).toEqual({ K1: 'pass' });
+  });
+});
+
 describe('operators that move files', () => {
   it('moveWithImporters respells importers in their own form and the moved file\'s relative specifiers', () => {
     const subject = open('paths-alias');
@@ -269,7 +280,7 @@ describe('the harness', () => {
   });
 
   it('staged: runner checks run only on mutants the tree-only checks leave alive', async () => {
-    expect(stagesOf(['K0', 'K1', 'K2', 'K3a', 'K3b', 'K3c', 'K4', 'K6'], true)).toEqual([['K0', 'K1', 'K2', 'K3a', 'K4'], ['K3b', 'K3c', 'K6']]);
+    expect(stagesOf(['K0', 'K1', 'K2', 'K3a', 'K3b', 'K3c', 'K4', 'K6', 'K7'], true)).toEqual([['K0', 'K1', 'K2', 'K3a', 'K4', 'K7'], ['K3b', 'K3c', 'K6']]);
     expect(stagesOf(['K1', 'K2'], true)).toEqual([['K1', 'K2']]);
     const result = await runHarness({
       subjects: fixtureSubjects(undefined, ['paths-alias']),

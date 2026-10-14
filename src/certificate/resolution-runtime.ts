@@ -115,7 +115,7 @@ function sameToken(expected: Token, actual: Token): boolean {
 }
 
 /** Longest common directory of a program's non-declaration files: TypeScript's default rootDir before 6.0. */
-function commonSourceDirectory(files: ReadonlySet<string>): string {
+export function commonSourceDirectory(files: ReadonlySet<string>): string {
   const directories = [...files].filter((file) => !declarationPattern.test(file)).map((file) => path.posix.dirname(file).split('/'));
   const first = directories[0] ?? [];
   let length = first.length;
@@ -145,7 +145,7 @@ function throughAlias(specifier: string, options: ts.CompilerOptions): boolean {
 }
 
 /** A compiler option as a tsconfig and its relative `extends` set it (the analyzer's scopes force `noEmit`). */
-function configuredOption(tree: CommitTree, config: string, name: string, seen = new Set<string>()): unknown {
+export function configuredOption(tree: CommitTree, config: string, name: string, seen = new Set<string>()): unknown {
   const text = seen.has(config) ? undefined : tree.text(config);
   seen.add(config);
   if (text === undefined) return undefined;
@@ -548,24 +548,22 @@ export async function checkRuntimeResolution(context: CertifyContext) {
     aliasSitesHead: aliasSites.head,
     disagreements,
     violations: total,
-    skeletonMs,
-    probeMs,
   };
-  return { violations: reported, findings, metrics, modeled: modeled.length, failures, notInstalled };
+  return { violations: reported, findings, metrics, run: { skeletonMs, probeMs }, modeled: modeled.length, failures, notInstalled };
 }
 
 export const runtimeResolution: Check = {
   id: 'K3c',
   title,
   async run(context) {
-    const { violations, findings, metrics, modeled, failures, notInstalled } = await checkRuntimeResolution(context);
+    const { violations, findings, metrics, run, modeled, failures, notInstalled } = await checkRuntimeResolution(context);
     if (modeled === 0 && failures.length === 0 && notInstalled.length && violations.length === 0) {
       const reason = `no runtime could be modeled: ${notInstalled.join('; ')}`;
-      return result('K3c', title, { status: 'skip', summary: `skipped: ${reason}`, skipReason: reason, metrics, findings });
+      return result('K3c', title, { status: 'skip', summary: `skipped: ${reason}`, skipReason: reason, metrics, findings, run });
     }
     const summary = violations.length
       ? `${metrics.violations} violations under ${metrics.runtimes}`
       : `${metrics.comparedSites} runtime sites resolve to map(base) under ${metrics.modeled}${metrics.rewrittenByBuild ? ` (${metrics.rewrittenByBuild} rewritten by the build)` : ''}`;
-    return result('K3c', title, { summary, violations, findings, metrics });
+    return result('K3c', title, { summary, violations, findings, metrics, run });
   },
 };

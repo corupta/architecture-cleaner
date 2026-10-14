@@ -8,7 +8,8 @@ import { analyzeRepo } from '../analyzer/analyze.js';
 import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import type { Analysis } from '../analyzer/types.js';
 import { byteSpanConfinement } from './byte-spans.js';
-import { commitRepoFs, createEnvironment } from './commit-fs.js';
+import { commitRepoFs, createEnvironment, type Environment } from './commit-fs.js';
+import { emitLayout } from './emit-layout.js';
 import { envelope } from './envelope.js';
 import { type CommitTree, readCommitTree } from './git-tree.js';
 import { locationScan } from './location-scan.js';
@@ -22,7 +23,7 @@ import { spanViews } from './spans.js';
 import { testInventory } from './test-inventory.js';
 import type { Certificate, CertifyContext, CertifyOptions, Check, CheckResult, Side } from './types.js';
 
-export const checks: readonly Check[] = [envelope, moveSetIntegrity, byteSpanConfinement, typescriptResolution, runnerResolution, runtimeResolution, locationScan, testInventory, oracles];
+export const checks: readonly Check[] = [envelope, moveSetIntegrity, byteSpanConfinement, typescriptResolution, runnerResolution, runtimeResolution, locationScan, testInventory, emitLayout, oracles];
 
 const toolVersion = (() => {
   try {
@@ -46,6 +47,33 @@ const analyzerInputs = /(^|\/)(package|tsconfig[^/]*|jest[^/]*)\.json$|\.[cm]?[j
 export function prefetchAnalyzerInputs(tree: CommitTree): void {
   tree.prefetch([...tree.entries.keys()].filter((file) => !file.split('/').includes('node_modules')
     && (analyzerInputs.test(file) || !path.posix.basename(file).includes('.'))));
+}
+
+/**
+ * A fresh git worktree of `commit` at `directory` (hooks disabled), with the environment's node_modules linked in:
+ * where the target's own tools run.
+ */
+export function addWorktree(repo: string, commit: string, directory: string, environment: Pick<Environment, 'checkout' | 'linked'>): string {
+  fs.rmSync(directory, { recursive: true, force: true });
+  execFileSync('git', ['-C', repo, '-c', 'core.hooksPath=/dev/null', 'worktree', 'add', '--detach', '--force', directory, commit], { stdio: ['ignore', 'pipe', 'pipe'] });
+  for (const linked of environment.linked) {
+    const target = path.join(directory, linked, 'node_modules');
+    if (fs.existsSync(target)) continue;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.symlinkSync(path.join(environment.checkout, linked, 'node_modules'), target);
+  }
+  return directory;
+}
+
+export function removeWorktrees(repo: string, directories: string[]): void {
+  for (const directory of directories) {
+    try {
+      execFileSync('git', ['-C', repo, 'worktree', 'remove', '--force', directory], { stdio: 'ignore' });
+    } catch {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  }
+  if (directories.length) execFileSync('git', ['-C', repo, 'worktree', 'prune'], { stdio: 'ignore' });
 }
 
 export function createContext(options: CertifyOptions): { context: CertifyContext; cleanup(): void } {
@@ -80,30 +108,14 @@ export function createContext(options: CertifyOptions): { context: CertifyContex
     materialize(side) {
       const existing = worktrees.get(side);
       if (existing) return existing;
-      const directory = path.join(options.workDir, `worktree-${side}`);
-      const commit = side === 'base' ? base.commit : head.commit;
-      fs.rmSync(directory, { recursive: true, force: true });
-      execFileSync('git', ['-C', options.repo, '-c', 'core.hooksPath=/dev/null', 'worktree', 'add', '--detach', '--force', directory, commit], { stdio: ['ignore', 'pipe', 'pipe'] });
-      for (const linked of environment.linked) {
-        const target = path.join(directory, linked, 'node_modules');
-        if (fs.existsSync(target)) continue;
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        fs.symlinkSync(path.join(environment.checkout, linked, 'node_modules'), target);
-      }
+      const directory = addWorktree(options.repo, side === 'base' ? base.commit : head.commit, path.join(options.workDir, `worktree-${side}`), environment);
       worktrees.set(side, directory);
       return directory;
     },
     log: (message) => process.stderr.write(`[certify] ${message}\n`),
   };
   const cleanup = () => {
-    for (const directory of worktrees.values()) {
-      try {
-        execFileSync('git', ['-C', options.repo, 'worktree', 'remove', '--force', directory], { stdio: 'ignore' });
-      } catch {
-        fs.rmSync(directory, { recursive: true, force: true });
-      }
-    }
-    if (worktrees.size) execFileSync('git', ['-C', options.repo, 'worktree', 'prune'], { stdio: 'ignore' });
+    removeWorktrees(options.repo, [...worktrees.values()]);
     if (!options.keep) fs.rmSync(options.workDir, { recursive: true, force: true });
   };
   return { context, cleanup };
@@ -121,9 +133,24 @@ async function runCheck(check: Check, context: CertifyContext): Promise<CheckRes
   return { ...outcome, durationMs: Math.round(performance.now() - started) };
 }
 
+/**
+ * What the digest covers: the format, the tool, the two trees, the package root and profile, the pathMap, the checks,
+ * the verdict and scope. Commit ids, machine paths and facts about the execution (durations, `run`) are left out, and
+ * wherever a check's text names the repository, the environment or the work dir, a placeholder stands for it: the
+ * same trees certified again (after an amend or a rebase, in another work dir) give the same digest.
+ */
+export function canonicalForm(certificate: Omit<Certificate, 'digest'>): string {
+  const roots = ([[certificate.workDir, '{workDir}'], [certificate.environment.checkout, '{environment}'], [certificate.repo, '{repo}']] as const)
+    .filter(([root]) => root.length > 1).toSorted(([a], [b]) => b.length - a.length);
+  const anonymize = (text: string) => roots.reduce((current, [root, placeholder]) => current.replaceAll(root, placeholder), text);
+  const { format, tool, baseTree, headTree, packageRoot, profile, pathMap, verdict, scope, residualRisk } = certificate;
+  const checks = certificate.checks.map(({ durationMs: _durationMs, run: _run, ...check }) => check);
+  const canonical = { format, tool, baseTree, headTree, packageRoot, profile, pathMap, checks, verdict, scope, residualRisk };
+  return JSON.stringify(canonical, (_key, value: unknown) => (typeof value === 'string' ? anonymize(value) : value));
+}
+
 export function digestOf(certificate: Omit<Certificate, 'digest'>): string {
-  const canonical = JSON.stringify({ ...certificate, checks: certificate.checks.map(({ durationMs: _durationMs, ...check }) => check) });
-  return `sha256:${createHash('sha256').update(canonical).digest('hex')}`;
+  return `sha256:${createHash('sha256').update(canonicalForm(certificate)).digest('hex')}`;
 }
 
 export async function certify(options: CertifyOptions): Promise<Certificate> {
@@ -138,13 +165,17 @@ export async function certify(options: CertifyOptions): Promise<Certificate> {
     const editedInPlace = [...pathMap.forward].filter(([from, to]) => from === to && base.entries.get(from)!.oid !== head.entries.get(to)!.oid).length;
     const k8 = results.find((check) => check.id === 'K8');
     const certificate: Omit<Certificate, 'digest'> = {
-      format: 'ac-certificate/1',
+      format: 'ac-certificate/2',
       tool: { name: 'architecture-cleaner', version: toolVersion },
       repo: path.resolve(options.repo),
       base: base.commit,
       head: head.commit,
+      baseTree: base.tree,
+      headTree: head.tree,
       packageRoot: options.packageRoot,
+      profile: options.profile?.name ?? null,
       environment: { checkout: context.environment.checkout, node: process.version, linkedNodeModules: context.environment.linked },
+      workDir: path.resolve(options.workDir),
       pathMap: {
         moves: pathMap.moves.size,
         unchanged: pathMap.forward.size - pathMap.moves.size - editedInPlace,

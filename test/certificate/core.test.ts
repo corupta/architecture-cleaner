@@ -47,16 +47,16 @@ function twoCommits(base: Tree, head: Tree, { force = false } = {}): { root: str
   return { root, base: baseCommit, head: git(root, 'rev-parse', 'HEAD') };
 }
 
-function contextFor(base: Tree, head: Tree, force = false): { context: CertifyContext; cleanup(): void } {
+function contextFor(base: Tree, head: Tree, { force = false, packageRoot = '' } = {}): { context: CertifyContext; cleanup(): void } {
   const repo = twoCommits(base, head, { force });
   return createContext({
-    repo: repo.root, base: repo.base, head: repo.head, packageRoot: '', environment: repo.root, profile: null, oracles: false,
+    repo: repo.root, base: repo.base, head: repo.head, packageRoot, environment: repo.root, profile: null, oracles: false,
     workDir: fs.mkdtempSync(path.join(os.tmpdir(), 'ac-core-work-')), keep: false,
   });
 }
 
-function withContext<T>(base: Tree, head: Tree, body: (context: CertifyContext) => T, force = false): T {
-  const { context, cleanup } = contextFor(base, head, force);
+function withContext<T>(base: Tree, head: Tree, body: (context: CertifyContext) => T, options: { force?: boolean; packageRoot?: string } = {}): T {
+  const { context, cleanup } = contextFor(base, head, options);
   try {
     return body(context);
   } finally {
@@ -115,10 +115,16 @@ describe('pathMap inference', () => {
     withContext(
       { 'src/users/index.ts': barrel, 'src/users/service.ts': 'export const users = 1;\n', 'src/teams/index.ts': barrel, 'src/teams/service.ts': 'export const teams = 1;\n' },
       { 'src/modules/account/index.ts': barrel, 'src/modules/account/service.ts': 'export const users = 1;\n', 'src/modules/group/index.ts': barrel, 'src/modules/group/service.ts': 'export const teams = 1;\n' },
-      ({ pathMap }) => {
+      (context) => {
+        const { pathMap } = context;
         expect(pathMap.map('src/users/index.ts')).toBe('src/modules/account/index.ts');
         expect(pathMap.map('src/teams/index.ts')).toBe('src/modules/group/index.ts');
         expect(pathMap.ambiguous).toHaveLength(1);
+        // K1 records each tie-break with the destinations it could have had.
+        expect(checkMoveSet(context).findings).toEqual([
+          { kind: 'ambiguous-match', file: 'src/teams/index.ts', detail: "paired with src/modules/group/index.ts among 2 identical candidates (by where its directory's other files went, then name and path similarity); the alternatives were src/modules/account/index.ts" },
+          { kind: 'ambiguous-match', file: 'src/users/index.ts', detail: "paired with src/modules/account/index.ts among 2 identical candidates (by where its directory's other files went, then name and path similarity); the alternatives were src/modules/group/index.ts" },
+        ]);
       },
     );
   });
@@ -246,7 +252,7 @@ describe('K1 move-set integrity', () => {
     const base = { '.gitignore': 'generated/\n', 'src/a.ts': 'export const a = 1;\n' };
     const head = { '.gitignore': 'generated/\n', 'src/generated/a.ts': 'export const a = 1;\n' };
     expect(violations(base, head)).toEqual(['deleted: no file in head has its content (modulo specifiers)']);
-    expect(withContext(base, head, (context) => checkMoveSet(context).violations.map((violation) => violation.detail), true))
+    expect(withContext(base, head, (context) => checkMoveSet(context).violations.map((violation) => violation.detail), { force: true }))
       .toEqual(['.gitignore status changes: not ignored -> ignored at src/generated/a.ts']);
   });
 
@@ -299,6 +305,55 @@ describe('K1 move-set integrity', () => {
   });
 });
 
+describe('K1 inert tool-config additions', () => {
+  const base: Tree = {
+    'package.json': JSON.stringify({ name: 'app', version: '1.0.0', files: ['dist'], scripts: { build: 'tsc', test: 'vitest run' } }),
+    'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', strict: true, resolveJsonModule: true, outDir: 'dist' }, include: ['src'] }),
+    'vitest.config.mjs': "export default { test: { include: ['src/**/*.test.ts'] } };\n",
+    'src/a.ts': 'export const a = 1;\n',
+  };
+  const configs = { '.dependency-cruiser.json': '{ "forbidden": [] }\n', '.dependency-cruiser-known-violations.json': '[]\n' };
+  const k1 = (before: Tree, after: Tree, packageRoot = '') => withContext(before, after, checkMoveSet, { packageRoot });
+  const details = (outcome: ReturnType<typeof checkMoveSet>) => outcome.violations.map((violation) => `${violation.file}: ${violation.detail}`);
+
+  it('accepts the closed list of boundary-rule configs at the package root when nothing can load them, each a finding', () => {
+    const outcome = k1(base, { ...base, ...configs });
+    expect(outcome.violations).toEqual([]);
+    expect(outcome.findings.map((finding) => [finding.kind, finding.file])).toEqual([['tool-config-added', '.dependency-cruiser-known-violations.json'], ['tool-config-added', '.dependency-cruiser.json']]);
+    expect(outcome.metrics).toMatchObject({ added: 2, inertAdditions: 2 });
+    const nested = { ...base, 'server/package.json': JSON.stringify({ name: 'server', private: true }), 'server/src/b.ts': 'export const b = 1;\n' };
+    expect(k1(nested, { ...nested, 'server/.dependency-cruiser.json': '{}\n' }, 'server').violations).toEqual([]);
+  });
+
+  it('rejects any other addition, and a listed config elsewhere than the package root or not a regular file', () => {
+    expect(details(k1(base, { ...base, '.eslintrc.json': '{}\n' }))).toEqual(['.eslintrc.json: added: no file in base has its content (modulo specifiers)']);
+    expect(details(k1(base, { ...base, 'src/.dependency-cruiser.json': '{}\n' })))
+      .toEqual(['src/.dependency-cruiser.json: added: no file in base has its content (modulo specifiers); a tool config, but not proven inert: not at the package root (the repo root)/']);
+    expect(details(k1(base, { ...base, '.dependency-cruiser.json': { link: 'tsconfig.json' } }))[0]).toContain('not proven inert: mode 120000, not a regular file');
+  });
+
+  it('rejects a config something can load: a tsconfig program, a reference, npm pack, a glob or a path in a config, the tool itself', () => {
+    const problem = (before: Tree, after: Tree = before) => details(k1(before, { ...after, '.dependency-cruiser.json': '{}\n' }))[0]?.replace(/^.*not proven inert: /, '');
+    expect(problem({ ...base, 'tsconfig.json': JSON.stringify({ compilerOptions: { resolveJsonModule: true }, include: ['src'], files: ['.dependency-cruiser.json'] }) })).toBe('in the program of tsconfig.json');
+    // TypeScript's own wildcards skip dotfiles: a broad include doesn't take the config.
+    expect(problem({ ...base, 'tsconfig.json': JSON.stringify({ compilerOptions: { resolveJsonModule: true }, include: ['src', '*.json', '**/*'] }) })).toBeUndefined();
+    expect(problem({ ...base, 'src/rules.ts': "import rules from '../.dependency-cruiser.json';\nexport { rules };\n" })).toBe("loaded by src/rules.ts ('../.dependency-cruiser.json')");
+    expect(problem({ ...base, 'package.json': JSON.stringify({ name: 'app', version: '1.0.0' }) })).toBe('packed by npm with package.json');
+    expect(problem({ ...base, 'package.json': JSON.stringify({ name: 'app', private: true }) })).toBeUndefined();
+    expect(problem({ ...base, 'vitest.config.mjs': "export default { test: { include: ['**/*.json'] } };\n" })).toBe("matched by the glob '**/*.json' in vitest.config.mjs (line 1)");
+    expect(problem({ ...base, 'ci/lint.sh': 'npx eslint -c ../.dependency-cruiser.json\n' })).toBe("named as '../.dependency-cruiser.json' in ci/lint.sh (line 1)");
+    expect(problem({ ...base, '.github/workflows/ci.yml': 'jobs:\n  deps:\n    steps:\n      - run: npx depcruise src\n' })).toBe('.github/workflows/ci.yml (line 4) runs dependency-cruiser, which loads it by convention');
+    // Documentation may mention both; comments and banners load nothing (immich's codeql workflow: `# ******** NOTE ********`).
+    expect(problem({ ...base, 'README.md': 'Run `npx depcruise src` with .dependency-cruiser.json\n' })).toBeUndefined();
+    expect(problem({ ...base, '.github/workflows/codeql.yml': '# ******** NOTE ********\n# include: **/*.json\nname: CodeQL\n', 'mise.toml': '[tasks.install]\nrun = "pnpm i"\n' })).toBeUndefined();
+    // A CI path filter decides which jobs a change triggers (a residual risk every certificate lists): noted, not blocking.
+    const filtered = { ...base, '.github/workflows/ci.yml': "on:\n  pull_request:\n    paths: ['*.json', 'src/**']\n" };
+    const outcome = k1(filtered, { ...filtered, '.dependency-cruiser.json': '{}\n' });
+    expect(outcome.violations).toEqual([]);
+    expect(outcome.findings[0]!.detail).toContain("CI path filters match it, so it triggers their jobs: '*.json' in .github/workflows/ci.yml (line 3)");
+  });
+});
+
 describe('K2 byte-span confinement', () => {
   const violations = (base: Tree, head: Tree) => withContext(base, head, (context) => checkByteSpans(context).violations.map((violation) => violation.detail));
   const importer = (specifier: string, extra = '') => `${extra}import { b } from '${specifier}';\nexport const a = b;\n`;
@@ -335,22 +390,47 @@ describe('K2 byte-span confinement', () => {
     expect(violations({ 'src/a.ts': genuine('./b'), 'src/b.ts': b }, { 'src/a.ts': genuine('./lib/b'), 'src/lib/b.ts': b })).toEqual([]);
   });
 
-  it('rejects a loader call the span extractor does not read, in a moved file or reaching a moved file from an unmoved one', () => {
-    const user = (specifier: string) => `const config = (require)('${specifier}').config;\nconst other = require(('${specifier}') as string).config;\nexport const user = () => [config, other];\n`;
+  it('reads loader calls through parentheses and casts: their specifiers are spans, so a rewrite of them is confined', () => {
+    const user = (specifier: string) => [
+      `const config = (require)('${specifier}').config;`,
+      `const other = (require as any)('${specifier}').config;`,
+      `const third = (<any>require)('${specifier}').config;`,
+      `const fourth = require(('${specifier}') as string).config;`,
+      `jest.mock('${specifier}');`,
+      `(jest.mock)('${specifier}');`,
+      `(jest.requireActual as any)('${specifier}');`,
+      `(<any>vi.importActual)('${specifier}');`,
+      'export const user = () => [config, other, third, fourth];',
+      '',
+    ].join('\n');
     const config = 'export const config = 1;\n';
-    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/modules/user/user.ts': user('../config'), 'src/config.ts': config })).toEqual([
-      "line 1: (require)('../config') loads a module in a form the span extractor doesn't read, so neither K2 nor K3 sees its specifier",
-      "line 2: require(('../config') as string) loads a module in a form the span extractor doesn't read, so neither K2 nor K3 sees its specifier",
-    ]);
-    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/services/user.ts': user('../config'), 'src/lib/config.ts': config })).toEqual([
-      "line 1: (require)('../config') may load moved src/config.ts (now src/lib/config.ts) in a form the span extractor doesn't read, so its specifier can't follow the move",
-      "line 2: require(('../config') as string) may load moved src/config.ts (now src/lib/config.ts) in a form the span extractor doesn't read, so its specifier can't follow the move",
-    ]);
-    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config, 'src/x.ts': config }, { 'src/services/user.ts': user('../config'), 'src/config.ts': config, 'src/lib/x.ts': config })).toEqual([]);
+    const moved = withContext({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/modules/user/user.ts': user('../../config'), 'src/config.ts': config }, checkByteSpans);
+    expect(moved).toEqual({ violations: [], metrics: { comparedFiles: 1, editedFiles: 1, changedSpans: 8 } });
+    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/services/user.ts': user('../lib/config'), 'src/lib/config.ts': config })).toEqual([]);
+    // Bytes outside the spans still may not change: the wrappers are part of the file, not of the specifier.
+    expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/services/user.ts': user('../lib/config').replace('(require as any)', 'require'), 'src/lib/config.ts': config }))
+      .toEqual([expect.stringMatching(/^bytes outside specifier spans changed, line 2: /)]);
+  });
+
+  it('reads extensionless scripts run by tsx, bun or deno like node ones: a specifier rewrite is confined, any other edit is not', () => {
+    const script = (specifier: string, extra = '') => `#!/usr/bin/env -S npx tsx\nimport { user } from '${specifier}';\nconsole.log(user${extra});\n`;
+    const user = 'export const user = 1;\n';
+    expect(violations({ 'scripts/seed': script('../src/services/user'), 'src/services/user.ts': user }, { 'scripts/seed': script('../src/modules/user/user'), 'src/modules/user/user.ts': user })).toEqual([]);
+    expect(violations({ 'scripts/seed': script('../src/services/user'), 'src/services/user.ts': user }, { 'scripts/seed': script('../src/modules/user/user', ', 2'), 'src/modules/user/user.ts': user }))
+      .toEqual([expect.stringMatching(/^bytes outside specifier spans changed, line 3: /)]);
+    const zx = (specifier: string) => `#!/usr/bin/env zx\nimport { user } from '${specifier}';\n`;
+    expect(violations({ 'scripts/seed': zx('../src/services/user'), 'src/services/user.ts': user }, { 'scripts/seed': zx('../src/modules/user/user'), 'src/modules/user/user.ts': user }))
+      .toEqual(['content changed in a file without specifier spans (only module specifiers may change)']);
+  });
+
+  it('rejects a loader call the span extractor does not read, in a moved file or reaching a moved file from an unmoved one', () => {
     // A URL without ./ still resolves against the file; one with a scheme doesn't.
     const urls = "export const data = new URL('data.json', import.meta.url);\nexport const home = new URL('https://x.test/', import.meta.url);\n";
     expect(violations({ 'src/services/urls.ts': urls }, { 'src/modules/urls.ts': urls }))
       .toEqual(["line 1: new URL('data.json', import.meta.url) loads a module in a form the span extractor doesn't read, so neither K2 nor K3 sees its specifier"]);
+    const reader = "export const data = new URL('data.json', import.meta.url);\n";
+    expect(violations({ 'src/services/reader.ts': reader, 'src/services/data.json': '{}' }, { 'src/services/reader.ts': reader, 'src/lib/data.json': '{}' }))
+      .toEqual(["line 1: new URL('data.json', import.meta.url) may load moved src/services/data.json (now src/lib/data.json) in a form the span extractor doesn't read, so its specifier can't follow the move"]);
   });
 
   it('rejects a component file the span extractor does not read that imports a moved module, or that moves with relative imports', () => {

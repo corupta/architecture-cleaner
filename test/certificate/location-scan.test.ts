@@ -354,4 +354,9 @@ describe('globToRegExp', () => {
     expect(globToRegExp('src/{a,b}/?.ts').test('src/b/x.ts')).toBe(true);
     expect(globToRegExp('src/[!x]*.ts').test('src/x1.ts')).toBe(false);
   });
+
+  it('reads a bracket that is no valid class as itself (a TOML table in mise.toml), instead of throwing', () => {
+    expect(globToRegExp('e2e/[tasks.playwright-install]').test('e2e/[tasks.playwright-install]')).toBe(true);
+    expect(globToRegExp('e2e/[tasks.playwright-install]').test('e2e/t')).toBe(false);
+  });
 });

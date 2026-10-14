@@ -5,10 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createContext } from '../../src/certificate/certify.js';
-import { compareDiagnostics, compareTestReports, mapPathTokens, parseTestReport, parseTscDiagnostics, totalsOf } from '../../src/certificate/oracle-reports.js';
+import {
+  compareDiagnostics, compareTestReports, effectiveExit, excludeTests, flakyTests, mapPathTokens, parseTestReport, parseTscDiagnostics, selectTests, totalsOf,
+} from '../../src/certificate/oracle-reports.js';
 import { oracles } from '../../src/certificate/oracles.js';
 import type { OracleSpec, Profile } from '../../src/certificate/profile.js';
+import type { QuarantineEntry } from '../../src/certificate/baseline.js';
 import type { CertifyContext, CheckResult } from '../../src/certificate/types.js';
+import { before, moved, spec, typecheck, unit } from './oracle-tools.js';
 import { type Tree, twoCommits } from './two-commit-repo.js';
 
 const root = '/work/tree';
@@ -100,6 +104,44 @@ describe('test reports', () => {
   });
 });
 
+describe('flaky and excluded tests', () => {
+  const report = (files: [string, [string, string][], string?][], fields: Record<string, unknown> = {}) =>
+    parseTestReport('jest', { success: true, snapshot: snapshot(), ...fields, testResults: files.map(([name, cases, message]) => jestFile(name, cases.map(([title, status]) => [['S'], title, status]), message)) }, root);
+
+  it('finds cases whose status changes between runs, and files whose shape does', () => {
+    const first = report([['a.test.ts', [['x', 'passed'], ['y', 'passed']]], ['b.test.ts', [['z', 'passed']]], ['c.test.ts', [['w', 'passed']]]]);
+    const second = report([['a.test.ts', [['x', 'passed'], ['y', 'failed']]], ['b.test.ts', [], 'Error: boom'], ['c.test.ts', [['w', 'passed']]]]);
+    expect(flakyTests([first, second])).toEqual([
+      { file: 'a.test.ts', name: 'S > y', outcomes: ['passed', 'failed'] },
+      { file: 'b.test.ts', outcomes: ['1 cases', 'failed to load'] },
+    ]);
+    expect(flakyTests([first])).toEqual([]);
+    expect(flakyTests([first, first])).toEqual([]);
+  });
+
+  it('leaves out whole files and named cases, and taints a report that loses a failure', () => {
+    const failing = report([['a.test.ts', [['x', 'passed'], ['y', 'failed']]], ['b.test.ts', [['z', 'passed']]]], { success: false });
+    const { report: withoutCase, removed } = excludeTests(failing, selectTests([{ file: 'a.test.ts', name: 'S > y' }]));
+    expect(removed).toBe(1);
+    expect(withoutCase.files.get('a.test.ts')).toMatchObject({ status: 'passed', cases: [expect.objectContaining({ fullName: 'S > x' })] });
+    expect(withoutCase.tainted).toBe(true);
+    const withoutFile = excludeTests(failing, selectTests([{ file: 'b.test.ts' }]));
+    expect([...withoutFile.report.files.keys()]).toEqual(['a.test.ts']);
+    expect(withoutFile.report.tainted).toBeUndefined();
+    // A tainted side's run-level outcome isn't compared; per-case differences still are.
+    const passing = report([['a.test.ts', [['x', 'passed']]], ['b.test.ts', [['z', 'passed']]]]);
+    expect(compareTestReports(passing, withoutCase, identity)).toMatchObject({ differences: [], snapshotProblems: [] });
+  });
+
+  it('counts a runner exit as 0 only when excluded tests are the only failures', () => {
+    const failing = report([['a.test.ts', [['x', 'passed'], ['y', 'failed']]]]);
+    expect(effectiveExit(1, failing, selectTests([{ file: 'a.test.ts', name: 'S > y' }]))).toBe(0);
+    expect(effectiveExit(1, failing, selectTests([{ file: 'a.test.ts', name: 'S > x' }]))).toBe(1);
+    expect(effectiveExit(1, report([['a.test.ts', [['x', 'passed']]]]), selectTests([{ file: 'a.test.ts', name: 'S > x' }]))).toBe(1);
+    expect(effectiveExit(1, report([['a.test.ts', [], 'Error']]), selectTests([{ file: 'a.test.ts' }]))).toBe(0);
+  });
+});
+
 describe('tsc diagnostics', () => {
   const baseOutput = [
     'src/old/user.ts(3,7): error TS2322: Type \'string\' is not assignable to type \'number\'.',
@@ -167,15 +209,19 @@ function commits(base: Tree, head: Tree) {
 interface CertifyOptions {
   enabled?: boolean;
   offline?: boolean;
+  quarantine?: QuarantineEntry[];
+  flakyRetries?: number;
+  env?: Record<string, string>;
   /** Runs before K8, like an earlier check that uses the worktrees. */
   earlier?: (context: CertifyContext) => void;
 }
 
-async function certifyRepo(repo: ReturnType<typeof twoCommits>, oracleSpecs: OracleSpec[], { enabled = true, offline = false, earlier }: CertifyOptions = {}): Promise<CheckResult> {
-  const profile: Profile = { name: 'fake', packageRoot: '', node: 'system', offline, oracles: oracleSpecs };
+async function certifyRepo(repo: ReturnType<typeof twoCommits>, oracleSpecs: OracleSpec[], { enabled = true, offline = false, earlier, quarantine, flakyRetries, env }: CertifyOptions = {}): Promise<CheckResult> {
+  const profile: Profile = { name: 'fake', packageRoot: '', node: 'system', offline, oracles: oracleSpecs, ...(env ? { env } : {}) };
   const { context, cleanup } = createContext({
     repo: repo.root, base: repo.base, head: repo.head, packageRoot: '', environment: repo.root, profile, oracles: enabled,
     workDir: fs.mkdtempSync(path.join(os.tmpdir(), 'ac-oracles-work-')), keep: false,
+    ...(quarantine ? { quarantine } : {}), ...(flakyRetries !== undefined ? { flakyRetries } : {}),
   });
   try {
     earlier?.(context);
@@ -187,46 +233,6 @@ async function certifyRepo(repo: ReturnType<typeof twoCommits>, oracleSpecs: Ora
 
 const certifyK8 = (base: Tree, head: Tree, oracleSpecs: OracleSpec[], options: CertifyOptions = {}) => certifyRepo(commits(base, head), oracleSpecs, options);
 
-// A typecheck stand-in: every src file containing 'ERROR' yields a tsc-format diagnostic; exits 2 if any.
-const checker = `import fs from 'node:fs';
-const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? walk(directory + '/' + entry.name) : [directory + '/' + entry.name]);
-const errors = walk('src').filter((file) => fs.readFileSync(file, 'utf8').includes('ERROR'));
-for (const file of errors) console.log(file + "(1,1): error TS9999: '" + file.replace(/\\.ts$/, '') + "' says ERROR.");
-process.exit(errors.length ? 2 : 0);
-`;
-
-// A test-runner stand-in writing a jest-shaped report: each tests/**/*.cases.json lists [title, status] pairs; one
-// with a sibling <file>.broken fails to load.
-const runner = `import fs from 'node:fs';
-import path from 'node:path';
-const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? walk(directory + '/' + entry.name) : [directory + '/' + entry.name]);
-const testResults = walk('tests').filter((file) => file.endsWith('.cases.json')).map((file) => {
-  const text = fs.readFileSync(file, 'utf8');
-  if (fs.existsSync(file + '.broken')) return { name: path.resolve(file), status: 'failed', message: 'SyntaxError', assertionResults: [] };
-  const cases = JSON.parse(text);
-  return { name: path.resolve(file), status: cases.some(([, status]) => status === 'failed') ? 'failed' : 'passed', message: '',
-    assertionResults: cases.map(([title, status]) => ({ ancestorTitles: ['suite'], title, fullName: 'suite ' + title, status })) };
-});
-const failed = testResults.some((result) => result.status === 'failed');
-fs.writeFileSync(process.argv[2], JSON.stringify({ success: !failed, snapshot: { added: 0, filesAdded: 0, updated: 0, unchecked: 0 }, testResults }));
-process.exit(failed ? 1 : 0);
-`;
-
-// An artifact producer: writes the sorted list of exported names to <out>.
-const producer = `import fs from 'node:fs';
-const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? walk(directory + '/' + entry.name) : [directory + '/' + entry.name]);
-const names = walk(process.argv[3]).flatMap((file) => [...fs.readFileSync(file, 'utf8').matchAll(/export const (\\w+)/g)].map((match) => match[1])).sort();
-fs.mkdirSync(process.argv[2].replace(/\\/[^/]*$/, ''), { recursive: true });
-fs.writeFileSync(process.argv[2], names.join('\\n') + '\\n');
-`;
-
-const typecheck: OracleSpec = { name: 'typecheck', kind: 'exit-zero', cwd: '', command: ['node', 'tools/check.mjs'], diagnostics: 'tsc' };
-const unit: OracleSpec = { name: 'unit', kind: 'tests', format: 'jest', cwd: '', command: ['node', 'tools/run-tests.mjs', '{artifacts}/report.json'], report: '{artifacts}/report.json' };
-const spec: OracleSpec = {
-  name: 'spec', kind: 'artifact-identical', cwd: '{scratch}/run', command: ['node', '{worktree}/tools/produce.mjs', '{scratch}/out/names.txt', '{worktree}/src'],
-  artifact: '{scratch}/out/names.txt', reference: 'names.txt',
-};
-
 describe('K8 on tiny repos', () => {
   let cache: string;
   beforeEach(() => {
@@ -237,22 +243,6 @@ describe('K8 on tiny repos', () => {
     delete process.env.AC_ORACLE_CACHE;
     fs.rmSync(cache, { recursive: true, force: true });
   });
-
-  const tools = { 'tools/check.mjs': checker, 'tools/run-tests.mjs': runner, 'tools/produce.mjs': producer };
-  const before: Tree = {
-    ...tools,
-    'src/old/user.ts': 'export const user = 1;\n',
-    'src/main.ts': "import { user } from './old/user';\nexport const main = user;\n",
-    'tests/old/user.cases.json': '[["one", "passed"], ["one", "passed"], ["two", "skipped"]]',
-    'names.txt': 'main\nuser\n',
-  };
-  const moved: Tree = {
-    ...tools,
-    'src/users/user.ts': 'export const user = 1;\n',
-    'src/main.ts': "import { user } from './users/user';\nexport const main = user;\n",
-    'tests/users/user.cases.json': '[["one", "passed"], ["one", "passed"], ["two", "skipped"]]',
-    'names.txt': 'main\nuser\n',
-  };
 
   it('skips unless requested, and when the environment lacks a prerequisite', async () => {
     expect((await certifyK8(before, moved, [typecheck], { enabled: false })).status).toBe('skip');
@@ -267,8 +257,8 @@ describe('K8 on tiny repos', () => {
     expect(check.status).toBe('pass');
     expect(check.summary).toBe('typecheck exit 0; unit 1/1 files and 3/3 cases equal to base (head: 1/1 files load, 2 passed, 0 failed, 1 skipped); spec byte-identical to the base\'s names.txt (10 bytes)');
     expect(check.metrics['spec.comparedWith']).toBe('base tree blob names.txt');
-    expect(check.metrics['spec.base.cached']).toBeUndefined();
-    expect(check.metrics['unit.base.cached']).toBe(false);
+    expect(check.run?.['spec.base.cached']).toBeUndefined();
+    expect(check.run?.['unit.base.cached']).toBe(false);
     expect(check.metrics.hooksBypassed).toContain('HUSKY=0');
   });
 
@@ -298,7 +288,7 @@ describe('K8 on tiny repos', () => {
     );
     expect(check.status).toBe('fail');
     expect(check.violations.map((violation) => [violation.file, violation.detail])).toEqual([
-      [undefined, 'unit: the runner exited 1 on head, 0 on base'],
+      [undefined, 'unit: the runner exited 1 on head (3 runs), 0 on base (3 runs)'],
       ['tests/gone.cases.json', 'unit: test file ran on base (1 cases) but not on head'],
       ['tests/other.cases.json', 'unit: 2 differences: file status passed → failed; passed → failed: suite three'],
       ['tests/users/user.cases.json', 'unit: test file (base tests/old/user.cases.json) failed to load on head (base: 3 cases)'],
@@ -309,11 +299,11 @@ describe('K8 on tiny repos', () => {
   it('reuses the cached base run on the next certification of the same base', async () => {
     const repo = commits(before, moved);
     const first = await certifyRepo(repo, [unit]);
-    expect(first.metrics['unit.base.cached']).toBe(false);
+    expect(first.run?.['unit.base.cached']).toBe(false);
     expect(fs.readdirSync(cache)).toHaveLength(1);
     expect(fs.existsSync(path.join(cache, fs.readdirSync(cache)[0]!, 'report.json'))).toBe(true);
     const second = await certifyRepo(repo, [unit]);
-    expect(second.metrics['unit.base.cached']).toBe(true);
+    expect(second.run?.['unit.base.cached']).toBe(true);
     expect(second.status).toBe('pass');
     expect(second.summary).toBe(first.summary);
   });
@@ -388,7 +378,7 @@ describe('K8 on tiny repos', () => {
     const check = await certifyK8(before, moved, [clean, dirty, { ...clean, name: 'clean-again' }], { earlier });
     expect(check.violations).toEqual([]);
     expect(check.status).toBe('pass');
-    expect(check.metrics.leftoversRemoved).toBe(2);
+    expect(check.run?.leftoversRemoved).toBe(2);
     expect(check.findings).toEqual([
       expect.objectContaining({ kind: 'worktree-modified', detail: 'the dirty oracle modified tracked files of the head worktree (restored before the clean-again oracle): names.txt' }),
     ]);
@@ -400,5 +390,78 @@ describe('K8 on tiny repos', () => {
     expect(check.status).toBe('pass');
     expect(check.metrics['dial.head.networkAttempts']).toBe(1);
     expect(check.findings).toEqual([expect.objectContaining({ kind: 'network-attempt' })]);
+  });
+
+  describe('quarantined and flaky tests', () => {
+    let state: string;
+    beforeEach(() => {
+      state = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-flaky-state-'));
+    });
+    afterEach(() => fs.rmSync(state, { recursive: true, force: true }));
+    const casesOf = (cases: unknown[]) => JSON.stringify(cases);
+    const flakyTwo = { head: ['failed', 'passed'], base: ['skipped'] };
+
+    it('leaves quarantined tests out on both sides (base paths mapped to head) and records each', async () => {
+      // The same file on both sides (a pure move); its case 'two' fails on head only.
+      const cases = casesOf([['one', 'passed'], ['one', 'passed'], ['two', { head: ['failed'], base: ['skipped'] }]]);
+      const base = { ...before, 'tests/old/user.cases.json': cases };
+      const head = { ...moved, 'tests/users/user.cases.json': cases };
+      const env = { FLAKY_STATE: state };
+      expect((await certifyK8(base, head, [unit], { env })).status).toBe('fail');
+      const quarantine = [{ file: 'tests/old/user.cases.json', name: 'suite > two', reason: 'flaky in the baseline' }];
+      const check = await certifyK8(base, head, [unit], { quarantine, env });
+      expect(check.violations).toEqual([]);
+      expect(check.status).toBe('pass');
+      expect(check.findings).toEqual([{ kind: 'quarantined-test', file: 'tests/users/user.cases.json', detail: "unit: 'suite > two' left out of the comparison on both sides: flaky in the baseline" }]);
+      expect(check.summary).toContain('1/1 files and 2/2 cases equal to base (1 cases left out: 0 flaky, 1 quarantined)');
+    });
+
+    it('leaves a whole quarantined file out, even one that no longer loads', async () => {
+      const head = { ...moved, 'tests/users/user.cases.json.broken': '', 'tests/other.cases.json': casesOf([['three', 'passed']]) };
+      const quarantine = [{ file: 'tests/old/user.cases.json', reason: 'network-dependent' }];
+      const check = await certifyK8({ ...before, 'tests/other.cases.json': casesOf([['three', 'passed']]) }, head, [unit], { quarantine });
+      expect(check.violations).toEqual([]);
+      expect(check.findings).toEqual([expect.objectContaining({ kind: 'quarantined-test', detail: 'unit: every test in the file left out of the comparison on both sides: network-dependent' })]);
+    });
+
+    it('re-runs both commits on a mismatch and reports a case whose outcome changes between runs as flaky, not a violation', async () => {
+      const flaky = (tree: Tree, file: string) => ({ ...tree, [file]: casesOf([['one', 'passed'], ['one', 'passed'], ['two', flakyTwo]]) });
+      const check = await certifyK8(flaky(before, 'tests/old/user.cases.json'), flaky(moved, 'tests/users/user.cases.json'), [unit], { env: { FLAKY_STATE: state } });
+      expect(check.violations).toEqual([]);
+      expect(check.status).toBe('pass');
+      expect(check.metrics['unit.runs']).toBe(2);
+      expect(check.metrics['unit.flaky']).toBe(1);
+      expect(check.findings).toEqual([{ kind: 'flaky-test', file: 'tests/users/user.cases.json', detail: "unit: 'suite > two' changed outcome between runs of head (failed, passed); left out of the comparison" }]);
+    });
+
+    it('still fails a real difference next to a flaky case, after the retries', async () => {
+      const cases = casesOf([['one', { head: ['failed'], base: ['passed'] }], ['one', 'passed'], ['two', flakyTwo]]);
+      const base = { ...before, 'tests/old/user.cases.json': cases };
+      const head = { ...moved, 'tests/users/user.cases.json': cases };
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.status).toBe('fail');
+      expect(check.metrics['unit.runs']).toBe(3);
+      expect(check.violations.map((violation) => violation.detail)).toEqual([
+        'unit: the runner exited 1 on head (3 runs), 0 on base (3 runs)',
+        'unit: 2 differences (base tests/old/user.cases.json): file status passed → failed; passed → failed: suite one',
+      ]);
+      expect(check.findings.map((finding) => finding.kind)).toEqual(['flaky-test']);
+    });
+
+    it('treats a flaky case as a difference without retries', async () => {
+      const flaky = (tree: Tree, file: string) => ({ ...tree, [file]: casesOf([['one', 'passed'], ['one', 'passed'], ['two', flakyTwo]]) });
+      const check = await certifyK8(flaky(before, 'tests/old/user.cases.json'), flaky(moved, 'tests/users/user.cases.json'), [unit], { env: { FLAKY_STATE: state }, flakyRetries: 0 });
+      expect(check.status).toBe('fail');
+      expect(check.findings).toEqual([]);
+    });
+
+    it('fails a runner exit the excluded tests do not explain', async () => {
+      // Head exits 1 with every case passing (an unhandled error) and a quarantined case: the quarantine can't excuse it.
+      const failingRunner = { 'tools/run-tests.mjs': (before['tools/run-tests.mjs'] as string).replace('process.exit(failed ? 1 : 0);', "process.exit(fs.existsSync('crash') ? 1 : failed ? 1 : 0);") };
+      const quarantine = [{ file: 'tests/old/user.cases.json', name: 'suite > two', reason: 'flaky in the baseline' }];
+      const check = await certifyK8({ ...before, ...failingRunner }, { ...moved, ...failingRunner, crash: '' }, [unit], { quarantine });
+      expect(check.status).toBe('fail');
+      expect(check.violations[0]!.detail).toBe('unit: the runner exited 1 on head (3 runs), 0 on base (3 runs)');
+    });
   });
 });

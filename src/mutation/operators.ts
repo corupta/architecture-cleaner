@@ -1,5 +1,5 @@
 // Mutation operators from research 04b §E3: M1–M30 without the rename rung (M31/M32) and the loader/emit operators
-// M15, M16, M22, whose killers K5/K7 are outside the MVP. Each takes a known-good result and proposes instances; an
+// M15, M16, M22, whose killers K5/K7 are outside the MVP; M33 (S6) probes K1's one allowed addition. Each takes a known-good result and proposes instances; an
 // instance builds a head tree that differs from the good head by exactly one mutation, which the certifier must
 // reject without K8.
 import path from 'node:path';
@@ -773,6 +773,29 @@ export const operators: Operator[] = [
         if (/(^|\/)(vite|vitest)\.config\.[^/]+$/.test(file)) edit('vite-alias', /alias\s*:\s*[{[]/, /(?:replacement\s*:|:)[^'"]*?["']([^"'\\]+)["']/g, (value) => `${value.replace(/\/$/, '')}/moved`);
       }
       return instances;
+    },
+  },
+  {
+    id: 'M33',
+    title: 'Add a boundary-rule tool config that is not proven inert',
+    expectedKillers: 'K1 (only an inert config at the package root may be added)',
+    candidates(subject) {
+      const root = subject.packageRoot;
+      const config = posix.join(root, '.dependency-cruiser.json');
+      const content = Buffer.from('{ "forbidden": [] }\n');
+      if (isTracked(subject, config)) return [];
+      const placed = (variant: string, file: string, mode: string, bytes: Buffer): Candidate => ({
+        variant,
+        key: file,
+        description: `${file} added (mode ${mode})`,
+        build: () => (isTracked(subject, file) ? null : new Map([[file, { bytes, mode }]])),
+      });
+      const directories = [...new Set([...subject.pathMap.moves.values()].map((file) => posix.dirname(file)))].sort();
+      return [
+        ...directories.map((directory) => placed('off-root', posix.join(directory, '.dependency-cruiser.json'), '100644', content)),
+        placed('executable', config, '100755', content),
+        placed('symlink', config, '120000', Buffer.from('package.json')),
+      ];
     },
   },
 ];

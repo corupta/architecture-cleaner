@@ -10,6 +10,8 @@ export interface TestCase {
   id: string;
   /** Readable name (the runner's full name). */
   name: string;
+  /** The name a quarantine entry gives: ancestor titles and title joined by ' > ' (mocha: its fullTitle). */
+  fullName: string;
   /** The runner's own status string (jest/vitest: passed, failed, pending, skipped, todo, disabled; mocha: passed, failed, pending). */
   status: string;
 }
@@ -29,6 +31,11 @@ export interface TestReport {
   snapshot?: Record<string, number>;
   /** jest/vitest `success` (false also for unhandled errors outside any case). */
   success?: boolean;
+  /**
+   * Tests that failed were left out (quarantined or flaky): the run-level outcome (`success`, the snapshot counters)
+   * no longer describes the tests compared, so it isn't compared.
+   */
+  tainted?: boolean;
 }
 
 export interface TestTotals {
@@ -47,12 +54,19 @@ export function repoRelative(root: string, file: string): string {
   return !relative.startsWith('..') && !path.isAbsolute(relative) ? relative.split(path.sep).join('/') : file;
 }
 
-const withOrdinals = (cases: { key: string; name: string; status: string }[]): TestCase[] => {
+interface RawCase {
+  key: string;
+  name: string;
+  fullName: string;
+  status: string;
+}
+
+const withOrdinals = (cases: RawCase[]): TestCase[] => {
   const seen = new Map<string, number>();
-  return cases.map(({ key, name, status }) => {
+  return cases.map(({ key, name, fullName, status }) => {
     const ordinal = seen.get(key) ?? 0;
     seen.set(key, ordinal + 1);
-    return { id: `${key}#${ordinal}`, name: ordinal ? `${name} (#${ordinal + 1})` : name, status };
+    return { id: `${key}#${ordinal}`, name: ordinal ? `${name} (#${ordinal + 1})` : name, fullName, status };
   });
 };
 
@@ -82,7 +96,7 @@ interface MochaReport {
 
 /** A file reported twice (several runner projects include it) merges its runs: cases appended, the worst status. */
 function parseJestLike(report: JestLikeReport, root: string): TestReport {
-  const merged = new Map<string, { loaded: boolean; statuses: string[]; cases: { key: string; name: string; status: string }[] }>();
+  const merged = new Map<string, { loaded: boolean; statuses: string[]; cases: RawCase[] }>();
   for (const result of report.testResults ?? []) {
     const assertions = result.assertionResults ?? [];
     const file = repoRelative(root, result.name);
@@ -93,6 +107,7 @@ function parseJestLike(report: JestLikeReport, root: string): TestReport {
     entry.cases.push(...assertions.map((assertion) => ({
       key: JSON.stringify([...(assertion.ancestorTitles ?? []), assertion.title]),
       name: assertion.fullName ?? [...(assertion.ancestorTitles ?? []), assertion.title].join(' '),
+      fullName: [...(assertion.ancestorTitles ?? []), assertion.title].join(' > '),
       status: assertion.status,
     })));
   }
@@ -122,11 +137,11 @@ function parseMocha(report: MochaReport, root: string): TestReport {
     if (left > 0) counts.set(key, left - 1);
     return left > 0;
   };
-  const byFile = new Map<string, { key: string; name: string; status: string }[]>();
+  const byFile = new Map<string, RawCase[]>();
   const add = (test: MochaTest, status: string) => {
     const file = fileOf(test);
     if (!byFile.has(file)) byFile.set(file, []);
-    byFile.get(file)!.push({ key: JSON.stringify(test.fullTitle), name: test.fullTitle, status });
+    byFile.get(file)!.push({ key: JSON.stringify(test.fullTitle), name: test.fullTitle, fullName: test.fullTitle, status });
   };
   for (const test of report.tests ?? []) {
     const key = keyOf(test);
@@ -221,6 +236,9 @@ export function compareTestReports(base: TestReport, head: TestReport, map: (fil
   const snapshotProblems: string[] = [];
   if (head.snapshot) {
     for (const counter of snapshotWrites) if ((head.snapshot[counter] ?? 0) !== 0) snapshotProblems.push(`snapshot.${counter} is ${head.snapshot[counter]} on head (must be 0 in CI mode)`);
+  }
+  if (base.tainted || head.tainted) return { differences, equalFiles, equalCases, snapshotProblems };
+  if (head.snapshot) {
     for (const counter of snapshotEquals) {
       const before = base.snapshot?.[counter] ?? 0;
       const after = head.snapshot[counter] ?? 0;
@@ -229,6 +247,103 @@ export function compareTestReports(base: TestReport, head: TestReport, map: (fil
   }
   if (base.success !== undefined && head.success !== undefined && base.success !== head.success) snapshotProblems.push(`run success is ${head.success} on head, ${base.success} on base`);
   return { differences, equalFiles, equalCases, snapshotProblems };
+}
+
+const failing = (testCase: TestCase) => testCase.status === 'failed';
+
+/** Whether a run's file outcome is a failure: it didn't load, it failed, or one of its cases did. */
+export const fileFails = (file: TestFile) => !file.loaded || file.status === 'failed' || file.cases.some(failing);
+
+/**
+ * The report without the tests `excluded` names (a whole file: no name; a case: its fullName). A file that loses a
+ * failing case gets the status of what is left, and a report that loses a failure is tainted.
+ */
+export function excludeTests(report: TestReport, excluded: (file: string, fullName?: string) => boolean): { report: TestReport; removed: number } {
+  const files = new Map<string, TestFile>();
+  let removed = 0;
+  let tainted = report.tainted ?? false;
+  for (const [file, outcome] of report.files) {
+    if (excluded(file)) {
+      removed += Math.max(1, outcome.cases.length);
+      tainted ||= fileFails(outcome);
+      continue;
+    }
+    const cases = outcome.cases.filter((testCase) => !excluded(file, testCase.fullName));
+    if (cases.length === outcome.cases.length) {
+      files.set(file, outcome);
+      continue;
+    }
+    removed += outcome.cases.length - cases.length;
+    const lostFailure = outcome.cases.some((testCase) => failing(testCase) && !cases.includes(testCase));
+    tainted ||= lostFailure;
+    files.set(file, { ...outcome, cases, status: lostFailure && !cases.some(failing) && outcome.status === 'failed' ? 'passed' : outcome.status });
+  }
+  return { report: { ...report, files, ...(tainted ? { tainted } : {}) }, removed };
+}
+
+/** Tests of one report's coordinates: a whole file (no name) or a case (its fullName). */
+export type TestSelection = (file: string, fullName?: string) => boolean;
+
+export function selectTests(entries: Iterable<{ file: string; name?: string }>): TestSelection {
+  const files = new Set<string>();
+  const cases = new Set<string>();
+  for (const entry of entries) {
+    if (entry.name === undefined) files.add(entry.file);
+    else cases.add(`${entry.file}\0${entry.name}`);
+  }
+  return (file, fullName) => files.has(file) || (fullName !== undefined && cases.has(`${file}\0${fullName}`));
+}
+
+/**
+ * The runner's exit as runs are compared: its exit code, or 0 when the only failures in the report are excluded
+ * tests (the code is theirs). A failure the report doesn't attribute (an unhandled error) keeps the code.
+ */
+export function effectiveExit(exitCode: number | null, report: TestReport, excluded: TestSelection): number | null {
+  if (exitCode === 0 || exitCode === null) return exitCode;
+  let excludedFailure = false;
+  for (const [file, outcome] of report.files) {
+    if (excluded(file)) {
+      excludedFailure ||= fileFails(outcome);
+      continue;
+    }
+    const failed = outcome.cases.filter(failing);
+    if (!outcome.loaded || failed.some((testCase) => !excluded(file, testCase.fullName)) || (outcome.status === 'failed' && !failed.length)) return exitCode;
+    excludedFailure ||= failed.length > 0;
+  }
+  return excludedFailure ? 0 : exitCode;
+}
+
+export interface FlakyTest {
+  file: string;
+  /** The case's fullName; none when the file itself is unstable (load status, case list or file status). */
+  name?: string;
+  /** What each run gave, e.g. ['passed', 'failed']. */
+  outcomes: string[];
+}
+
+/** Tests whose outcome differs between runs of one commit: whole files whose shape changed, else the cases that did. */
+export function flakyTests(reports: readonly TestReport[]): FlakyTest[] {
+  if (reports.length < 2) return [];
+  const flaky: FlakyTest[] = [];
+  const files = [...new Set(reports.flatMap((report) => [...report.files.keys()]))].sort();
+  for (const file of files) {
+    const outcomes = reports.map((report) => report.files.get(file));
+    const shape = (outcome: TestFile | undefined) => (outcome === undefined ? 'not run' : !outcome.loaded ? 'failed to load' : `${outcome.cases.length} cases`);
+    const signature = (outcome: TestFile | undefined) => (outcome === undefined ? 'not run' : JSON.stringify([outcome.loaded, outcome.cases.map((testCase) => testCase.id)]));
+    if (new Set(outcomes.map(signature)).size > 1) {
+      flaky.push({ file, outcomes: outcomes.map(shape) });
+      continue;
+    }
+    const present = outcomes as TestFile[];
+    const unstable = new Map<string, string[]>();
+    present[0]!.cases.forEach((testCase, index) => {
+      const statuses = present.map((outcome) => outcome.cases[index]!.status);
+      if (new Set(statuses).size > 1 && !unstable.has(testCase.fullName)) unstable.set(testCase.fullName, statuses);
+    });
+    for (const [name, statuses] of unstable) flaky.push({ file, name, outcomes: statuses });
+    if (!unstable.size && new Set(present.map((outcome) => outcome.status)).size > 1) flaky.push({ file, outcomes: present.map((outcome) => `file ${outcome.status}`) });
+  }
+  return flaky;
 }
 
 export interface Diagnostic {

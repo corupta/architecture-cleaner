@@ -83,9 +83,10 @@ describe('K0 envelope', () => {
       .toEqual(["frontend/vite.config.ts: test runner config can't be read statically (no static config object) and governs src/modules/user/user.ts"]);
   });
 
-  it('declines an extensionless script run by tsx, bun or deno: the analyzer reads node shebangs only', () => {
-    const seed = { 'scripts/seed': "#!/usr/bin/env -S npx tsx\nimport { user } from '@app/services/user.js';\nconsole.log(user);\n" };
-    expect(details(k0(move(seed)))).toEqual(["scripts/seed: script run by '/usr/bin/env -S npx tsx', which the analyzer doesn't read: its imports are invisible to K2 and K3"]);
+  it('declines an extensionless script run by a runtime the analyzer does not read (zx, jiti, esno); node, tsx, bun and deno are read', () => {
+    const seed = { 'scripts/seed': "#!/usr/bin/env zx\nimport { user } from '@app/services/user.js';\nconsole.log(user);\n" };
+    expect(details(k0(move(seed)))).toEqual(["scripts/seed: script run by '/usr/bin/env zx', which the analyzer doesn't read: its imports are invisible to K2 and K3"]);
+    expect(details(k0(move({ 'scripts/seed': "#!/usr/bin/env -S npx tsx\nimport { user } from '@app/services/user.js';\n", 'scripts/bun-seed': "#!/usr/bin/env bun\nimport '../src/app';\n" })))).toEqual([]);
     expect(details(k0(move({ 'bin/www': "#!/usr/bin/env node\nrequire('../src/app');\n", 'scripts/deploy': '#!/bin/sh\nexec deno task deploy\n' })))).toEqual([]);
   });
 

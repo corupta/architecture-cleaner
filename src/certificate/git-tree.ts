@@ -13,6 +13,8 @@ export interface TreeEntry {
 export interface CommitTree {
   /** Full commit id. */
   commit: string;
+  /** The commit's root tree id: what a certificate is about (a message-only rewrite keeps it). */
+  tree: string;
   entries: ReadonlyMap<string, TreeEntry>;
   /** Every directory that holds an entry ('' is the root). */
   directories: ReadonlySet<string>;
@@ -52,6 +54,7 @@ function catFileBatch(repo: string, oids: string[]): Map<string, Buffer> {
 
 export function readCommitTree(repo: string, revision: string): CommitTree {
   const commit = resolveCommit(repo, revision);
+  const tree = git(repo, 'rev-parse', '--verify', `${commit}^{tree}`).trim();
   const entries = new Map<string, TreeEntry>();
   const directories = new Set<string>(['']);
   for (const record of git(repo, 'ls-tree', '-r', '-z', '--full-tree', commit).split('\0')) {
@@ -78,7 +81,7 @@ export function readCommitTree(repo: string, revision: string): CommitTree {
     if (!blobs.has(entry.oid)) prefetch([path]);
     return blobs.get(entry.oid);
   };
-  return { commit, entries, directories, bytes, text: (path) => bytes(path)?.toString('utf8'), prefetch };
+  return { commit, tree, entries, directories, bytes, text: (path) => bytes(path)?.toString('utf8'), prefetch };
 }
 
 /** Whether bytes survive a UTF-8 decode/encode round trip (spans are computed on decoded text). */

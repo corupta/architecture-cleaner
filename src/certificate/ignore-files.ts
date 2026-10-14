@@ -140,30 +140,27 @@ function dockerScopes(tree: CommitTree): PathScope[] {
   });
 }
 
-/** What `npm pack` of each package ships: everything under its directory, or what its `files` entries match. */
-function packageScopes(tree: CommitTree): PathScope[] {
-  const scopes: PathScope[] = [];
-  for (const manifest of tree.entries.keys()) {
-    if (path.posix.basename(manifest) !== 'package.json' || manifest.split('/').includes('node_modules')) continue;
-    const directory = directoryOf(manifest);
-    let files: unknown;
-    try {
-      files = (JSON.parse(stripBom(tree.text(manifest) ?? '')) as { files?: unknown } | null)?.files;
-    } catch {
-      // An unparsable manifest packs nothing for npm; its own edits are K2's.
-    }
-    const entries = Array.isArray(files) ? files.filter((entry): entry is string => typeof entry === 'string') : null;
-    // npm anchors `files` entries at the package and a directory entry takes its contents, like a Docker pattern.
-    const patterns = entries && dockerPatterns(entries.join('\n'));
-    scopes.push({
-      id: `${manifest}${entries ? ' files' : ''}`,
-      blocking: true,
-      neutral: 'not packed by npm',
-      status: (paths) => flag(paths, new Set(paths.filter((candidate) => under(candidate, directory) && (!patterns || dockerIgnored(patterns, relativeTo(candidate, directory))))), 'packed by npm'),
-    });
+/** What `npm pack` of the package at `manifest` ships: everything under its directory, or what its `files` entries match. */
+export function packageScope(tree: CommitTree, manifest: string): PathScope {
+  const directory = directoryOf(manifest);
+  let files: unknown;
+  try {
+    files = (JSON.parse(stripBom(tree.text(manifest) ?? '')) as { files?: unknown } | null)?.files;
+  } catch {
+    // An unparsable manifest packs nothing for npm; its own edits are K2's.
   }
-  return scopes;
+  const entries = Array.isArray(files) ? files.filter((entry): entry is string => typeof entry === 'string') : null;
+  // npm anchors `files` entries at the package and a directory entry takes its contents, like a Docker pattern.
+  const patterns = entries && dockerPatterns(entries.join('\n'));
+  return {
+    id: `${manifest}${entries ? ' files' : ''}`,
+    blocking: true,
+    neutral: 'not packed by npm',
+    status: (paths) => flag(paths, new Set(paths.filter((candidate) => under(candidate, directory) && (!patterns || dockerIgnored(patterns, relativeTo(candidate, directory))))), 'packed by npm'),
+  };
 }
+
+export const packageManifests = (tree: CommitTree) => [...tree.entries.keys()].filter((file) => path.posix.basename(file) === 'package.json' && !file.split('/').includes('node_modules'));
 
 // Attributes that change the bytes a checkout writes (or what `git archive` ships).
 const checkoutAttributes = ['text', 'eol', 'crlf', 'filter', 'ident', 'working-tree-encoding', 'export-ignore', 'export-subst'];
@@ -208,5 +205,5 @@ export function pathScopes(tree: CommitTree, scratch: string): PathScope[] {
     scopes.push({ id: kind, blocking: !toolIgnores.has(kind), neutral: 'not ignored', status: (paths) => flag(paths, paths.length ? gitIgnored(tree, kind, files, paths, path.join(scratch, kind)) : new Set(), 'ignored') });
   }
   const attributes = attributeScope(tree, path.join(scratch, '.gitattributes'));
-  return [...scopes, ...dockerScopes(tree), ...packageScopes(tree), ...(attributes ? [attributes] : [])];
+  return [...scopes, ...dockerScopes(tree), ...packageManifests(tree).map((manifest) => packageScope(tree, manifest)), ...(attributes ? [attributes] : [])];
 }

@@ -2,7 +2,7 @@
 // <out>/mutants.json, <out>/controls.json and <out>/report.md.
 //   --targets    comma list of: fixtures, fixture:<name>, synthetic, hunt, openhab-cloud, immich-album, immich-r1, immich, all
 //   --operators  comma list of operator ids (default: all)
-//   --checks     comma list of check ids (default: K0,K1,K2,K3a,K3b,K3c,K4,K6)
+//   --checks     comma list of check ids (default: K0,K1,K2,K3a,K3b,K3c,K4,K6,K7)
 //   --cap        instances per operator variant and subject (default 3)
 //   --exhaustive run every check on every mutant (default: stop after the tree-only checks when they kill)
 //   --work-dir   scratch directory (default: a fresh /tmp/ac-s4-mutation/run-*)
