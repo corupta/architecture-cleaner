@@ -13,7 +13,8 @@ export const testSupportPattern = /(^|[./_-])(mocks?|stubs?|fakes?|fixtures?|tes
 /** `album.service.spec.ts` → `album.service`; null for files that aren't named as a test. */
 export const testedStem = (fileName: string) => /^(.*)\.(spec|test|e2e-spec)\.(ts|tsx|mts|cts)$/.exec(fileName)?.[1] ?? null;
 
-const roleWords = new Set([
+/** Role words a file name can end in (`album.service.ts`); R3's vocabulary starts from these. */
+export const roleWords = new Set([
   'controller', 'service', 'module', 'resolver', 'model', 'entity', 'dto', 'args', 'input', 'guard', 'strategy',
   'decorator', 'interceptor', 'filter', 'pipe', 'middleware', 'repository', 'gateway', 'processor', 'mapper',
   'schema', 'interface', 'enum', 'constants', 'config', 'handler', 'command', 'query', 'event', 'subscriber',
