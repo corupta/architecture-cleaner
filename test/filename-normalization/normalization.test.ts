@@ -9,6 +9,7 @@ import { cjs, read, repoFrom } from '../executor/repo.js';
 const options = { packageRoot: '', moduleRoot: 'src' };
 const tsconfig = cjs({}, ['src']);
 const reasons = (declined: RenameDecline[]) => Object.fromEntries(declined.map((decline) => [decline.file, decline.reason]));
+const nestCliConfig = (plugins: string[]) => JSON.stringify({ collection: '@nestjs/schematics', sourceRoot: 'src', compilerOptions: { plugins } });
 const stepMoves = (root: string) => normalizationSteps(gitRepoFs(root), options).steps.map((step) => [step.group, Object.fromEntries(step.moves)]);
 
 describe('normalizationSteps', () => {
@@ -159,6 +160,52 @@ describe('normalizationSteps', () => {
     expect(reasons(declined)).toEqual({ 'src/modules/user/user-input.ts': 'suffix-tooling', 'src/modules/user/userMock.ts': 'suffix-tooling' });
     expect(declined.find((decline) => decline.file.endsWith('userMock.ts'))!.detail).toBe('tsconfig programs [tsconfig.json] -> []');
     expect(steps.map((step) => Object.fromEntries(step.moves))).toEqual([{ 'src/modules/user/user-dto.ts': 'src/modules/user/user.dto.ts' }]);
+  });
+
+  it.each([
+    ['.nest-cli.json', { '.nest-cli.json': nestCliConfig(['@nestjs/swagger']) }],
+    ['a config named by nest build -c', { 'nest-cli.build.json': nestCliConfig(['@nestjs/swagger']), 'package.json': JSON.stringify({ name: 'x', scripts: { build: 'nest build -c nest-cli.build.json' } }) }],
+    ['a config named by nest start --config=', { 'config/nest.json': nestCliConfig(['@nestjs/graphql']), 'package.json': JSON.stringify({ name: 'x', scripts: { start: 'nest start --watch --config=config/nest.json' } }) }],
+    ['ts-jest astTransformers', { 'jest.config.js': "module.exports = { transform: { '^.+\\\\.ts$': ['ts-jest', { astTransformers: { before: ['@nestjs/swagger/plugin'] } }] } };\n" }],
+  ])('refuses renames a Nest compiler plugin from %s would see', (_source, extra) => {
+    const root = repoFrom({
+      'tsconfig.json': tsconfig,
+      ...extra,
+      'src/modules/user/create-user-input.ts': 'export class CreateUserInput {}\n',
+      'src/modules/user/create-user-dto.ts': 'export class CreateUserDto {}\n',
+      'src/modules/user/userController.ts': "import { CreateUserDto } from './create-user-dto';\nexport class UserController { create(body: CreateUserDto) { return body; } }\n",
+    });
+    const { declined } = normalizationSteps(gitRepoFs(root), options);
+    const graphql = Object.values(extra).some((text) => text.includes('graphql'));
+    expect(reasons(declined)).toEqual(graphql
+      ? { 'src/modules/user/create-user-input.ts': 'suffix-tooling' }
+      : { 'src/modules/user/create-user-dto.ts': 'suffix-tooling', 'src/modules/user/userController.ts': 'suffix-tooling' });
+  });
+
+  it('refuses every rename under a Nest CLI config it cannot read', () => {
+    const root = repoFrom({
+      'tsconfig.json': tsconfig,
+      'nest-cli.json': '{ "compilerOptions": { "plugins": [ "@nestjs/swagger", ] } }\n',
+      'src/modules/user/userGuard.ts': 'export class UserGuard {}\n',
+    });
+    const { steps, declined } = normalizationSteps(gitRepoFs(root), options);
+    expect(steps).toEqual([]);
+    expect(reasons(declined)).toEqual({ 'src/modules/user/userGuard.ts': 'suffix-tooling' });
+  });
+
+  it('refuses a rename that changes what a gated Jest coveragePathIgnorePatterns regex matches', () => {
+    const root = repoFrom({
+      'tsconfig.json': tsconfig,
+      'package.json': JSON.stringify({ name: 'x', scripts: { test: 'jest --coverage' } }),
+      'jest.config.js': "module.exports = {\n  testMatch: ['**/*.spec.ts'],\n  collectCoverageFrom: ['src/**/*.ts'],\n  coveragePathIgnorePatterns: ['/node_modules/', '.module.ts', '\\\\.dto\\\\.ts$'],\n  coverageThreshold: { global: { lines: 90 } },\n};\n",
+      'src/modules/user/createUserDto.ts': "export class CreateUserDto { name = ''; }\n",
+      'src/modules/user/create-order-dto.ts': "export class CreateOrderDto { name = ''; }\n",
+      'src/modules/user/user.service.ts': "import { CreateUserDto } from './createUserDto';\nimport { CreateOrderDto } from './create-order-dto';\nexport const make = () => [new CreateUserDto(), new CreateOrderDto()];\n",
+    });
+    const { steps, declined } = normalizationSteps(gitRepoFs(root), options);
+    expect(steps).toEqual([]);
+    expect(reasons(declined)).toEqual({ 'src/modules/user/create-order-dto.ts': 'suffix-tooling', 'src/modules/user/createUserDto.ts': 'suffix-tooling' });
+    expect(declined.find((decline) => decline.file.endsWith('createUserDto.ts'))!.detail).toContain('coveragePathIgnorePatterns');
   });
 
   it("drops what the executor's dry run declines, with the executor's reason", () => {

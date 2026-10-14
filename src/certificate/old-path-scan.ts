@@ -6,9 +6,15 @@
 // `../src/services/x.ts` in server/test/ both hit, as do a directory a move enters or leaves (`files: ["dist/x"]`)
 // and a handler reference (`dist/handlers/create.handler`). Glob tokens in code and config are matched instead: a
 // glob whose match set over the moved files changes is a hit, and in code also one whose sorted matches reorder.
-// Hits inside K2 specifier spans are K3's business. Documentation files and comments only produce findings.
+// Hits inside K2 specifier spans are K3's business. Documentation files and comments only produce findings. Jest regex
+// path settings (`coveragePathIgnorePatterns`) are evaluated on each move, `<rootDir>/…` tokens are read at the Jest
+// rootDir, and coverage settings follow the rule the executor shares (analyzer/coverage-settings.ts): only a gated one
+// is a violation. A rename into or out of a Nest compiler plugin's suffixes (`.dto.ts`) changes what it emits.
 import path from 'node:path';
 import ts from 'typescript';
+import { coverageGates, isCoverageSetting } from '../analyzer/coverage-settings.js';
+import { describePluginChange, nestPlugins, pluginChange } from '../analyzer/nest-plugins.js';
+import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import { isUtf8 } from './git-tree.js';
@@ -35,8 +41,6 @@ const ignoreFiles = new Set(['.gitignore', '.npmignore', '.dockerignore', '.pret
 const moduleExtension = /(\.d)?\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json)$/;
 const emittedExtension: Record<string, string> = { '.ts': '.js', '.tsx': '.js', '.mts': '.mjs', '.cts': '.cjs', '.js': '.js', '.jsx': '.jsx', '.mjs': '.mjs', '.cjs': '.cjs' };
 const declarationExtension: Record<string, string> = { '.ts': '.d.ts', '.tsx': '.d.ts', '.mts': '.d.mts', '.cts': '.d.cts' };
-const coverageFiles = /^(\.nycrc(\.(json|ya?ml))?|\.c8rc(\.json)?|\.?codecov\.ya?ml)$/;
-const coverageKey = /coverage/i;
 // Values under these keys are substitution patterns (`*` spans directories) that K3 resolves through, not globs.
 const substitutionKeys = new Set(['paths', 'exports', 'imports', 'moduleNameMapper', 'alias', 'aliases']);
 
@@ -359,25 +363,6 @@ export function namingsOf(context: CertifyContext, target: string, files: readon
 }
 
 /**
- * Whether a config gates on coverage: Jest `coverageThreshold` / Vitest `coverage.thresholds` with a nonzero number,
- * or nyc/c8 `check-coverage`. Text-level, and it errs toward "gated" (any nonzero number inside the threshold object).
- */
-export function coverageGated(text: string): boolean {
-  if (/["']?check-?coverage["']?\s*[:=]\s*true/i.test(text)) return true;
-  for (const match of text.matchAll(/["']?(coverageThreshold|thresholds)["']?\s*:\s*\{/g)) {
-    let depth = 0;
-    let end = match.index + match[0].length - 1;
-    for (; end < text.length; end++) {
-      if (text[end] === '{') depth++;
-      else if (text[end] === '}' && --depth === 0) break;
-    }
-    const body = text.slice(match.index + match[0].length, end);
-    if (/(?<![\w.])(?:[1-9]\d*(?:\.\d+)?|0?\.\d*[1-9]\d*)(?![\w.])/.test(body.replace(/["'][^"']*["']\s*:/g, ':')) || /\b100\s*:\s*true/.test(body)) return true;
-  }
-  return false;
-}
-
-/**
  * `opaqueLoads` names the module loads of the repository whose path K4 can't evaluate (`import(table[name])`): any of
  * them can take a relative path string from anywhere, so such a string naming a moved file is then a violation.
  */
@@ -389,7 +374,7 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
   const { head, pathMap, views } = context;
   const violations: Violation[] = [];
   const findings: Finding[] = [];
-  const metrics = { textFilesScanned: 0, oldPathViolations: 0, coverageViolations: 0, coverageFindings: 0, oldPathFindings: 0, globsChecked: 0 };
+  const metrics = { textFilesScanned: 0, oldPathViolations: 0, coverageViolations: 0, coverageFindings: 0, oldPathFindings: 0, globsChecked: 0, pluginSuffixViolations: 0 };
   if (pathMap.moves.size === 0) return { violations, findings, metrics };
   const { needles, emptied } = buildNeedles(context, layouts);
   const interesting = new Set<string>();
@@ -446,6 +431,22 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
   const namesBasePath = (candidate: string) => context.base.entries.has(candidate) || context.base.directories.has(candidate)
     || ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.json'].some((extension) => context.base.entries.has(candidate + extension));
 
+  // Jest's regex path settings match whole paths: a move that changes a match is a hit at the setting.
+  const runner = loadRunnerConfig(context.fs.head);
+  const jestRoots = new Map(runner.jest.map((jest) => [jest.config, jest.rootDir]));
+  const regexHits = new Map<string, Hit[]>();
+  for (const jest of runner.jest) {
+    const text = head.text(jest.config) ?? '';
+    for (const { key, source, pattern } of jest.pathPatterns) {
+      const changed = moves.filter(([from, to]) => pattern.test(`/${from}`) !== pattern.test(`/${to}`));
+      if (changed.length === 0) continue;
+      const [from, to] = changed[0]!;
+      const offset = Math.max(0, text.search(new RegExp(`["']?\\b${key}["']?\\s*:`)));
+      regexHits.set(jest.config, [...(regexHits.get(jest.config) ?? []), { file: jest.config, offset, token: source, needle: { from, to, form: `regex /${source}/ in ${key}, whose match changes (${changed.length} moved files, e.g. ${from} -> ${to})` } }]);
+    }
+  }
+  const gateOf = coverageGates(context.fs.head);
+
   const files = headTextFiles(context).filter((file) => !inertAdditions.has(file));
   head.prefetch(files);
   for (const file of files) {
@@ -459,14 +460,16 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
     const fileCategory = category(file);
     const codeFile = fileCategory === 'code';
     const bases = [...new Set([...ancestors(file), context.options.packageRoot])];
-    const hits: Hit[] = [];
+    const hits: Hit[] = [...(regexHits.get(file) ?? [])];
     for (const match of text.matchAll(tokenPattern)) {
       const token = match[0].replace(/[.]+$/, '');
       if (token.length < 3) continue;
+      // `<rootDir>/x` names x under the Jest rootDir of the config (its own directory, unless it sets one).
+      const rootDirectory = token.startsWith('/') && text.slice(match.index! - '<rootDir>'.length, match.index!) === '<rootDir>' ? (jestRoots.get(file) ?? path.posix.dirname(file).replace(/^\.$/, '')) : null;
       if (globCharacters.test(token)) {
         if (documentation || ignoreFiles.has(path.posix.basename(file)) || !token.includes('/') || token.startsWith('//') || !/[A-Za-z0-9]/.test(token.replace(/\{[^}]*\}|\[[^\]]*\]/g, ''))) continue;
         const pattern = token.replace(/^!/, '').replace(/^\.?\//, '');
-        for (const base of bases) {
+        for (const base of rootDirectory !== null ? [rootDirectory] : bases) {
           const anchored = path.posix.normalize(path.posix.join(base, pattern));
           if (anchored.startsWith('..') || anchored.startsWith('/')) continue;
           const changed = globChanges(anchored);
@@ -495,7 +498,8 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
       const module = handlerModule(token, token.includes('/') || fileCategory === 'infra');
       const segments = (module ? `${token}/${module}` : token).split('/');
       if (!segments.some((segment) => interesting.has(segment))) continue;
-      const candidates = readings(token, bases, context.options.packageRoot);
+      const candidates = rootDirectory !== null ? [path.posix.normalize(path.posix.join(rootDirectory, token.slice(1))).replace(/\/+$/, '')].filter((joined) => !joined.startsWith('..') && joined !== '.')
+        : readings(token, bases, context.options.packageRoot);
       const needleOf = (candidate: string): Needle | undefined => {
         const exact = needles.get(candidate);
         if (exact) return exact[0]!;
@@ -558,11 +562,12 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
         findings.push({ kind: 'relative-path-string', file, detail: `${where}; not consumed as a path in this file, and no load in the repository takes an opaque path` });
         continue;
       }
-      const coverage = coverageFiles.test(path.posix.basename(file)) || keys.some((key) => coverageKey.test(key));
+      const coverage = isCoverageSetting(file, keys);
+      const gate = coverage ? gateOf(file) : null;
       const at = `[${fileCategory}${keys.length ? ` at ${keys.join('.')}` : ''}]`;
       // Coverage scope is only behavior when it gates something: a coverage report that measures other files changes
       // no test outcome and no runtime; a threshold or check-coverage can flip a CI gate.
-      if (coverage && !coverageGated(text)) {
+      if (coverage && gate === null) {
         metrics.coverageFindings++;
         findings.push({ kind: 'coverage-scope', file, detail: `${where} ${at}; coverage now measures a different file set (no coverage threshold in this file, so no gate changes)` });
         continue;
@@ -570,7 +575,15 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
       if (coverage) metrics.coverageViolations++;
       metrics.oldPathViolations++;
       const opaque = relativeInCode ? `; the opaque load at ${opaqueLoads[0]} can take it as a module path` : '';
-      violations.push({ file, detail: `${where} ${at}${coverage ? '; a coverage setting with a threshold: the CI gate measures a different file set' : ''}${opaque}` });
+      violations.push({ file, detail: `${where} ${at}${coverage ? `; a coverage setting with a threshold (${gate}): the CI gate measures a different file set` : ''}${opaque}` });
+    }
+  }
+  for (const plugin of nestPlugins(context.fs.head)) {
+    for (const [from, to] of moves) {
+      const change = pluginChange(plugin, from, to);
+      if (!change) continue;
+      metrics.pluginSuffixViolations++;
+      violations.push({ file: to, detail: `${path.posix.basename(from) === path.posix.basename(to) ? 'moved' : 'renamed'} from ${from}: ${describePluginChange(plugin, change)}` });
     }
   }
   metrics.oldPathFindings = findings.length;

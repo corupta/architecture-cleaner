@@ -28,6 +28,14 @@ export interface TestScope {
   excludePatterns: RegExp[];
 }
 
+/** A Jest setting whose values are regexes over a file's path (`coveragePathIgnorePatterns`, `transform` keys). */
+export interface JestPathPattern {
+  key: string;
+  source: string;
+  /** Matched against '/' + the repo-relative path, with `<rootDir>` expanded. */
+  pattern: RegExp;
+}
+
 export interface JestConfig {
   config: string;
   /** Repo-relative directory of the config file ('' for the root). */
@@ -35,6 +43,8 @@ export interface JestConfig {
   rootDir: string;
   mappers: JestMapper[];
   scope: TestScope;
+  /** Regex path settings besides the test scope's: coverage, module and transform ignores, transform keys. */
+  pathPatterns: JestPathPattern[];
 }
 
 export interface VitestConfig {
@@ -125,19 +135,21 @@ function exportedObject(sourceFile: ts.SourceFile): { object: ts.ObjectLiteralEx
 
 interface PathContext {
   configDirectory: string;
+  /** What a relative string literal is relative to: the config's directory (Jest), the likely cwd (Vite's root). */
+  relativeTo?: string;
   sourceFile: ts.SourceFile;
   constants: ReadonlyMap<string, ts.Expression>;
 }
 
 /**
- * A config path expression as a repo-relative path: `'./src'`, `__dirname`, `import.meta.dirname`,
+ * A config path expression as a repo-relative path: a relative string (`'./src'`, `'src'`), `__dirname`, `import.meta.dirname`,
  * `dirname(fileURLToPath(import.meta.url))`, `fileURLToPath(new URL('./src', import.meta.url))`, `path.resolve(<one of
  * these>, '..', 'src')` (or `join`), and a top-level const holding one of them (immich: `root: serverRoot`).
  */
 function staticPath(expression: ts.Expression, context: PathContext, seen: ReadonlySet<string> = new Set()): string | null {
   const { configDirectory, sourceFile, constants } = context;
   if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) return staticPath(expression.expression, context, seen);
-  if (ts.isStringLiteralLike(expression)) return expression.text.startsWith('.') ? path.posix.join(configDirectory, expression.text) : expression.text;
+  if (ts.isStringLiteralLike(expression)) return expression.text.startsWith('/') ? expression.text : path.posix.join(context.relativeTo ?? configDirectory, expression.text);
   const text = expression.getText(sourceFile);
   if (text === '__dirname' || text === 'import.meta.dirname') return configDirectory;
   if (ts.isIdentifier(expression)) {
@@ -175,6 +187,14 @@ function packageDirectory(repo: RepoFs, directory: string): string {
 const normalizeDirectory = (directory: string) => (directory === '.' ? '' : directory.replace(/\/$/, ''));
 const stripBom = (text: string) => (text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
 
+/** The deepest directory holding both ('' for the repo root). */
+function commonDirectory(first: string, second: string): string {
+  const [a, b] = [first.split('/'), second.split('/')];
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared++;
+  return a.slice(0, shared).join('/');
+}
+
 function staticStrings(expression: ts.Expression | undefined): string[] | null {
   if (!expression) return [];
   if (ts.isStringLiteralLike(expression)) return [expression.text];
@@ -198,7 +218,11 @@ interface JestFields {
   testPathIgnorePatterns?: string[];
   moduleNameMapper?: [string, string][];
   testRegex?: boolean;
+  pathPatterns?: [string, string][];
 }
+
+// Jest settings matched as regexes against a file's absolute path (testPathIgnorePatterns is the test scope's).
+const pathPatternKeys = ['coveragePathIgnorePatterns', 'modulePathIgnorePatterns', 'transformIgnorePatterns', 'unmockedModulePathPatterns'] as const;
 
 function jestScope(fields: JestFields, rootDir: string, configDirectory: string): TestScope {
   const testMatch = fields.testMatch ?? [];
@@ -223,6 +247,10 @@ function readJestJson(text: string, isPackageJson: boolean): JestFields | null {
     testPathIgnorePatterns: strings(jest.testPathIgnorePatterns),
     moduleNameMapper: Object.entries(jest.moduleNameMapper ?? {}).map(([key, value]) => [key, Array.isArray(value) ? String(value[0]) : String(value)]),
     testRegex: jest.testRegex !== undefined,
+    pathPatterns: [
+      ...pathPatternKeys.flatMap((key) => (strings(jest[key]) ?? []).map((source): [string, string] => [key, source])),
+      ...Object.keys(jest.transform ?? {}).map((source): [string, string] => ['transform', source]),
+    ],
   };
 }
 
@@ -244,6 +272,21 @@ function readJestScript(config: string, text: string, configDirectory: string): 
     const values = staticStrings(getProperty(object, key));
     if (values === null) return `non-literal ${key}`;
     if (values.length) fields[key] = values;
+  }
+  fields.pathPatterns = [];
+  for (const key of pathPatternKeys) {
+    const values = staticStrings(getProperty(object, key));
+    if (values === null) return `non-literal ${key}`;
+    fields.pathPatterns.push(...values.map((source): [string, string] => [key, source]));
+  }
+  const transform = getProperty(object, 'transform');
+  if (transform) {
+    if (!ts.isObjectLiteralExpression(transform)) return 'non-literal transform';
+    for (const property of transform.properties) {
+      const key = ts.isPropertyAssignment(property) ? propertyName(property.name) : null;
+      if (key === null) return 'non-literal transform key';
+      fields.pathPatterns.push(['transform', key]);
+    }
   }
   const mapper = getProperty(object, 'moduleNameMapper');
   if (mapper) {
@@ -282,6 +325,13 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
     }
     if (fields.testRegex) result.unreadable.push({ config, reason: 'testRegex (regex test scope) is not modelled' });
     const rootDir = normalizeDirectory(fields.rootDir ? path.posix.join(configDirectory || '.', fields.rootDir) : configDirectory);
+    let pathPatterns: JestPathPattern[];
+    try {
+      pathPatterns = (fields.pathPatterns ?? []).map(([key, source]) => ({ key, source, pattern: new RegExp(source.replace(/<rootDir>/g, `/${rootDir}`.replace(/\/$/, ''))) }));
+    } catch {
+      result.unreadable.push({ config, reason: 'invalid regex in a path setting' });
+      continue;
+    }
     result.jest.push({
       config,
       directory: configDirectory,
@@ -292,6 +342,7 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
         source,
         replacement: replacement.replace(/<rootDir>\/?/g, rootDir === '' ? '' : `${rootDir}/`),
       })),
+      pathPatterns,
     });
   }
   for (const config of tracked.filter((file) => viteConfigPattern.test(file))) {
@@ -332,13 +383,20 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
     const include = test ? staticStrings(getProperty(test, 'include')) : [];
     const exclude = test ? staticStrings(getProperty(test, 'exclude')) : [];
     if (include === null || exclude === null) result.unreadable.push({ config, reason: 'non-literal test.include/exclude' });
-    // Vitest collects tests (and reads include/exclude) relative to its root: test.root, else Vite's root.
+    // Vitest collects tests (and reads include/exclude) relative to its root: test.root, else Vite's root. Vite resolves
+    // a relative root against the cwd, most likely the package the config belongs to; when that isn't the config's own
+    // directory, the cwd is a guess, so a root that depends on it is unreadable.
     const rootNode = (test && getProperty(test, 'root')) ?? getProperty(object, 'root');
-    const rootPath = rootNode ? staticPath(rootNode, pathContext) : configDirectory;
-    const rootInRepo = rootPath === null || rootPath.startsWith('/') ? null : normalizeDirectory(path.posix.normalize(rootPath || '.'));
+    const cwd = packageDirectory(repo, configDirectory);
+    const inRepo = (reading: string | null) => (reading === null || reading.startsWith('/') ? null : normalizeDirectory(path.posix.normalize(reading || '.')));
+    const rootInRepo = inRepo(rootNode ? staticPath(rootNode, { ...pathContext, relativeTo: cwd }) : configDirectory);
+    const fromConfigDirectory = rootNode ? inRepo(staticPath(rootNode, pathContext)) : rootInRepo;
     if (rootInRepo === null || rootInRepo.startsWith('..')) result.unreadable.push({ config, reason: `root ${rootNode?.getText(sourceFile) ?? ''} is not a static directory in the repo` });
-    // An unreadable root is Vite's default, the cwd: most likely the package the config belongs to.
-    const root = rootInRepo === null || rootInRepo.startsWith('..') ? packageDirectory(repo, configDirectory) : rootInRepo;
+    else if (fromConfigDirectory !== rootInRepo) result.unreadable.push({ config, reason: `root ${rootNode!.getText(sourceFile)} is relative to the cwd, which may be ${cwd || 'the repo root'} or ${configDirectory}` });
+    // An unreadable root is Vite's default, the cwd: most likely the package the config belongs to. A cwd-relative one
+    // governs both readings.
+    let root = rootInRepo === null || rootInRepo.startsWith('..') ? cwd : rootInRepo;
+    if (fromConfigDirectory !== rootInRepo) root = commonDirectory(root, fromConfigDirectory === null || fromConfigDirectory.startsWith('..') ? '' : fromConfigDirectory);
     result.vitest.push({
       config,
       directory: root,

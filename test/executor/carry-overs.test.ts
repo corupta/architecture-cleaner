@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { extractSites } from '../../src/analyzer/reference-sites.js';
 import { gitRepoFs } from '../../src/analyzer/repo-fs.js';
 import { loadRunnerConfig } from '../../src/analyzer/runner-config.js';
-import { coverageGated } from '../../src/executor/config-references.js';
+import { coverageGated } from '../../src/analyzer/coverage-settings.js';
 import type { MoveResult } from '../../src/executor/execute.js';
 import { cjs, codes, move, read, repoFrom } from './repo.js';
 

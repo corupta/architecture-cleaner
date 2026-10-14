@@ -3,11 +3,13 @@
 // ancestor (the package root among them) and at the runner root the config sets (Vitest `root`, Jest `rootDir`). A plain
 // path names a moved file (its path, extensionless or emitted spelling, its directory if it is an index file), a
 // directory a move enters or leaves, or a path inside a directory the moves empty; a glob names a move when the move
-// changes whether it matches. Coverage settings follow the certifier's S4 rule: they only change behavior when a
-// threshold or check-coverage gates them, so an ungated coverage glob is a finding and every other hit a decline.
-// Hits in comments are findings; hits inside the config's own import specifiers are the executor's to rewrite.
+// changes whether it matches, and so does a Jest regex path setting (`coveragePathIgnorePatterns`). Coverage settings
+// follow the rule K4 shares (analyzer/coverage-settings.ts): they only change behavior when a gate measures them, so an
+// ungated one is a finding and every other hit a decline. Hits in comments are findings; hits inside the config's own
+// import specifiers are the executor's to rewrite.
 import path from 'node:path';
 import ts from 'typescript';
+import { coverageGates, isCoverageSetting } from '../analyzer/coverage-settings.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import type { RepoFs } from '../analyzer/repo-fs.js';
 import type { RunnerConfig } from '../analyzer/runner-config.js';
@@ -20,8 +22,6 @@ export const configFilePattern = new RegExp('(^|/)(package\\.json|[tj]sconfig[^/
   + '|jest([.-][^/]*)?\\.config([.-][^/]*)?\\.[cm]?[jt]s|jest([.-][^/]*)?\\.json'
   + '|(vitest|vite)([.-][^/]*)?\\.config([.-][^/]*)?\\.[cm]?[jt]s'
   + '|\\.nycrc(\\.(json|ya?ml))?|\\.c8rc(\\.json)?|eslint\\.config\\.[cm]?[jt]s|\\.eslintrc(\\.(json|[cm]?js))?)$');
-const coverageConfig = /(^|\/)(\.nycrc(\.(json|ya?ml))?|\.c8rc(\.json)?)$/;
-const coverageKey = /coverage/i;
 // Values under these keys are substitution patterns (`*` spans directories) the resolver models, not globs.
 const substitutionKeys = new Set(['paths', 'exports', 'imports', 'moduleNameMapper', 'alias', 'aliases']);
 const tokenPattern = /(?:[\w@$~+\-./*?]|\[[\w@$~+\-./*?!^,]*\]|\{[\w@$~+\-./*?,]*\})+/g;
@@ -34,25 +34,6 @@ export interface ConfigNeedle {
   to: string;
   /** How the token names the move: `old path`, `glob server/src/services/**, whose matches change`, ... */
   form: string;
-}
-
-/**
- * Whether a config gates on coverage (the certifier's rule): Jest `coverageThreshold` / Vitest `coverage.thresholds`
- * holding a nonzero number or `100: true`, or nyc/c8 `check-coverage`. Text-level, erring toward "gated".
- */
-export function coverageGated(text: string): boolean {
-  if (/["']?check-?coverage["']?\s*[:=]\s*true/i.test(text)) return true;
-  for (const match of text.matchAll(/["']?(coverageThreshold|thresholds)["']?\s*:\s*\{/g)) {
-    let depth = 0;
-    let end = match.index + match[0].length - 1;
-    for (; end < text.length; end++) {
-      if (text[end] === '{') depth++;
-      else if (text[end] === '}' && --depth === 0) break;
-    }
-    const body = text.slice(match.index + match[0].length, end).replace(/["'][^"']*["']\s*:/g, ':');
-    if (/(?<![\w.])(?:[1-9]\d*(?:\.\d+)?|0?\.\d*[1-9]\d*)(?![\w.])/.test(body) || /\b100\s*:\s*true/.test(body)) return true;
-  }
-  return false;
 }
 
 function ancestors(directory: string): string[] {
@@ -184,7 +165,7 @@ interface Hit {
 /** Repo-relative readings of a plain path token (the certifier's K4 rules), with `<rootDir>/x` read at the Jest rootDir. */
 function readings(token: string, anchors: readonly string[], rootDirectory: string | null): string[] {
   if (token.startsWith('//')) return [];
-  if (rootDirectory !== null) return [path.posix.join(rootDirectory, token.slice(1))];
+  if (rootDirectory !== null) return [path.posix.normalize(path.posix.join(rootDirectory, token.slice(1))).replace(/\/+$/, '')].filter((joined) => !joined.startsWith('..') && joined !== '.');
   // An absolute path (a container's /app/dist/main.js) names whatever repo path it ends with.
   if (token.startsWith('/')) {
     const suffixes: string[] = [];
@@ -208,15 +189,19 @@ export interface ConfigHit {
   glob?: string;
   needles: ConfigNeedle[];
   comment: boolean;
-  /** A coverage setting (a coverage key or an nyc/c8 config), and whether a threshold in the config gates it. */
+  /** A coverage setting (analyzer/coverage-settings.ts), and where a gate on it is (null: ungated). */
   coverage: boolean;
-  gated: boolean;
+  gate: string | null;
 }
 
-/** Every config token that names a move, except globs under substitution keys (the resolver models those). */
+/**
+ * Every config token that names a move, except globs under substitution keys (the resolver models those), and every
+ * Jest regex path setting whose match a move changes.
+ */
 export function configHits(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<string, string>, scopes: ScopeLookup, runner: RunnerConfig): ConfigHit[] {
   const results: ConfigHit[] = [];
   if (moves.size === 0) return results;
+  const gateOf = coverageGates(repo);
   const needles = fileNeedles(repo, moves, scopes);
   const { crossed, emptied } = directoryNeedles(repo, moves);
   const insideEmptied = (candidate: string): ConfigNeedle | undefined => {
@@ -240,7 +225,8 @@ export function configHits(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<
   for (const config of repo.tracked().filter((file) => configFilePattern.test(file) && !file.split('/').includes('node_modules'))) {
     const text = repo.read(config) ?? '';
     const configDirectory = path.posix.dirname(config).replace(/^\.$/, '');
-    const jestRoot = runner.jest.find((entry) => entry.config === config)?.rootDir ?? null;
+    const jest = runner.jest.find((entry) => entry.config === config);
+    const jestRoot = jest?.rootDir ?? null;
     const vitestRoot = runner.vitest.find((entry) => entry.config === config)?.directory ?? null;
     const anchors = [...new Set([configDirectory, ...[jestRoot, vitestRoot].filter((root): root is string => root !== null), ...ancestors(configDirectory)])];
     const ownSites = analysis.files.get(config)?.sites ?? [];
@@ -274,15 +260,21 @@ export function configHits(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<
         }
       }
     }
+    for (const { key, source, pattern } of jest?.pathPatterns ?? []) {
+      const changed = [...moves].filter(([from, to]) => pattern.test(`/${from}`) !== pattern.test(`/${to}`));
+      if (changed.length === 0) continue;
+      const offset = Math.max(0, text.search(new RegExp(`["']?\\b${key}["']?\\s*:`)));
+      hits.push({ offset, token: source, needles: changed.map(([from, to]) => ({ from, to, form: `regex /${source}/ in ${key}, whose match changes` })) });
+    }
     if (hits.length === 0) continue;
     const syntax = textSyntax(config, text);
-    const gated = coverageGated(text);
     for (const hit of hits) {
       const keys = syntax.keys(hit.offset);
       if (hit.glob && keys.some((key) => substitutionKeys.has(key))) continue;
+      const coverage = isCoverageSetting(config, keys);
       results.push({
         config, line: text.slice(0, hit.offset).split('\n').length, keys, token: hit.token, ...(hit.glob ? { glob: hit.glob } : {}), needles: hit.needles,
-        comment: syntax.inComment(hit.offset), coverage: coverageConfig.test(config) || keys.some((key) => coverageKey.test(key)), gated,
+        comment: syntax.inComment(hit.offset), coverage, gate: coverage ? gateOf(config) : null,
       });
     }
   }
@@ -300,11 +292,11 @@ export function configReferences(repo: RepoFs, analysis: Analysis, moves: Readon
     const named = hit.needles.map((needle) => `${needle.from} (moving to ${needle.to})`).join(', ');
     if (hit.comment) {
       findings.push({ kind: 'old-path-in-comment', file: hit.config, detail: `${where}: a comment's '${hit.token}' is the ${hit.needles[0]!.form} of ${named}` });
-    } else if (hit.coverage && !hit.gated) {
+    } else if (hit.coverage && hit.gate === null) {
       findings.push({ kind: 'ungated-coverage-glob', file: hit.config, detail: `${where}: coverage glob '${hit.token}'${hit.glob ? ` (${hit.glob})` : ''} matches differently for ${named}; nothing in ${hit.config} gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes` });
     } else {
       for (const needle of hit.needles) {
-        declines.push({ code: 'config-reference', file: needle.from, detail: `${where}: '${hit.token}' is the ${needle.form} of ${needle.from}${hit.coverage ? '; a coverage setting gated by a threshold' : ''}` });
+        declines.push({ code: 'config-reference', file: needle.from, detail: `${where}: '${hit.token}' is the ${needle.form} of ${needle.from}${hit.coverage ? `; a coverage setting gated by ${hit.gate}` : ''}` });
       }
     }
   }

@@ -1,11 +1,13 @@
 // R3's filename-observability guard (plan §2.3): a rename is declined when anything could observe the file's name, not
 // just import it. The executor rewrites import specifiers; it can't rewrite a name computed at runtime, a loader that
 // registers by file name, a snapshot keyed by the spec's name, a string that spells the old name, or a tool keyed on
-// the suffix (`.dto.ts`, `.controller.ts`, test and tsconfig globs, coverage and lint globs).
+// the suffix (Nest compiler plugins on `.dto.ts` / `.controller.ts`, test and tsconfig globs, coverage and lint globs,
+// Jest regex path settings).
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { isSourceFile, stripBom } from '../analyzer/analyze.js';
+import { isSourceFile } from '../analyzer/analyze.js';
+import { describePluginChange, nestPlugins, pluginChange } from '../analyzer/nest-plugins.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import { overlayRepoFs, type RepoFs, toAbsolute } from '../analyzer/repo-fs.js';
 import type { RunnerConfig } from '../analyzer/runner-config.js';
@@ -205,45 +207,14 @@ function nameInText(context: GuardContext, renames: ReadonlyMap<string, string>,
   }
 }
 
-/** Plugin suffixes of the Nest CLI's compiler plugins (defaults from @nestjs/swagger and @nestjs/graphql). */
-function nestPluginSuffixes(repo: RepoFs, file: string): { plugin: string; option: string; suffixes: string[]; config: string }[] {
-  for (const directory of ancestorsOf(path.posix.dirname(file))) {
-    const config = directory ? `${directory}/nest-cli.json` : 'nest-cli.json';
-    const text = repo.read(config);
-    if (text === undefined) continue;
-    let json: { compilerOptions?: { plugins?: unknown[] }; projects?: Record<string, { compilerOptions?: { plugins?: unknown[] } }> };
-    try {
-      json = JSON.parse(stripBom(text));
-    } catch {
-      return [{ plugin: 'nest-cli.json', option: 'unreadable', suffixes: ['.ts'], config }];
-    }
-    const plugins = [json.compilerOptions?.plugins ?? [], ...Object.values(json.projects ?? {}).map((project) => project?.compilerOptions?.plugins ?? [])].flat();
-    const results: { plugin: string; option: string; suffixes: string[]; config: string }[] = [];
-    for (const plugin of plugins) {
-      const name = typeof plugin === 'string' ? plugin : (plugin as { name?: string })?.name ?? '';
-      const options = (typeof plugin === 'object' && plugin !== null ? (plugin as { options?: Record<string, unknown> }).options : undefined) ?? {};
-      const list = (option: string, fallback: string[]) => {
-        const value = options[option];
-        results.push({ plugin: name, option, suffixes: value === undefined ? fallback : [value].flat().map(String), config });
-      };
-      if (/^@nestjs\/swagger(\/plugin)?$/.test(name)) {
-        list('dtoFileNameSuffix', ['.dto.ts', '.entity.ts']);
-        list('controllerFileNameSuffix', ['.controller.ts']);
-      } else if (/^@nestjs\/graphql(\/plugin)?$/.test(name)) list('typeFileNameSuffix', ['.input.ts', '.args.ts', '.entity.ts', '.model.ts']);
-    }
-    return results;
-  }
-  return [];
-}
-
-/** Tools keyed on names or suffixes: Nest compiler plugins, test-runner sets, tsconfig programs, config globs. */
+/** Tools keyed on names or suffixes: Nest compiler plugins, test-runner sets, tsconfig programs, config globs and regexes. */
 function suffixKeyedTools(context: GuardContext, renames: ReadonlyMap<string, string>, add: (decline: GuardDecline) => void): void {
   const { repo, runner, scopes, profile } = context;
+  const plugins = nestPlugins(repo);
   for (const [from, to] of renames) {
-    for (const { plugin, option, suffixes, config } of nestPluginSuffixes(repo, from)) {
-      const before = suffixes.some((suffix) => path.posix.basename(from).endsWith(suffix));
-      const after = suffixes.some((suffix) => path.posix.basename(to).endsWith(suffix));
-      if (before !== after) add({ file: from, reason: 'suffix-tooling', detail: `${config}: ${plugin} ${option} [${suffixes.join(', ')}] would ${after ? 'start' : 'stop'} transforming it` });
+    for (const plugin of plugins) {
+      const change = pluginChange(plugin, from, to);
+      if (change) add({ file: from, reason: 'suffix-tooling', detail: describePluginChange(plugin, change) });
     }
     for (const detail of testScopeChanges(runner, from, to)) add({ file: from, reason: 'suffix-tooling', detail });
     // A runner given its files as CLI globs (mocha) keys on them like a config does.
@@ -264,7 +235,7 @@ function suffixKeyedTools(context: GuardContext, renames: ReadonlyMap<string, st
   for (const hit of configHits(repo, context.analysis, renames, scopes, runner)) {
     if (hit.comment) continue;
     for (const needle of hit.needles) {
-      add({ file: needle.from, reason: 'suffix-tooling', detail: `${hitLocation(hit)}: '${hit.token}' is the ${needle.form}${hit.coverage ? ` (a coverage setting${hit.gated ? ' with a threshold' : ''})` : ''}` });
+      add({ file: needle.from, reason: 'suffix-tooling', detail: `${hitLocation(hit)}: '${hit.token}' is the ${needle.form}${hit.coverage ? ` (a coverage setting${hit.gate ? `, gated by ${hit.gate}` : ''})` : ''}` });
     }
   }
 }

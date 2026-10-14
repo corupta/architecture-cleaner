@@ -5,9 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { coverageGated } from '../../src/analyzer/coverage-settings.js';
 import { createContext } from '../../src/certificate/certify.js';
 import { locationScan } from '../../src/certificate/location-scan.js';
-import { coverageGated, globToRegExp } from '../../src/certificate/old-path-scan.js';
+import { globToRegExp } from '../../src/certificate/old-path-scan.js';
 import type { CheckResult } from '../../src/certificate/types.js';
 import { listFixtures, materialize } from '../helpers.js';
 
@@ -308,6 +309,86 @@ describe('K4 old-path strings', () => {
       "scripts/check.sh: line 1: 'src/dtos/' is the directory the move emptied of src/dtos (moved to src/modules/a) [config]",
       "scripts/check.sh: line 2: 'src/dtos/*.ts' is the glob src/dtos/*.ts whose matches change (1 moved files, e.g. src/dtos/a.dto.ts -> src/modules/a/a.dto.ts) of src/dtos/a.dto.ts (moved to src/modules/a/a.dto.ts) [config]",
     ]);
+  });
+});
+
+describe('K4 coverage settings, coverage gates and suffix-keyed tools', () => {
+  const services = {
+    'src/services/user.service.ts': 'export const user = 1;\n',
+    'src/services/user.service.spec.ts': "import { user } from './user.service';\nexport const spec = user;\n",
+    'src/services/other.service.ts': 'export const other = 1;\n',
+  };
+  const toModule = { 'src/services/user.service.ts': 'src/modules/user/user.service.ts', 'src/services/user.service.spec.ts': 'src/modules/user/user.service.spec.ts' };
+  const vitestCoverage = (coverage: string, prelude = '') => `import { defineConfig } from 'vitest/config';\n${prelude}export default defineConfig({ test: { coverage: { include: ['src/services/**']${coverage} } } });\n`;
+  const coverageScope = (outcome: CheckResult) => outcome.findings.filter((finding) => finding.kind === 'coverage-scope');
+
+  it('flags a test path in an npm script or CI job named coverage: the name is no coverage setting', async () => {
+    const script = await scan(commitPair({ ...services, 'package.json': JSON.stringify({ name: 'x', scripts: { 'test:coverage': 'vitest run --coverage src/services' } }, null, 2) + '\n' }, toModule));
+    expect(details(script)).toEqual([expect.stringContaining("'src/services' is the directory src/services")]);
+    expect(details(script)[0]).toContain('[config at scripts.test:coverage]');
+    const job = await scan(commitPair({ ...services, '.github/workflows/ci.yml': 'jobs:\n  coverage:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npx vitest run src/services\n' }, toModule));
+    expect(details(job)).toEqual([expect.stringContaining('[CI at jobs.coverage.steps.run]')]);
+    expect(coverageScope(job)).toEqual([]);
+  });
+
+  it('keeps an ungated test.coverage glob a finding', async () => {
+    const outcome = await scan(commitPair({ ...services, 'vitest.config.ts': vitestCoverage('') }, toModule));
+    expect(details(outcome)).toEqual([]);
+    expect(coverageScope(outcome).length).toBe(1);
+  });
+
+  it.each([
+    ['a threshold from a const', { 'vitest.config.ts': vitestCoverage(', thresholds: { lines: MIN }', 'const MIN = 90;\n') }],
+    ['a CLI threshold flag in a script', { 'vitest.config.ts': vitestCoverage(''), 'package.json': JSON.stringify({ name: 'x', scripts: { 'test:ci': 'vitest run --coverage --coverage.thresholds.lines=90' } }) + '\n' }],
+    ['check-coverage in CI', { 'vitest.config.ts': vitestCoverage(''), '.github/workflows/ci.yml': 'jobs:\n  unit:\n    steps:\n      - run: npx c8 --check-coverage --lines 90 vitest run\n' }],
+    ['a threshold in a required base config', {
+      'jest.config.js': "const base = require('./jest.base.js');\nmodule.exports = { ...base, collectCoverageFrom: ['src/services/**/*.ts'] };\n",
+      'jest.base.js': 'module.exports = { coverageThreshold: { global: { lines: 90 } } };\n',
+    }],
+    ['a threshold in a multi-project root above it', {
+      'jest.config.js': "module.exports = { projects: ['<rootDir>/src'], coverageThreshold: { global: { lines: 90 } } };\n",
+      'src/jest.config.js': "module.exports = { collectCoverageFrom: ['services/**/*.ts'] };\n",
+    }],
+  ])('flags a coverage setting gated by %s', async (_gate, config) => {
+    const outcome = await scan(commitPair({ ...services, ...config }, { 'src/services/user.service.ts': 'src/modules/user/user.service.ts' }));
+    expect(details(outcome)).toEqual([expect.stringContaining('a coverage setting with a threshold')]);
+    expect(coverageScope(outcome)).toEqual([]);
+  });
+
+  it('flags a move or a rename that changes what a gated Jest regex path setting matches', async () => {
+    const jest = (patterns: string) => `module.exports = {\n  collectCoverageFrom: ['src/**/*.ts'],\n  coveragePathIgnorePatterns: [${patterns}],\n  coverageThreshold: { global: { lines: 90 } },\n};\n`;
+    const moved = await scan(commitPair({ ...services, 'jest.config.js': jest("'/node_modules/', '/src/(services|repositories)/'") }, { 'src/services/user.service.ts': 'src/modules/user/user.service.ts' }));
+    expect(details(moved)).toEqual([expect.stringMatching(/^jest\.config\.js: line 3: .*coveragePathIgnorePatterns.*src\/services\/user\.service\.ts.*a coverage setting with a threshold/)]);
+    const renamed = await scan(commitPair({ 'src/user/create-user-dto.ts': 'export class CreateUserDto {}\n', 'jest.config.js': jest("'\\\\.dto\\\\.ts$'") }, { 'src/user/create-user-dto.ts': 'src/user/create-user.dto.ts' }));
+    expect(details(renamed)).toEqual([expect.stringContaining('coveragePathIgnorePatterns')]);
+  });
+
+  it('flags a rename into or out of a Nest compiler plugin suffix, wherever the plugin is configured', async () => {
+    const dto = { 'src/user/create-user-dto.ts': 'export class CreateUserDto {}\n', 'src/user/user-guard.ts': 'export class UserGuard {}\n' };
+    const renames = { 'src/user/create-user-dto.ts': 'src/user/create-user.dto.ts', 'src/user/user-guard.ts': 'src/user/user.guard.ts' };
+    const configs: Record<string, string>[] = [
+      { '.nest-cli.json': JSON.stringify({ compilerOptions: { plugins: ['@nestjs/swagger'] } }) },
+      { 'jest.config.js': "module.exports = { transform: { '^.+\\\\.ts$': ['ts-jest', { astTransformers: { before: ['@nestjs/swagger/plugin'] } }] } };\n" },
+    ];
+    for (const config of configs) {
+      const outcome = await scan(commitPair({ ...dto, ...config }, renames));
+      expect(details(outcome)).toEqual([expect.stringMatching(/^src\/user\/create-user\.dto\.ts: renamed from src\/user\/create-user-dto\.ts: .*@nestjs\/swagger.*would start transforming it/)]);
+    }
+    const unreadable = await scan(commitPair({ ...dto, 'nest-cli.json': '{ "compilerOptions": { "plugins": [ "@nestjs/swagger", ] } }\n' }, renames));
+    expect(details(unreadable).length).toBe(2);
+  });
+
+  it('anchors <rootDir> tokens at the Jest rootDir, read from the config directory', async () => {
+    for (const rootDir of ['./src', 'src']) {
+      const repo = commitPair({
+        'packages/api/package.json': '{ "name": "api" }\n',
+        'packages/api/jest.config.js': `module.exports = { rootDir: '${rootDir}', collectCoverageFrom: ['<rootDir>/services/**/*.ts'], coverageThreshold: { global: { lines: 90 } } };\n`,
+        'packages/api/src/services/user.service.ts': 'export const user = 1;\n',
+        'packages/api/src/services/other.service.ts': 'export const other = 1;\n',
+      }, { 'packages/api/src/services/user.service.ts': 'packages/api/src/modules/user/user.service.ts' });
+      const outcome = await scan(repo, 'HEAD~1', 'HEAD', 'packages/api');
+      expect(details(outcome)).toEqual([expect.stringContaining("'/services/**/*.ts' is the glob packages/api/src/services/**/*.ts")]);
+    }
   });
 });
 
