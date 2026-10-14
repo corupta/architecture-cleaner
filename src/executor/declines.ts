@@ -8,6 +8,8 @@ import { moduleFormat } from '../analyzer/analyze.js';
 import { overlayRepoFs, type RepoFs, toAbsolute } from '../analyzer/repo-fs.js';
 import type { RunnerConfig, TestScope } from '../analyzer/runner-config.js';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
+import { configReferences } from './config-references.js';
+import { globToRegExp } from './glob.js';
 import { extensionOf } from './respecify.js';
 import type { Analysis } from '../analyzer/types.js';
 
@@ -23,8 +25,12 @@ export interface Decline {
   detail: string;
 }
 
-const configPattern = /(^|\/)(package\.json|tsconfig[^/]*\.json|jest\.config\.[cm]?[jt]s|jest\.config\.json|(vitest|vite)\.config\.[cm]?[jt]s|nest-cli\.json)$/;
-const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Something an applied step leaves as it was, worth a line in the findings log (the certificate's Finding shape). */
+export interface MoveFinding {
+  kind: string;
+  file?: string;
+  detail: string;
+}
 
 function ignoredPaths(repo: RepoFs, paths: string[]): Set<string> {
   if (paths.length === 0) return new Set();
@@ -42,36 +48,18 @@ const jestDefaultMatch = ['**/__tests__/**/*.?([mc])[jt]s?(x)', '**/?(*.)+(spec|
 const vitestDefaultInclude = ['**/*.{test,spec}.?(c|m)[jt]s?(x)'];
 const vitestDefaultExclude = ['**/node_modules/**', '**/.git/**'];
 
-/** Minimal glob → RegExp: `**`, `*`, `?`, `[..]`, `{a,b}` and the extglobs `?(…) *(…) +(…) @(…)`. */
-export function globToRegExp(glob: string): RegExp {
-  let source = '';
-  const groups: string[] = [];
-  for (let index = 0; index < glob.length; index++) {
-    const char = glob[index]!;
-    const next = glob[index + 1];
-    if ('?*+@'.includes(char) && next === '(') {
-      groups.push(char === '@' ? ')' : `)${char}`);
-      source += '(?:';
-      index++;
-    } else if (char === ')' && groups.length) source += groups.pop();
-    else if (char === '|' && groups.length) source += '|';
-    else if (char === '*' && next === '*') {
-      source += glob[index + 2] === '/' ? '(?:.*/)?' : '.*';
-      index += glob[index + 2] === '/' ? 2 : 1;
-    } else if (char === '*') source += '[^/]*';
-    else if (char === '?') source += '[^/]';
-    else if (char === '{') {
-      groups.push(')');
-      source += '(?:';
-    } else if (char === '}' && groups.length) source += groups.pop();
-    else if (char === ',' && groups.length) source += '|';
-    else if (char === '[') {
-      const close = glob.indexOf(']', index);
-      source += glob.slice(index, close + 1);
-      index = close;
-    } else source += char.replace(/[.^$()|\\]/g, '\\$&');
+/** The Jest/Vitest configs whose test set `from` leaves or `to` enters, as decline details. */
+export function testScopeChanges(runner: RunnerConfig, from: string, to: string): string[] {
+  const changes: string[] = [];
+  for (const jest of runner.jest) {
+    const defaults = { include: jestDefaultMatch, exclude: [] };
+    if (inScope(from, jest.scope, defaults) !== inScope(to, jest.scope, defaults)) changes.push(`${jest.config}: test membership changes at ${to}`);
   }
-  return new RegExp(`^${source}$`);
+  for (const vitest of runner.vitest) {
+    const defaults = { include: vitestDefaultInclude, exclude: vitestDefaultExclude };
+    if (inScope(from, vitest.scope, defaults) !== inScope(to, vitest.scope, defaults)) changes.push(`${vitest.config}: test membership changes at ${to}`);
+  }
+  return changes;
 }
 
 function inScope(file: string, scope: TestScope, defaults: { include: string[]; exclude: string[] }): boolean {
@@ -101,23 +89,7 @@ function nearestPackage(repo: RepoFs, directory: string, name: string): string |
 const pairedImplementation: [RegExp, string][] = [[/\.d\.ts$/, '.js'], [/\.d\.mts$/, '.mjs'], [/\.d\.cts$/, '.cjs'], [/\.js$/, '.d.ts'], [/\.mjs$/, '.d.mts'], [/\.cjs$/, '.d.cts']];
 const sameStemPairs: [RegExp, string][] = [[/\.ts$/, '.js'], [/\.tsx$/, '.jsx'], [/\.mts$/, '.mjs'], [/\.cts$/, '.cjs'], [/\.js$/, '.ts'], [/\.jsx$/, '.tsx'], [/\.mjs$/, '.mts'], [/\.cjs$/, '.cts']];
 
-/** Longest common directory of a program's non-declaration files: TS 5's default rootDir. */
-function commonSourceDirectory(files: ReadonlySet<string>): string {
-  const directories = [...files].filter((file) => !/\.d\.[cm]?ts$/.test(file)).map((file) => path.posix.dirname(file).split('/'));
-  if (directories.length === 0) return '';
-  const first = directories[0]!;
-  let length = first.length;
-  for (const parts of directories) {
-    let shared = 0;
-    while (shared < length && parts[shared] === first[shared]) shared++;
-    length = shared;
-  }
-  return first.slice(0, length).join('/').replace(/^\.$/, '');
-}
-
-const emittedExtension: Record<string, string> = { '.ts': '.js', '.tsx': '.js', '.mts': '.mjs', '.cts': '.cjs' };
-
-export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<string, string>, requested: ReadonlyMap<string, string>, runner: RunnerConfig): Decline[] {
+export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMap<string, string>, requested: ReadonlyMap<string, string>, runner: RunnerConfig): { declines: Decline[]; findings: MoveFinding[] } {
   const declines: Decline[] = [];
   const tracked = new Set(repo.tracked());
   const destinations = new Map<string, string>();
@@ -133,13 +105,13 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
   for (const ignored of ignoredPaths(repo, [...moves.values()])) declines.push({ code: 'ignored-destination', file: destinations.get(ignored) ?? ignored, detail: ignored });
 
   const scopesBefore = loadScopes(repo);
-  // An unreadable runner config only matters for files it governs (its directory and below): moved files, and
-  // files whose mocks point at moved files.
+  // An unreadable runner config only matters for files it governs (its directory, or a Vitest config's root, and below):
+  // moved files, and files whose mocks point at moved files.
   const mockImporters = [...analysis.files.values()].filter((file) => file.sites.some((site) => site.kind === 'mock'
     && site.resolution.type === 'file' && moves.has(site.resolution.path))).map((file) => file.path);
   const governed = [...moves.keys(), ...moves.values(), ...mockImporters];
   for (const entry of runner.unreadable) {
-    const directory = path.posix.dirname(entry.config).replace(/^\.$/, '');
+    const directory = runner.vitest.find((vitest) => vitest.config === entry.config)?.directory ?? path.posix.dirname(entry.config).replace(/^\.$/, '');
     const affected = governed.find((file) => directory === '' || file.startsWith(`${directory}/`));
     if (affected) declines.push({ code: 'unreadable-runner-config', file: entry.config, detail: `${entry.reason} (governs ${affected})` });
   }
@@ -183,14 +155,7 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
       if (before !== after) declines.push({ code: 'package-resolution-change', file: from, detail: `'${name}' from ${before ?? 'nowhere'} -> ${after ?? 'nowhere'}` });
     }
     // Every runner config counts: in a monorepo a test can leave one package's set and enter another's.
-    for (const jest of runner.jest) {
-      const defaults = { include: jestDefaultMatch, exclude: [] };
-      if (inScope(from, jest.scope, defaults) !== inScope(to, jest.scope, defaults)) declines.push({ code: 'test-runner-scope', file: from, detail: `${jest.config}: test membership changes at ${to}` });
-    }
-    for (const vitest of runner.vitest) {
-      const defaults = { include: vitestDefaultInclude, exclude: vitestDefaultExclude };
-      if (inScope(from, vitest.scope, defaults) !== inScope(to, vitest.scope, defaults)) declines.push({ code: 'test-runner-scope', file: from, detail: `${vitest.config}: test membership changes at ${to}` });
-    }
+    for (const detail of testScopeChanges(runner, from, to)) declines.push({ code: 'test-runner-scope', file: from, detail });
   }
 
   for (const from of moves.keys()) {
@@ -199,43 +164,9 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
     }
   }
 
-  // MVP: never edit configs; refuse the step when one names a moved file: its repo- or config-relative path, with or
-  // without extension, its directory for an index file (package.json "main": "./lib"), or its emitted path.
-  const programFiles = new Map<string, ReadonlySet<string>>([...scopesBefore.programs].map(([config, program]) => [config, program.files]));
-  for (const config of repo.tracked().filter((file) => configPattern.test(file) && !file.includes('node_modules/'))) {
-    const text = repo.read(config) ?? '';
-    const configDirectory = path.posix.dirname(config);
-    for (const from of moves.keys()) {
-      const paths = new Set<string>([from]);
-      const scope = scopesBefore(from);
-      const options = scope.options;
-      if (options.outDir && /\.[cm]?tsx?$/.test(from) && !/\.d\.[cm]?ts$/.test(from)) {
-        const outDirectory = path.relative(repo.root, options.outDir).split(path.sep).join('/');
-        // rootDir when set; otherwise both defaults: TS 6 (the tsconfig's directory) and TS 5 (common source directory).
-        const roots = options.rootDir ? [path.relative(repo.root, options.rootDir).split(path.sep).join('/')]
-          : [scope.config ? path.posix.dirname(scope.config).replace(/^\.$/, '') : '', commonSourceDirectory(programFiles.get(scope.config ?? '') ?? new Set())];
-        for (const root of new Set(roots)) {
-          const relative = root === '' ? from : path.posix.relative(root, from);
-          if (!relative.startsWith('..')) paths.add(path.posix.join(outDirectory, relative.replace(/\.[cm]?tsx?$/, (extension) => emittedExtension[extension] ?? '.js')));
-        }
-      }
-      const variants = new Set<string>();
-      for (const file of paths) {
-        for (const base of [file, path.posix.relative(configDirectory, file)]) {
-          variants.add(base);
-          variants.add(base.replace(/\.[cm]?[jt]sx?$/, ''));
-          if (/^index\.[cm]?[jt]sx?$/.test(path.posix.basename(base))) variants.add(path.posix.dirname(base));
-        }
-      }
-      const hit = [...variants].filter((variant) => variant && variant !== '.').find((variant) => {
-        // A bare word (no '/' and no extension) only counts when spelled './word', so keys like "types" don't match.
-        const bare = !variant.includes('/') && !/\.[cm]?[jt]sx?$/.test(variant);
-        const prefix = bare ? '\\./' : '(\\./)?';
-        return new RegExp(`(?<![\\w.-])${prefix}${escapeRegex(variant)}(\\.[cm]?[jt]sx?)?(?![\\w/.-])`).test(text);
-      });
-      if (hit) declines.push({ code: 'config-reference', file: from, detail: `${config} mentions ${hit}` });
-    }
-  }
+  // MVP: never edit configs; refuse the step when one names a moved file (an ungated coverage glob is only a finding).
+  const configs = configReferences(repo, analysis, moves, scopesBefore, runner);
+  declines.push(...configs.declines);
 
   const after = overlayRepoFs(repo, moves, new Map());
   const scopesAfter = loadScopes(after);
@@ -248,5 +179,5 @@ export function findDeclines(repo: RepoFs, analysis: Analysis, moves: ReadonlyMa
     const programsAfter = scopesAfter(to).programs.join(',');
     if (programsBefore !== programsAfter) declines.push({ code: 'compile-context-change', file: from, detail: `programs [${programsBefore}] -> [${programsAfter}]` });
   }
-  return declines;
+  return { declines, findings: configs.findings };
 }

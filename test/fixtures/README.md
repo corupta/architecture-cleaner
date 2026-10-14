@@ -36,7 +36,7 @@ test/fixtures/<name>/
 6. **Reference kinds covered:**
    - static `import` / `export … from` / `export * from` / `import type` / `export type`;
    - `import x = require('…')`;
-   - `require('…')` and `require.resolve('…')` in `.ts`;
+   - `require('…')` and `require.resolve('…')` in `.ts`, also with a parenthesized, cast or comma callee (`(require)('…')`, `(require as any)('…')`, `(0, require)('…')`) and a parenthesized or cast argument;
    - `import('…')` with a string literal or a no-substitution template;
    - `typeof import('…')`;
    - `jest.mock/doMock/unmock/requireActual/requireMock` and `vi.mock/doMock/unmock/importActual/importMock` with a string literal;
@@ -49,7 +49,7 @@ test/fixtures/<name>/
    - `case-only-rename`: old and new paths differ only in letter case.
    - `location-sensitive`: a moved file uses `__dirname`, `__filename`, `import.meta.url`/`dirname`/`filename` or `process.cwd()`.
    - `dynamic-reference`: a moved file contains `import()`/`require()` of a non-literal (template with substitutions, variable).
-   - `config-reference`: a config file (`package.json`, `tsconfig*.json`, `jest.config.*`, `vitest.config.*`, `nest-cli.json`) contains a moved file's path. That's the repo-relative or config-relative path, with or without its extension.
+   - `config-reference`: a config file (`package.json`, `tsconfig*.json`, Jest and Vitest/Vite configs including `jest*.json` and infixed names, `nest-cli.json`, ESLint configs, `.nycrc*`, `.c8rc*`) names a moved file: a path read at the config's directory, its runner root or any ancestor (with or without its extension, its emitted path, its directory for an index file), a directory a move enters or leaves, or a glob whose match set the move changes. A coverage setting that no threshold gates is an executor finding (`ungated-coverage-glob`) instead, and so is a mention in a comment (`old-path-in-comment`).
    - `module-format-change`: a moved file's implied module format (ESM vs CJS, from the nearest `package.json` `type` and the file extension) would change.
    - `compile-context-change`: the set of tsconfig programs that include a moved file would change, e.g. a test moved from an excluded `tests/` into an included `src/` (plan §3.4 K5).
    - `ignored-destination`: a destination is matched by `.gitignore`.
@@ -67,5 +67,6 @@ test/fixtures/<name>/
    - `unreadable-runner-config`: a Jest/Vitest config that governs a moved file (or a mock aimed at one) can't be read statically (plan §2.5). Multi-project roots (`projects: …`) are skipped, since their projects' own configs govern. Jest `preset`s aren't read; the certifier's K6 uses the runner's own test list.
    - `multi-program-file`: a moved or affected file belongs to several tsconfig programs, and under one of them some site would no longer resolve to map(its target). A config that other configs extend (`tsconfig.base.json`) isn't a program of its own unless it is the directory's `tsconfig.json`.
 9. **Co-moves also include declaration pairs:** `x.d.ts` ↔ `x.js`/`x.jsx`, `x.d.mts` ↔ `x.mjs`, `x.d.cts` ↔ `x.cjs`. TS resolves the declaration while Node loads the implementation, so they move together.
-10. **Also extracted:** relative `/// <reference types="./x" />`, JSDoc `@import` and `import('…')` types (checkJs), and `declare module '<alias>'` augmentations in module files. `import.meta.resolve` in a moved file is location-sensitive.
-11. **Config references** also cover a moved file's emitted path (`outDir` + path under `rootDir`, `.ts` → `.js`), as named by `package.json` `main`/`bin`/scripts.
+10. **Also read:** extensionless scripts whose shebang runs node, tsx, ts-node, bun or deno.
+11. **Also extracted:** relative `/// <reference types="./x" />`, JSDoc `@import` and `import('…')` types (checkJs), and `declare module '<alias>'` augmentations in module files. `import.meta.resolve` in a moved file is location-sensitive.
+12. **Config references** also cover a moved file's emitted path (`outDir` + path under `rootDir`, `.ts` → `.js`), as named by `package.json` `main`/`bin`/scripts.

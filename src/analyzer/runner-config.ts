@@ -39,6 +39,10 @@ export interface JestConfig {
 
 export interface VitestConfig {
   config: string;
+  /**
+   * Repo-relative directory the config governs: its Vite root (`test.root`, else `root`; immich's
+   * server/test/vitest.config.mjs sets it to server/), else the config file's directory. Test globs are relative to it.
+   */
   directory: string;
   aliases: ViteAlias[];
   scope: TestScope;
@@ -50,8 +54,10 @@ export interface RunnerConfig {
   unreadable: { config: string; reason: string }[];
 }
 
-const jestConfigPattern = /(^|\/)jest\.config\.(js|cjs|mjs|ts|cts|mts|json)$/;
-const viteConfigPattern = /(^|\/)(vitest|vite)\.config\.(js|cjs|mjs|ts|cts|mts)$/;
+// jest.config.ts, jest.e2e.config.js, and any jest*.json (Nest's test/jest-e2e.json): files Jest is pointed at with --config.
+const jestConfigPattern = /(^|\/)(jest([.-][^/]*)?\.config([.-][^/]*)?\.[cm]?[jt]s|jest([.-][^/]*)?\.json)$/;
+// vitest.config.ts, vite.config.mjs, vitest.config.medium.mjs, vitest.e2e.config.ts (a workspace file lists projects instead).
+const viteConfigPattern = /(^|\/)(vitest|vite)([.-][^/]*)?\.config([.-][^/]*)?\.[cm]?[jt]s$/;
 
 /** The config whose directory is the nearest ancestor of `file`. */
 export function nearestConfig<T extends { directory: string }>(configs: readonly T[], file: string): T | null {
@@ -78,8 +84,9 @@ function getProperty(object: ts.ObjectLiteralExpression, key: string): ts.Expres
 /**
  * The exported config object: `module.exports = {…}`, `module.exports = exports = {…}`, `export default {…}`,
  * `defineConfig({…})`, or a const they name. Later mutation (`exports.x = …`, `config.x = …`) makes it unreadable.
+ * `constants` are the top-level const initializers, for values a config names (`root: serverRoot`).
  */
-function exportedObject(sourceFile: ts.SourceFile): { object: ts.ObjectLiteralExpression | null; mutated: boolean } {
+function exportedObject(sourceFile: ts.SourceFile): { object: ts.ObjectLiteralExpression | null; mutated: boolean; constants: Map<string, ts.Expression> } {
   const constants = new Map<string, ts.Expression>();
   let exported: ts.Expression | undefined;
   const assignedPaths: string[] = [];
@@ -113,25 +120,56 @@ function exportedObject(sourceFile: ts.SourceFile): { object: ts.ObjectLiteralEx
   // assignments such as `process.env.TZ = 'UTC'` don't change the config.
   const exportedName = exported && ts.isIdentifier(exported) ? exported.text : null;
   const mutated = assignedPaths.some((left) => /^(module\.)?exports\./.test(left) || (exportedName !== null && left.startsWith(`${exportedName}.`)));
-  return { object: unwrap(exported), mutated };
+  return { object: unwrap(exported), mutated, constants };
 }
 
-/** Resolves `'./src'`, `path.resolve(__dirname, './src')`, `resolve(__dirname, 'src')`, `fileURLToPath(new URL('./src', import.meta.url))`. */
-function staticPath(expression: ts.Expression, configDirectory: string, sourceFile: ts.SourceFile): string | null {
+interface PathContext {
+  configDirectory: string;
+  sourceFile: ts.SourceFile;
+  constants: ReadonlyMap<string, ts.Expression>;
+}
+
+/**
+ * A config path expression as a repo-relative path: `'./src'`, `__dirname`, `import.meta.dirname`,
+ * `dirname(fileURLToPath(import.meta.url))`, `fileURLToPath(new URL('./src', import.meta.url))`, `path.resolve(<one of
+ * these>, '..', 'src')` (or `join`), and a top-level const holding one of them (immich: `root: serverRoot`).
+ */
+function staticPath(expression: ts.Expression, context: PathContext, seen: ReadonlySet<string> = new Set()): string | null {
+  const { configDirectory, sourceFile, constants } = context;
+  if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) return staticPath(expression.expression, context, seen);
   if (ts.isStringLiteralLike(expression)) return expression.text.startsWith('.') ? path.posix.join(configDirectory, expression.text) : expression.text;
-  if (ts.isCallExpression(expression)) {
-    const callee = expression.expression.getText(sourceFile);
-    const [first, ...rest] = expression.arguments;
-    if ((callee === 'path.resolve' || callee === 'resolve' || callee === 'path.join' || callee === 'join') && first && first.getText(sourceFile) === '__dirname'
-      && rest.every(ts.isStringLiteralLike)) {
-      return path.posix.join(configDirectory, ...rest.map((argument) => (argument as ts.StringLiteralLike).text));
-    }
-    if (callee === 'fileURLToPath' && first && ts.isNewExpression(first) && first.expression.getText(sourceFile) === 'URL') {
-      const [url, base] = first.arguments ?? [];
-      if (url && ts.isStringLiteralLike(url) && base?.getText(sourceFile) === 'import.meta.url') return path.posix.join(configDirectory, url.text);
-    }
+  const text = expression.getText(sourceFile);
+  if (text === '__dirname' || text === 'import.meta.dirname') return configDirectory;
+  if (ts.isIdentifier(expression)) {
+    const initializer = constants.get(expression.text);
+    return initializer && !seen.has(expression.text) ? staticPath(initializer, context, new Set([...seen, expression.text])) : null;
+  }
+  if (!ts.isCallExpression(expression)) return null;
+  const callee = expression.expression.getText(sourceFile);
+  const [first, ...rest] = expression.arguments;
+  if (!first) return null;
+  if (['path.resolve', 'resolve', 'path.join', 'join'].includes(callee) && !ts.isStringLiteralLike(first) && rest.every(ts.isStringLiteralLike)) {
+    const base = staticPath(first, context, seen);
+    return base === null ? null : path.posix.join(base, ...rest.map((argument) => (argument as ts.StringLiteralLike).text));
+  }
+  // The config file's own directory: dirname(fileURLToPath(import.meta.url)), dirname(__filename), dirname(import.meta.filename).
+  if ((callee === 'path.dirname' || callee === 'dirname') && expression.arguments.length === 1) {
+    const file = first.getText(sourceFile).replace(/\s/g, '');
+    if (['fileURLToPath(import.meta.url)', 'url.fileURLToPath(import.meta.url)', '__filename', 'import.meta.filename'].includes(file)) return configDirectory;
+  }
+  if ((callee === 'fileURLToPath' || callee === 'url.fileURLToPath') && ts.isNewExpression(first) && first.expression.getText(sourceFile) === 'URL') {
+    const [url, base] = first.arguments ?? [];
+    if (url && ts.isStringLiteralLike(url) && base?.getText(sourceFile) === 'import.meta.url') return path.posix.join(configDirectory, url.text);
   }
   return null;
+}
+
+/** The nearest directory at or above `directory` with a package.json ('' for the repo root). */
+function packageDirectory(repo: RepoFs, directory: string): string {
+  for (let current = directory; current; current = normalizeDirectory(path.posix.dirname(current))) {
+    if (repo.read(`${current}/package.json`) !== undefined) return current;
+  }
+  return '';
 }
 
 const normalizeDirectory = (directory: string) => (directory === '.' ? '' : directory.replace(/\/$/, ''));
@@ -190,7 +228,7 @@ function readJestJson(text: string, isPackageJson: boolean): JestFields | null {
 
 function readJestScript(config: string, text: string, configDirectory: string): JestFields | string | null {
   const sourceFile = ts.createSourceFile(config, text, ts.ScriptTarget.Latest, true);
-  const { object, mutated } = exportedObject(sourceFile);
+  const { object, mutated, constants } = exportedObject(sourceFile);
   if (!object) return 'no static config object';
   if (mutated) return 'config object mutated after its declaration';
   // A multi-project root (`projects: [...]`) delegates to the projects' own configs, which are read separately.
@@ -198,7 +236,7 @@ function readJestScript(config: string, text: string, configDirectory: string): 
   const fields: JestFields = { testRegex: Boolean(getProperty(object, 'testRegex')) };
   const rootDir = getProperty(object, 'rootDir');
   if (rootDir) {
-    const resolved = staticPath(rootDir, configDirectory, sourceFile);
+    const resolved = staticPath(rootDir, { configDirectory, sourceFile, constants });
     if (resolved === null) return 'non-literal rootDir';
     fields.rootDir = path.posix.relative(configDirectory || '.', resolved) || '.';
   }
@@ -259,11 +297,12 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
   for (const config of tracked.filter((file) => viteConfigPattern.test(file))) {
     const configDirectory = normalizeDirectory(path.posix.dirname(config));
     const sourceFile = ts.createSourceFile(config, repo.read(config) ?? '', ts.ScriptTarget.Latest, true);
-    const { object } = exportedObject(sourceFile);
+    const { object, constants } = exportedObject(sourceFile);
     if (!object) {
       result.unreadable.push({ config, reason: 'no static config object' });
       continue;
     }
+    const pathContext: PathContext = { configDirectory, sourceFile, constants };
     const aliasNodes = [getProperty(object, 'resolve'), getProperty(object, 'test')]
       .map((section) => (section && ts.isObjectLiteralExpression(section) ? getProperty(section, 'alias') : undefined))
       .filter((node): node is ts.Expression => Boolean(node));
@@ -273,7 +312,7 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
       if (ts.isObjectLiteralExpression(aliasNode)) {
         for (const property of aliasNode.properties) {
           const find = ts.isPropertyAssignment(property) ? propertyName(property.name) : null;
-          const replacement = ts.isPropertyAssignment(property) ? staticPath(property.initializer, configDirectory, sourceFile) : null;
+          const replacement = ts.isPropertyAssignment(property) ? staticPath(property.initializer, pathContext) : null;
           if (find === null || replacement === null) readable = false;
           else aliases.push({ find, replacement: normalizeDirectory(replacement) });
         }
@@ -281,7 +320,7 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
         for (const element of aliasNode.elements) {
           const find = ts.isObjectLiteralExpression(element) ? getProperty(element, 'find') : undefined;
           const replacement = ts.isObjectLiteralExpression(element) ? getProperty(element, 'replacement') : undefined;
-          const replacementPath = replacement ? staticPath(replacement, configDirectory, sourceFile) : null;
+          const replacementPath = replacement ? staticPath(replacement, pathContext) : null;
           if (!find || !ts.isStringLiteralLike(find) || replacementPath === null) readable = false;
           else aliases.push({ find: find.text, replacement: normalizeDirectory(replacementPath) });
         }
@@ -289,14 +328,22 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
     }
     if (!readable) result.unreadable.push({ config, reason: 'non-literal resolve.alias entry' });
     const testSection = getProperty(object, 'test');
-    const include = testSection && ts.isObjectLiteralExpression(testSection) ? staticStrings(getProperty(testSection, 'include')) : [];
-    const exclude = testSection && ts.isObjectLiteralExpression(testSection) ? staticStrings(getProperty(testSection, 'exclude')) : [];
+    const test = testSection && ts.isObjectLiteralExpression(testSection) ? testSection : undefined;
+    const include = test ? staticStrings(getProperty(test, 'include')) : [];
+    const exclude = test ? staticStrings(getProperty(test, 'exclude')) : [];
     if (include === null || exclude === null) result.unreadable.push({ config, reason: 'non-literal test.include/exclude' });
+    // Vitest collects tests (and reads include/exclude) relative to its root: test.root, else Vite's root.
+    const rootNode = (test && getProperty(test, 'root')) ?? getProperty(object, 'root');
+    const rootPath = rootNode ? staticPath(rootNode, pathContext) : configDirectory;
+    const rootInRepo = rootPath === null || rootPath.startsWith('/') ? null : normalizeDirectory(path.posix.normalize(rootPath || '.'));
+    if (rootInRepo === null || rootInRepo.startsWith('..')) result.unreadable.push({ config, reason: `root ${rootNode?.getText(sourceFile) ?? ''} is not a static directory in the repo` });
+    // An unreadable root is Vite's default, the cwd: most likely the package the config belongs to.
+    const root = rootInRepo === null || rootInRepo.startsWith('..') ? packageDirectory(repo, configDirectory) : rootInRepo;
     result.vitest.push({
       config,
-      directory: configDirectory,
+      directory: root,
       aliases,
-      scope: { roots: [configDirectory], include: expandPatterns(include ?? [], configDirectory, configDirectory), exclude: expandPatterns(exclude ?? [], configDirectory, configDirectory), excludePatterns: [] },
+      scope: { roots: [root], include: expandPatterns(include ?? [], root, root), exclude: expandPatterns(exclude ?? [], root, root), excludePatterns: [] },
     });
   }
   return result;

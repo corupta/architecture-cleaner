@@ -14,11 +14,16 @@ export function isSourceFile(file: string): boolean {
   return sourcePattern.test(file) && !file.split('/').includes('node_modules');
 }
 
-/** Extensionless executables run by Node (`bin/www` with a `#!/usr/bin/env node` line) are JavaScript too. */
-export function isNodeScript(repo: RepoFs, file: string): boolean {
-  if (path.posix.basename(file).includes('.') || file.split('/').includes('node_modules')) return false;
-  const text = repo.read(file);
-  return text !== undefined && /^#![^\n]*\bnode\b/.test(text);
+// Runtimes whose shebang makes an extensionless file JavaScript or TypeScript source: node, and the TS runners.
+const scriptShebang = /^#![^\n]*\b(node|tsx|ts-node|bun|deno)\b/;
+const isExtensionless = (file: string) => !path.posix.basename(file).includes('.') && !file.split('/').includes('node_modules');
+
+/**
+ * An extensionless executable run by Node (`bin/www` with `#!/usr/bin/env node`) or by a TypeScript runtime
+ * (`#!/usr/bin/env -S npx tsx`, `bun`, `deno run`): source the extractor reads (as TS, which parses JS too).
+ */
+export function isShebangScript(file: string, text: string | undefined): boolean {
+  return isExtensionless(file) && text !== undefined && scriptShebang.test(text);
 }
 
 /** JSON text without a leading BOM (JSON.parse rejects it; Node strips it for package.json). */
@@ -73,7 +78,7 @@ export function createSiteResolver(repo: RepoFs, runner?: RunnerConfig): SiteRes
 export function analyzeRepo(repo: RepoFs, { files, runner }: { files?: string[]; runner?: RunnerConfig } = {}): Analysis {
   const { scopeOf, resolve } = createContext(repo, runner);
   const analysis: Analysis = { files: new Map() };
-  for (const file of files ?? repo.tracked().filter((file) => isSourceFile(file) || isNodeScript(repo, file))) {
+  for (const file of files ?? repo.tracked().filter((file) => isSourceFile(file) || (isExtensionless(file) && isShebangScript(file, repo.read(file))))) {
     const text = repo.read(file);
     if (text === undefined) continue;
     const { sites, hazards } = extractSites(file, text);

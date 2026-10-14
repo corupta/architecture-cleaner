@@ -22,17 +22,35 @@ export function scriptKindOf(fileName: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
+/** Peels parentheses, casts, `!`, `satisfies` and `await`: `(require as any)`, `(<any>require)`, `require(('./x'))`. */
+function unwrap(expression: ts.Expression): ts.Expression {
+  let node = expression;
+  while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isTypeAssertionExpression(node) || ts.isNonNullExpression(node)
+    || ts.isSatisfiesExpression(node) || ts.isAwaitExpression(node)) node = node.expression;
+  return node;
+}
+
+/** The dotted name a call reaches, through wrappers and the indirect-call comma form: `(0, require)`, `(jest as any).mock`. */
 function calleeText(expression: ts.Expression): string | null {
-  if (ts.isIdentifier(expression)) return expression.text;
-  if (ts.isPropertyAccessExpression(expression)) {
-    const left = calleeText(expression.expression);
-    return left === null ? null : `${left}.${expression.name.text}`;
+  let node = unwrap(expression);
+  while (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.CommaToken) node = unwrap(node.right);
+  if (ts.isIdentifier(node)) return node.text;
+  if (ts.isPropertyAccessExpression(node)) {
+    const left = calleeText(node.expression);
+    return left === null ? null : `${left}.${node.name.text}`;
   }
   return null;
 }
 
+/** A call's argument as a string literal once wrappers are peeled (`require('./x' as string)`), else the bare argument. */
+function literalArgument(argument: ts.Expression | undefined): ts.Expression | undefined {
+  if (!argument) return undefined;
+  const inner = unwrap(argument);
+  return ts.isStringLiteralLike(inner) ? inner : argument;
+}
+
 function hasVirtualOption(call: ts.CallExpression): boolean {
-  const options = call.arguments[2];
+  const options = call.arguments[2] && unwrap(call.arguments[2]);
   if (!options || !ts.isObjectLiteralExpression(options)) return false;
   return options.properties.some((property) => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name)
     && property.name.text === 'virtual' && property.initializer.kind === ts.SyntaxKind.TrueKeyword);
@@ -77,7 +95,7 @@ export function extractSites(fileName: string, text: string): ExtractedFile {
     } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
       literalSite(node.argument.literal, 'typeof-import', { typeOnly: true });
     } else if (ts.isCallExpression(node)) {
-      const argument = node.arguments[0];
+      const argument = literalArgument(node.arguments[0]);
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         if (argument && ts.isStringLiteralLike(argument)) literalSite(argument, 'dynamic-import');
         else hazards.push({ kind: 'dynamic-reference', detail: `import(${argument ? argument.getText(sourceFile).slice(0, 80) : ''})`, offset: node.getStart(sourceFile) });
@@ -102,11 +120,12 @@ export function extractSites(fileName: string, text: string): ExtractedFile {
     }
     // `new URL('./x', import.meta.url)` and `import.meta.resolve('./x')` reference a file by its relative path.
     if (ts.isNewExpression(node) && node.expression.getText(sourceFile) === 'URL' && node.arguments?.length === 2) {
-      const [first, second] = node.arguments;
+      const first = literalArgument(node.arguments[0]);
+      const second = node.arguments[1];
       if (first && ts.isStringLiteralLike(first) && /^\.\.?\//.test(first.text) && second?.getText(sourceFile) === 'import.meta.url') literalSite(first, 'url-reference');
     }
     if (ts.isCallExpression(node) && node.expression.getText(sourceFile) === 'import.meta.resolve') {
-      const [first] = node.arguments;
+      const first = literalArgument(node.arguments[0]);
       if (first && ts.isStringLiteralLike(first) && /^\.\.?\//.test(first.text)) literalSite(first, 'url-reference');
     }
     ts.forEachChild(node, visit);

@@ -51,6 +51,23 @@ function probe(repo: RepoFs, base: string, extensions: readonly string[]): strin
   return null;
 }
 
+/**
+ * Vite's file lookup (vite 8 tryCleanFsResolve): the exact file, then the TS source of a JS output name (x.js → x.ts,
+ * then x.tsx; x.mjs → x.mts; x.cjs → x.cts; x.jsx → x.tsx), then appended extensions, then the directory index.
+ */
+function probeVite(repo: RepoFs, base: string): string | null {
+  const exact = path.posix.normalize(base);
+  if (repo.fileExists(toAbsolute(repo, exact))) return exact;
+  const output = /\.(js|mjs|cjs|jsx)$/.exec(exact)?.[0];
+  if (output) {
+    const stem = exact.slice(0, -output.length);
+    for (const source of [output.replace('js', 'ts'), ...(output === '.js' ? ['.tsx'] : [])]) {
+      if (repo.fileExists(toAbsolute(repo, stem + source))) return stem + source;
+    }
+  }
+  return probe(repo, base, viteExtensions);
+}
+
 function resolveWithTypeScript(context: ResolveContext, file: string, specifier: string, options: ts.CompilerOptions, mode: ts.ResolutionMode): Resolution {
   const resolved = ts.resolveModuleName(specifier, toAbsolute(context.repo, file), options, context.host, context.cacheFor(options), undefined, mode).resolvedModule;
   if (resolved) return classify(context.repo, resolved.resolvedFileName, resolved.isExternalLibraryImport, 'typescript');
@@ -72,12 +89,12 @@ function resolveMock(context: ResolveContext, file: string, site: ReferenceSite,
   if (site.callee?.startsWith('vi.') && vitest) {
     for (const alias of vitest.aliases) {
       if (specifier === alias.find || specifier.startsWith(`${alias.find}/`)) {
-        const found = probe(repo, alias.replacement + specifier.slice(alias.find.length), viteExtensions);
+        const found = probeVite(repo, alias.replacement + specifier.slice(alias.find.length));
         return found ? { type: 'file', path: found, via: 'vitest' } : { type: 'unresolved' };
       }
     }
     if (isRelative(specifier)) {
-      const found = probe(repo, path.posix.join(path.posix.dirname(file), specifier), viteExtensions);
+      const found = probeVite(repo, path.posix.join(path.posix.dirname(file), specifier));
       return found ? { type: 'file', path: found, via: 'vitest' } : { type: 'unresolved' };
     }
   }

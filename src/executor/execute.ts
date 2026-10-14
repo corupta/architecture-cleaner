@@ -6,13 +6,14 @@ import { type RepoFs, toAbsolute } from '../analyzer/repo-fs.js';
 import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import type { Analysis } from '../analyzer/types.js';
 import { applyMove, isWorktreeClean } from './apply.js';
-import { type Decline, findDeclines } from './declines.js';
+import { findDeclines, type Decline, type MoveFinding } from './declines.js';
 import { applyEditsToText, planEdits, type SpecifierEdit } from './edits.js';
 import { mapPath, withCoMoves } from './move-set.js';
 import { crossProgramMismatches, verifyMove, type Violation } from './verify.js';
 
 export type MoveResult =
-  | { outcome: 'applied' | 'verified'; moves: Map<string, string>; edits: SpecifierEdit[]; before: Analysis; after: Analysis }
+  /** `findings`: what the step leaves as it was and the findings log should show (an ungated coverage glob). */
+  | { outcome: 'applied' | 'verified'; moves: Map<string, string>; edits: SpecifierEdit[]; findings: MoveFinding[]; before: Analysis; after: Analysis }
   | { outcome: 'declined'; moves: Map<string, string>; declines: Decline[] }
   | { outcome: 'unverified'; moves: Map<string, string>; edits: SpecifierEdit[]; violations: Violation[] };
 
@@ -21,7 +22,7 @@ export function executeMove(repo: RepoFs, requested: ReadonlyMap<string, string>
   const moves = withCoMoves(requested, new Set(repo.tracked()));
   const runner = loadRunnerConfig(repo);
   const before = analyzeRepo(repo, { runner });
-  const declines = findDeclines(repo, before, moves, requested, runner);
+  const { declines, findings } = findDeclines(repo, before, moves, requested, runner);
   if (!dryRun && !isWorktreeClean(repo)) declines.push({ code: 'dirty-worktree', file: '.', detail: 'commit or stash tracked changes first' });
   if (declines.length) return { outcome: 'declined', moves, declines };
 
@@ -49,7 +50,7 @@ export function executeMove(repo: RepoFs, requested: ReadonlyMap<string, string>
   // be rewritten one way for all of them, so that is a decline, not a verification failure.
   const mismatches = crossProgramMismatches(repo, before, after, moves, newContentsByNewPath, runner);
   if (mismatches.length) return { outcome: 'declined', moves, declines: mismatches.map((mismatch) => ({ code: 'multi-program-file', file: mismatch.file, detail: mismatch.detail })) };
-  if (dryRun) return { outcome: 'verified', moves, edits: planned.edits, before, after };
+  if (dryRun) return { outcome: 'verified', moves, edits: planned.edits, findings, before, after };
   applyMove(repo, moves, newContentsByOldPath);
-  return { outcome: 'applied', moves, edits: planned.edits, before, after };
+  return { outcome: 'applied', moves, edits: planned.edits, findings, before, after };
 }
