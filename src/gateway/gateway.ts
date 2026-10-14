@@ -1,8 +1,9 @@
 // The in-process recording LLM gateway (plan §3.6). No listening server: `structured` validates the request rules,
 // serves or records a cassette record, holds the budget caps and appends the ledger. Live calls are serialized per
 // model (Super and Ultra send no rate-limit headers, so the client paces them) and retried on 429, 5xx and transport
-// errors, except those that may have been billed (a timeout, an answer lost after its headers, a gateway timeout); only
-// the final outcome is recorded, a non-2xx one included, so a replay fails the same way.
+// errors, except those that may have been billed (a timeout, a connection lost after the whole request was sent, an
+// answer lost after its headers, a gateway timeout); only the final outcome is recorded, a non-2xx one included, so a
+// replay fails the same way.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { costUsd, estimateUsd, readSpent, reserve } from './budget.js';
@@ -112,7 +113,8 @@ export function createGateway(options: GatewayOptions): Gateway {
     const outcome = await sendWithRetries(send, body, sleep);
     const entry = { ts: new Date().toISOString(), runId, model: body.model, key, n: body.n ?? 1, attempts: outcome.attempts, estimateUsd: estimate, latencyMs: Math.round(performance.now() - startedAt) };
     if ('error' in outcome) {
-      // A call that may have run upstream (a timeout, a lost answer) is charged the estimate to keep the caps hard.
+      // A call that may have run upstream (a timeout, a connection lost after the send, a lost answer) is charged the
+      // estimate to keep the caps hard.
       const possiblyBilled = outcome.error instanceof PossiblyBilledError;
       await settle({ ...entry, status: null, costUsd: possiblyBilled ? estimate : 0, error: errorMessage(outcome.error) });
       throw new GatewayError(`${body.model} call failed in transport after ${outcome.attempts} attempt(s): ${errorMessage(outcome.error)}`, 'transport');

@@ -1,11 +1,12 @@
 // The recording gateway (plan §3.6), with no network: replays come from hand-written cassettes, live calls go through
 // a fake transport against a temporary ledger and runs.json. The openai SDK is mocked to prove replays never build it.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { costUsd, estimateUsd, readRuns, readSpent } from '../../src/gateway/budget.js';
+import { costUsd, estimateUsd, readRuns, readSpent, withLedgerLock } from '../../src/gateway/budget.js';
 import { type CassetteRecord, loadCassette, requestHash } from '../../src/gateway/cassette.js';
 import { createGateway } from '../../src/gateway/gateway.js';
 import { models } from '../../src/gateway/models.js';
@@ -376,6 +377,46 @@ describe('budget', () => {
       await ultra;
     }
     expect((await other.structured(ask({ model: 'lightning', maxTokens: 30_000 }))).choices[0]!.value).toEqual({ answer: 2 });
+  });
+
+  it('name the lock’s owner: pid, host and start time', async () => {
+    const { ledgerPath } = setup();
+    const owner = await withLedgerLock(ledgerPath, () => JSON.parse(fs.readFileSync(`${ledgerPath}.lock`, 'utf8')));
+    expect(owner).toEqual({ pid: process.pid, host: os.hostname(), startedAt: expect.stringMatching(/^\d{4}-\d\d-\d\dT/), token: expect.any(String) });
+    expect(fs.existsSync(`${ledgerPath}.lock`)).toBe(false);
+  });
+
+  it('take over at once a fresh lock whose owner died on this host', async () => {
+    const { gateway, ledgerPath } = setup();
+    const { pid } = spawnSync(process.execPath, ['-e', '']);
+    expect(pid).toBeGreaterThan(0);
+    fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+    fs.writeFileSync(`${ledgerPath}.lock`, JSON.stringify({ pid, host: os.hostname(), startedAt: new Date().toISOString(), token: 'dead' }));
+    const started = performance.now();
+    expect((await gateway('record', fakeTransport(answered(1)).send).structured(ask())).choices[0]!.value).toEqual({ answer: 1 });
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
+
+  it('wait for a lock whose owner runs on this host, or runs on another host, until it is released or stale', async () => {
+    const { gateway, ledgerPath, ledger } = setup();
+    const lockPath = `${ledgerPath}.lock`;
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    const live = gateway('record', fakeTransport(answered(1), answered(2)).send);
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, host: os.hostname(), startedAt: new Date().toISOString(), token: 'live' }));
+    const waiting = live.structured(ask());
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(ledger()).toHaveLength(0);
+    fs.rmSync(lockPath);
+    expect((await waiting).choices[0]!.value).toEqual({ answer: 1 });
+
+    const { pid } = spawnSync(process.execPath, ['-e', '']);
+    fs.writeFileSync(lockPath, JSON.stringify({ pid, host: `not-${os.hostname()}`, startedAt: new Date().toISOString(), token: 'elsewhere' }));
+    const waitingElsewhere = live.structured(ask({ maxTokens: 2000 }));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(ledger()).toHaveLength(2);
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60_000);
+    fs.utimesSync(lockPath, tenMinutesAgo, tenMinutesAgo);
+    expect((await waitingElsewhere).choices[0]!.value).toEqual({ answer: 2 });
   });
 
   it('read, check and append under a lock file that another process holds, and take over a stale one', async () => {
