@@ -46,6 +46,23 @@ export function twoCommits(base: Tree, head: Tree, installed: Record<string, str
   return { root, base: baseCommit, head: git(root, 'rev-parse', 'HEAD') };
 }
 
+/** Commits each tree on top of the previous one; `install` adds the untracked environment afterwards. */
+export function commitChain(trees: Tree[], install?: (root: string) => void): { root: string; commits: string[] } {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-chain-'));
+  git(root, 'init', '-q');
+  git(root, 'config', 'user.email', 'chain@ac.invalid');
+  git(root, 'config', 'user.name', 'chain');
+  git(root, 'config', 'core.autocrlf', 'false');
+  const commits = trees.map((tree, index) => {
+    writeTree(root, tree);
+    git(root, 'add', '-A');
+    git(root, 'commit', '-q', '--allow-empty', '-m', `commit ${index}`);
+    return git(root, 'rev-parse', 'HEAD');
+  });
+  install?.(root);
+  return { root, commits };
+}
+
 /** A tree read from a directory on disk (fixtures' before/ and after/). */
 export function treeOf(directory: string): Tree {
   const tree: Tree = {};

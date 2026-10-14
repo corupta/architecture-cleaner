@@ -300,6 +300,30 @@ describe('the harness', () => {
     expect(byOperator.get('M2')!.effectivelySurvived).toBe(true);
   });
 
+  it('with a tree cache shared by control and mutants, records the kills it records without one', async () => {
+    const run = (name: string, cacheDir?: string) => runHarness({
+      subjects: fixtureSubjects(undefined, ['vitest-mocks']),
+      hunt: [],
+      operators: ['M20', 'M24'],
+      cap: 1,
+      checks: ['K1', 'K6'],
+      staged: false,
+      workDir: path.join(workDir, name),
+      quiet: true,
+      ...(cacheDir ? { cacheDir } : {}),
+      log: () => {},
+    });
+    const outcomes = (result: Awaited<ReturnType<typeof run>>) => result.mutants.map((mutant) => [mutant.id, mutant.statuses, mutant.effectiveKilledBy]);
+    const cacheDir = path.join(workDir, 'tree-cache');
+    const uncached = await run('uncached');
+    const cached = await run('cached', cacheDir);
+    expect(cached.controls.map((control) => control.verdict)).toEqual(['pass']);
+    expect(outcomes(cached)).toEqual(outcomes(uncached));
+    expect(cached.mutants.some((mutant) => mutant.effectiveKilledBy.includes('K6'))).toBe(true);
+    // One inventory per distinct tree: the base (shared by every certification), the good head and each mutant.
+    expect(fs.readdirSync(path.join(cacheDir, 'K6-inventory'))).toHaveLength(2 + new Set(cached.mutants.map((mutant) => mutant.commit)).size);
+  });
+
   it('compares violations without scratch directories and commit ids', () => {
     const commit = 'a'.repeat(40);
     expect(normalizedViolation({ file: 'x.ts', detail: `at /w/certify/m1/worktree-head/x.ts in ${commit} (${commit.slice(0, 9)}), /w/repos/r/y.ts\nstack` },

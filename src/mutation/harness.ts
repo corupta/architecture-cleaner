@@ -131,6 +131,8 @@ export interface HarnessOptions {
   workDir: string;
   /** Drop the certifier's per-check progress lines. */
   quiet: boolean;
+  /** The certifier's per-tree cache (CertifyOptions.cacheDir), shared by every control and mutant (off when unset). */
+  cacheDir?: string;
   log(message: string): void;
 }
 
@@ -346,6 +348,7 @@ async function certifyRange(range: Range, head: string, options: HarnessOptions,
     only: checks,
     workDir,
     keep: false,
+    ...(options.cacheDir ? { cacheDir: options.cacheDir } : {}),
   }));
   return { certificate, durationMs: Math.round(performance.now() - started), workDir, repo: range.repo };
 }

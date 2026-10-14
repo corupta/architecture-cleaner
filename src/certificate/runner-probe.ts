@@ -3,6 +3,7 @@
 // script generated into the work dir (never into the worktree, where a runner could collect it) that loads the
 // runner through its own API from the worktree and writes JSON. Nothing here models a runner: the probes ask it.
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { PathMap } from './path-map.js';
@@ -162,21 +163,37 @@ export interface SpawnOutcome {
 
 const tail = (text: string, length = 4000) => (text.length > length ? `…${text.slice(-length)}` : text);
 
+/** A probe's environment: the target's, offline, in CI mode, with a runner's script environment on top (NODE_OPTIONS add up). */
+function probeEnvironment(context: Pick<CertifyContext, 'options'>, offlineLog: string, environment: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+  const profile = context.options.profile;
+  const offline = targetEnvironment({ node: profile?.node ?? 'system', offlineLog, ...(profile?.env ? { extra: profile.env } : {}) });
+  return { ...offline, ...environment, ...(environment.NODE_OPTIONS ? { NODE_OPTIONS: `${offline.NODE_OPTIONS ?? ''} ${environment.NODE_OPTIONS}`.trim() } : {}) };
+}
+
+/**
+ * What a probe's result depends on besides the tree, the environment checkout and the tool (tree-cache.ts adds
+ * those): the target's Node binary and a hash of the whole environment the probe runs with.
+ */
+export function probeIdentity(context: Pick<CertifyContext, 'options'>, environment: Readonly<Record<string, string>>): { node: unknown; environment: string } {
+  const version = context.options.profile?.node ?? 'system';
+  const binary = fs.realpathSync(nodeBinary(version));
+  const stat = fs.statSync(binary);
+  const variables = Object.entries(probeEnvironment(context, '{offline-log}', environment)).filter(([, value]) => value !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return { node: [version, binary, stat.size, stat.mtimeMs], environment: createHash('sha256').update(JSON.stringify(variables)).digest('hex') };
+}
+
 /**
  * Runs `node <arguments>` under the target's Node, offline, in CI mode, from `cwd`, with `environment` (a runner's
  * script environment) on top; its NODE_OPTIONS add to the offline preload's.
  */
 export function spawnTargetNode(context: CertifyContext, scratch: string, cwd: string, nodeArguments: string[], timeoutMs: number, environment: Readonly<Record<string, string>> = {}): Promise<SpawnOutcome> {
   fs.mkdirSync(scratch, { recursive: true });
-  const profile = context.options.profile;
-  const node = profile?.node ?? 'system';
   const offlineLog = path.join(scratch, 'network.log');
   fs.rmSync(offlineLog, { force: true });
-  const offline = targetEnvironment({ node, offlineLog, ...(profile?.env ? { extra: profile.env } : {}) });
-  const env = { ...offline, ...environment, ...(environment.NODE_OPTIONS ? { NODE_OPTIONS: `${offline.NODE_OPTIONS ?? ''} ${environment.NODE_OPTIONS}`.trim() } : {}) };
+  const env = probeEnvironment(context, offlineLog, environment);
   const started = performance.now();
   return new Promise((resolve, reject) => {
-    const child = spawn(nodeBinary(node), nodeArguments, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    const child = spawn(nodeBinary(context.options.profile?.node ?? 'system'), nodeArguments, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));

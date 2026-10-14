@@ -175,7 +175,7 @@ export function oracleCacheRoot(): string | undefined {
 const runFormat = 2;
 
 /** Marker files that change when a node_modules tree is reinstalled. */
-const installMarkers = ['.modules.yaml', '.package-lock.json', '.yarn-state.yml', '.yarn-integrity'];
+export const installMarkers = ['.modules.yaml', '.package-lock.json', '.yarn-state.yml', '.yarn-integrity'];
 
 export interface CacheIdentity {
   repo: string;

@@ -4,9 +4,10 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 import { analyzeRepo } from '../analyzer/analyze.js';
 import { loadRunnerConfig } from '../analyzer/runner-config.js';
-import type { Analysis } from '../analyzer/types.js';
+import type { Analysis, AnalyzedFile } from '../analyzer/types.js';
 import { byteSpanConfinement } from './byte-spans.js';
 import { commitRepoFs, createEnvironment, type Environment } from './commit-fs.js';
 import { emitLayout } from './emit-layout.js';
@@ -21,13 +22,15 @@ import { runtimeResolution } from './resolution-runtime.js';
 import { typescriptResolution } from './resolution-typescript.js';
 import { spanViews } from './spans.js';
 import { testInventory } from './test-inventory.js';
+import { packageDirectory } from './toolchain.js';
+import { openTreeCache, placesOf } from './tree-cache.js';
 import type { Certificate, CertifyContext, CertifyOptions, Check, CheckResult, Side } from './types.js';
 
 export const checks: readonly Check[] = [envelope, moveSetIntegrity, byteSpanConfinement, typescriptResolution, runnerResolution, runtimeResolution, locationScan, testInventory, emitLayout, oracles];
 
 const toolVersion = (() => {
   try {
-    return JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version as string;
+    return JSON.parse(fs.readFileSync(path.join(packageDirectory(), 'package.json'), 'utf8')).version as string;
   } catch {
     return 'unknown';
   }
@@ -76,7 +79,9 @@ export function removeWorktrees(repo: string, directories: string[]): void {
   if (directories.length) execFileSync('git', ['-C', repo, 'worktree', 'prune'], { stdio: 'ignore' });
 }
 
-export function createContext(options: CertifyOptions): { context: CertifyContext; cleanup(): void } {
+export function createContext(given: CertifyOptions): { context: CertifyContext; cleanup(): void } {
+  // Probes run from inside a worktree: a relative work dir would name another directory there.
+  const options = { ...given, workDir: path.resolve(given.workDir), ...(given.cacheDir ? { cacheDir: path.resolve(given.cacheDir) } : {}) };
   fs.mkdirSync(options.workDir, { recursive: true });
   const base = readCommitTree(options.repo, options.base);
   const head = readCommitTree(options.repo, options.head);
@@ -86,6 +91,24 @@ export function createContext(options: CertifyOptions): { context: CertifyContex
   const fsBySide = { base: commitRepoFs(base, environment.shadowRoot, environment.checkout), head: commitRepoFs(head, environment.shadowRoot, environment.checkout) };
   let analyses: Record<Side, Analysis> | undefined;
   const worktrees = new Map<Side, string>();
+  const log = (message: string) => process.stderr.write(`[certify] ${message}\n`);
+  const cache = options.cacheDir ? openTreeCache(options.cacheDir, { packageRoot: options.packageRoot, environment }, log) : null;
+  /** The analyzer's pass over one tree; the tree cache keys it by the tool's TypeScript and Node too (builtins). */
+  const analysisOf = (side: Side): Analysis => {
+    const tree = side === 'base' ? base : head;
+    const key = { typescript: ts.version, node: process.version };
+    const places = placesOf('shadow', environment.shadowRoot);
+    // Later checks read these blobs too: one batch either way.
+    prefetchAnalyzerInputs(tree);
+    const stored = cache?.read<[string, AnalyzedFile][]>('analysis', tree.tree, key, places);
+    if (stored) {
+      log(`analysis of ${side} from the tree cache`);
+      return { files: new Map(stored) };
+    }
+    const analysis = analyzeRepo(fsBySide[side], { runner: loadRunnerConfig(fsBySide[side]) });
+    cache?.write('analysis', tree.tree, key, places, [...analysis.files]);
+    return analysis;
+  };
   const context: CertifyContext = {
     options,
     base,
@@ -94,15 +117,9 @@ export function createContext(options: CertifyOptions): { context: CertifyContex
     pathMap,
     environment,
     fs: fsBySide,
+    cache,
     analyses() {
-      if (!analyses) {
-        prefetchAnalyzerInputs(base);
-        prefetchAnalyzerInputs(head);
-      }
-      analyses ??= {
-        base: analyzeRepo(fsBySide.base, { runner: loadRunnerConfig(fsBySide.base) }),
-        head: analyzeRepo(fsBySide.head, { runner: loadRunnerConfig(fsBySide.head) }),
-      };
+      analyses ??= { base: analysisOf('base'), head: analysisOf('head') };
       return analyses;
     },
     materialize(side) {
@@ -112,7 +129,7 @@ export function createContext(options: CertifyOptions): { context: CertifyContex
       worktrees.set(side, directory);
       return directory;
     },
-    log: (message) => process.stderr.write(`[certify] ${message}\n`),
+    log,
   };
   const cleanup = () => {
     removeWorktrees(options.repo, [...worktrees.values()]);

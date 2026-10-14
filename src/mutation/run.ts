@@ -6,9 +6,11 @@
 //   --cap        instances per operator variant and subject (default 3)
 //   --exhaustive run every check on every mutant (default: stop after the tree-only checks when they kill)
 //   --work-dir   scratch directory (default: a fresh /tmp/ac-s4-mutation/run-*)
+//   --cache-dir  the certifier's per-tree cache, shared by every certification (default: $AC_CERTIFY_CACHE, else off)
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { cacheDirFromEnvironment } from '../certificate/tree-cache.js';
 import type { CheckId } from '../certificate/types.js';
 import { coverageSubject } from './coverage-subject.js';
 import { fixtureSubjects, loadHuntCases, runHarness, staticChecks, targetSubject } from './harness.js';
@@ -24,12 +26,13 @@ async function main(): Promise<number> {
       checks: { type: 'string' },
       cap: { type: 'string', default: '3' },
       'work-dir': { type: 'string' },
+      'cache-dir': { type: 'string' },
       exhaustive: { type: 'boolean', default: false },
       verbose: { type: 'boolean', default: false },
     },
   });
   if (!values.out) {
-    console.error('usage: run.js --targets <fixtures,synthetic,hunt,openhab-cloud,immich-album,immich-r1,...> --out <dir> [--operators M1,M2] [--checks K1,K2] [--cap 3] [--exhaustive] [--work-dir <dir>]');
+    console.error('usage: run.js --targets <fixtures,synthetic,hunt,openhab-cloud,immich-album,immich-r1,...> --out <dir> [--operators M1,M2] [--checks K1,K2] [--cap 3] [--exhaustive] [--work-dir <dir>] [--cache-dir <dir>]');
     return 2;
   }
   const requested = values.targets.split(',').map((target) => target.trim()).filter(Boolean);
@@ -43,7 +46,8 @@ async function main(): Promise<number> {
   const hunt = expanded.includes('hunt') ? loadHuntCases() : [];
   const workDir = values['work-dir'] ?? (fs.mkdirSync('/tmp/ac-s4-mutation', { recursive: true }), fs.mkdtempSync('/tmp/ac-s4-mutation/run-'));
   const log = (message: string) => process.stderr.write(`[mutation] ${message}\n`);
-  log(`work dir ${workDir}; ${subjects.length} subjects, ${hunt.length} hunt cases`);
+  const cacheDir = values['cache-dir'] ? path.resolve(values['cache-dir']) : cacheDirFromEnvironment();
+  log(`work dir ${workDir}; ${subjects.length} subjects, ${hunt.length} hunt cases; tree cache ${cacheDir ?? 'off'}`);
   const result = await runHarness({
     subjects,
     hunt,
@@ -53,6 +57,7 @@ async function main(): Promise<number> {
     staged: !values.exhaustive,
     workDir,
     quiet: !values.verbose,
+    ...(cacheDir ? { cacheDir } : {}),
     log,
   });
   fs.mkdirSync(values.out, { recursive: true });

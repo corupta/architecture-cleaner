@@ -10,12 +10,15 @@
 // - each test file's snapshot file, as the runner's own resolver computes it (`resolveSnapshotPath`, jest's
 //   `snapshotResolver`), is the mapped base snapshot file, or untracked on both sides.
 // Snapshot counters (`snapshot.added == 0` under `--ci`) need a real run: K8's.
+// An inventory is a function of one tree (with the runner, the environment and the tool): with a tree cache
+// (tree-cache.ts), step k's head inventory is step k+1's base inventory.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import {
-  firstWords, headRunner, installedRunner, mochaArguments, probeSource, repoPath, type Runner, runnersOf, runProbe, sides, spawnTargetNode, unappliedArguments,
+  firstWords, headRunner, installedRunner, mochaArguments, probeIdentity, probeSource, repoPath, type Runner, runnersOf, runProbe, sides, spawnTargetNode, unappliedArguments,
 } from './runner-probe.js';
+import { placesOf } from './tree-cache.js';
 import { type Check, type CertifyContext, type CheckResult, type Finding, result, type Side, skipped, type Violation } from './types.js';
 
 const title = 'Test inventory';
@@ -396,19 +399,42 @@ function compareMocks(context: CertifyContext, roots: Record<Side, string>, base
 interface RunnerOutcome extends Partial<Comparison> {
   skip?: string;
   error?: string;
+  /** Per side: probe time and, with a tree cache, whether the inventory came from it. */
+  run?: Record<string, number | boolean>;
 }
 
-async function inventoryOf(context: CertifyContext, runner: Runner, side: Side, root: string, label: string) {
+/** What an inventory depends on besides the tree, the environment and the tool: the runner as invoked, and the probe's Node and environment. */
+export function inventoryKey(context: Pick<CertifyContext, 'options'>, runner: Runner): unknown {
+  return {
+    runner: { kind: runner.kind, cwd: runner.cwd, config: runner.config ?? null, args: runner.args ?? null, environment: runner.environment },
+    probe: probeIdentity(context, runner.environment),
+  };
+}
+
+type Inventory = ({ ok: true; output: InventoryOutput } | { ok: false; failure: string }) & { network: string; durationMs: number; cached: boolean };
+
+/**
+ * The runner's inventory of one side's worktree. With a tree cache, a complete inventory is stored per tree (paths
+ * inside the worktree and the probe's scratch directory relocated), so the tree's next certification reads it.
+ */
+async function inventoryOf(context: CertifyContext, runner: Runner, side: Side, root: string, label: string): Promise<Inventory> {
+  const started = performance.now();
   const cwd = path.join(root, runner.cwd);
   const name = `K6-${label}-${side}`;
-  if (runner.kind === 'jest') return jestInventory(context, name, cwd, runner, root);
+  const tree = context[side].tree;
+  const key = context.cache ? inventoryKey(context, runner) : null;
+  const places = [...placesOf('root', root), ...placesOf('scratch', path.join(context.options.workDir, 'runner-probe', name))];
+  const stored = context.cache?.read<{ output: InventoryOutput; network: string }>('K6-inventory', tree, key, places);
+  if (stored) return { ok: true, ...stored, durationMs: Math.round(performance.now() - started), cached: true };
   const source = runner.kind === 'vitest' ? vitestProbe : mochaProbe;
-  return runProbe<InventoryOutput>(context, name, source, {
+  const outcome = runner.kind === 'jest' ? await jestInventory(context, name, cwd, runner, root) : await runProbe<InventoryOutput>(context, name, source, {
     root,
     cwd,
     ...(runner.config ? { config: runner.config } : {}),
     ...(runner.kind === 'mocha' ? { arguments: mochaArguments(root, runner) } : {}),
   }, probeTimeoutMs, runner.environment);
+  if (outcome.ok) context.cache?.write('K6-inventory', tree, key, places, { output: outcome.output, network: outcome.network });
+  return { ...outcome, durationMs: Math.round(performance.now() - started), cached: false };
 }
 
 async function checkRunner(context: CertifyContext, runner: Runner, label: string): Promise<RunnerOutcome> {
@@ -419,19 +445,20 @@ async function checkRunner(context: CertifyContext, runner: Runner, label: strin
   const specs = { base: runner, head: headRunner(runner, context.pathMap) };
   const findings: Finding[] = [];
   // One side at a time: the runners use every core.
-  const outcomes: Awaited<ReturnType<typeof inventoryOf>>[] = [];
+  const outcomes: Inventory[] = [];
   for (const side of sides) outcomes.push(await inventoryOf(context, specs[side], side, roots[side], label));
-  const [base, head] = outcomes as [typeof outcomes[0], typeof outcomes[0]];
+  const [base, head] = outcomes as [Inventory, Inventory];
+  const run = Object.fromEntries(sides.flatMap((side, index) => [[`${side}.ms`, outcomes[index]!.durationMs], ...(context.cache ? [[`${side}.cached`, outcomes[index]!.cached]] : [])]));
   sides.forEach((side, index) => {
     const network = outcomes[index]!.network;
     if (network) findings.push({ kind: 'runner-network', detail: `the ${runner.kind} inventory on ${side} tried to reach the network (refused): ${network.split('\n')[0]}` });
   });
-  if (!base.ok) return { findings, error: `${runner.kind} could not list or load the tests of base: ${base.failure}` };
-  if (!head.ok) return { findings, violations: [{ detail: `${runner.kind} could not list or load the tests of head: ${head.failure}` }], metrics: { runner: runner.kind, snapshots: snapshotNote } };
-  if (!base.output.files.length && !head.output.files.length) return { skip: `${runner.kind} lists no test files in base or head` };
-  if (base.output.files.length && !base.output.modules.length) return { findings, error: `${runner.kind} lists ${base.output.files.length} test files in base but collected none: nothing to compare` };
+  if (!base.ok) return { findings, run, error: `${runner.kind} could not list or load the tests of base: ${base.failure}` };
+  if (!head.ok) return { findings, run, violations: [{ detail: `${runner.kind} could not list or load the tests of head: ${head.failure}` }], metrics: { runner: runner.kind, snapshots: snapshotNote } };
+  if (!base.output.files.length && !head.output.files.length) return { run, skip: `${runner.kind} lists no test files in base or head` };
+  if (base.output.files.length && !base.output.modules.length) return { findings, run, error: `${runner.kind} lists ${base.output.files.length} test files in base but collected none: nothing to compare` };
   const comparison = compareInventories(context, roots, base.output, head.output);
-  return { ...comparison, findings: [...findings, ...comparison.findings] };
+  return { ...comparison, run, findings: [...findings, ...comparison.findings] };
 }
 
 export const testInventory: Check = {
@@ -443,12 +470,14 @@ export const testInventory: Check = {
     const violations: Violation[] = [];
     const findings: Finding[] = [];
     const metrics: Record<string, number | string | boolean> = {};
+    const run: Record<string, number | boolean> = {};
     const skips: string[] = [];
     const errors: string[] = [];
     const summaries: string[] = [];
     for (const [index, runner] of runners.entries()) {
       const label = runners.length === 1 ? runner.kind : `${runner.kind}-${index}`;
       const outcome = await checkRunner(context, runner, label);
+      for (const [key, value] of Object.entries(outcome.run ?? {})) run[runners.length === 1 ? key : `${label}.${key}`] = value;
       if (outcome.skip) {
         skips.push(outcome.skip);
         continue;
@@ -474,11 +503,11 @@ export const testInventory: Check = {
         summaries.push(`${name}: ${runnerMetrics.baseFiles} test files, ${runnerMetrics.baseTests} tests, per-file load status and case names equal${Number(runnerMetrics.baseUnloadable) ? ` (${runnerMetrics.baseUnloadable} files fail to load in both)` : ''}`);
       }
     }
-    if (skips.length === runners.length) return skipped('K6', title, skips.join('; '));
+    if (skips.length === runners.length) return { ...skipped('K6', title, skips.join('; ')), ...(Object.keys(run).length ? { run } : {}) };
     for (const skip of skips) findings.push({ kind: 'runner-not-installed', detail: `not checked: ${skip}` });
     if (errors.length) {
-      return result('K6', title, { status: 'error', summary: firstWords(errors.join('; ')), violations: [...errors.map((detail) => ({ detail })), ...violations], findings, metrics });
+      return result('K6', title, { status: 'error', summary: firstWords(errors.join('; ')), violations: [...errors.map((detail) => ({ detail })), ...violations], findings, metrics, run });
     }
-    return result('K6', title, { summary: summaries.join('; '), violations, findings, metrics });
+    return result('K6', title, { summary: summaries.join('; '), violations, findings, metrics, run });
   },
 };

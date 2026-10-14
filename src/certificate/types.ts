@@ -7,6 +7,7 @@ import type { CommitTree } from './git-tree.js';
 import type { PathMap } from './path-map.js';
 import type { Profile } from './profile.js';
 import type { SpanView } from './spans.js';
+import type { TreeCache } from './tree-cache.js';
 
 /** K3 has three resolvers: a = TypeScript (every program), b = the test runner's own, c = the runtime's. */
 export type CheckId = 'K0' | 'K1' | 'K2' | 'K3a' | 'K3b' | 'K3c' | 'K4' | 'K6' | 'K7' | 'K8';
@@ -64,6 +65,11 @@ export interface CertifyOptions {
   quarantine?: QuarantineEntry[];
   /** K8: extra runs of base and head on a test mismatch, to tell flaky tests from real differences (default 2). */
   flakyRetries?: number;
+  /**
+   * Per-tree result cache (tree-cache.ts): results computed from one tree are reused by any certification that meets
+   * the same tree, environment and tool again, on either side. Off when unset.
+   */
+  cacheDir?: string;
 }
 
 export type Side = 'base' | 'head';
@@ -79,6 +85,8 @@ export interface CertifyContext {
   fs: Record<Side, RepoFs>;
   /** Analyzer output for both trees, computed once on first use. */
   analyses(): Record<Side, Analysis>;
+  /** The per-tree result cache, when `options.cacheDir` is set. */
+  cache: TreeCache | null;
   /**
    * A fresh git worktree of the commit (hooks disabled) with the environment's node_modules linked in, for checks
    * that run the target's own tools. Created once per side; removed after the run unless `keep`.

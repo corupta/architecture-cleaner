@@ -38,7 +38,7 @@ export function createEnvironment(checkout: string, trees: readonly CommitTree[]
 const isEnvironmentPath = (relativePath: string) => relativePath.startsWith('..') || path.isAbsolute(relativePath) || relativePath.split('/').includes('node_modules');
 
 /** Real path of a path whose leading part exists on disk (the rest is appended), or null when nothing does. */
-function diskRealpath(absolutePath: string): string | null {
+export function diskRealpath(absolutePath: string): string | null {
   const rest: string[] = [];
   for (let current = absolutePath; ; current = path.dirname(current)) {
     try {
