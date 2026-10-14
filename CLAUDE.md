@@ -18,7 +18,9 @@ S4 ran on 2026-10-03/04; [docs/sessions/s4.md](docs/sessions/s4.md) has the repo
 
 S5 ran on 2026-10-07; [docs/sessions/s5.md](docs/sessions/s5.md) has the report. It shipped the in-process LLM gateway (cassettes, budget ledger in `budget/`), facts, seeds, the Ultra draft editor and critic behind the validator, and `ac plan` / `ac steps`. The immich plan ([docs/plans/immich/plan.md](docs/plans/immich/plan.md)) cost $0.20 and replays byte-identically offline. All 58 of its steps dry-run clean, and the auth step certifies PASS with oracles. An adversarial review confirmed 16 defects, and all are fixed. corupta keeps the plan as committed, with no hand edits, so the tool runs unattended.
 
-Next is S6 (orchestrator R0–R4, findings log, boundary rules, end to end on immich), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
+S6 ran on 2026-10-07/14; [docs/sessions/s6.md](docs/sessions/s6.md) has the report. It shipped `ac run` (R0–R4 with rollback, replan and resume), certificate v2 on trees, R3 renames, R4 dependency-cruiser rules with an anti-vacuity check, and the findings log. Unattended on immich it made 63 commits, each certified, with every rung and the whole PR PASS with oracles, in 1 h 55 m (branch `ac/s6-ladder`, run dir `~/ac-work/s6/final`). The planner's stricter critic gate regenerated the immich plan (now 59 groups, still the tool's own output). An adversarial review confirmed 17 defects, and all are fixed. Storyboard decision 2 is taken: no single-step fallback.
+
+Next is S7 (reporter and replay site v1, scramble tool, benchmark runner and runs, the judges' --replay build), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
 
 ## Decided (revisable with a reason)
 

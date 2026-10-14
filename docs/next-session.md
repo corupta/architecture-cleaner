@@ -1,43 +1,23 @@
-# Next session: S6 (orchestrator R0–R4, findings log, boundary rules, end to end on immich)
+# Next session: S7 (reporter and replay site v1, scramble tool, benchmark runner and runs, the judges' --replay build)
 
-Opening prompt for S6, from [sessions/s5.md](sessions/s5.md). Paste it as the first message.
+Opening prompt for S7, from [sessions/s6.md](sessions/s6.md). Paste it as the first message.
 
 ```
-Session S6 for architecture-cleaner: the orchestrator (R0–R4), the findings log, boundary rules, and the whole ladder end to end on immich.
+Session S7 for architecture-cleaner: the reporter and replay site v1, the scramble tool, the benchmark runner and its runs, and the judges' --replay build.
 
-Read CLAUDE.md, docs/sessions/s5.md, docs/sessions/s4.md (item 10, carry-overs), docs/plan.md §2.3–2.5, §3.2, §3.4 and §3.5, docs/plans/immich/plan.md and docs/storyboard.md. Use docs/plans/immich/plan.yaml as committed, unedited: the demo runs unattended (corupta, 2026-10-07). Mode: execution, high autonomy, branch s6/orchestrator from main; merge when the exit criteria hold. LLM calls only through src/gateway, under a new budget run s6 (add it to budget/runs.json, cap $3); the plan replays from cassettes/s5-immich.jsonl unless it has to change.
+Read CLAUDE.md, docs/sessions/s6.md, docs/plan.md §4, §7, §8 and §9, docs/storyboard.md, and the S6 run's report (~/ac-work/s6/final/report.md, findings/pr-body.md, certificate.txt). Mode: execution, high autonomy, branch s7/reporter from main; merge when the exit criteria hold. LLM calls only through src/gateway, under a new budget run s7 (add it to budget/runs.json, cap $5: benchmark plans on several repos); every run replays from committed cassettes.
 
 Build:
-1. src/orchestrator/, `ac run <repo> --profile <name>`:
-   - R0 preflight and baseline: inventory, tsc, tests ×2 with flaky quarantine, the §2.5 declines.
-   - Then plan.yaml → steps (`ac steps`). For each step: `ac move`, commit, `ac certify` (static checks; --oracles at the end of each rung), and the certificate trailers on the commit.
-   - On FAIL: roll back and replan the step at most twice (pin the offending files and log a finding), else pin and log.
-   - Rungs: R1 is the module steps; R2 is the platform and shared/ steps `ac plan` already emits; R3 is filename normalization with its observability guard (§2.3); R4 is boundary rules.
-2. src/findings/: the findings log, recorded and never fixed:
-   - deterministic findings: module cycles, back-edges, multi-writer tables, BaseService's god injection, K4's findings, the validator's plan warnings;
-   - Lightning narration, text only;
-   - rendered for the PR body and the report.
-3. R4: a dependency-cruiser config with
-   - a module DAG allow-list from the plan's quotient graph;
-   - barrel-less public files;
-   - shared is a leaf;
-   - platform ↛ modules;
-   - controller ↛ persistence;
-   - folder-scope cycles.
-   Today's violations are frozen with --baseline. An anti-vacuity check proves each rule fires on a synthetic violation in a scratch copy.
-4. End to end on immich server/ @ 02063972e8: the whole ladder on a branch in ~/ac-targets/immich, every commit certified, with the run's timeline and cost.
-5. S4 carry-overs (s4.md item 10):
-   - executor: the config-reference decline sees package-root-relative globs (the coverage miss); unwrap parenthesized and cast loader calls; read tsx/bun/deno shebangs and jest*.json; apply .js→.ts to Vite/Jest mock specifiers;
-   - certifier: K3b for vitest modules outside the project root; repeated baseline runs for flaky K8 tests; ambiguity findings list the alternatives; K5/K7 if time allows.
-   Take storyboard decision 2 (the single-step fallback) at the end of S6.
-6. S5 carry-overs (s5.md):
-   - The planner's ranking is a heuristic: keep every candidate visible.
-   - Consider a sub-feature warning for platform concerns (http-response extends http) and folding one-file platform concerns.
-   - The critic introduced 3 of the reviewer-level misplacements in the committed plan: metadata (EXIF extraction) merged into system-metadata, a one-file move-history module, and app.repository and api.service put in platform/registry. Tighten its gate in the tool: a registry holds only role-registry files; a critic merge needs evidence, an edge or a shared role, not just a shared word.
-   - The Lightning one-liners for ambiguous files (plan §3.5) aren't built.
-   - Check the Nebius console bill against the ledger: n>1 billing, cache hits.
-   - Gateway gaps the review left open: a connection that drops after the send but before the headers arrive is still retried at $0; a stale ledger lock is only taken over after 30 s.
+1. src/report/, `ac report <run-dir> --out <dir>`: a static HTML bundle per run (plan §4 "Outputs"):
+   - the before/after module graph (type folders → modules), from the run's base and final trees;
+   - the ladder: every step with its certificate (expandable), the rung and whole-PR certificates, timings;
+   - the findings log (findings/findings.json), the table-access heatmap, the cost ledger;
+   - the A/B (G3 single-shot and persistent vs ac, from docs/gates.md and the S4 certificates).
+2. The replay site v1: a static site (GitHub Pages ready, no live calls) with the immich run, the A/B and the benchmark results, built by one command from committed run artifacts (decide what of ~/ac-work/s6/final gets committed, without the per-tree cache).
+3. The judges' build (plan §4 "Test build"): `npm ci && npx ac demo --replay` replays the pipeline on the pinned immich SHA from cassettes (plan, narration) with no key and no cost; live mode with the judge's own key. The full ladder takes ~2 h: decide the honest fast path (a recorded run plus re-certifying a sample of commits, or one rung) and say so in the README draft.
+4. The scramble tool and the benchmark runner (plan §7): `ac scramble` on our executor and certificate (dogfooding), the H1 opaque-name variant, and `ac bench <manifest>` with MoJoFM, ARI, c2c_cvg and the cluster-count ratio next to the B0, name-token, seeds and Louvain baselines; TurboMQ and back-edges for real targets. Runs on ≥3 repos (the G1 set: hoppscotch, kaneo, immich, plus a backup from the hunt), recorded.
+5. S6 carry-overs (docs/sessions/s6.md item 10): a recorded --inject-fault run for the storyboard's "seeded wrong move" beat; K8 runs cached per tree (head runs too); the critic prompt matching its gate at the next live critic recording; testRegex modelled; whether rung certificates that only errored should be resumable.
 
-Exit criteria: the full ladder on immich (every R1 module step, R2, R3, R4), every commit certified PASS by the static checks and the last commit of each rung by --oracles too; the findings log rendered; the anti-vacuity check green; docs/sessions/s6.md (10 lines) ending with the S7 opening prompt (reporter and replay site v1, scramble tool, benchmark runner and runs, the judges' --replay build).
+Exit criteria: `ac report` on the S6 immich run and the replay site v1 building offline; the --replay build working from a clean clone with no key; benchmark results on ≥3 repos with baselines; docs/sessions/s7.md (10 lines) ending with the S8 opening prompt (stretch rungs S1–S3, polish, README draft before the Oct 20 freeze).
 Log weird-but-not-blocking observations with /log-anomaly.
 ```
