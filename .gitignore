@@ -2,5 +2,5 @@
 node_modules/
 dist/
 .build/
-budget/ledger.jsonl.lock
+budget/ledger.jsonl.lock*
 ac-runs/
