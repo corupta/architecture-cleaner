@@ -3,7 +3,8 @@
 // around read-check-append, so the caps hold across every process sharing the ledger. The call's outcome line carries
 // the same callId and the real cost; a reservation without one (a call in flight, or a killed process) stays charged.
 // The lock names its owner (pid, host, start time): a lock whose owner died on this host is taken over at once, any
-// other one only once it is older than any holder keeps it.
+// other one only once it is older than any holder keeps it. Whoever removes a lock (its owner, or a waiter taking it
+// over) does so under a claim on that lock's text, so a lock another waiter re-created meanwhile is never removed.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -102,8 +103,13 @@ function processRuns(pid: number): boolean {
   }
 }
 
+interface LockFile {
+  text: string;
+  lockedAt: number;
+}
+
 /** The lock's text and age, or null when there is no lock. */
-function readLock(lockPath: string): { text: string; lockedAt: number } | null {
+function readLock(lockPath: string): LockFile | null {
   try {
     return { text: fs.readFileSync(lockPath, 'utf8'), lockedAt: fs.statSync(lockPath).mtimeMs };
   } catch (error) {
@@ -112,44 +118,75 @@ function readLock(lockPath: string): { text: string; lockedAt: number } | null {
   }
 }
 
+/** Creates the lock file exclusively (O_EXCL), naming this process as its owner. Returns its text, or null when it exists. */
+function createLock(lockPath: string): string | null {
+  let descriptor: number;
+  try {
+    descriptor = fs.openSync(lockPath, 'wx');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return null;
+    throw error;
+  }
+  const owner: LockOwner = { pid: process.pid, host: os.hostname(), startedAt: new Date().toISOString(), token: crypto.randomUUID() };
+  const text = `${JSON.stringify(owner)}\n`;
+  try {
+    fs.writeSync(descriptor, text);
+  } catch (error) {
+    fs.rmSync(lockPath, { force: true });
+    throw error;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  return text;
+}
+
+/** Whether the lock's owner is gone: a pid that no longer runs on this host, or (another host, or a lock that names no owner) an age no holder reaches. */
+function abandoned(lock: LockFile): boolean {
+  const owner = readLockOwner(lock.text);
+  if (owner !== null && owner.host === os.hostname() && !processRuns(owner.pid)) return true;
+  return Date.now() - lock.lockedAt > staleLockMilliseconds;
+}
+
 /**
- * Removes the lock when its owner is gone: a pid that no longer runs on this host, or (another host, or a lock that
- * names no owner) a lock older than any holder keeps it. Rereads the lock just before removing it, so a lock that
- * another waiter took over and re-created in the meantime is left alone. Returns whether the lock is gone.
+ * Removes the lock if it still holds `text` and `remove` agrees, while holding the claim on that text
+ * (`<lock>.claim-<digest>`, itself a lock file). Its owner and every waiter that found it abandoned take the same claim
+ * before removing it, so the reread and the removal act as one step. Returns false when another process holds the
+ * claim; a claim whose holder died is taken over like a lock.
  */
+function removeUnderClaim(lockPath: string, text: string, remove: (lock: LockFile) => boolean): boolean {
+  const claimPath = `${lockPath}.claim-${crypto.createHash('sha256').update(text).digest('hex').slice(0, 16)}`;
+  if (createLock(claimPath) === null) {
+    removeAbandonedLock(claimPath);
+    return false;
+  }
+  try {
+    const current = readLock(lockPath);
+    if (current && current.text === text && remove(current)) fs.rmSync(lockPath);
+  } finally {
+    fs.rmSync(claimPath);
+  }
+  return true;
+}
+
+/** Takes over a lock whose owner is gone (see `abandoned`). Returns whether to try for the lock again at once. */
 function removeAbandonedLock(lockPath: string): boolean {
   const lock = readLock(lockPath);
   if (!lock) return true;
-  const owner = readLockOwner(lock.text);
-  const ownerDied = owner !== null && owner.host === os.hostname() && !processRuns(owner.pid);
-  if (!ownerDied && Date.now() - lock.lockedAt <= staleLockMilliseconds) return false;
-  const current = readLock(lockPath);
-  if (current && current.text !== lock.text) return false;
-  fs.rmSync(lockPath, { force: true });
-  return true;
+  return abandoned(lock) && removeUnderClaim(lockPath, lock.text, abandoned);
 }
 
 /** Runs `critical`, which must be synchronous, while holding `<ledger>.lock` (an O_EXCL create naming its owner). */
 export async function withLedgerLock<T>(ledgerPath: string, critical: () => T): Promise<T> {
   const lockPath = `${ledgerPath}.lock`;
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
-  for (;;) {
-    let descriptor: number;
-    try {
-      descriptor = fs.openSync(lockPath, 'wx');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      if (!removeAbandonedLock(lockPath)) await pause(lockPollMilliseconds);
-      continue;
-    }
-    try {
-      const owner: LockOwner = { pid: process.pid, host: os.hostname(), startedAt: new Date().toISOString(), token: crypto.randomUUID() };
-      fs.writeSync(descriptor, `${JSON.stringify(owner)}\n`);
-      return critical();
-    } finally {
-      fs.closeSync(descriptor);
-      fs.rmSync(lockPath, { force: true });
-    }
+  let text: string | null;
+  while ((text = createLock(lockPath)) === null) {
+    if (!removeAbandonedLock(lockPath)) await pause(lockPollMilliseconds);
+  }
+  try {
+    return critical();
+  } finally {
+    while (!removeUnderClaim(lockPath, text, () => true)) await pause(lockPollMilliseconds);
   }
 }
 
