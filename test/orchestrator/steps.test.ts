@@ -124,6 +124,8 @@ describe('report', () => {
     } as unknown as RunState;
     expect(renderReport(state)).toContain('- **pinned** (1)\n  - step 2: `a.ts`: why');
     expect(renderReport(state, { findings: () => 'rendered elsewhere' })).toContain('## Findings\n\nrendered elsewhere\n');
-    expect(renderReport(state)).toContain('LLM spend of this run $0.0000 (replayed from the cassette); the plan cost unknown');
+    expect(renderReport(state)).toContain('planner LLM spend of this run $0.0000 (replayed from the cassette); the plan cost unknown');
+    expect(renderReport(state, { narration: { costUsd: 0.000977, calls: 2, replayed: false } })).toContain('(replayed from the cassette); findings narration $0.0010 in 2 calls; the plan cost unknown');
+    expect(renderReport(state, { narration: { costUsd: 0.000977, calls: 2, replayed: true } })).toContain('findings narration $0.0010 in 2 calls when recorded (replayed: $0 now);');
   });
 });

@@ -226,8 +226,10 @@ function narrationGateway(flags: RunFlags, mode: CassetteMode): Gateway | null {
   return createGateway({ runId: flags.run ?? 'replay', mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${flags.run}.jsonl`)) });
 }
 
-const findingsStep = (gateway: Gateway | null, log: (message: string) => void) => async (runDirectory: string) =>
-  (await runFindings({ runDirectory, gateway, log })).reportSection;
+const findingsStep = (gateway: Gateway | null, log: (message: string) => void) => async (runDirectory: string) => {
+  const { reportSection, document } = await runFindings({ runDirectory, gateway, log });
+  return { section: reportSection, narration: document.narration && { costUsd: document.narration.costUsd, calls: document.narration.calls, replayed: document.narration.replayed } };
+};
 
 const timestamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..*$/, '').replace('T', '-');
 

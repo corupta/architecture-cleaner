@@ -46,7 +46,11 @@ export async function findingsCommand(runDirectory: string, flags: FindingsFlags
   if (!narrate && !flags['no-narration']) log('narration off: no --cassette or --run');
   const result = await runFindings({ runDirectory: root, ...(flags.repo ? { repo: flags.repo } : {}), ...(flags.env ? { environment: flags.env } : {}), gateway, log });
   const state = readRunState(root);
-  fs.writeFileSync(path.join(root, 'report.md'), renderReport(state, { findings: () => result.reportSection }));
+  const { narration } = result.document;
+  fs.writeFileSync(path.join(root, 'report.md'), renderReport(state, {
+    findings: () => result.reportSection,
+    narration: narration && { costUsd: narration.costUsd, calls: narration.calls, replayed: narration.replayed },
+  }));
   const { document } = result;
   const byKind = new Map<string, number>();
   for (const finding of document.findings) byKind.set(finding.kind, (byKind.get(finding.kind) ?? 0) + 1);

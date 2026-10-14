@@ -100,16 +100,16 @@ async function finish(runner: Runner): Promise<RunOutcome> {
   state.timeline.finishedAt = new Date().toISOString();
   runner.save();
   runner.event({ event: 'run-end', durationMs: state.timeline.durationMs, status: state.status, head: state.head, ...(state.error ? { detail: state.error } : {}) });
-  let findingsSection: string | null = null;
+  let findings: Awaited<ReturnType<NonNullable<Runner['dependencies']['findings']>>> | null = null;
   if (runner.dependencies.findings) {
     // The findings log reads the finished run directory; a bug in it never changes the run's outcome.
     try {
-      findingsSection = await runner.dependencies.findings(runner.directory.root);
+      findings = await runner.dependencies.findings(runner.directory.root);
     } catch (error) {
       runner.log(`findings log failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  runner.directory.writeText('report.md', renderReport(state, findingsSection === null ? {} : { findings: () => findingsSection! }));
+  runner.directory.writeText('report.md', renderReport(state, findings ? { findings: () => findings!.section, narration: findings.narration } : {}));
   return { state, directory: runner.directory.root, exitCode: state.status === 'declined' ? 3 : state.status === 'failed' ? 1 : 0 };
 }
 

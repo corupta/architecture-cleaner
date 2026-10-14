@@ -5,6 +5,8 @@ import type { AttemptRecord, BisectRecord, RunState, StepRecord } from './types.
 export interface ReportOptions {
   /** Renders the findings section's body (markdown); default: the run's findings as a list grouped by kind. */
   findings?: (state: RunState) => string;
+  /** The findings log's narration: what its calls cost when recorded, and whether this run replayed them. */
+  narration?: { costUsd: number; calls: number; replayed: boolean } | null;
 }
 
 export function formatDuration(milliseconds: number): string {
@@ -64,7 +66,9 @@ export function renderReport(state: RunState, options: ReportOptions = {}): stri
   lines.push(`- Commits: ${code(short(state.base))} → ${code(short(state.head))}`);
   lines.push(`- Wall time: **${formatDuration(timeline.durationMs)}** (preflight ${formatDuration(timeline.preflightMs)}, baseline ${formatDuration(timeline.baselineMs)}, steps ${formatDuration(timeline.stepsMs)}, rung certificates ${formatDuration(timeline.rungCertificationMs)}${timeline.bisectMs ? `, bisect ${formatDuration(timeline.bisectMs)}` : ''}, whole-PR certificate ${formatDuration(timeline.runCertificationMs)})${timeline.resumedAt.length ? `, resumed ${timeline.resumedAt.length}×` : ''}`);
   const spend = state.cost.mode === 'replay' ? `${money(state.cost.llmUsd)} (replayed from the cassette)` : state.cost.budgetRun ? `${money(state.cost.llmUsd)} (budget run ${code(state.cost.budgetRun)})` : `${money(state.cost.llmUsd)} (no planner call: the plan came from a file)`;
-  lines.push(`- Cost: LLM spend of this run ${spend}; the plan cost ${state.cost.planRecordedUsd === null ? 'unknown' : money(state.cost.planRecordedUsd)} when it was recorded`);
+  const { narration } = options;
+  const narrated = narration ? `; findings narration ${money(narration.costUsd)} in ${narration.calls} call${narration.calls === 1 ? '' : 's'}${narration.replayed ? ' when recorded (replayed: $0 now)' : ''}` : '';
+  lines.push(`- Cost: planner LLM spend of this run ${spend}${narrated}; the plan cost ${state.cost.planRecordedUsd === null ? 'unknown' : money(state.cost.planRecordedUsd)} when it was recorded`);
   if (state.fault) {
     const { fault } = state;
     const recovered = fault.appliedTo !== undefined ? state.steps.find((step) => step.index === fault.appliedTo)?.status : undefined;

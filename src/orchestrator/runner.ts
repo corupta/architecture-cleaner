@@ -8,6 +8,7 @@ import { boundaryRung } from '../boundaries/index.js';
 import { executeMove } from '../executor/execute.js';
 import { normalizationSteps } from '../filename-normalization/index.js';
 import type { PlanFile } from '../planner/plan-file.js';
+import type { ReportOptions } from './report.js';
 import type { RunDirectory } from './run-directory.js';
 import type { BoundaryRung, CertificateRecord, RunEvent, RunFailure, RunFinding, RungId, RungRecord, RunState, StepRecord } from './types.js';
 
@@ -22,7 +23,7 @@ export interface RunDependencies {
    * The findings log (src/findings), run when the run ends (any status); returns report.md's findings section. null:
    * report.md lists the run's own findings by kind.
    */
-  findings: ((runDirectory: string) => Promise<string>) | null;
+  findings: ((runDirectory: string) => Promise<{ section: string; narration: ReportOptions['narration'] }>) | null;
 }
 
 export const defaultDependencies: RunDependencies = {
