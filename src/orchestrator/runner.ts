@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { runBaseline, type QuarantineEntry } from '../certificate/baseline.js';
 import { certify, checks } from '../certificate/certify.js';
 import type { Certificate, CertifyOptions, CheckId } from '../certificate/types.js';
+import { boundaryRung } from '../boundaries/index.js';
 import { executeMove } from '../executor/execute.js';
 import { normalizationSteps } from '../filename-normalization/index.js';
 import type { PlanFile } from '../planner/plan-file.js';
@@ -17,8 +18,11 @@ export interface RunDependencies {
   normalizationSteps: typeof normalizationSteps;
   /** Contract C6; null: R4 is reported as not available. */
   boundaryRung: BoundaryRung | null;
-  /** The findings section of report.md (src/findings, round 2); null: the run's findings listed by kind. */
-  findingsSection: ((state: RunState) => string) | null;
+  /**
+   * The findings log (src/findings), run when the run ends (any status); returns report.md's findings section. null:
+   * report.md lists the run's own findings by kind.
+   */
+  findings: ((runDirectory: string) => Promise<string>) | null;
 }
 
 export const defaultDependencies: RunDependencies = {
@@ -26,8 +30,8 @@ export const defaultDependencies: RunDependencies = {
   certify,
   runBaseline,
   normalizationSteps,
-  boundaryRung: null,
-  findingsSection: null,
+  boundaryRung,
+  findings: null,
 };
 
 /** A run that can't start or resume (a dirty worktree, an existing branch, a mismatched head): nothing was changed. */
@@ -104,6 +108,8 @@ export async function certifyRange(runner: Runner, base: string, head: string, w
     oracles: options.oracles,
     ...(options.only ? { only: options.only } : {}),
     workDir: runner.directory.workDir(work),
+    // Per-tree results (K6's inventory, the analyses) survive between certifications: step k+1's base is step k's head.
+    cacheDir: runner.directory.path('cache'),
     keep: false,
     // Only the oracles read it; a speculative base (--jobs) has no certified pathMap to map it through yet.
     ...(options.oracles ? { quarantine: quarantineAt(state, base) } : {}),

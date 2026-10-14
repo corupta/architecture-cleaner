@@ -90,13 +90,21 @@ async function drive(runner: Runner): Promise<void> {
   if (state.status === 'running') state.status = 'completed';
 }
 
-function finish(runner: Runner): RunOutcome {
+async function finish(runner: Runner): Promise<RunOutcome> {
   const { state } = runner;
   state.timeline.finishedAt = new Date().toISOString();
   runner.save();
   runner.event({ event: 'run-end', durationMs: state.timeline.durationMs, status: state.status, head: state.head, ...(state.error ? { detail: state.error } : {}) });
-  const { findingsSection } = runner.dependencies;
-  runner.directory.writeText('report.md', renderReport(state, findingsSection ? { findings: findingsSection } : {}));
+  let findingsSection: string | null = null;
+  if (runner.dependencies.findings) {
+    // The findings log reads the finished run directory; a bug in it never changes the run's outcome.
+    try {
+      findingsSection = await runner.dependencies.findings(runner.directory.root);
+    } catch (error) {
+      runner.log(`findings log failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  runner.directory.writeText('report.md', renderReport(state, findingsSection === null ? {} : { findings: () => findingsSection! }));
   return { state, directory: runner.directory.root, exitCode: state.status === 'declined' ? 3 : state.status === 'failed' ? 1 : 0 };
 }
 
@@ -108,7 +116,7 @@ async function guarded(runner: Runner, body: () => Promise<void>): Promise<RunOu
     runner.state.status = 'failed';
     runner.state.error = `crashed: ${(error as Error).stack ?? String(error)}`;
   }
-  return finish(runner);
+  return await finish(runner);
 }
 
 export async function startRun(options: StartOptions, overrides: Partial<RunDependencies> = {}): Promise<RunOutcome> {

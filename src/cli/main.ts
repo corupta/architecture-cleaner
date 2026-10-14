@@ -7,15 +7,19 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { analyzeRepo } from '../analyzer/analyze.js';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
+import { boundariesCommand } from '../boundaries/command.js';
 import { certify } from '../certificate/certify.js';
 import { loadProfile } from '../certificate/profile.js';
 import { summarize, trailers } from '../certificate/report.js';
+import { cacheDirFromEnvironment } from '../certificate/tree-cache.js';
 import type { CheckId } from '../certificate/types.js';
 import { packageDirectory } from '../certificate/toolchain.js';
 import { executeMove } from '../executor/execute.js';
 import { normalizeCommand } from '../filename-normalization/command.js';
+import { findingsCommand, findingsUsage } from '../findings/command.js';
+import { runFindings } from '../findings/index.js';
 import { createGateway } from '../gateway/gateway.js';
-import type { CassetteMode } from '../gateway/types.js';
+import type { CassetteMode, Gateway } from '../gateway/types.js';
 import { defaultCriticSettings } from '../planner/critic.js';
 import { defaultEditSettings } from '../planner/edit.js';
 import { defaultSummarySettings } from '../planner/summaries.js';
@@ -38,11 +42,15 @@ const usage = `usage:
   ac move <repo> --map <pathmap.json> [--dry-run] [--json]
   ac certify <repo> <base>..<head> [--profile <name|file>] [--oracles] [--root <package-dir>] [--env <checkout>]
              [--only K1,K2,...] [--out <certificate.json>] [--work-dir <dir>] [--keep] [--json]
+             (AC_CERTIFY_CACHE=<dir> keeps per-tree results between certifications)
   ac run <repo> --profile <name|file> [--plan <plan.yaml> | --cassette <file.jsonl> [--mode replay|record|auto] [--run <budget run>]]
          [--env <checkout with node_modules>] [--out <run-dir>] [--branch <name>] [--rungs R0,R1,R2,R3,R4]
-         [--max-steps <n>] [--inject-fault <step>:<operator>] [--jobs <n>]
-  ac run [<repo>] --resume --out <run-dir> [--max-steps <n>] [--jobs <n>]
-         (exit 0 completed or stopped, 1 failed, 2 usage, 3 declined by the preflight)`;
+         [--max-steps <n>] [--inject-fault <step>:<operator>] [--jobs <n>] [--no-narration]
+  ac run [<repo>] --resume --out <run-dir> [--max-steps <n>] [--jobs <n>] [--cassette <file.jsonl> [--mode ...] [--run ...]]
+         (exit 0 completed or stopped, 1 failed, 2 usage, 3 declined by the preflight; the findings log is written at the
+         end, its narration replayed from the cassette, recorded with --mode auto --run, off without a cassette)
+  ac boundaries <repo> [--profile <name|file>] [--root <package-dir>] [--module-root src] [--env <checkout>] [--out <dir>] [--check]
+  ${findingsUsage}`;
 
 function analyzeCommand(repoPath: string, json: boolean) {
   const analysis = analyzeRepo(gitRepoFs(repoPath));
@@ -186,6 +194,7 @@ async function certifyCommand(repo: string, range: string, flags: CertifyFlags):
     oracles: flags.oracles,
     ...(flags.only ? { only: flags.only.split(',').map((id) => id.trim()) as CheckId[] } : {}),
     workDir: flags['work-dir'] ?? fs.mkdtempSync(path.join(os.tmpdir(), 'ac-certify-')),
+    ...(cacheDirFromEnvironment() ? { cacheDir: cacheDirFromEnvironment()! } : {}),
     keep: flags.keep,
   });
   if (flags.out) fs.writeFileSync(flags.out, `${JSON.stringify(certificate, null, 1)}\n`);
@@ -208,7 +217,17 @@ interface RunFlags {
   jobs?: string;
   'inject-fault'?: string;
   'max-steps'?: string;
+  'no-narration': boolean;
 }
+
+/** The findings log's narration: replayed (or recorded, with --mode auto|record --run) from the run's cassette; off without one. */
+function narrationGateway(flags: RunFlags, mode: CassetteMode): Gateway | null {
+  if (flags['no-narration'] || (!flags.cassette && !flags.run)) return null;
+  return createGateway({ runId: flags.run ?? 'replay', mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${flags.run}.jsonl`)) });
+}
+
+const findingsStep = (gateway: Gateway | null, log: (message: string) => void) => async (runDirectory: string) =>
+  (await runFindings({ runDirectory, gateway, log })).reportSection;
 
 const timestamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..*$/, '').replace('T', '-');
 
@@ -226,7 +245,11 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
       if (!flags.out) return fail('--resume needs --out <run-dir>');
       const jobs = flags.jobs === undefined ? undefined : Number(flags.jobs);
       if (jobs !== undefined && !(Number.isInteger(jobs) && jobs >= 1)) return fail('--jobs takes a whole number from 1 (one step at a time) up');
-      outcome = await resumeRun({ runDirectory: flags.out, ...(repo ? { repo } : {}), ...(jobs ? { jobs } : {}), maxSteps, log });
+      const mode = (flags.mode ?? 'replay') as CassetteMode;
+      if (!['replay', 'record', 'auto'].includes(mode)) return fail('--mode is replay, record or auto');
+      if (mode !== 'replay' && !flags.run) return fail('--run <id from budget/runs.json> is required for record and auto modes');
+      outcome = await resumeRun({ runDirectory: flags.out, ...(repo ? { repo } : {}), ...(jobs ? { jobs } : {}), maxSteps, log },
+        { findings: findingsStep(narrationGateway(flags, mode), log) });
     } else {
       if (!repo || !flags.profile) {
         console.error(usage);
@@ -272,7 +295,7 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
         jobs,
         injectFault,
         log,
-      });
+      }, { findings: findingsStep(narrationGateway(flags, mode), log) });
     }
   } catch (error) {
     if (error instanceof RunError) return fail(error.message);
@@ -315,6 +338,9 @@ async function main(argv: string[]): Promise<number> {
       jobs: { type: 'string' },
       'inject-fault': { type: 'string' },
       'max-steps': { type: 'string' },
+      'no-narration': { type: 'boolean', default: false },
+      check: { type: 'boolean', default: false },
+      repo: { type: 'string' },
     },
   });
   const [command, repo, range] = positionals;
@@ -328,6 +354,8 @@ async function main(argv: string[]): Promise<number> {
   if (command === 'move' && repo && values.map) return moveCommand(repo, values.map, values['dry-run'], values.json);
   if (command === 'certify' && repo && range) return certifyCommand(repo, range, values);
   if (command === 'run') return runCommand(repo, values);
+  if (command === 'boundaries' && repo) return boundariesCommand(repo, values);
+  if (command === 'findings' && repo) return findingsCommand(repo, values);
   console.error(usage);
   return 2;
 }

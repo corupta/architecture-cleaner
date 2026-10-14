@@ -81,12 +81,14 @@ describe('ac run: the ladder', () => {
       'refactor(server): move user into src/modules/user',
       'refactor(server): move shared into src/shared',
       'refactor(server): normalize file names in src/modules/album',
+      'chore(server): add boundary rules with a frozen baseline',
     ]);
-    for (const commit of log) {
+    for (const commit of log.slice(0, 4)) {
       expect(commit.message).toMatch(/^Ac-Certificate: pass \(static\) K0=pass /m);
       expect(commit.message).toContain(`of plan sha256 ${state.plan.sha256.slice(0, 12)}`);
       expect(commit.message).toMatch(/^Ac-Certificate-Digest: sha256:[0-9a-f]{64}$/m);
     }
+    expect(log[4]!.message).toMatch(/^Ac-Certificate: pass \(full\) K0=pass /m);
     expect(log[0]!.message).toContain('4 files moved; ');
     expect(run.git('ls-tree', '-r', '--name-only', 'HEAD', 'server/src').split('\n')).toEqual([
       'server/src/main.ts',
@@ -104,8 +106,9 @@ describe('ac run: the ladder', () => {
     // Steps: certified once each, with their certificates on disk; the digest in the trailer is the stored one.
     expect(state.steps.map((step) => [step.index, step.rung, step.group, step.status, step.attempts.length])).toEqual([
       [1, 'R1', 'module/album', 'certified', 1], [2, 'R1', 'module/user', 'certified', 1], [3, 'R2', 'shared/shared', 'certified', 1], [4, 'R3', 'module/album', 'certified', 1],
+      [5, 'R4', 'boundaries', 'certified', 1],
     ]);
-    for (const step of state.steps) {
+    for (const step of state.steps.filter((candidate) => candidate.rung !== 'R4')) {
       const certificate = JSON.parse(run.read(step.certificate!.file)) as Certificate;
       expect(certificate.verdict).toBe('pass');
       expect(certificate.scope).toBe('static');
@@ -119,9 +122,11 @@ describe('ac run: the ladder', () => {
       '003-R2-shared-shared.json', '003-R2-shared-shared.txt', '004-R3-module-album.json', '004-R3-module-album.txt',
     ]);
 
-    // Rungs: each certified as a whole with the oracles; R4 isn't wired.
-    expect(state.rungs.map((rung) => [rung.id, rung.status])).toEqual([['R0', 'passed'], ['R1', 'certified'], ['R2', 'certified'], ['R3', 'certified'], ['R4', 'not-available']]);
-    for (const id of ['R1', 'R2', 'R3']) {
+    // Rungs: each certified as a whole with the oracles; R4 (the real dependency-cruiser rules) is its one commit.
+    expect(state.rungs.map((rung) => [rung.id, rung.status])).toEqual([['R0', 'passed'], ['R1', 'certified'], ['R2', 'certified'], ['R3', 'certified'], ['R4', 'certified']]);
+    expect(run.git('ls-tree', '--name-only', 'HEAD', 'server/').split('\n')).toEqual(expect.arrayContaining(['server/.dependency-cruiser-known-violations.json', 'server/.dependency-cruiser.json']));
+    expect(JSON.parse(run.read('boundaries/report.json'))).toMatchObject({ version: 1, packageRoot: 'server', moduleRoot: 'src' });
+    for (const id of ['R1', 'R2', 'R3', 'R4']) {
       const certificate = JSON.parse(run.read(`rungs/${id}.json`)) as Certificate;
       expect(certificate).toMatchObject({ verdict: 'pass', scope: 'full' });
       expect(certificate.checks.find((check) => check.id === 'K8')!.status).toBe('pass');
@@ -164,13 +169,13 @@ describe('ac run: the ladder', () => {
     expect(events.at(-1)).toMatchObject({ event: 'run-end', status: 'completed' });
     for (const event of events) expect(event.ts).toMatch(/^\d{4}-\d\d-\d\dT/);
     const kinds = new Set(events.map((event) => event.event));
-    for (const kind of ['preflight', 'baseline', 'branch', 'rung-start', 'step-start', 'move', 'commit', 'certify', 'amend', 'step-end', 'rung-certify', 'rung-skip', 'run-certify']) expect(kinds).toContain(kind);
+    for (const kind of ['preflight', 'baseline', 'branch', 'rung-start', 'step-start', 'move', 'commit', 'certify', 'amend', 'step-end', 'rung-certify', 'run-certify']) expect(kinds).toContain(kind);
     for (const event of events.filter((candidate) => ['move', 'commit', 'certify', 'amend', 'rung-certify'].includes(candidate.event))) expect(event.durationMs).toBeGreaterThanOrEqual(0);
 
     const report = run.read('report.md');
     expect(report).toContain('- Status: **completed** (exit 0)');
     expect(report).toContain('| 1 | R1 | module/album | certified | 1 | 4 |');
-    expect(report).toContain('| R4 | not-available |');
+    expect(report).toMatch(/\| R4 \| certified \|/);
     expect(report).toContain('the plan cost $0.1961 when it was recorded');
     expect(report).toContain('## Findings');
   });

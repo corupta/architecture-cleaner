@@ -18,6 +18,7 @@
 //   boundaries/report.json         R4's report (contract C6), when R4 ran
 //   report.md                      the readable report (timeline, verdicts, totals, cost, findings)
 //   work/                          scratch for certifications (removed after each)
+//   cache/                         the certifier's per-tree cache (~1.7 MB per immich tree): scratch, never published
 import type { QuarantineEntry } from '../certificate/baseline.js';
 import type { Profile } from '../certificate/profile.js';
 import type { CheckId } from '../certificate/types.js';
