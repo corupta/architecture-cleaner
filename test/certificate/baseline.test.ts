@@ -72,8 +72,8 @@ describe('runBaseline', () => {
   });
 
   it('seeds the base cache K8 reads, and its flaky entries are what K8 quarantines', async () => {
-    // 'two' passed, then failed in the baseline; K8's base run (the third) fails it, head passes it.
-    const base = withCases(before, [['one', 'passed'], ['two', { head: ['passed'], base: ['passed', 'failed'] }]]);
+    // 'two' passed, then failed in the baseline; K8's base run (the third) skips it, head passes it.
+    const base = withCases(before, [['one', 'passed'], ['two', { head: ['passed'], base: ['passed', 'failed', 'skipped'] }]]);
     const { repo, profile, result } = await baselineOf(base, [unit]);
     expect(fs.readdirSync(process.env.AC_ORACLE_CACHE!)).toHaveLength(1);
     const certifyRepo = twoCommits(base, { ...moved, 'tests/users/user.cases.json': base['tests/old/user.cases.json']! });

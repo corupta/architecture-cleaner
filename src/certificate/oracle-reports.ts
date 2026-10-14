@@ -254,6 +254,9 @@ const failing = (testCase: TestCase) => testCase.status === 'failed';
 /** Whether a run's file outcome is a failure: it didn't load, it failed, or one of its cases did. */
 export const fileFails = (file: TestFile) => !file.loaded || file.status === 'failed' || file.cases.some(failing);
 
+/** Whether a report shows any failure at all (excluded tests too): a nonzero exit without one is an unattributed failure. */
+export const reportFails = (report: TestReport) => [...report.files.values()].some(fileFails);
+
 /**
  * The report without the tests `excluded` names (a whole file: no name; a case: its fullName). A file that loses a
  * failing case gets the status of what is left, and a report that loses a failure is tainted.
@@ -295,8 +298,9 @@ export function selectTests(entries: Iterable<{ file: string; name?: string }>):
 }
 
 /**
- * The runner's exit as runs are compared: its exit code, or 0 when the only failures in the report are excluded
- * tests (the code is theirs). A failure the report doesn't attribute (an unhandled error) keeps the code.
+ * The runner's exit with the excluded tests' failures put down as theirs: its exit code, or 0 when the only failures
+ * in the report are excluded tests. The code can't tell those failures from an unattributed one (an unhandled error)
+ * in the same run, which this maps to 0 as well: it reads "green but for excluded tests", never "no unattributed failure".
  */
 export function effectiveExit(exitCode: number | null, report: TestReport, excluded: TestSelection): number | null {
   if (exitCode === 0 || exitCode === null) return exitCode;
@@ -321,7 +325,6 @@ export interface FlakyTest {
   outcomes: string[];
 }
 
-/** Tests whose outcome differs between runs of one commit: whole files whose shape changed, else the cases that did. */
 /**
  * Indexes of the reports that leave out a test file another report of the same commit lists: the run stopped short
  * (S6: under load, vitest exited 0 with a report of 54 of immich's 105 files). Such a run says nothing about flakiness.
@@ -337,6 +340,7 @@ export const flakyFileLimit = (files: number) => Math.max(2, Math.ceil(files * 0
 /** Distinct files holding flaky tests. */
 export const flakyFileCount = (flaky: readonly { file: string }[]) => new Set(flaky.map((test) => test.file)).size;
 
+/** Tests whose outcome differs between runs of one commit: whole files whose shape changed, else the cases that did. */
 export function flakyTests(reports: readonly TestReport[]): FlakyTest[] {
   if (reports.length < 2) return [];
   const flaky: FlakyTest[] = [];

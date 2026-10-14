@@ -399,11 +399,14 @@ describe('K8 on tiny repos', () => {
     });
     afterEach(() => fs.rmSync(state, { recursive: true, force: true }));
     const casesOf = (cases: unknown[]) => JSON.stringify(cases);
-    const flakyTwo = { head: ['failed', 'passed'], base: ['skipped'] };
+    const flakyOnHead = { head: ['failed', 'passed'], base: ['skipped'] };
+    const flakyOnBase = { head: ['passed'], base: ['failed', 'passed'] };
+    const withCases = (cases: unknown[]) => ({ base: { ...before, 'tests/old/user.cases.json': casesOf(cases) }, head: { ...moved, 'tests/users/user.cases.json': casesOf(cases) } });
+    const crashingRunner = { 'tools/run-tests.mjs': (before['tools/run-tests.mjs'] as string).replace('process.exit(failed ? 1 : 0);', "process.exit(fs.existsSync('crash') ? 1 : failed ? 1 : 0);") };
 
     it('leaves quarantined tests out on both sides (base paths mapped to head) and records each', async () => {
-      // The same file on both sides (a pure move); its case 'two' fails on head only.
-      const cases = casesOf([['one', 'passed'], ['one', 'passed'], ['two', { head: ['failed'], base: ['skipped'] }]]);
+      // The same file on both sides (a pure move); its case 'two' runs on head only.
+      const cases = casesOf([['one', 'passed'], ['one', 'passed'], ['two', { head: ['passed'], base: ['skipped'] }]]);
       const base = { ...before, 'tests/old/user.cases.json': cases };
       const head = { ...moved, 'tests/users/user.cases.json': cases };
       const env = { FLAKY_STATE: state };
@@ -416,22 +419,55 @@ describe('K8 on tiny repos', () => {
       expect(check.summary).toContain('1/1 files and 2/2 cases equal to base (1 cases left out: 0 flaky, 1 quarantined)');
     });
 
-    it('leaves a whole quarantined file out, even one that no longer loads', async () => {
-      const head = { ...moved, 'tests/users/user.cases.json.broken': '', 'tests/other.cases.json': casesOf([['three', 'passed']]) };
+    it('leaves a whole quarantined file out, even one that fails to load', async () => {
+      const other = { 'tests/other.cases.json': casesOf([['three', 'passed']]) };
+      const head = { ...moved, ...other, 'tests/users/user.cases.json.broken': '' };
       const quarantine = [{ file: 'tests/old/user.cases.json', reason: 'network-dependent' }];
-      const check = await certifyK8({ ...before, 'tests/other.cases.json': casesOf([['three', 'passed']]) }, head, [unit], { quarantine });
+      const check = await certifyK8({ ...before, ...other, 'tests/old/user.cases.json.broken': '' }, head, [unit], { quarantine });
       expect(check.violations).toEqual([]);
+      expect(check.status).toBe('pass');
       expect(check.findings).toEqual([expect.objectContaining({ kind: 'quarantined-test', detail: 'unit: every test in the file left out of the comparison on both sides: network-dependent' })]);
+      // One that fails to load on head only is left out as well, but then nothing but it accounts for head's exit 1.
+      const headOnly = await certifyK8({ ...before, ...other }, head, [unit], { quarantine });
+      expect(headOnly.status).toBe('error');
+      expect(headOnly.violations).toEqual([{ detail: expect.stringMatching(/^error: unit: the runner exited 1 on head \(3 runs\), 0 on base \(3 runs\), and only failures of left-out tests/) }]);
     });
 
-    it('re-runs both commits on a mismatch and reports a case whose outcome changes between runs as flaky, not a violation', async () => {
-      const flaky = (tree: Tree, file: string) => ({ ...tree, [file]: casesOf([['one', 'passed'], ['one', 'passed'], ['two', flakyTwo]]) });
-      const check = await certifyK8(flaky(before, 'tests/old/user.cases.json'), flaky(moved, 'tests/users/user.cases.json'), [unit], { env: { FLAKY_STATE: state } });
+    it('re-runs both commits on a mismatch and reports a case whose outcome changes between runs of base as flaky, not a violation', async () => {
+      const { base, head } = withCases([['one', 'passed'], ['one', 'passed'], ['two', flakyOnBase]]);
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
       expect(check.violations).toEqual([]);
       expect(check.status).toBe('pass');
       expect(check.metrics['unit.runs']).toBe(2);
       expect(check.metrics['unit.flaky']).toBe(1);
-      expect(check.findings).toEqual([{ kind: 'flaky-test', file: 'tests/users/user.cases.json', detail: "unit: 'suite > two' changed outcome between runs of head (failed, passed); left out of the comparison" }]);
+      expect(check.findings).toEqual([{ kind: 'flaky-test', file: 'tests/users/user.cases.json', detail: "unit: 'suite > two' changed outcome between runs of base (failed, passed); left out of the comparison" }]);
+    });
+
+    it('leaves out a case flaky on both commits: the instability was there before the change', async () => {
+      const { base, head } = withCases([['one', 'passed'], ['two', { head: ['failed', 'passed'], base: ['passed', 'failed'] }]]);
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.violations).toEqual([]);
+      expect(check.status).toBe('pass');
+      expect(check.findings.map((finding) => finding.kind)).toEqual(['flaky-test']);
+    });
+
+    it('fails a case stable on base whose outcome changes between runs of head: an intermittent difference, not flakiness', async () => {
+      // 'two' passes in every base run and fails in two of three head runs: with base's instability unshown, nothing excuses it.
+      const { base, head } = withCases([['one', 'passed'], ['two', { head: ['failed', 'failed', 'passed'], base: ['passed'] }]]);
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.status).toBe('fail');
+      expect(check.metrics['unit.runs']).toBe(3);
+      expect(check.violations).toEqual([
+        { file: 'tests/users/user.cases.json', detail: 'unit: 2 differences (base tests/old/user.cases.json): file status passed → failed; passed → failed: suite two' },
+        { file: 'tests/users/user.cases.json', detail: "unit: 'suite > two' changed outcome between runs of head (failed, failed, passed) but not in base's 3 complete runs: an intermittent difference, not flakiness" },
+        { detail: 'unit: run success is false on head, true on base' },
+      ]);
+      expect(check.findings).toEqual([]);
+      // A case skipped on base that runs on head, failing or passing, is a difference too.
+      const skipped = withCases([['one', 'passed'], ['two', flakyOnHead]]);
+      const toRunning = await certifyK8(skipped.base, skipped.head, [unit], { env: { FLAKY_STATE: fs.mkdtempSync(path.join(state, 'skipped-')) } });
+      expect(toRunning.status).toBe('fail');
+      expect(toRunning.violations.map((violation) => violation.detail)).toContainEqual("unit: 'suite > two' changed outcome between runs of head (failed, passed, passed) but not in base's 3 complete runs: an intermittent difference, not flakiness");
     });
 
     it('neither compares nor reads for flaky tests a head run that stopped short of the file list', async () => {
@@ -446,7 +482,7 @@ describe('K8 on tiny repos', () => {
     });
 
     it('fails an oracle whose flaky tests sit in more files than the cap allows', async () => {
-      const flaky = casesOf([['one', 'passed'], ['two', flakyTwo]]);
+      const flaky = casesOf([['one', 'passed'], ['two', flakyOnBase]]);
       const files = (prefix: string) => Object.fromEntries(['a', 'b', 'c'].map((name) => [`tests/${prefix}/${name}.cases.json`, flaky]));
       const check = await certifyK8({ ...before, ...files('old') }, { ...moved, ...files('old') }, [unit], { env: { FLAKY_STATE: state } });
       expect(check.status).toBe('fail');
@@ -454,33 +490,59 @@ describe('K8 on tiny repos', () => {
     });
 
     it('still fails a real difference next to a flaky case, after the retries', async () => {
-      const cases = casesOf([['one', { head: ['failed'], base: ['passed'] }], ['one', 'passed'], ['two', flakyTwo]]);
-      const base = { ...before, 'tests/old/user.cases.json': cases };
-      const head = { ...moved, 'tests/users/user.cases.json': cases };
+      const { base, head } = withCases([['one', { head: ['failed'], base: ['passed'] }], ['one', 'passed'], ['two', { head: ['passed'], base: ['skipped', 'passed'] }]]);
       const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
       expect(check.status).toBe('fail');
       expect(check.metrics['unit.runs']).toBe(3);
       expect(check.violations.map((violation) => violation.detail)).toEqual([
         'unit: the runner exited 1 on head (3 runs), 0 on base (3 runs)',
         'unit: 2 differences (base tests/old/user.cases.json): file status passed → failed; passed → failed: suite one',
+        'unit: run success is false on head, true on base',
       ]);
       expect(check.findings.map((finding) => finding.kind)).toEqual(['flaky-test']);
     });
 
     it('treats a flaky case as a difference without retries', async () => {
-      const flaky = (tree: Tree, file: string) => ({ ...tree, [file]: casesOf([['one', 'passed'], ['one', 'passed'], ['two', flakyTwo]]) });
-      const check = await certifyK8(flaky(before, 'tests/old/user.cases.json'), flaky(moved, 'tests/users/user.cases.json'), [unit], { env: { FLAKY_STATE: state }, flakyRetries: 0 });
+      const { base, head } = withCases([['one', 'passed'], ['one', 'passed'], ['two', flakyOnHead]]);
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state }, flakyRetries: 0 });
       expect(check.status).toBe('fail');
       expect(check.findings).toEqual([]);
     });
 
     it('fails a runner exit the excluded tests do not explain', async () => {
       // Head exits 1 with every case passing (an unhandled error) and a quarantined case: the quarantine can't excuse it.
-      const failingRunner = { 'tools/run-tests.mjs': (before['tools/run-tests.mjs'] as string).replace('process.exit(failed ? 1 : 0);', "process.exit(fs.existsSync('crash') ? 1 : failed ? 1 : 0);") };
       const quarantine = [{ file: 'tests/old/user.cases.json', name: 'suite > two', reason: 'flaky in the baseline' }];
-      const check = await certifyK8({ ...before, ...failingRunner }, { ...moved, ...failingRunner, crash: '' }, [unit], { quarantine });
+      const check = await certifyK8({ ...before, ...crashingRunner }, { ...moved, ...crashingRunner, crash: '' }, [unit], { quarantine });
       expect(check.status).toBe('fail');
-      expect(check.violations[0]!.detail).toBe('unit: the runner exited 1 on head (3 runs), 0 on base (3 runs)');
+      expect(check.violations[0]!.detail).toBe('unit: the runner exited 1 with no test failing on head (3 runs), 0 on base (3 runs)');
+    });
+
+    it('is an error, never a pass, when only a left-out failure could account for head\'s runner exit', async () => {
+      // Quarantined 'two' fails on head and passes on base. The exit code can't tell that failure from an unhandled
+      // error in the same run (head's 'crash' marker), so neither run certifies.
+      const { base, head } = withCases([['one', 'passed'], ['one', 'passed'], ['two', { head: ['failed'], base: ['passed'] }]]);
+      const quarantine = [{ file: 'tests/old/user.cases.json', name: 'suite > two', reason: 'flaky in the baseline' }];
+      const env = { FLAKY_STATE: state };
+      for (const crash of [{ crash: '' }, {}] as Tree[]) {
+        const check = await certifyK8({ ...base, ...crashingRunner }, { ...head, ...crashingRunner, ...crash }, [unit], { quarantine, env });
+        expect(check.status).toBe('error');
+        expect(check.metrics['unit.runs']).toBe(3);
+        expect(check.violations).toEqual([{ detail: "error: unit: the runner exited 1 on head (3 runs), 0 on base (3 runs), and only failures of left-out tests account for that, which an exit code can't tell from an unattributed failure (an unhandled error)" }]);
+      }
+      // Once a head run passes the quarantined case, its exit code speaks for itself.
+      const flaky = withCases([['one', 'passed'], ['two', { head: ['failed', 'passed'], base: ['passed'] }]]);
+      const settled = await certifyK8(flaky.base, flaky.head, [unit], { quarantine, env: { FLAKY_STATE: fs.mkdtempSync(path.join(state, 'settled-')) } });
+      expect(settled.violations).toEqual([]);
+      expect(settled.status).toBe('pass');
+      expect(settled.metrics['unit.runs']).toBe(2);
+    });
+
+    it('fails a head exit with no failing test against a base exit a left-out failure explains', async () => {
+      // Head crashes with every case passing; base's first run exits 1 too, but because its flaky 'two' failed.
+      const { base, head } = withCases([['one', 'passed'], ['two', flakyOnBase]]);
+      const check = await certifyK8({ ...base, ...crashingRunner }, { ...head, ...crashingRunner, crash: '' }, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.status).toBe('fail');
+      expect(check.violations[0]!.detail).toBe('unit: the runner exited 1 with no test failing on head (3 runs), 1 or 0 on base (3 runs)');
     });
   });
 });

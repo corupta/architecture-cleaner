@@ -40,6 +40,46 @@ describe('K7 emit layout', () => {
     expect(k7(base({ outDir: 'dist' }), head({ outDir: 'dist' })).violations.map((violation) => violation.detail)).toEqual([expect.stringContaining('TypeScript before 6.0')]);
   });
 
+  it("roots TypeScript 5's default at every file the program emits, not only the include roots", () => {
+    // include: ['src'] only, and src/main.ts imports scripts/seed.ts: tsc 5.9.3 emits dist/src/main.js, then
+    // dist/main.js once seed moves into src/.
+    const srcOnly = (tree: Tree): Tree => ({ ...tree, 'tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', outDir: 'dist' }, include: ['src'] }) });
+    for (const version of ['5.9.3', undefined]) {
+      const check = k7(srcOnly(base({})), srcOnly(head({})), version);
+      expect(check.status).toBe('fail');
+      expect(check.violations).toEqual([{ file: 'tsconfig.json', detail: "no rootDir, and TypeScript before 6.0's default moves from . to src, so every file emitted into dist moves: src/main.ts was emitted as dist/src/main.js, now dist/main.js" }]);
+    }
+  });
+
+  it("counts the JSON files TypeScript 5 emits: an imported ../package.json keeps its default at the tsconfig's directory", () => {
+    // tsc 5.9.3 emits dist/package.json and dist/src/main.js on both sides.
+    const withPackage = (tree: Tree): Tree => ({
+      ...tree, 'package.json': '{ "name": "x" }\n', 'tsconfig.json': tsconfig({ outDir: 'dist', resolveJsonModule: true, esModuleInterop: true }),
+      'src/main.ts': `import manifest from '../package.json';\n${tree['src/main.ts']}export const name = manifest.name;\n`,
+    });
+    const check = k7(withPackage(base({})), withPackage(head({})), '5.9.3');
+    expect(check.violations).toEqual([]);
+    expect(check.findings).toEqual([{ kind: 'default-root-dir', file: 'tsconfig.json', detail: "emits into dist without a rootDir; TypeScript before 6.0's default stays ." }]);
+  });
+
+  it("leaves out a referenced project's sources, which TypeScript 5 replaces by their outputs", () => {
+    // app/ references lib/ and imports its source: tsc 5.9.3 emits app/dist/src/main.js, then app/dist/main.js.
+    const project = (tree: Tree): Tree => ({
+      'lib/tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', composite: true, outDir: 'dist' }, include: ['src'] }),
+      'lib/src/util.ts': 'export const util = 1;\n',
+      'app/tsconfig.json': JSON.stringify({ compilerOptions: { module: 'commonjs', outDir: 'dist' }, include: ['src'], references: [{ path: '../lib' }] }),
+      ...Object.fromEntries(Object.entries(tree).filter(([file]) => file !== 'tsconfig.json').map(([file, text]) => [`app/${file}`, file === 'src/main.ts' ? `import { util } from '../../lib/src/util';\n${text}` : text])),
+    });
+    const check = k7(project(base({})), project(head({})), '5.9.3');
+    expect(check.violations).toEqual([{ file: 'app/tsconfig.json', detail: "no rootDir, and TypeScript before 6.0's default moves from app to app/src, so every file emitted into app/dist moves: app/src/main.ts was emitted as app/dist/src/main.js, now app/dist/main.js" }]);
+  });
+
+  it("takes the tsconfig's directory for a composite program, as TypeScript 5 does", () => {
+    const check = k7(base({ outDir: 'dist', composite: true }), head({ outDir: 'dist', composite: true }), '5.9.3');
+    expect(check.violations).toEqual([]);
+    expect(check.findings).toEqual([{ kind: 'default-root-dir', file: 'tsconfig.json', detail: "emits into dist without a rootDir; TypeScript before 6.0's default stays ." }]);
+  });
+
   it('passes with an explicit rootDir, and ignores programs that emit nothing', () => {
     const explicit = k7(base({ outDir: 'dist', rootDir: '.' }), head({ outDir: 'dist', rootDir: '.' }), '5.9.3');
     expect(explicit).toMatchObject({ status: 'pass', violations: [], findings: [] });

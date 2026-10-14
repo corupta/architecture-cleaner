@@ -5,8 +5,8 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, effectiveExit, escapeRegExp, excludeTests, flakyFileCount, flakyFileLimit, flakyTests, formatDiagnostic,
-  parseTestReport, parseTscDiagnostics, selectTests, sha256, shortReports, type TestReport, totalsOf,
+  compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, effectiveExit, escapeRegExp, excludeTests, flakyFileCount, flakyFileLimit, type FlakyTest, flakyTests,
+  formatDiagnostic, parseTestReport, parseTscDiagnostics, reportFails, selectTests, sha256, shortReports, type TestReport, totalsOf,
 } from './oracle-reports.js';
 import { cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, readCachedRun, runOracle, stepBroken, stepOk, storeRun } from './oracle-runs.js';
 import type { OracleSpec, Profile } from './profile.js';
@@ -248,23 +248,32 @@ export function loadReport(run: OracleRun, format: NonNullable<OracleSpec['forma
 
 /** What the runs of both commits say once the excluded tests are left out. */
 interface TestVerdict {
-  /** The runner's exit codes disagree for every pair of runs. */
+  /** No pair of runs agrees on the runner's exit. */
   exitProblem: string | null;
+  /** Exits agree only once the excluded tests' failures count as exit 0, which can't rule out an unattributed failure. */
+  exitUnexplained: string | null;
   differences: { file: string; detail: string }[];
   snapshotProblems: string[];
   equalFiles: number;
   equalCases: number;
   compared: { head: TestReport; base: TestReport };
-  /** Flaky tests in head coordinates, with the side whose runs disagreed. */
-  flaky: { file: string; name?: string; side: Side; outcomes: string[] }[];
+  /** Tests flaky on base, in head coordinates: left out on both sides. */
+  flaky: FlakyTest[];
+  /** Tests whose outcome changed between runs of head that neither base's runs nor the quarantine excuse. */
+  unstableOnHead: FlakyTest[];
+  /** Complete runs of base, read for flaky tests. */
+  baseRuns: number;
 }
 
 /**
- * Compares the first complete run of each commit with the quarantined and the flaky tests (outcomes that change between
- * complete runs of one commit) left out on both sides. A run whose report leaves out files another run of its commit
- * lists stopped short: it is neither compared nor read for flaky tests (S6: under load vitest exited 0 listing 54 of
- * 105 files, and every missing file would have looked flaky). The runner's exit codes must agree for some pair of
- * complete runs, a failure of excluded tests only counting as exit 0.
+ * Compares the first complete run of each commit with the quarantined tests and those flaky on base (outcomes that
+ * change between complete runs of base) left out on both sides. A test whose outcome changes between runs of head
+ * only is no instability base had: it stays in and is a difference the change may have made intermittent. A run whose
+ * report leaves out files another run of its commit lists stopped short: it is neither compared nor read for flaky
+ * tests (S6: under load vitest exited 0 listing 54 of 105 files, and every missing file would have looked flaky).
+ * The runner's exit codes must agree for some pair of complete runs, a nonzero code next to a failing test on both
+ * sides or on neither (with none, the code is an unattributed failure, an unhandled error). Codes that agree only once
+ * the excluded tests' failures count as exit 0 can't rule out an unattributed failure in those runs: never a pass.
  */
 function judgeTests(session: Session, oracle: OracleSpec, allRuns: Record<Side, OracleRun[]>, allReports: Record<Side, TestReport[]>): TestVerdict {
   const { pathMap, options } = session.context;
@@ -275,30 +284,39 @@ function judgeTests(session: Session, oracle: OracleSpec, allRuns: Record<Side, 
   const complete = { head: completeOf('head'), base: completeOf('base') };
   const runs = { head: complete.head.map((entry) => entry.run), base: complete.base.map((entry) => entry.run) };
   const reports = { head: complete.head.map((entry) => entry.report), base: complete.base.map((entry) => entry.report) };
-  const flaky = [
-    ...flakyTests(reports.head).map((test) => ({ ...test, side: 'head' as Side })),
-    ...flakyTests(reports.base).map((test) => ({ ...test, file: pathMap.map(test.file), side: 'base' as Side })),
-  ];
+  const flaky = flakyTests(reports.base).map((test) => ({ ...test, file: pathMap.map(test.file) }));
   const quarantined = (options.quarantine ?? []).map((entry) => ({ ...entry, file: pathMap.map(entry.file) }));
   const excludedHead = selectTests([...quarantined, ...flaky]);
   const excluded: Record<Side, (file: string, fullName?: string) => boolean> = { head: excludedHead, base: (file, fullName) => excludedHead(pathMap.map(file), fullName) };
+  const unstableOnHead = flakyTests(reports.head).filter((test) => !excludedHead(test.file, test.name));
   const compared = { head: excludeTests(reports.head[0]!, excluded.head).report, base: excludeTests(reports.base[0]!, excluded.base).report };
   const comparison = compareTestReports(compared.base, compared.head, pathMap.map);
   const mainIndex = (oracle.setup ?? []).length;
-  const exits = (side: Side) => [...new Set(runs[side].map((run, index) => effectiveExit(run.steps[mainIndex]?.exitCode ?? null, reports[side][index]!, excluded[side])))];
-  const headExits = exits('head');
-  const baseExits = exits('base');
-  const describe = (codes: (number | null)[], side: Side) => `${codes.join(' or ')} on ${side}${runs[side].length > 1 ? ` (${runs[side].length} runs)` : ''}`;
-  const exitProblem = headExits.some((exit) => baseExits.includes(exit)) ? null : `the runner exited ${describe(headExits, 'head')}, ${describe(baseExits, 'base')}`;
-  return { exitProblem, differences: comparison.differences, snapshotProblems: comparison.snapshotProblems, equalFiles: comparison.equalFiles, equalCases: comparison.equalCases, compared, flaky };
+  const exitOf = (side: Side, index: number) => runs[side][index]!.steps[mainIndex]?.exitCode ?? null;
+  const unattributed = (side: Side, index: number) => exitOf(side, index) !== 0 && !reportFails(reports[side][index]!);
+  const effective = (side: Side, index: number) => effectiveExit(exitOf(side, index), reports[side][index]!, excluded[side]);
+  const pairs = runs.head.flatMap((_, head) => runs.base.map((_, base) => [head, base] as const));
+  const agree = pairs.some(([head, base]) => exitOf('head', head) === exitOf('base', base) && unattributed('head', head) === unattributed('base', base));
+  const agreeEffectively = !agree && pairs.some(([head, base]) => effective('head', head) === effective('base', base));
+  const describe = (side: Side) => {
+    const codes = [...new Set(runs[side].map((_, index) => `${exitOf(side, index)}${unattributed(side, index) ? ' with no test failing' : ''}`))];
+    return `${codes.join(' or ')} on ${side}${runs[side].length > 1 ? ` (${runs[side].length} runs)` : ''}`;
+  };
+  const exits = `the runner exited ${describe('head')}, ${describe('base')}`;
+  return {
+    exitProblem: agree || agreeEffectively ? null : exits,
+    exitUnexplained: agreeEffectively ? `${exits}, and only failures of left-out tests account for that, which an exit code can't tell from an unattributed failure (an unhandled error)` : null,
+    differences: comparison.differences, snapshotProblems: comparison.snapshotProblems, equalFiles: comparison.equalFiles, equalCases: comparison.equalCases,
+    compared, flaky, unstableOnHead, baseRuns: runs.base.length,
+  };
 }
 
 /**
  * Base always runs (or comes from the cache). Per test file (base paths mapped) the load status, the file status and
  * the ordered cases must equal base's, as must the runner's exit code and overall success; no snapshot may be written.
  * Quarantined tests (`CertifyOptions.quarantine`) are left out on both sides. On a difference both commits run again,
- * up to `flakyRetries` times: a test whose outcome changes between runs of one commit is flaky, a finding that is left
- * out like a quarantined one; whatever still differs is a violation.
+ * up to `flakyRetries` times: a test whose outcome changes between runs of base is flaky, a finding that is left out
+ * like a quarantined one; one whose outcome changes between runs of head only, and whatever still differs, is a violation.
  */
 async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> {
   const { options } = session.context;
@@ -336,7 +354,7 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
   const reports: Record<Side, TestReport[]> = { head: [headReport], base: [baseReport] };
   let verdict = judgeTests(session, oracle, runs, reports);
   const retries = options.flakyRetries ?? 2;
-  const differs = () => verdict.exitProblem !== null || verdict.differences.length > 0 || verdict.snapshotProblems.length > 0;
+  const differs = () => verdict.exitProblem !== null || verdict.exitUnexplained !== null || verdict.differences.length > 0 || verdict.snapshotProblems.length > 0 || verdict.unstableOnHead.length > 0;
   retrying: for (let attempt = 1; attempt <= retries && differs(); attempt++) {
     for (const side of ['head', 'base'] as const) {
       const again = await session.again(oracle, side, attempt);
@@ -351,20 +369,22 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
     }
     verdict = judgeTests(session, oracle, runs, reports);
   }
+  const testName = (test: FlakyTest) => (test.name === undefined ? 'the file' : `'${test.name}'`);
   if (verdict.exitProblem) evaluation.violations.push({ detail: `${oracle.name}: ${verdict.exitProblem}` });
+  if (verdict.exitUnexplained) evaluation.errors.push({ detail: `${oracle.name}: ${verdict.exitUnexplained}` });
   for (const difference of verdict.differences) evaluation.violations.push({ file: difference.file, detail: `${oracle.name}: ${difference.detail}` });
+  for (const test of verdict.unstableOnHead) {
+    const baseRuns = `${verdict.baseRuns} complete run${verdict.baseRuns === 1 ? '' : 's'}`;
+    evaluation.violations.push({ file: test.file, detail: `${oracle.name}: ${testName(test)} changed outcome between runs of head (${test.outcomes.join(', ')}) but not in base's ${baseRuns}: an intermittent difference, not flakiness` });
+  }
   for (const problem of verdict.snapshotProblems) evaluation.violations.push({ detail: `${oracle.name}: ${problem}` });
   const flakyFiles = flakyFileCount(verdict.flaky);
   const limit = flakyFileLimit(Math.max(verdict.compared.head.files.size, verdict.compared.base.files.size, totals.base.files));
   if (flakyFiles > limit) {
     evaluation.violations.push({ detail: `${oracle.name}: not reproducible here: flaky tests in ${flakyFiles} files (at most ${limit} allowed), so leaving them out would certify too little` });
   }
-  const flakyReported = new Set<string>();
   for (const test of verdict.flaky) {
-    const key = `${test.file}\0${test.name ?? ''}`;
-    if (flakyReported.has(key)) continue;
-    flakyReported.add(key);
-    evaluation.findings.push({ kind: 'flaky-test', file: test.file, detail: `${oracle.name}: ${test.name === undefined ? 'the file' : `'${test.name}'`} changed outcome between runs of ${test.side} (${test.outcomes.join(', ')}); left out of the comparison` });
+    evaluation.findings.push({ kind: 'flaky-test', file: test.file, detail: `${oracle.name}: ${testName(test)} changed outcome between runs of base (${test.outcomes.join(', ')}); left out of the comparison` });
   }
   for (const entry of options.quarantine ?? []) {
     const file = session.context.pathMap.map(entry.file);
@@ -373,7 +393,7 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
   if (oracle.quarantine?.length) evaluation.metrics[`${oracle.name}.quarantined`] = oracle.quarantine.length;
   if (options.quarantine?.length) evaluation.metrics[`${oracle.name}.quarantineEntries`] = options.quarantine.length;
   if (runs.head.length > 1) evaluation.metrics[`${oracle.name}.runs`] = runs.head.length;
-  evaluation.metrics[`${oracle.name}.flaky`] = flakyReported.size;
+  evaluation.metrics[`${oracle.name}.flaky`] = verdict.flaky.length;
   const compared = { head: totalsOf(verdict.compared.head), base: totalsOf(verdict.compared.base) };
   if (compared.base.failed || compared.base.loaded < compared.base.files) {
     evaluation.findings.push({ kind: 'pre-existing-failure', detail: `${oracle.name} on base: ${count(compared.base.failed)} cases fail and ${count(compared.base.files - compared.base.loaded)} files fail to load; head is compared with that` });
@@ -385,7 +405,7 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
   const left = totals.head.cases - compared.head.cases;
   const { head: after } = totals;
   evaluation.summary = `${oracle.name} ${count(verdict.equalFiles)}/${count(files)} files and ${count(verdict.equalCases)}/${count(cases)} cases equal to base`
-    + `${left || flakyReported.size ? ` (${count(left)} cases left out: ${flakyReported.size} flaky, ${options.quarantine?.length ?? 0} quarantined)` : ''}`
+    + `${left || verdict.flaky.length ? ` (${count(left)} cases left out: ${verdict.flaky.length} flaky, ${options.quarantine?.length ?? 0} quarantined)` : ''}`
     + ` (head: ${count(after.loaded)}/${count(after.files)} files load, ${count(after.passed)} passed, ${count(after.failed)} failed, ${count(after.skipped)} skipped)`;
   return evaluation;
 }
