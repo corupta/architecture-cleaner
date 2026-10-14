@@ -18,6 +18,7 @@ import { createSiteResolver, isSourceFile, moduleFormat, type SiteResolver, stri
 import type { RepoFs } from '../analyzer/repo-fs.js';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import type { ModuleFormat, ReferenceSite, Resolution } from '../analyzer/types.js';
+import { commonSourceDirectory, emittedFiles } from './emitted-files.js';
 import type { CommitTree } from './git-tree.js';
 import { detectRuntimes, hasAliasLayer, type Runtime, type RuntimeDetection } from './runtime-mechanism.js';
 import { buildSkeleton, type EmitMirror, installedPackage, type Layout, type Mode, type ProbeFile, type ProbeOutput, type ProbeToken, runProbe, type Skeleton } from './runtime-probe.js';
@@ -114,18 +115,6 @@ function sameToken(expected: Token, actual: Token): boolean {
   }
 }
 
-/** Longest common directory of a program's non-declaration files: TypeScript's default rootDir before 6.0. */
-export function commonSourceDirectory(files: ReadonlySet<string>): string {
-  const directories = [...files].filter((file) => !declarationPattern.test(file)).map((file) => path.posix.dirname(file).split('/'));
-  const first = directories[0] ?? [];
-  let length = first.length;
-  for (const parts of directories) {
-    let shared = 0;
-    while (shared < length && parts[shared] === first[shared]) shared++;
-    length = shared;
-  }
-  return first.slice(0, length).join('/').replace(/^\.$/, '');
-}
 
 /** The file Node loads for a declaration TypeScript resolved (`x.d.ts` -> `x.js`). */
 const implementationOf = (file: string) => file.replace(/\.d\.ts$/, '.js').replace(/\.d\.mts$/, '.mjs').replace(/\.d\.cts$/, '.cjs');
@@ -276,7 +265,7 @@ export async function checkRuntimeResolution(context: CertifyContext) {
     const relative = (absolute: string) => path.relative(context.fs[side].root, absolute).split(path.sep).join('/');
     const outDir = relative(program.options.outDir);
     const rootDir = program.options.rootDir !== undefined ? relative(program.options.rootDir)
-      : inferredRootDir ? commonSourceDirectory(program.files) : path.posix.dirname(tsconfig).replace(/^\.$/, '');
+      : inferredRootDir ? commonSourceDirectory(emittedFiles(context.fs[side], scopes[side], tsconfig)) : path.posix.dirname(tsconfig).replace(/^\.$/, '');
     return outDir.startsWith('..') || rootDir.startsWith('..') ? [] : [{ outDir, rootDir }];
   });
   const skeletons = { base: {}, head: {} } as Record<Side, Partial<Record<Layout, Skeleton>>>;

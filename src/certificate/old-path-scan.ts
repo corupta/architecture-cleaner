@@ -18,7 +18,7 @@ import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import { loadScopes } from '../analyzer/tsconfig-scopes.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import { isUtf8 } from './git-tree.js';
-import { commonSourceDirectory } from './resolution-runtime.js';
+import { commonSourceDirectory, emittedFiles } from './emitted-files.js';
 import { isScannedSource } from './spans.js';
 import type { CertifyContext, Finding, Violation } from './types.js';
 
@@ -137,16 +137,19 @@ export function globOrderChange(pattern: RegExp, context: CertifyContext): strin
   return null;
 }
 
-/** Every (outDir, rootDir) of the base's tsconfig programs: rootDir when set, else TS 6's and TS 5's defaults. */
+/** Every (outDir, rootDir) of the base's tsconfig programs: rootDir when set, else TS 6's and TS 5's defaults (read both ways). */
 export function emittedLayouts(context: CertifyContext): EmittedLayout[] {
   const repo = context.fs.base;
   const relative = (absolute: string) => path.relative(repo.root, absolute).split(path.sep).join('/');
   const layouts = new Map<string, EmittedLayout>();
-  for (const [config, program] of loadScopes(repo).programs) {
+  const scopes = loadScopes(repo);
+  for (const [config, program] of scopes.programs) {
     if (!program.options.outDir) continue;
     const outDir = relative(program.options.outDir);
     if (outDir.startsWith('..')) continue;
-    const roots = program.options.rootDir ? [relative(program.options.rootDir)] : [path.posix.dirname(config).replace(/^\.$/, ''), commonSourceDirectory(program.files)];
+    // TS 5 roots the output at the common directory of every emitted file, which imports can widen past the root files.
+    const roots = program.options.rootDir ? [relative(program.options.rootDir)]
+      : [path.posix.dirname(config).replace(/^\.$/, ''), commonSourceDirectory(program.files), commonSourceDirectory(emittedFiles(repo, scopes, config))];
     for (const rootDir of new Set(roots)) {
       if (rootDir.startsWith('..')) continue;
       layouts.set(`${outDir}\0${rootDir}\0${config}`, { outDir, rootDir, files: program.files, declaration: Boolean(program.options.declaration) });

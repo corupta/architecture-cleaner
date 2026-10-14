@@ -470,6 +470,17 @@ describe('K8 on tiny repos', () => {
       expect(toRunning.violations.map((violation) => violation.detail)).toContainEqual("unit: 'suite > two' changed outcome between runs of head (failed, passed, passed) but not in base's 3 complete runs: an intermittent difference, not flakiness");
     });
 
+    it('errors (never passes) when every run of a side stopped short, each leaving out different files', async () => {
+      // Head run 1 leaves out b (a difference, so both commits run again); runs 2 and 3 leave out a.
+      const cases = casesOf([['three', 'passed']]);
+      const base = { ...before, 'tests/a.cases.json': cases, 'tests/b.cases.json': cases };
+      const head = { ...moved, 'tests/a.cases.json': cases, 'tests/b.cases.json': cases,
+        'tests/a.cases.json.omit': JSON.stringify({ head: [2, 3], base: [] }), 'tests/b.cases.json.omit': JSON.stringify({ head: [1], base: [] }) };
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.status).not.toBe('pass');
+      expect(check.violations.map((violation) => violation.detail)).toContain('error: unit: every run of head left out test files another run of head listed, so no complete run is there to compare');
+    });
+
     it('neither compares nor reads for flaky tests a head run that stopped short of the file list', async () => {
       const other = casesOf([['three', 'passed']]);
       const base = { ...before, 'tests/other.cases.json': other };

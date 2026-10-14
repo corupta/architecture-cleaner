@@ -263,6 +263,8 @@ interface TestVerdict {
   unstableOnHead: FlakyTest[];
   /** Complete runs of base, read for flaky tests. */
   baseRuns: number;
+  /** Sides whose every run stopped short of another's file list (each left out different files): nothing to compare. */
+  noCompleteRun: Side[];
 }
 
 /**
@@ -277,9 +279,14 @@ interface TestVerdict {
  */
 function judgeTests(session: Session, oracle: OracleSpec, allRuns: Record<Side, OracleRun[]>, allReports: Record<Side, TestReport[]>): TestVerdict {
   const { pathMap, options } = session.context;
+  const noCompleteRun: Side[] = [];
   const completeOf = (side: Side) => {
     const short = new Set(shortReports(allReports[side]));
-    return allRuns[side].flatMap((run, index) => (short.has(index) ? [] : [{ run, report: allReports[side][index]! }]));
+    const complete = allRuns[side].flatMap((run, index) => (short.has(index) ? [] : [{ run, report: allReports[side][index]! }]));
+    if (complete.length) return complete;
+    // Every run left out files another listed: compare the first (the error recorded below keeps it from certifying).
+    noCompleteRun.push(side);
+    return [{ run: allRuns[side][0]!, report: allReports[side][0]! }];
   };
   const complete = { head: completeOf('head'), base: completeOf('base') };
   const runs = { head: complete.head.map((entry) => entry.run), base: complete.base.map((entry) => entry.run) };
@@ -307,7 +314,7 @@ function judgeTests(session: Session, oracle: OracleSpec, allRuns: Record<Side, 
     exitProblem: agree || agreeEffectively ? null : exits,
     exitUnexplained: agreeEffectively ? `${exits}, and only failures of left-out tests account for that, which an exit code can't tell from an unattributed failure (an unhandled error)` : null,
     differences: comparison.differences, snapshotProblems: comparison.snapshotProblems, equalFiles: comparison.equalFiles, equalCases: comparison.equalCases,
-    compared, flaky, unstableOnHead, baseRuns: runs.base.length,
+    compared, flaky, unstableOnHead, baseRuns: runs.base.length, noCompleteRun,
   };
 }
 
@@ -370,6 +377,7 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
     verdict = judgeTests(session, oracle, runs, reports);
   }
   const testName = (test: FlakyTest) => (test.name === undefined ? 'the file' : `'${test.name}'`);
+  for (const side of verdict.noCompleteRun) evaluation.errors.push({ detail: `${oracle.name}: every run of ${side} left out test files another run of ${side} listed, so no complete run is there to compare` });
   if (verdict.exitProblem) evaluation.violations.push({ detail: `${oracle.name}: ${verdict.exitProblem}` });
   if (verdict.exitUnexplained) evaluation.errors.push({ detail: `${oracle.name}: ${verdict.exitUnexplained}` });
   for (const difference of verdict.differences) evaluation.violations.push({ file: difference.file, detail: `${oracle.name}: ${difference.detail}` });

@@ -8,10 +8,9 @@
 // is unknown, both must hold.
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
-import { moduleResolutionHost, type RepoFs, toAbsolute, toRelative } from '../analyzer/repo-fs.js';
-import { loadScopes, type ScopeLookup } from '../analyzer/tsconfig-scopes.js';
-import { commonSourceDirectory, configuredOption } from './resolution-runtime.js';
+import { loadScopes } from '../analyzer/tsconfig-scopes.js';
+import { commonSourceDirectory, emittedFiles } from './emitted-files.js';
+import { configuredOption } from './resolution-runtime.js';
 import { installedPackage } from './runtime-probe.js';
 import { type Check, type Finding, result, type Side, type Violation } from './types.js';
 
@@ -29,47 +28,6 @@ function typescriptMajor(checkout: string, directory: string): number | null {
   if (!installed) return null;
   const major = Number(String(JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8')).version).split('.')[0]);
   return Number.isFinite(major) ? major : null;
-}
-
-/**
- * The repo files a program emits, as TypeScript builds it: its root files and everything they pull in, less declaration
- * files, files of external libraries (node_modules) and sources of referenced projects (their outputs stand in).
- */
-function emittedFiles(repo: RepoFs, scopes: ScopeLookup, config: string): Set<string> {
-  const program = scopes.programs.get(config)!;
-  // TypeScript 5 includes every typeRoots package when `types` is unset (6 only for '*'); lib files emit nothing.
-  const options: ts.CompilerOptions = { ...program.options, types: program.options.types ?? ['*'], noLib: true };
-  const resolution = moduleResolutionHost(repo);
-  const inRepo = (fileName: string) => !toRelative(repo, fileName).startsWith('..');
-  const references = (ts.parseConfigFileTextToJson(config, repo.read(config) ?? '').config as { references?: { path?: unknown }[] } | undefined)?.references ?? [];
-  const built = ts.createProgram({
-    rootNames: [...program.files].map((file) => toAbsolute(repo, file)),
-    options,
-    projectReferences: references.flatMap((reference) => (typeof reference.path === 'string' ? [{ path: path.resolve(path.dirname(toAbsolute(repo, config)), reference.path) }] : [])),
-    host: {
-      ...ts.createCompilerHost(options),
-      getCurrentDirectory: () => repo.root,
-      fileExists: (fileName) => (inRepo(fileName) ? repo.fileExists(fileName) : ts.sys.fileExists(fileName)),
-      directoryExists: (directoryName) => (inRepo(directoryName) ? repo.directoryExists(directoryName) : ts.sys.directoryExists(directoryName)),
-      getDirectories: (directoryName) => (inRepo(directoryName) ? resolution.getDirectories!(directoryName) : ts.sys.getDirectories(directoryName)),
-      realpath: resolution.realpath!,
-      readFile: (fileName) => resolution.readFile(fileName),
-      getSourceFile: (fileName, languageVersionOrOptions) => {
-        // A file in node_modules is an external library's, and so is everything only it imports: none is emitted.
-        if (!inRepo(fileName) || toRelative(repo, fileName).split('/').includes('node_modules')) return undefined;
-        const text = resolution.readFile(fileName);
-        return text === undefined ? undefined : ts.createSourceFile(fileName, text, languageVersionOrOptions);
-      },
-      getParsedCommandLine: (fileName) => {
-        const referenced = scopes.programs.get(toRelative(repo, fileName));
-        // The program wants the reference's parsed config file, which the scope's copied options don't carry.
-        const configFile = ts.readJsonConfigFile(fileName, (name) => resolution.readFile(name));
-        return referenced && { options: { ...referenced.options, configFile }, fileNames: [...referenced.files].map((file) => toAbsolute(repo, file)), errors: [] };
-      },
-    },
-  });
-  const emitted = built.getSourceFiles().filter((file) => !file.isDeclarationFile && !built.isSourceFileFromExternalLibrary(file));
-  return new Set(emitted.map((file) => toRelative(repo, file.fileName)));
 }
 
 export const emitLayout: Check = {

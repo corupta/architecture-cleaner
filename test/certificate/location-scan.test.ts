@@ -231,6 +231,17 @@ describe('K4 old-path strings', () => {
     expect(details(other)).toEqual(["rules.json: line 6: 'src/utils/' is the directory the move emptied of src/utils (moved to src/shared) [config at forbidden.from.path]"]);
   });
 
+  it('reads TypeScript 5\'s default rootDir from what the program emits: an import past the include widens it', async () => {
+    // server/src/main.ts imports ../../shared/x.ts, so tsc 5 roots the output at the repo root: server/dist/server/src/main.js.
+    const repo = commitPair({
+      'server/package.json': JSON.stringify({ name: 'server', private: true, main: 'dist/server/src/main.js' }, null, 2) + '\n',
+      'server/tsconfig.json': JSON.stringify({ compilerOptions: { outDir: 'dist', module: 'commonjs' }, include: ['src'] }) + '\n',
+      'server/src/main.ts': "import { x } from '../../shared/x';\nexport const main = x;\n",
+      'shared/x.ts': 'export const x = 1;\n',
+    }, { 'server/src/main.ts': 'server/src/app/main.ts' }, { 'server/src/app/main.ts': "import { x } from '../../../shared/x';\nexport const main = x;\n" });
+    expect(details(await scan(repo, 'HEAD~1', 'HEAD', 'server'))).toEqual([expect.stringContaining("server/package.json: line 4: 'dist/server/src/main.js' is the emitted path")]);
+  });
+
   it('does not match a needle inside a longer path or word', async () => {
     const repo = commitPair({
       'src/user.ts': 'export const user = 1;\n',
