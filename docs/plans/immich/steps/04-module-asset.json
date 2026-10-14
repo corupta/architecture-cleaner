@@ -21,7 +21,6 @@
   "server/src/repositories/asset-file.repository.ts": "server/src/modules/asset/asset-file.repository.ts",
   "server/src/repositories/asset-job.repository.ts": "server/src/modules/asset/asset-job.repository.ts",
   "server/src/repositories/asset.repository.ts": "server/src/modules/asset/asset.repository.ts",
-  "server/src/repositories/move.repository.ts": "server/src/modules/asset/move.repository.ts",
   "server/src/services/asset-file.service.ts": "server/src/modules/asset/asset-file.service.ts",
   "server/src/services/asset-media.service.ts": "server/src/modules/asset/asset-media.service.ts",
   "server/src/services/asset-media.service.spec.ts": "server/src/modules/asset/asset-media.service.spec.ts",

@@ -3,8 +3,8 @@
 immich `server/` @ `02063972e8`. Planner: deterministic facts and seeds draft → Nemotron 3 Ultra (medium_effort) edits the draft (json_schema strict, K=3 in one n=K call) → the validator filters and ranks the edits → Nemotron 3 Ultra (medium_effort) reviews the winner (1 call) → the validator checks each suggestion.
 
 - Movable files planned: **269**; pinned and left in place: **196** (168 migration-or-schema, 9 script-reference, 8 location-sensitive, 5 worker-or-bin, 5 test, 1 entrypoint).
-- Final plan: **58 groups** (38 modules, 19 platform, 1 shared); cross-group edge ratio 0.8312; groups in cycles 54; TurboMQ sum 10.07.
-- Placed away from the seeds draft: **45** files (16.7%); moved by the planner 8, by the critic 2; 30 contested.
+- Final plan: **59 groups** (38 modules, 20 platform, 1 shared); cross-group edge ratio 0.8312; groups in cycles 55; TurboMQ sum 10.07.
+- Placed away from the seeds draft: **44** files (16.4%); moved by the planner 8, by the critic 2; 30 contested.
 - Cost: **$0.1998** in 2 calls (34703 prompt, 55027 completion tokens, 43261 of them reasoning).
 
 ## Candidates
@@ -12,8 +12,8 @@ immich `server/` @ `02063972e8`. Planner: deterministic facts and seeds draft �
 | candidate | valid | groups | edit: group entries / moves | dropped by the validator | warnings | TurboMQ sum | cross-edge ratio | groups in cycles | placed away from draft | plan |
 |---|---|---|---|---|---|---|---|---|---|---|
 | seeds draft | yes | 81 | — | — | 47 | 10.19 | 0.8579 | 74 | 0 | `candidates/seeds-draft.yaml` |
-| ultra#1 | yes | 52 | 81 / 58 | 10 | 28 | 9.16 | 0.8306 | 50 | 62 | `candidates/ultra-1.yaml` |
-| ultra#2 | yes | 55 | 81 / 50 | 5 | 20 | 9.64 | 0.83 | 52 | 60 | `candidates/ultra-2.yaml` |
+| ultra#1 | yes | 52 | 81 / 58 | 10 | 29 | 9.16 | 0.8306 | 50 | 62 | `candidates/ultra-1.yaml` |
+| ultra#2 | yes | 55 | 81 / 50 | 5 | 27 | 9.64 | 0.83 | 52 | 60 | `candidates/ultra-2.yaml` |
 | ultra#3 (winner) | yes | 61 | 81 / 29 | 4 | 17 | 9.89 | 0.8351 | 57 | 41 | `candidates/ultra-3.yaml` |
 
 Ranking: valid first, then fewer errors; among plans that keep at least 90% of the draft's TurboMQ sum, fewer validator warnings (the layout rules), then a higher TurboMQ sum and fewer groups in cycles. TurboMQ alone ranks the least-edited plan first (G1, and again here), and picking a plan without ground truth is still open, so every candidate is listed, and each one's full plan (before the critic) sits next to plan.yaml: `ac steps <plan dir>/candidates/<file>.yaml --out <dir>` makes steps from any of them.
@@ -22,7 +22,7 @@ Ranking: valid first, then fewer errors; among plans that keep at least 90% of t
 
 | group | files | roles | from draft groups | files |
 |---|---|---|---|---|
-| module/asset | 21 | 8 dto, 5 repository, 3 controller, 3 service, 1 interceptor, 1 util | 9 asset, 4 asset-file, 4 asset-media, 1 asset-edit, 1 asset-job, 1 move, 1 shared | `controllers/asset-file.controller.ts`, `controllers/asset-media.controller.ts`, `controllers/asset.controller.ts`, `dtos/asset-file.dto.ts`, `dtos/asset-ids.response.dto.ts`, `dtos/asset-media-response.dto.ts`, `dtos/asset-media.dto.ts`, `dtos/asset-response.dto.ts`, … 13 more |
+| module/asset | 20 | 8 dto, 4 repository, 3 controller, 3 service, 1 interceptor, 1 util | 9 asset, 4 asset-file, 4 asset-media, 1 asset-edit, 1 asset-job, 1 shared | `controllers/asset-file.controller.ts`, `controllers/asset-media.controller.ts`, `controllers/asset.controller.ts`, `dtos/asset-file.dto.ts`, `dtos/asset-ids.response.dto.ts`, `dtos/asset-media-response.dto.ts`, `dtos/asset-media.dto.ts`, `dtos/asset-response.dto.ts`, … 12 more |
 | module/user | 14 | 5 dto, 3 service, 2 command, 2 controller, 1 repository, 1 util | 12 user, 1 shared, 1 user-method | `commands/list-users.command.ts`, `commands/reset-admin-password.command.ts`, `controllers/user-admin.controller.ts`, `controllers/user.controller.ts`, `dtos/calendar-heatmap.dto.ts`, `dtos/license.dto.ts`, `dtos/user-preferences.dto.ts`, `dtos/user-profile.dto.ts`, … 6 more |
 | shared/shared | 14 | 8 util, 4 other, 1 dto, 1 service | 11 shared, 1 env, 1 notification, 1 person | `decorators.ts`, `dtos/env.dto.ts`, `enum.ts`, `services/api.service.ts`, `types.ts`, `utils/bytes.ts`, `utils/date.ts`, `utils/mime-types.ts`, … 6 more |
 | module/auth | 11 | 3 command, 3 controller, 2 service, 1 dto, 1 guard, 1 repository | 6 auth, 3 oauth, 1 grant, 1 password-login | `commands/grant-admin.ts`, `commands/oauth-login.ts`, `commands/password-login.ts`, `controllers/auth-admin.controller.ts`, `controllers/auth.controller.ts`, `controllers/oauth.controller.ts`, `dtos/auth.dto.ts`, `middleware/auth.guard.ts`, … 3 more |
@@ -78,6 +78,7 @@ Ranking: valid first, then fewer errors; among plans that keep at least 90% of t
 | platform/crypto | 1 | 1 repository | 1 crypto | `repositories/crypto.repository.ts` |
 | platform/http-client | 1 | 1 util | 1 fetch | `utils/fetch.ts` |
 | platform/http-response | 1 | 1 util | 1 response | `utils/response.ts` |
+| platform/move | 1 | 1 repository | 1 move | `repositories/move.repository.ts` |
 | platform/process | 1 | 1 repository | 1 process | `repositories/process.repository.ts` |
 | platform/transcoding | 1 | 1 service | 1 transcoding | `services/transcoding.service.ts` |
 
@@ -103,22 +104,25 @@ Contested files left where the draft put them (20): `commands/grant-admin.ts` (m
 - rejected: group platform/check → module/maintenance (a merge without evidence: no edge between the files of platform/check and module/maintenance, no table or route both use)
 - accepted: group platform/hls → module/video-stream (evidence: 2 edges)
 - accepted: group platform/mail → module/notification (evidence: 3 edges)
-- accepted: group platform/move → module/asset (evidence: tables asset)
+- rejected: group platform/move → module/asset (a merge without evidence: no edge between the files of platform/move and module/asset, no table or route both use)
 - accepted: group platform/ocr → module/ocr
 - accepted: group platform/version → module/version
 - rejected: move src/commands/schema-check.ts → module/maintenance: Schema‑check is a maintenance CLI command; moves the one‑file platform/check group into the maintenance feature. (a merge without evidence: no edge between the files of platform/check and module/maintenance, no table or route both use)
-- rejected: move src/controllers/app.controller.ts → module/server: AppController serves HTTP routes (health/check) and is a feature entry point; moves it out of platform/bootstrap. (adds a warning (one-file-platform: platform/bootstrap holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves))
-- accepted: move src/repositories/app.repository.ts → module/maintenance: Only the maintenance module consumes this repository; fixes the impure‑shared warning.
-- rejected: move src/services/api.service.ts → platform/http-client: Generic HTTP client service is plumbing used by many features; belongs in platform/http‑client, removing it from shared. (adds a warning (unsupported-merge: platform/http-client takes draft group "fetch" (src/utils/fetch.ts): no shared word, edge, table or route))
-- accepted: move src/utils/editor.ts → platform/media: Utility is only imported by platform/media; moving it out of shared resolves the single‑consumer warning.
+- rejected: move src/repositories/move.repository.ts → module/asset: Move repository writes the move_history table used by asset handling; belongs to the asset feature, not plumbing. (a merge without evidence: no edge between the files of platform/move and module/asset, no table or route both use)
+- rejected: move src/controllers/app.controller.ts → module/server: AppController serves HTTP routes (health/check) and is a feature entry point; moves it out of platform/bootstrap. (a move without evidence: no edge between src/controllers/app.controller.ts and the files of module/server, no table or route both use)
+- accepted: move src/repositories/app.repository.ts → module/maintenance: Only the maintenance module consumes this repository; fixes the impure‑shared warning. (evidence: 3 edges)
+- rejected: move src/services/api.service.ts → platform/http-client: Generic HTTP client service is plumbing used by many features; belongs in platform/http‑client, removing it from shared. (a move without evidence: no edge between src/services/api.service.ts and the files of platform/http-client, no table or route both use)
+- accepted: move src/utils/editor.ts → platform/media: Utility is only imported by platform/media; moving it out of shared resolves the single‑consumer warning. (evidence: 1 edge)
 
 ## Validator
 
 - warning impure-shared: src/services/api.service.ts is a service; shared/ holds pure code only
 - warning one-file-platform: platform/check holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves
 - warning one-file-platform: platform/http-client holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves
+- warning one-file-platform: platform/move holds one file, and only platform/storage uses it: consider folding it there
 - warning one-file-platform: platform/transcoding holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves
 - warning platform-feature: src/controllers/app.controller.ts serves routes: a feature, not plumbing
+- warning platform-feature: src/repositories/move.repository.ts writes tables (move_history): a feature, not plumbing
 - warning singleton-group: module/machine-learning holds one file
 - warning unsupported-merge: module/auth takes draft group "grant" (src/commands/grant-admin.ts): no shared word, edge, table or route
 - warning unsupported-merge: module/auth takes draft group "password-login" (src/commands/password-login.ts): no shared word, edge, table or route
@@ -138,7 +142,7 @@ Strongest graph disagreements left in the plan (own edge share vs the pulling gr
 - `controllers/app.controller.ts` in platform/bootstrap (0) pulled to module/auth (0.5)
 - `controllers/library.controller.ts` in module/library (0.33) pulled to shared/shared (0.5)
 
-Group cycles: 54 groups (module/activity, module/album, module/api-key, module/asset, module/auth, module/cluster-group, …).
+Group cycles: 55 groups (module/activity, module/album, module/api-key, module/asset, module/auth, module/cluster-group, …).
 
 ## Pinned
 
@@ -158,7 +162,7 @@ Group cycles: 54 groups (module/activity, module/album, module/api-key, module/a
 | 1 | R1 | module/activity | 6 | — |
 | 2 | R1 | module/album | 7 | — |
 | 3 | R1 | module/api-key | 6 | — |
-| 4 | R1 | module/asset | 25 | — |
+| 4 | R1 | module/asset | 24 | — |
 | 5 | R1 | module/auth | 15 | — |
 | 6 | R1 | module/cluster-group | 4 | — |
 | 7 | R1 | module/config | 10 | — |
@@ -206,10 +210,11 @@ Group cycles: 54 groups (module/activity, module/album, module/api-key, module/a
 | 49 | R2 | platform/logging | 6 | — |
 | 50 | R2 | platform/media | 8 | — |
 | 51 | R2 | platform/metadata | 4 | — |
-| 52 | R2 | platform/process | 2 | — |
-| 53 | R2 | platform/registry | 7 | `commands/index.ts`, `controllers/index.ts`, `repositories/index.ts`, `services/index.ts` |
-| 54 | R2 | platform/storage | 7 | — |
-| 55 | R2 | platform/telemetry | 2 | — |
-| 56 | R2 | platform/transcoding | 2 | — |
-| 57 | R2 | platform/websocket | 2 | — |
-| 58 | R2 | shared/shared | 20 | — |
+| 52 | R2 | platform/move | 1 | — |
+| 53 | R2 | platform/process | 2 | — |
+| 54 | R2 | platform/registry | 7 | `commands/index.ts`, `controllers/index.ts`, `repositories/index.ts`, `services/index.ts` |
+| 55 | R2 | platform/storage | 7 | — |
+| 56 | R2 | platform/telemetry | 2 | — |
+| 57 | R2 | platform/transcoding | 2 | — |
+| 58 | R2 | platform/websocket | 2 | — |
+| 59 | R2 | shared/shared | 20 | — |

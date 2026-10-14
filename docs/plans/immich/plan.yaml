@@ -39,7 +39,6 @@ groups:
     - { path: src/repositories/asset-file.repository.ts, confidence: seed }
     - { path: src/repositories/asset-job.repository.ts, confidence: seed }
     - { path: src/repositories/asset.repository.ts, confidence: seed }
-    - { path: src/repositories/move.repository.ts, confidence: seed }
     - { path: src/services/asset-file.service.ts, confidence: seed }
     - { path: src/services/asset-media.service.ts, tests: [src/services/asset-media.service.spec.ts], confidence: seed }
     - { path: src/services/asset.service.ts, tests: [src/services/asset.service.spec.ts], confidence: seed }
@@ -296,6 +295,8 @@ groups:
     - { path: src/repositories/metadata.repository.ts, confidence: seed }
     - { path: src/services/metadata.service.ts, tests: [src/services/metadata.service.spec.ts], confidence: seed }
     - { path: src/utils/tasks.ts, confidence: propagated-strong }
+  platform/move:
+    - { path: src/repositories/move.repository.ts, confidence: seed }
   platform/process:
     - { path: src/repositories/process.repository.ts, tests: [src/repositories/process.repository.spec.ts], confidence: seed }
   platform/registry:

@@ -412,6 +412,16 @@ describe('unsupported merges', () => {
     const sharingTable = { ...facts, files: facts.files.map((file) => (file.path === trash ? { ...file, tables: { reads: [], writes: ['album'] } } : file)) };
     expect(plan(sharingTable).issues.filter((issue) => issue.code === 'unsupported-merge')).toEqual([]);
   });
+
+  it('takes no evidence from a hub table, one that more than three groups use (immich: asset, in 22 groups)', () => {
+    const readers = new Set([trash, files.albumService, files.assetService, files.assetMediaService, files.date]);
+    const hub = { ...facts, files: facts.files.map((file) => (readers.has(file.path) ? { ...file, tables: { reads: ['user'], writes: [] } } : file)) };
+    expect(plan(hub).issues.filter((issue) => issue.code === 'unsupported-merge').map((issue) => issue.detail)).toEqual([
+      `module/album takes draft group "trash" (${trash}): no shared word, edge, table or route`,
+    ]);
+    const fewer = { ...hub, files: hub.files.map((file) => (file.path === files.date ? { ...file, tables: { reads: [], writes: [] } } : file)) };
+    expect(plan(fewer).issues.filter((issue) => issue.code === 'unsupported-merge')).toEqual([]);
+  });
 });
 
 describe('platform rules (S6)', () => {
@@ -471,6 +481,17 @@ describe('platform rules (S6)', () => {
     expect(mergeEvidence(facts, { placements }, 'platform/mail', 'platform/registry')).toEqual({ edges: 0, tables: [], routes: [] });
     const tablesAndRoutes = { ...facts, files: facts.files.map((file) => (file.path === platform.mail ? { ...file, tables: { reads: ['album_user'], writes: [] }, routes: ['albums'] } : file)) };
     expect(mergeEvidence(tablesAndRoutes, { placements }, 'platform/mail', 'module/album')).toEqual({ edges: 1, tables: ['album_user'], routes: ['albums'] });
+    const hubReaders = new Set([platform.mail, platform.cron, platform.crypto, files.albumRepository]);
+    const hub = { ...facts, files: facts.files.map((file) => (hubReaders.has(file.path) ? { ...file, tables: { reads: ['album_user'], writes: [] } } : file)) };
+    expect(mergeEvidence(hub, { placements }, 'platform/mail', 'module/album')).toEqual({ edges: 1, tables: [], routes: [] });
+  });
+
+  it('keeps registries in platform/registry, the composition root: one in any other platform group is a warning', () => {
+    const split = { placements: placements.map((placement) => (placement.path === platform.appModule ? { ...placement, name: 'bootstrap' } : placement)) };
+    expect(warnings(split).filter((warning) => warning.startsWith('registry-outside-root'))).toEqual([
+      `registry-outside-root platform/bootstrap: ${platform.appModule} is a registry outside platform/registry, the composition root`,
+    ]);
+    expect(warnings({ placements }).filter((warning) => warning.startsWith('registry-outside-root'))).toEqual([]);
   });
 });
 

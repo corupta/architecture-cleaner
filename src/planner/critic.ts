@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { Gateway, ModelKey, TemplateKwargs } from '../gateway/types.js';
 import { factsText, layoutText, placementRules } from './edit.js';
 import { displayPath, fileNamed } from './facts.js';
-import { canonicalGroup, mergeEvidence, validatePlan } from './validate.js';
+import { canonicalGroup, mergeEvidence, moveEvidence, registryGroup, validatePlan } from './validate.js';
 import { groupKey, type Draft, type Facts, type Issue, type Placement, type Plan, type Validation } from './types.js';
 
 const groupKinds = ['module', 'shared', 'platform'] as const;
@@ -170,11 +170,13 @@ export function applyCritique(facts: Facts, draft: Draft, plan: Plan, critique: 
 /**
  * Applies the suggestions one at a time, review by review in order, each through the validator: a suggestion is kept
  * only if it adds no error and no warning to any group (addedIssues; S5: an ungated critic split the registries into
- * one-file groups and merged cron into database just to silence warnings, and a count-only gate let it trade warnings),
- * and a merge into an existing group (renaming a group onto it, or moving a group's last file into it) needs evidence
- * (mergeEvidence), not just a shared word. A later review never overrides an earlier kept suggestion: one that touches
- * a group or file a kept suggestion already changed is rejected. Suggestions that change nothing (a repeat of a kept
- * one included) are dropped silently.
+ * one-file groups and merged cron into database just to silence warnings, and a count-only gate let it trade warnings).
+ * Anything that joins an existing group needs evidence, not just a shared word: a group renamed onto it, or a group's
+ * last file moved into it, by mergeEvidence; any other file moved into it by moveEvidence (S6: tag.service.ts could
+ * leave its controller and repository for module/album, linked to it by nothing). A registry needs none to join the
+ * composition root. A later review never overrides an earlier kept suggestion: one that touches a group or file a
+ * kept suggestion already changed is rejected. Suggestions that change nothing (a repeat of a kept one included) are
+ * dropped silently.
  */
 export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques: Critique[]): { plan: Plan; suggestions: Suggestion[] } {
   const suggestions: Suggestion[] = [];
@@ -209,17 +211,29 @@ export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques
 
   const exists = (group: string) => current.placements.some((placement) => groupKey(placement) === group);
   const filesOf = (group: string) => current.placements.filter((placement) => groupKey(placement) === group).map((placement) => placement.path);
-  /** False (and the suggestion rejected) for a merge of `source` into an existing `target` that nothing links. */
-  const supported = (suggestion: Suggestion, source: string, target: string) => {
+  const isRegistry = (path: string) => facts.files.some((candidate) => candidate.path === path && candidate.role === 'registry');
+  /**
+   * False (and the suggestion rejected) when nothing links what joins the existing group `target`: the group `source`
+   * (a merge), or the one file `moved` out of a group that keeps others (a move).
+   */
+  const supported = (suggestion: Suggestion, target: string, joining: { source: string } | { moved: string }) => {
     if (!exists(target)) return true;
-    const evidence = mergeEvidence(facts, current, source, target);
+    const files = 'source' in joining ? filesOf(joining.source) : [joining.moved];
+    if (target === registryGroup && files.every(isRegistry)) {
+      suggestion.evidence = 'registries join the composition root';
+      return true;
+    }
+    const evidence = 'source' in joining ? mergeEvidence(facts, current, joining.source, target) : moveEvidence(facts, current, joining.moved, target);
     const found = [
       ...(evidence.edges ? [`${evidence.edges} edge${evidence.edges === 1 ? '' : 's'}`] : []),
       ...(evidence.tables.length ? [`tables ${evidence.tables.join(', ')}`] : []),
       ...(evidence.routes.length ? [`routes ${evidence.routes.join(', ')}`] : []),
     ];
     if (found.length) suggestion.evidence = found.join('; ');
-    else suggestions.push({ ...suggestion, reason: `a merge without evidence: no edge between the files of ${source} and ${target}, no table or route both use` });
+    else {
+      const what = 'source' in joining ? `a merge without evidence: no edge between the files of ${joining.source} and ${target}` : `a move without evidence: no edge between ${joining.moved} and the files of ${target}`;
+      suggestions.push({ ...suggestion, reason: `${what}, no table or route both use` });
+    }
     return found.length > 0;
   };
 
@@ -235,7 +249,7 @@ export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques
       }
       const suggestion = numbered({ summary, accepted: false });
       if (!untouched(suggestion, [key, groupKey(target)], [])) continue;
-      if (!supported(suggestion, key, groupKey(target))) continue;
+      if (!supported(suggestion, groupKey(target), { source: key })) continue;
       attempt(suggestion, { placements: current.placements.map((placement) => (groupKey(placement) === key ? { ...placement, ...target } : placement)) },
         { groups: [key, groupKey(target)], files: filesOf(key) }, { from: key, to: groupKey(target) });
     }
@@ -255,7 +269,7 @@ export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques
       // file, after its group merge was refused for want of evidence).
       const last = filesOf(groupKey(placement)).length === 1;
       if (last && !untouched(suggestion, [groupKey(placement), groupKey(target)], [])) continue;
-      if (last && !supported(suggestion, groupKey(placement), groupKey(target))) continue;
+      if (!supported(suggestion, groupKey(target), last ? { source: groupKey(placement) } : { moved: file.path })) continue;
       const moved: Placement = { ...placement, ...target, contested: true, source: 'critic', rationale: move.rationale };
       attempt(suggestion, { placements: current.placements.map((candidate) => (candidate.path === file.path ? moved : candidate)) },
         { groups: last ? [groupKey(placement), groupKey(target)] : [], files: [file.path] }, last ? { from: groupKey(placement), to: groupKey(target) } : undefined);

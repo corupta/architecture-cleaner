@@ -37,7 +37,7 @@ describe.skipIf(!atBase())('the committed immich plan', () => {
     const run = await planRepo(gitRepoFs(immich), gateway, { packageRoot: 'server', moduleRoot: 'src', pins: [], ...settings });
     const outputs = planOutputs(run, { name: 'immich' }, settings);
     const files = ['plan.md', 'plan.yaml', ...filesUnder('candidates'), ...filesUnder('steps')];
-    expect(files.filter((file) => file.startsWith('steps/'))).toHaveLength(58);
+    expect(files.filter((file) => file.startsWith('steps/'))).toHaveLength(59);
     expect([...outputs.keys()].filter((file) => file !== 'plan.json').sort()).toEqual([...files].sort());
     for (const file of files) expect(outputs.get(file), file).toBe(fs.readFileSync(path.join(committed, file), 'utf8'));
     expect(fs.existsSync(ledgerPath)).toBe(false);

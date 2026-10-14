@@ -113,16 +113,47 @@ describe('the critic gate', () => {
     ]);
   });
 
-  it('rejects moving a non-registry file into a registry group, even when it clears an impure-shared warning', () => {
+  it('rejects moving a non-registry file into a registry group, even when it clears an impure-shared warning: registry wiring is no evidence', () => {
     expect(outcome({ moves: [{ file: 'repositories/app.repository.ts', to: 'registry', kind: 'platform', rationale: 'impure, so composition root' }] })).toEqual([
       ['move src/repositories/app.repository.ts → platform/registry', false,
-        'adds a warning (impure-registry: src/repositories/app.repository.ts (repository) is no registry; platform/registry holds registries (composition roots) only)'],
+        'a move without evidence: no edge between src/repositories/app.repository.ts and the files of platform/registry, no table or route both use'],
     ]);
   });
 
   it('keeps a move that clears a warning without adding one', () => {
     expect(outcome({ moves: [{ file: 'repositories/app.repository.ts', to: 'storage', kind: 'platform', rationale: 'storage plumbing' }] })).toEqual([
-      ['move src/repositories/app.repository.ts → platform/storage', true, ''],
+      ['move src/repositories/app.repository.ts → platform/storage', true, '1 edge'],
+    ]);
+  });
+
+  it('takes no evidence from a hub table: one that more than three groups use links no two of them', () => {
+    const readers = new Set([paths.systemMetadataRepository, paths.metadataRepository, paths.storageRepository, paths.moveRepository, paths.assetRepository]);
+    const hub = { ...facts, files: facts.files.map((fact) => (readers.has(fact.path) ? { ...fact, tables: { reads: [...fact.tables.reads, 'asset'], writes: fact.tables.writes } } : fact)) };
+    const reasons = (change: Partial<Critique>) => applyCritique(hub, draft, plan, critique(change)).suggestions.map((suggestion) => [suggestion.accepted, suggestion.reason ?? suggestion.evidence]);
+    expect(reasons({ groups: [{ group: 'platform/move', name: 'system-metadata', kind: 'module' }] })).toEqual([
+      [false, 'a merge without evidence: no edge between the files of platform/move and module/system-metadata, no table or route both use'],
+    ]);
+    expect(reasons({ moves: [{ file: 'repositories/metadata.repository.ts', to: 'system-metadata', kind: 'module', rationale: 'both read assets' }] })).toEqual([
+      [false, 'a move without evidence: no edge between src/repositories/metadata.repository.ts and the files of module/system-metadata, no table or route both use'],
+    ]);
+  });
+
+  it('needs evidence for every move into an existing group, not only for a group\'s last file', () => {
+    expect(outcome({ moves: [{ file: 'services/system-metadata.service.ts', to: 'asset', kind: 'module', rationale: 'assets carry metadata' }] })).toEqual([
+      ['move src/services/system-metadata.service.ts → module/asset', false,
+        'a move without evidence: no edge between src/services/system-metadata.service.ts and the files of module/asset, no table or route both use'],
+    ]);
+  });
+
+  it('rejects splitting a registry off into a platform group of its own, and lets one join the composition root', () => {
+    expect(outcome({ moves: [{ file: 'services/index.ts', to: 'bootstrap', kind: 'platform', rationale: 'service wiring' }] })).toEqual([
+      ['move src/services/index.ts → platform/bootstrap', false,
+        'adds a warning (registry-outside-root: src/services/index.ts is a registry outside platform/registry, the composition root)'],
+    ]);
+    const astray = { placements: plan.placements.map((placement) => (placement.path === paths.serviceRegistry ? { ...placement, name: 'bootstrap' } : placement)) };
+    expect(applyCritique(facts, draft, astray, critique({ moves: [{ file: 'services/index.ts', to: 'registry', kind: 'platform', rationale: 'back with the others' }] })).suggestions
+      .map((suggestion) => [suggestion.summary, suggestion.accepted, suggestion.evidence])).toEqual([
+      ['move src/services/index.ts → platform/registry', true, 'registries join the composition root'],
     ]);
   });
 });
@@ -137,7 +168,7 @@ describe('the critic gate over K reviews', () => {
       { moves: [{ file: 'repositories/app.repository.ts', to: 'asset', kind: 'module', rationale: 'asset uses it' }] },
       { groups: [{ group: 'platform/metadata', name: 'asset', kind: 'module' }] },
     )).toEqual([
-      [1, 'move src/repositories/app.repository.ts → platform/storage', true, ''],
+      [1, 'move src/repositories/app.repository.ts → platform/storage', true, '1 edge'],
       [2, 'move src/repositories/app.repository.ts → module/asset', false, 'already changed by a kept suggestion of review 1'],
       [3, 'group platform/metadata → module/asset', true, '1 edge'],
     ]);

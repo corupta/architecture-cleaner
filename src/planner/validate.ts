@@ -42,6 +42,25 @@ export const sharedGroupName = 'shared';
 /** Roles that do I/O or need the framework, so they never belong in shared/ (pure code only). */
 const impureRoles = new Set(['service', 'repository', 'controller', 'guard', 'interceptor', 'middleware', 'filter', 'gateway', 'processor', 'registry', 'command', 'module']);
 
+/** The composition root: the one platform group for registries, the only folder R4's rules let import every module. */
+export const registryGroup = 'platform/registry';
+
+/**
+ * A table that more than this many groups of a plan read or write is a hub (immich: asset in 22 groups, asset_exif in
+ * 15, user in 14): two groups that both use it share nothing specific, so it is no evidence that they belong together.
+ */
+const hubTableGroups = 3;
+
+function hubTables(facts: Facts, groupOf: ReadonlyMap<string, string>): Set<string> {
+  const groupsOf = new Map<string, Set<string>>();
+  for (const file of facts.files) {
+    const group = groupOf.get(file.path);
+    if (group === undefined) continue;
+    for (const table of [...file.tables.reads, ...file.tables.writes]) groupsOf.set(table, (groupsOf.get(table) ?? new Set()).add(group));
+  }
+  return new Set([...groupsOf].filter(([, groups]) => groups.size > hubTableGroups).map(([table]) => table));
+}
+
 /** The group a name and kind denote: every shared name collapses to the one flat shared group. */
 export const canonicalGroup = (name: string, kind: GroupKind) => ({ name: kind === 'shared' ? sharedGroupName : name, kind });
 
@@ -267,6 +286,10 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
     }
     if (role === 'registry' && placement.kind !== 'platform') {
       issues.push({ severity: 'warning', code: 'registry-outside-platform', group: groupKey(placement), file: placement.path, detail: `${placement.path} is a registry (a composition root) outside platform/` });
+    } else if (role === 'registry' && groupKey(placement) !== registryGroup) {
+      // S6 review: the gate took a critic move of commands/index.ts into a new one-file platform/cli (one-file-platform
+      // exempts registries), and R4 exempts only this one composition root.
+      issues.push({ severity: 'warning', code: 'registry-outside-root', group: groupKey(placement), file: placement.path, detail: `${placement.path} is a registry outside ${registryGroup}, the composition root` });
     }
   }
 
@@ -313,11 +336,12 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
   }
 
   // A draft group merged under a name that shares none of its words, with no edge to the rest of the group and no table
-  // or route prefix in common with it, has no evidence for the merge (S5: a sample that named groups by misread ids
-  // merged machine-learning into user).
+  // (hubs aside) or route prefix in common with it, has no evidence for the merge (S5: a sample that named groups by
+  // misread ids merged machine-learning into user).
+  const hubs = hubTables(facts, groupOf);
   const dataOf = (paths: Iterable<string>) => new Set([...paths].flatMap((path) => {
     const { tables, routes } = fileByPath.get(path)!;
-    return [...tables.reads, ...tables.writes].map((table) => `table ${table}`).concat(routes.map((route) => `route ${route}`));
+    return [...tables.reads, ...tables.writes].filter((table) => !hubs.has(table)).map((table) => `table ${table}`).concat(routes.map((route) => `route ${route}`));
   }));
   for (const group of groups) {
     const groupMembers = members.get(group)!;
@@ -345,23 +369,34 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
 }
 
 /**
- * What links two groups of a plan beyond a shared word, which a critic merge needs (S5: the critic merged EXIF
- * metadata into system-metadata on the word "metadata" alone): edges between their files (registry wiring aside), and
- * tables or route prefixes files of both groups use. File roles are no evidence: every feature has a service.
+ * What links `files` to the files of group `target` beyond a shared word: edges between them (registry wiring aside),
+ * and tables (hubs aside) or route prefixes both use. File roles are no evidence: every feature has a service.
  */
-export function mergeEvidence(facts: Facts, plan: Plan, source: string, target: string): { edges: number; tables: string[]; routes: string[] } {
+function linkEvidence(facts: Facts, plan: Plan, files: ReadonlySet<string>, target: string): { edges: number; tables: string[]; routes: string[] } {
   const groupOf = new Map(plan.placements.map((placement) => [placement.path, groupKey(placement)]));
   const registries = new Set(facts.files.filter((file) => file.role === 'registry').map((file) => file.path));
-  const ends = new Set([source, target]);
+  const inTarget = (path: string) => !files.has(path) && groupOf.get(path) === target;
   const edges = plannedEdges(facts.edges, groupOf).filter((edge) => !registries.has(edge.from) && !registries.has(edge.to)
-    && groupOf.get(edge.from) !== groupOf.get(edge.to) && ends.has(groupOf.get(edge.from)!) && ends.has(groupOf.get(edge.to)!)).length;
-  const used = (group: string, of: (file: Facts['files'][number]) => string[]) =>
-    new Set(facts.files.filter((file) => groupOf.get(file.path) === group).flatMap(of));
+    && ((files.has(edge.from) && inTarget(edge.to)) || (files.has(edge.to) && inTarget(edge.from)))).length;
+  const hubs = hubTables(facts, groupOf);
   const shared = (of: (file: Facts['files'][number]) => string[]) => {
-    const inTarget = used(target, of);
-    return [...used(source, of)].filter((item) => inTarget.has(item)).sort(byCodeUnit);
+    const used = new Set(facts.files.filter((file) => inTarget(file.path)).flatMap(of));
+    return [...new Set(facts.files.filter((file) => files.has(file.path)).flatMap(of))].filter((item) => used.has(item)).sort(byCodeUnit);
   };
-  return { edges, tables: shared((file) => [...file.tables.reads, ...file.tables.writes]), routes: shared((file) => file.routes) };
+  return { edges, tables: shared((file) => [...file.tables.reads, ...file.tables.writes]).filter((table) => !hubs.has(table)), routes: shared((file) => file.routes) };
+}
+
+/**
+ * What links two groups of a plan, which a critic merge needs (S5: the critic merged EXIF metadata into
+ * system-metadata on the word "metadata" alone; S6: module/stack into module/album on the hub table asset).
+ */
+export function mergeEvidence(facts: Facts, plan: Plan, source: string, target: string): { edges: number; tables: string[]; routes: string[] } {
+  return linkEvidence(facts, plan, new Set(plan.placements.filter((placement) => groupKey(placement) === source).map((placement) => placement.path)), target);
+}
+
+/** What links one file to the files of group `target`, which a critic move into an existing group needs. */
+export function moveEvidence(facts: Facts, plan: Plan, file: string, target: string): { edges: number; tables: string[]; routes: string[] } {
+  return linkEvidence(facts, plan, new Set([file]), target);
 }
 
 /**
