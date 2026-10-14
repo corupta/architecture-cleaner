@@ -14,7 +14,8 @@ process.exit(errors.length ? 2 : 0);
 // A test-runner stand-in writing a jest-shaped report: each tests/**/*.cases.json lists [title, status] pairs; one
 // with a sibling <file>.broken fails to load. A status { head: [...], base: [...] } is a flaky case: the nth run in a
 // worktree of that side (head: the certifier's worktree-head) gets the nth status (the last one after that), counted
-// in $FLAKY_STATE.
+// in $FLAKY_STATE. One with a sibling <file>.omit ({ head: [2], base: [1] }) is left out of the report in those runs of
+// that side, counted the same way: a run that stopped short (S6: vitest under load).
 export const runner = `import fs from 'node:fs';
 import path from 'node:path';
 const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? walk(directory + '/' + entry.name) : [directory + '/' + entry.name]);
@@ -26,7 +27,14 @@ const statusOf = (file, title, status) => {
   fs.writeFileSync(counter, String(run + 1));
   return status[side][Math.min(run, status[side].length - 1)];
 };
-const testResults = walk('tests').filter((file) => file.endsWith('.cases.json')).map((file) => {
+const runOf = (key) => {
+  const counter = path.join(process.env.FLAKY_STATE, side + '-' + encodeURIComponent(key));
+  const run = fs.existsSync(counter) ? Number(fs.readFileSync(counter, 'utf8')) + 1 : 1;
+  fs.writeFileSync(counter, String(run));
+  return run;
+};
+const omitted = (file) => fs.existsSync(file + '.omit') && JSON.parse(fs.readFileSync(file + '.omit', 'utf8'))[side].includes(runOf(file + '#omit'));
+const testResults = walk('tests').filter((file) => file.endsWith('.cases.json') && !omitted(file)).map((file) => {
   const text = fs.readFileSync(file, 'utf8');
   if (fs.existsSync(file + '.broken')) return { name: path.resolve(file), status: 'failed', message: 'SyntaxError', assertionResults: [] };
   const cases = JSON.parse(text).map(([title, status]) => [title, statusOf(file, title, status)]);

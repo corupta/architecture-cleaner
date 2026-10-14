@@ -322,6 +322,21 @@ export interface FlakyTest {
 }
 
 /** Tests whose outcome differs between runs of one commit: whole files whose shape changed, else the cases that did. */
+/**
+ * Indexes of the reports that leave out a test file another report of the same commit lists: the run stopped short
+ * (S6: under load, vitest exited 0 with a report of 54 of immich's 105 files). Such a run says nothing about flakiness.
+ */
+export function shortReports(reports: readonly TestReport[]): number[] {
+  const files = new Set(reports.flatMap((report) => [...report.files.keys()]));
+  return reports.flatMap((report, index) => ([...files].some((file) => !report.files.has(file)) ? [index] : []));
+}
+
+/** Flaky tests may sit in at most this many files before the oracle counts as not reproducible: max(2, 2% of the files). */
+export const flakyFileLimit = (files: number) => Math.max(2, Math.ceil(files * 0.02));
+
+/** Distinct files holding flaky tests. */
+export const flakyFileCount = (flaky: readonly { file: string }[]) => new Set(flaky.map((test) => test.file)).size;
+
 export function flakyTests(reports: readonly TestReport[]): FlakyTest[] {
   if (reports.length < 2) return [];
   const flaky: FlakyTest[] = [];

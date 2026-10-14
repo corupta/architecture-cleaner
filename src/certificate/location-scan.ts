@@ -14,6 +14,7 @@ import type { CommitTree } from './git-tree.js';
 import { emittedLayouts, type EmittedLayout, globOrderChange, globToRegExp, scanOldPaths } from './old-path-scan.js';
 import { type Binding, describeCallee, type Evaluate, familyOf, locate, type Located, moduleBindings, pathEvaluator, type PathValue, unwrapExpression } from './path-expressions.js';
 import { isScannedSource } from './spans.js';
+import { addedToolConfigs } from './tool-configs.js';
 import { type Check, type CertifyContext, type Finding, result, type Violation } from './types.js';
 
 const title = 'Location scan';
@@ -708,7 +709,8 @@ export function checkLocations(context: CertifyContext): { violations: Violation
     findings.push(...outcome.findings);
   }
 
-  const oldPaths = scanOldPaths(context, layouts, opaqueLoads);
+  const inertAdditions = new Set([...addedToolConfigs(context)].filter(([, check]) => check.problem === null).map(([file]) => file));
+  const oldPaths = scanOldPaths(context, layouts, opaqueLoads, inertAdditions);
   violations.push(...oldPaths.violations);
   findings.push(...oldPaths.findings);
   return {

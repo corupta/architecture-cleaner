@@ -434,6 +434,25 @@ describe('K8 on tiny repos', () => {
       expect(check.findings).toEqual([{ kind: 'flaky-test', file: 'tests/users/user.cases.json', detail: "unit: 'suite > two' changed outcome between runs of head (failed, passed); left out of the comparison" }]);
     });
 
+    it('neither compares nor reads for flaky tests a head run that stopped short of the file list', async () => {
+      const other = casesOf([['three', 'passed']]);
+      const base = { ...before, 'tests/other.cases.json': other };
+      const head = { ...moved, 'tests/other.cases.json': other, 'tests/other.cases.json.omit': JSON.stringify({ head: [1], base: [] }) };
+      const check = await certifyK8(base, head, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.violations).toEqual([]);
+      expect(check.status).toBe('pass');
+      expect(check.metrics['unit.flaky']).toBe(0);
+      expect(check.findings).toEqual([]);
+    });
+
+    it('fails an oracle whose flaky tests sit in more files than the cap allows', async () => {
+      const flaky = casesOf([['one', 'passed'], ['two', flakyTwo]]);
+      const files = (prefix: string) => Object.fromEntries(['a', 'b', 'c'].map((name) => [`tests/${prefix}/${name}.cases.json`, flaky]));
+      const check = await certifyK8({ ...before, ...files('old') }, { ...moved, ...files('old') }, [unit], { env: { FLAKY_STATE: state } });
+      expect(check.status).toBe('fail');
+      expect(check.violations.map((violation) => violation.detail)).toContain('unit: not reproducible here: flaky tests in 3 files (at most 2 allowed), so leaving them out would certify too little');
+    });
+
     it('still fails a real difference next to a flaky case, after the retries', async () => {
       const cases = casesOf([['one', { head: ['failed'], base: ['passed'] }], ['one', 'passed'], ['two', flakyTwo]]);
       const base = { ...before, 'tests/old/user.cases.json': cases };

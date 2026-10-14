@@ -381,7 +381,11 @@ export function coverageGated(text: string): boolean {
  * `opaqueLoads` names the module loads of the repository whose path K4 can't evaluate (`import(table[name])`): any of
  * them can take a relative path string from anywhere, so such a string naming a moved file is then a violation.
  */
-export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedLayout[], opaqueLoads: readonly string[]): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number> } {
+/**
+ * `inertAdditions`: added tool configs K1 proves inert. Nothing loads them and they load nothing, so the paths they name
+ * can't change behavior (a run's whole-PR range adds R4's dependency-cruiser config, which names the new module folders).
+ */
+export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedLayout[], opaqueLoads: readonly string[], inertAdditions: ReadonlySet<string> = new Set()): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number> } {
   const { head, pathMap, views } = context;
   const violations: Violation[] = [];
   const findings: Finding[] = [];
@@ -442,7 +446,7 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
   const namesBasePath = (candidate: string) => context.base.entries.has(candidate) || context.base.directories.has(candidate)
     || ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.json'].some((extension) => context.base.entries.has(candidate + extension));
 
-  const files = headTextFiles(context);
+  const files = headTextFiles(context).filter((file) => !inertAdditions.has(file));
   head.prefetch(files);
   for (const file of files) {
     const traceStart = performance.now();

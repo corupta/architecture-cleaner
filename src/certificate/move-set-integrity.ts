@@ -6,7 +6,7 @@
 import path from 'node:path';
 import type { CommitTree } from './git-tree.js';
 import { pathScopes } from './ignore-files.js';
-import { checkToolConfig, isToolConfigName } from './tool-configs.js';
+import { addedToolConfigs } from './tool-configs.js';
 import type { PathMap } from './path-map.js';
 import { type Check, type CertifyContext, type Finding, result, type Violation } from './types.js';
 
@@ -130,10 +130,10 @@ export function checkMoveSet(context: CertifyContext): { violations: Violation[]
   const violations: Violation[] = [];
   const findings: Finding[] = [];
   for (const file of pathMap.deleted) violations.push({ file, detail: 'deleted: no file in head has its content (modulo specifiers)' });
-  const toolConfigs = pathMap.added.map((added) => added.path).filter(isToolConfigName);
+  const toolConfigs = addedToolConfigs(context);
   let inertAdditions = 0;
   for (const added of pathMap.added) {
-    const tool = toolConfigs.includes(added.path) ? checkToolConfig(context, added.path, toolConfigs) : undefined;
+    const tool = toolConfigs.get(added.path);
     if (tool && tool.problem === null) {
       inertAdditions++;
       const filters = tool.ciFilters.length ? `; CI path filters match it, so it triggers their jobs: ${tool.ciFilters.slice(0, 3).join(', ')}${tool.ciFilters.length > 3 ? ', …' : ''}` : '';

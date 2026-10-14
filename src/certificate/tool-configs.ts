@@ -68,3 +68,16 @@ export function checkToolConfig(context: CertifyContext, file: string, added: re
   }
   return { problem: null, ciFilters: namings.filter(isCiFilter).map((filter) => `'${filter.token}' in ${filter.file} (line ${filter.line})`) };
 }
+
+const checked = new WeakMap<CertifyContext, Map<string, ToolConfigCheck>>();
+
+/** checkToolConfig for every added tool config of the commit pair, computed once per certification (K1 and K4 ask). */
+export function addedToolConfigs(context: CertifyContext): Map<string, ToolConfigCheck> {
+  let result = checked.get(context);
+  if (!result) {
+    const added = context.pathMap.added.map((entry) => entry.path).filter(isToolConfigName);
+    result = new Map(added.map((file) => [file, checkToolConfig(context, file, added)]));
+    checked.set(context, result);
+  }
+  return result;
+}

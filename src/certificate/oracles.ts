@@ -5,8 +5,8 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, effectiveExit, escapeRegExp, excludeTests, flakyTests, formatDiagnostic,
-  parseTestReport, parseTscDiagnostics, selectTests, sha256, type TestReport, totalsOf,
+  compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, effectiveExit, escapeRegExp, excludeTests, flakyFileCount, flakyFileLimit, flakyTests, formatDiagnostic,
+  parseTestReport, parseTscDiagnostics, selectTests, sha256, shortReports, type TestReport, totalsOf,
 } from './oracle-reports.js';
 import { cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, readCachedRun, runOracle, stepBroken, stepOk, storeRun } from './oracle-runs.js';
 import type { OracleSpec, Profile } from './profile.js';
@@ -260,12 +260,21 @@ interface TestVerdict {
 }
 
 /**
- * Compares the first run of each commit with the quarantined and the flaky tests (outcomes that change between runs
- * of one commit) left out on both sides. The runner's exit codes must agree for some pair of runs, a failure of
- * excluded tests only counting as exit 0.
+ * Compares the first complete run of each commit with the quarantined and the flaky tests (outcomes that change between
+ * complete runs of one commit) left out on both sides. A run whose report leaves out files another run of its commit
+ * lists stopped short: it is neither compared nor read for flaky tests (S6: under load vitest exited 0 listing 54 of
+ * 105 files, and every missing file would have looked flaky). The runner's exit codes must agree for some pair of
+ * complete runs, a failure of excluded tests only counting as exit 0.
  */
-function judgeTests(session: Session, oracle: OracleSpec, runs: Record<Side, OracleRun[]>, reports: Record<Side, TestReport[]>): TestVerdict {
+function judgeTests(session: Session, oracle: OracleSpec, allRuns: Record<Side, OracleRun[]>, allReports: Record<Side, TestReport[]>): TestVerdict {
   const { pathMap, options } = session.context;
+  const completeOf = (side: Side) => {
+    const short = new Set(shortReports(allReports[side]));
+    return allRuns[side].flatMap((run, index) => (short.has(index) ? [] : [{ run, report: allReports[side][index]! }]));
+  };
+  const complete = { head: completeOf('head'), base: completeOf('base') };
+  const runs = { head: complete.head.map((entry) => entry.run), base: complete.base.map((entry) => entry.run) };
+  const reports = { head: complete.head.map((entry) => entry.report), base: complete.base.map((entry) => entry.report) };
   const flaky = [
     ...flakyTests(reports.head).map((test) => ({ ...test, side: 'head' as Side })),
     ...flakyTests(reports.base).map((test) => ({ ...test, file: pathMap.map(test.file), side: 'base' as Side })),
@@ -345,6 +354,11 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
   if (verdict.exitProblem) evaluation.violations.push({ detail: `${oracle.name}: ${verdict.exitProblem}` });
   for (const difference of verdict.differences) evaluation.violations.push({ file: difference.file, detail: `${oracle.name}: ${difference.detail}` });
   for (const problem of verdict.snapshotProblems) evaluation.violations.push({ detail: `${oracle.name}: ${problem}` });
+  const flakyFiles = flakyFileCount(verdict.flaky);
+  const limit = flakyFileLimit(Math.max(verdict.compared.head.files.size, verdict.compared.base.files.size, totals.base.files));
+  if (flakyFiles > limit) {
+    evaluation.violations.push({ detail: `${oracle.name}: not reproducible here: flaky tests in ${flakyFiles} files (at most ${limit} allowed), so leaving them out would certify too little` });
+  }
   const flakyReported = new Set<string>();
   for (const test of verdict.flaky) {
     const key = `${test.file}\0${test.name ?? ''}`;

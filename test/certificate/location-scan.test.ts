@@ -221,6 +221,15 @@ describe('K4 old-path strings', () => {
     ]);
   });
 
+  it('skips an added tool config K1 proves inert (a run\'s whole-PR range adds R4\'s rules, which name the moved folders)', async () => {
+    const files = { 'package.json': JSON.stringify({ name: 'app', private: true }) + '\n', 'src/utils/format.ts': 'export const format = 1;\n' };
+    const rules = JSON.stringify({ forbidden: [{ name: 'utils-is-a-leaf', from: { path: '^src/utils/' }, to: { path: '^src/modules/' } }] }, null, 2) + '\n';
+    const inert = await scan(commitPair(files, { 'src/utils/format.ts': 'src/shared/format.ts' }, { '.dependency-cruiser.json': rules }));
+    expect(details(inert)).toEqual([]);
+    const other = await scan(commitPair(files, { 'src/utils/format.ts': 'src/shared/format.ts' }, { 'rules.json': rules }));
+    expect(details(other)).toEqual(["rules.json: line 6: 'src/utils/' is the directory the move emptied of src/utils (moved to src/shared) [config at forbidden.from.path]"]);
+  });
+
   it('does not match a needle inside a longer path or word', async () => {
     const repo = commitPair({
       'src/user.ts': 'export const user = 1;\n',

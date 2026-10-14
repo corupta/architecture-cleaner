@@ -1,14 +1,17 @@
 // R0's baseline (plan §2.3; §3.4 K8): every oracle of the target profile runs `runs` times on one commit, in a fresh
 // worktree under K8's conditions (the target's Node, offline, hooks bypassed, the worktree reset before each oracle).
 // Test outcomes are compared run to run (test identity: file + name + ordinal): a file or case whose outcome changes
-// is flaky and becomes a quarantine entry, which K8 leaves out of its comparisons. The commit is green when every
-// oracle passes in every run, flaky tests aside. The first complete run of each oracle seeds K8's base cache.
+// is flaky and becomes a quarantine entry, which K8 leaves out of its comparisons. A run whose report leaves out files
+// another run lists stopped short: it is replaced (up to `extraRuns` more runs) and never read for flaky tests. The
+// commit is green when `runs` complete runs of every oracle pass, flaky tests aside, and the flaky tests sit in at most
+// flakyFileLimit files (more, and the suite is not reproducible here: plan §2.5 declines it). The first complete run
+// of each oracle seeds K8's base cache.
 import fs from 'node:fs';
 import path from 'node:path';
 import { addWorktree, removeWorktrees } from './certify.js';
 import { createEnvironment } from './commit-fs.js';
 import { readCommitTree } from './git-tree.js';
-import { effectiveExit, excludeTests, fileFails, flakyTests, selectTests, sha256, type TestReport, totalsOf } from './oracle-reports.js';
+import { effectiveExit, excludeTests, fileFails, flakyFileCount, flakyFileLimit, flakyTests, selectTests, sha256, shortReports, type TestReport, totalsOf } from './oracle-reports.js';
 import { cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, readCachedRun, runOracle, stepBroken, stepOk, storeRun } from './oracle-runs.js';
 import { linksOf, loadReport, resetWorktree, runnerQuarantine, validateOracles } from './oracles.js';
 import type { OracleSpec, Profile } from './profile.js';
@@ -34,6 +37,8 @@ export interface BaselineOptions {
   environment: string;
   profile: Profile;
   runs: number;
+  /** Runs added per tests oracle to replace runs that stopped short (default 2). */
+  extraRuns?: number;
   workDir: string;
   /** Keep the worktree's logs (the worktree itself is always removed). */
   keep?: boolean;
@@ -80,12 +85,19 @@ function exitZero(oracle: OracleSpec, runs: OracleRun[]): BaselineOracleResult {
   return { name: oracle.name, kind: oracle.kind, ok, runs: results, detail: ok ? `exit 0 in ${runs.length} runs` : `failed in ${results.filter((run) => !run.ok).length} of ${runs.length} runs` };
 }
 
-function tests(oracle: OracleSpec, profile: Profile, runs: OracleRun[]): { result: BaselineOracleResult; flaky: QuarantineEntry[] } {
+/** Indexes of the runs whose reports stopped short of another run's file list (a missing or unreadable report doesn't count here). */
+function shortRuns(reports: (TestReport | string)[]): Set<number> {
+  const parsed = reports.flatMap((report, index) => (typeof report === 'string' ? [] : [{ report, index }]));
+  return new Set(shortReports(parsed.map((entry) => entry.report)).map((position) => parsed[position]!.index));
+}
+
+function tests(oracle: OracleSpec, profile: Profile, runs: OracleRun[], wanted: number): { result: BaselineOracleResult; flaky: QuarantineEntry[] } {
   const format = oracle.format ?? profile.runner?.kind;
   if (!format) throw new Error(`oracle ${oracle.name}: tests needs a format (or a profile runner)`);
   const reports = runs.map((run) => loadReport(run, format));
-  const parsed = reports.filter((report): report is TestReport => typeof report !== 'string');
-  const flaky = flakyTests(parsed);
+  const short = shortRuns(reports);
+  const kept = reports.filter((report, index): report is TestReport => typeof report !== 'string' && !short.has(index));
+  const flaky = flakyTests(kept);
   const excluded = selectTests(flaky);
   const results = runs.map((run, index) => {
     const report = reports[index]!;
@@ -99,14 +111,22 @@ function tests(oracle: OracleSpec, profile: Profile, runs: OracleRun[]): { resul
     const failures = [...excludeTests(report, excluded).report.files.values()].filter(fileFails).length;
     const exit = effectiveExit(main.exitCode, report, excluded);
     const summary = `exit ${main.exitCode}: ${count(totals.loaded)}/${count(totals.files)} files load, ${count(totals.passed)} passed, ${count(totals.failed)} failed, ${count(totals.skipped)} skipped`;
+    if (short.has(index)) return { ...base, ok: false, summary: `${summary}; stopped short of another run's file list, so it was replaced and not read for flaky tests` };
     const ok = exit === 0 && failures === 0 && totals.cases > 0;
     return { ...base, ok, summary: totals.cases ? summary : `${summary}; no test case ran` };
   });
-  const ok = results.every((run) => run.ok);
-  const failing = results.filter((run) => !run.ok).length;
-  const detail = `${ok ? `green in ${runs.length} runs` : `not green in ${failing} of ${runs.length} runs`}${flaky.length ? `; ${flaky.length} flaky (${flaky.slice(0, 3).map((test) => `${test.file}${test.name ? ` '${test.name}'` : ''}`).join(', ')}${flaky.length > 3 ? ', …' : ''})` : '; no flaky test'}`;
-  const entries = flaky.map((test) => ({ file: test.file, ...(test.name !== undefined ? { name: test.name } : {}), reason: `flaky in the baseline: ${oracle.name} gave ${test.outcomes.join(', ')} in ${runs.length} runs` }));
-  return { result: { name: oracle.name, kind: oracle.kind, ok, runs: results, detail }, flaky: entries };
+  const complete = results.filter((_, index) => !short.has(index));
+  const files = Math.max(0, ...kept.map((report) => report.files.size));
+  const flakyFiles = flakyFileCount(flaky);
+  const reproducible = flakyFiles <= flakyFileLimit(files);
+  const ok = complete.length >= wanted && complete.every((run) => run.ok) && reproducible;
+  const failing = complete.filter((run) => !run.ok).length;
+  const verdict = complete.length < wanted ? `only ${complete.length} of ${runs.length} runs complete (${wanted} needed)`
+    : !reproducible ? `not reproducible: flaky tests in ${flakyFiles} of ${count(files)} files (at most ${flakyFileLimit(files)} allowed)`
+      : failing ? `not green in ${failing} of ${complete.length} complete runs` : `green in ${complete.length} complete runs`;
+  const detail = `${verdict}${short.size ? `; ${short.size} run${short.size === 1 ? '' : 's'} stopped short and replaced` : ''}${flaky.length ? `; ${flaky.length} flaky (${flaky.slice(0, 3).map((test) => `${test.file}${test.name ? ` '${test.name}'` : ''}`).join(', ')}${flaky.length > 3 ? ', …' : ''})` : '; no flaky test'}`;
+  const entries = flaky.map((test) => ({ file: test.file, ...(test.name !== undefined ? { name: test.name } : {}), reason: `flaky in the baseline: ${oracle.name} gave ${test.outcomes.join(', ')} in ${kept.length} complete runs` }));
+  return { result: { name: oracle.name, kind: oracle.kind, ok, runs: results, detail }, flaky: reproducible ? entries : [] };
 }
 
 function artifactIdentical(oracle: OracleSpec, runs: OracleRun[], reference: Buffer | undefined): BaselineOracleResult {
@@ -139,13 +159,25 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
   try {
     const missing = new Map(specs.map((oracle) => [oracle.name, (oracle.requires ?? []).filter((file) => !fs.existsSync(path.join(root, file)))]));
     const runs = new Map<string, OracleRun[]>(specs.map((oracle) => [oracle.name, []]));
+    const runOnce = async (oracle: OracleSpec, label: string) => {
+      resetWorktree(root, links);
+      const index = runs.get(oracle.name)!.length + 1;
+      log(`${oracle.name}: run ${index}${label}`);
+      const directory = path.join(options.workDir, 'runs', String(index), oracle.name);
+      runs.get(oracle.name)!.push(await runOracle({ profile, oracle, side: 'base', root, directory, quarantine: runnerQuarantine(oracle, (file) => file) }));
+    };
     for (let index = 0; index < options.runs; index++) {
-      for (const oracle of specs) {
-        if (missing.get(oracle.name)!.length) continue;
-        resetWorktree(root, links);
-        log(`${oracle.name}: run ${index + 1} of ${options.runs}`);
-        const directory = path.join(options.workDir, 'runs', String(index + 1), oracle.name);
-        runs.get(oracle.name)!.push(await runOracle({ profile, oracle, side: 'base', root, directory, quarantine: runnerQuarantine(oracle, (file) => file) }));
+      for (const oracle of specs) if (!missing.get(oracle.name)!.length) await runOnce(oracle, ` of ${options.runs}`);
+    }
+    // A tests run that stopped short is replaced, so `runs` complete runs are compared.
+    for (const oracle of specs) {
+      const format = oracle.format ?? profile.runner?.kind;
+      if (oracle.kind !== 'tests' || !format || missing.get(oracle.name)!.length) continue;
+      for (let extra = 0; extra < (options.extraRuns ?? 2); extra++) {
+        const oracleRuns = runs.get(oracle.name)!;
+        const reports = oracleRuns.map((run) => loadReport(run, format));
+        if (oracleRuns.length - shortRuns(reports).size >= options.runs) break;
+        await runOnce(oracle, `, replacing a run that stopped short`);
       }
     }
     resetWorktree(root, links);
@@ -159,13 +191,15 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
         continue;
       }
       const oracleRuns = runs.get(oracle.name)!;
-      const complete = oracleRuns.find((run) => !run.steps.some(stepBroken));
+      const format = oracle.format ?? profile.runner?.kind;
+      const short = oracle.kind === 'tests' && format ? shortRuns(oracleRuns.map((run) => loadReport(run, format))) : new Set<number>();
+      const complete = oracleRuns.find((run, index) => !run.steps.some(stepBroken) && !short.has(index));
       if (cacheRoot && complete) {
         const cached = cacheDirectory(cacheRoot, { repo: options.repo, baseCommit: tree.commit, oracle, profile, checkout: environment.checkout, linked: environment.linked });
         if (!readCachedRun(cached)) storeRun(complete, cached);
       }
       if (oracle.kind === 'tests') {
-        const evaluated = tests(oracle, profile, oracleRuns);
+        const evaluated = tests(oracle, profile, oracleRuns, options.runs);
         oracles.push(evaluated.result);
         flaky.push(...evaluated.flaky);
       } else if (oracle.kind === 'exit-zero') oracles.push(exitZero(oracle, oracleRuns));
