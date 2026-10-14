@@ -66,6 +66,9 @@ export function planFileOf(facts: Facts, plan: Plan): PlanFile {
   return { packageRoot: facts.packageRoot, moduleRoot: facts.moduleRoot, sha: facts.sha, groups: sorted, pinned: facts.pins };
 }
 
+/** Where a candidate's plan is written next to plan.yaml: `seeds draft` → candidates/seeds-draft.yaml, `ultra#2` → candidates/ultra-2.yaml. */
+export const candidateFileName = (label: string) => `candidates/${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.yaml`;
+
 export function writePlanYaml(planFile: PlanFile, title: string): string {
   const lines = [
     `# ${title}`,

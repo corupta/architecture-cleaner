@@ -140,7 +140,8 @@ export function subFeatureHints(facts: Facts, draft: Draft, groupIds: Map<string
   return hints;
 }
 
-export function draftText(facts: Facts, draft: Draft, groupIds: Map<string, string>): string {
+/** `purposes`: one-line purposes of low-confidence files (summaries.ts), listed after them; none leaves the text as before. */
+export function draftText(facts: Facts, draft: Draft, groupIds: Map<string, string>, purposes: ReadonlyMap<string, string> = new Map()): string {
   const idOf = new Map(facts.files.map((file) => [file.path, file.id]));
   const members = new Map<string, number[]>();
   for (const file of facts.files) {
@@ -150,9 +151,11 @@ export function draftText(facts: Facts, draft: Draft, groupIds: Map<string, stri
   const groups = [...groupIds].map(([label, id]) => `${id} "${label}": ${members.get(label)!.join(',')}`);
   const lowConfidence = draft.contested.map((path) => `${idOf.get(path)}(${draft.confidence.get(path)})`);
   const hints = subFeatureHints(facts, draft, groupIds);
+  const purposeLines = draft.contested.filter((path) => purposes.has(path)).map((path) => `${idOf.get(path)} ${displayPath(facts, path)}: ${purposes.get(path)}`);
   return [
     `DRAFT GROUPS (id "label": file ids)\n${groups.join('\n')}`,
     `DRAFT LOW-CONFIDENCE FILES\n${lowConfidence.join(' ') || '(none)'}`,
+    ...(purposeLines.length ? [`LOW-CONFIDENCE FILE PURPOSES (one line per file from a smaller model that read its source: a hint, not a fact)\n${purposeLines.join('\n')}`] : []),
     ...(hints.length ? [`SUB-FEATURE CANDIDATES\n${hints.join('\n')}`] : []),
     `PINNED (never moved, not listed above): ${facts.pins.length} files`,
   ].join('\n\n');
@@ -164,9 +167,9 @@ export interface EditPrompt {
   groupIds: Map<string, string>;
 }
 
-export function editPrompt(facts: Facts, draft: Draft): EditPrompt {
+export function editPrompt(facts: Facts, draft: Draft, purposes?: ReadonlyMap<string, string>): EditPrompt {
   const groupIds = draftGroupIds(facts, draft);
-  return { system: systemPrompt, user: `${factsText(facts)}\n\n${draftText(facts, draft, groupIds)}`, groupIds };
+  return { system: systemPrompt, user: `${factsText(facts)}\n\n${draftText(facts, draft, groupIds, purposes)}`, groupIds };
 }
 
 export interface EditSettings {

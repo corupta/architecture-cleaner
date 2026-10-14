@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { planMetrics, stronglyConnectedComponents } from '../../src/planner/metrics.js';
 import { turboMq, turboMqClusterFactors } from '../../src/planner/metrics-turbo-mq.js';
 import type { Confidence, Draft, Edge, Facts, FileFact, GroupKind, Placement, Plan, PlanEdit, Validation } from '../../src/planner/types.js';
-import { applyEdit, canonicalGroup, checkEdit, checkName, rankCandidates, validatePlan, vocabularyOf } from '../../src/planner/validate.js';
+import { applyEdit, canonicalGroup, checkEdit, checkName, mergeEvidence, rankCandidates, validatePlan, vocabularyOf } from '../../src/planner/validate.js';
 
 function fileFact(id: number, filePath: string, extra: Partial<FileFact> = {}): FileFact {
   const role = path.posix.basename(filePath).split('.').slice(-2, -1)[0] ?? 'other';
@@ -351,6 +351,7 @@ describe('validatePlan', () => {
     const validation = validatePlan(sample, sampleDraft, draftPlan);
     expect(validation.valid).toBe(true);
     expect(validation.issues.map((issue) => [issue.severity, issue.code, issue.group])).toEqual([
+      ['warning', 'single-consumer-shared', 'shared/shared'],
       ['warning', 'singleton-group', 'module/asset-media'],
       ['warning', 'sub-feature', 'module/asset-media'],
     ]);
@@ -394,6 +395,82 @@ describe('validatePlan', () => {
     const conflict = validatePlan(sample, sampleDraft, { placements: draftPlan.placements.map((placement) =>
       placement.path === files.assetService ? { ...placement, kind: 'shared' as const } : placement) });
     expect(conflict.issues.find((issue) => issue.code === 'kind-conflict')).toMatchObject({ severity: 'error', group: 'shared/asset', detail: '"asset" is also module/asset' });
+  });
+});
+
+describe('unsupported merges', () => {
+  // A draft group "trash" (no word, no edge in common with album) merged into module/album.
+  const trash = 'src/repositories/trash.repository.ts';
+  const facts = factsOf([...sample.files.map((file): [string, Partial<FileFact>] => [file.path, { role: file.role, tables: file.tables, routes: file.routes }]), trash], sample.edges);
+  const draft = draftOf({ ...Object.fromEntries(sampleDraft.assignment), [trash]: 'trash' });
+  const plan = (withFacts: Facts) => validatePlan(withFacts, draft, { placements: [...applyEdit(sample, sampleDraft, { groups: [], moves: [] }, sampleIds).placements, place(trash, 'module', 'album')] });
+
+  it('warns about a draft group merged with no shared word, edge, table or route, and counts a shared table as evidence', () => {
+    expect(plan(facts).issues.filter((issue) => issue.code === 'unsupported-merge').map((issue) => issue.detail)).toEqual([
+      `module/album takes draft group "trash" (${trash}): no shared word, edge, table or route`,
+    ]);
+    const sharingTable = { ...facts, files: facts.files.map((file) => (file.path === trash ? { ...file, tables: { reads: [], writes: ['album'] } } : file)) };
+    expect(plan(sharingTable).issues.filter((issue) => issue.code === 'unsupported-merge')).toEqual([]);
+  });
+});
+
+describe('platform rules (S6)', () => {
+  // http plumbing in three concerns, mail used by one feature, cron and crypto by two, a two-file registry group.
+  const platform = {
+    http: 'src/utils/http.ts', httpResponse: 'src/utils/response.ts', httpClient: 'src/utils/http-client.ts', mail: 'src/repositories/email.repository.ts',
+    cron: 'src/repositories/cron.repository.ts', crypto: 'src/repositories/crypto.repository.ts', registry: 'src/services/index.ts', appModule: 'src/app.module.ts',
+  };
+  const facts = factsOf([...sample.files.map((file): [string, Partial<FileFact>] => [file.path, { role: file.role, tables: file.tables, routes: file.routes }]),
+    platform.http, platform.httpResponse, platform.httpClient, [platform.mail, { role: 'repository' }], [platform.cron, { role: 'repository' }],
+    [platform.crypto, { role: 'repository' }], [platform.registry, { role: 'registry' }], [platform.appModule, { role: 'registry' }]], [
+    ...sample.edges,
+    edge(platform.httpResponse, platform.http), edge(files.albumController, platform.httpResponse), edge(files.assetService, platform.httpResponse),
+    edge(files.albumService, platform.mail), edge(files.albumService, platform.cron), edge(files.assetService, platform.cron),
+    edge(files.albumService, platform.crypto), edge(files.assetService, platform.crypto),
+    edge(platform.registry, platform.mail), edge(platform.registry, platform.httpClient), edge(platform.appModule, platform.registry),
+  ]);
+  const placements = [
+    ...applyEdit(sample, sampleDraft, { groups: [{ draft: 'G3', name: 'asset', kind: 'module' }], moves: [] }, sampleIds).placements,
+    place(platform.http, 'platform', 'http'), place(platform.httpResponse, 'platform', 'http-response'), place(platform.httpClient, 'platform', 'http-client'),
+    place(platform.mail, 'platform', 'mail'), place(platform.cron, 'platform', 'cron'), place(platform.crypto, 'platform', 'crypto'),
+    place(platform.registry, 'platform', 'registry'), place(platform.appModule, 'platform', 'registry'),
+  ];
+  const draft = draftOf(Object.fromEntries(placements.map((placement) => [placement.path, placement.name])));
+  const warnings = (plan: Plan) => validatePlan(facts, draft, plan).issues.map((issue) => `${issue.code} ${issue.group}: ${issue.detail}`);
+
+  it('flags platform sub-features and one-file concerns that fewer than two other groups use, never shared plumbing or a registry', () => {
+    expect(warnings({ placements })).toEqual([
+      'one-file-platform platform/http: platform/http holds one file, and only platform/http-response uses it: consider folding it there',
+      'one-file-platform platform/http-client: platform/http-client holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves',
+      'one-file-platform platform/mail: platform/mail holds one file, and only module/album uses it: consider folding it there',
+      `single-consumer-shared shared/shared: ${files.date} is in shared/, but only module/album uses it: it belongs there`,
+      'sub-feature platform/http-client: platform/http-client extends platform/http: 0 edges between them (0 platform/http-client → platform/http, 0 back)',
+      'sub-feature platform/http-response: platform/http-response extends platform/http: 1 edges between them (1 platform/http-response → platform/http, 0 back)',
+    ]);
+  });
+
+  it('flags a shared file that exactly one other group uses, not one that two use or only pinned code uses', () => {
+    const singleConsumer = (withEdges: Edge[]) => validatePlan({ ...facts, edges: withEdges }, draft, { placements }).issues
+      .filter((issue) => issue.code === 'single-consumer-shared').map((issue) => issue.file);
+    expect(singleConsumer(facts.edges)).toEqual([files.date]);
+    expect(singleConsumer([...facts.edges, edge(files.assetService, files.date)])).toEqual([]);
+    expect(singleConsumer(facts.edges.filter((candidate) => candidate.to !== files.date))).toEqual([]);
+  });
+
+  it('flags every non-registry file in a platform group that holds a registry', () => {
+    const withShell = { placements: placements.map((placement) => (placement.path === platform.cron || placement.path === files.date ? { ...placement, kind: 'platform' as const, name: 'registry' } : placement)) };
+    expect(warnings(withShell).filter((warning) => warning.startsWith('impure-registry'))).toEqual([
+      `impure-registry platform/registry: ${platform.cron} (repository) is no registry; platform/registry holds registries (composition roots) only`,
+      `impure-registry platform/registry: ${files.date} (date) is no registry; platform/registry holds registries (composition roots) only`,
+    ]);
+  });
+
+  it('measures merge evidence by edges (registry wiring aside), shared tables and shared routes, never by words', () => {
+    expect(mergeEvidence(facts, { placements }, 'platform/http-response', 'platform/http')).toEqual({ edges: 1, tables: [], routes: [] });
+    expect(mergeEvidence(facts, { placements }, 'platform/http-client', 'platform/http')).toEqual({ edges: 0, tables: [], routes: [] });
+    expect(mergeEvidence(facts, { placements }, 'platform/mail', 'platform/registry')).toEqual({ edges: 0, tables: [], routes: [] });
+    const tablesAndRoutes = { ...facts, files: facts.files.map((file) => (file.path === platform.mail ? { ...file, tables: { reads: ['album_user'], writes: [] }, routes: ['albums'] } : file)) };
+    expect(mergeEvidence(tablesAndRoutes, { placements }, 'platform/mail', 'module/album')).toEqual({ edges: 1, tables: ['album_user'], routes: ['albums'] });
   });
 });
 

@@ -249,8 +249,15 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
       issues.push({ severity: 'warning', code: 'singleton-group', group, file: groupMembers[0]!.path, detail: `${group} holds one file` });
     }
   }
+  // A platform group holding a registry is the composition root, so it holds registries only (S5: the critic cleared
+  // two impure-shared warnings by putting app.repository and api.service in platform/registry).
+  const registryGroups = new Set(placements.filter((placement) => placement.kind === 'platform' && fileByPath.get(placement.path)!.role === 'registry').map(groupKey));
   for (const placement of placements) {
     const { role, routes, tables } = fileByPath.get(placement.path)!;
+    if (registryGroups.has(groupKey(placement)) && role !== 'registry') {
+      issues.push({ severity: 'warning', code: 'impure-registry', group: groupKey(placement), file: placement.path,
+        detail: `${placement.path} (${role}) is no registry; ${groupKey(placement)} holds registries (composition roots) only` });
+    }
     if (placement.kind === 'shared' && impureRoles.has(role)) {
       issues.push({ severity: 'warning', code: 'impure-shared', group: groupKey(placement), file: placement.path, detail: `${placement.path} is a ${role}; shared/ holds pure code only` });
     }
@@ -265,19 +272,53 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
 
   const groupOf = new Map(placements.map((placement) => [placement.path, groupKey(placement)]));
   const edges = plannedEdges(facts.edges, groupOf);
-  const modules = groups.filter((group) => group.startsWith('module/'));
-  for (const child of modules) {
-    const parent = modules.filter((module) => child.startsWith(`${module}-`)).sort((a, b) => b.length - a.length)[0];
-    if (!parent) continue;
-    const count = (from: string, to: string) => edges.filter((edge) => groupOf.get(edge.from) === from && groupOf.get(edge.to) === to).length;
-    const up = count(child, parent);
-    const down = count(parent, child);
-    issues.push({ severity: 'warning', code: 'sub-feature', group: child,
-      detail: `${child} extends ${parent}: ${up + down} edges between them (${up} ${child} → ${parent}, ${down} back)` });
+  // A module or platform name that is another one of its kind plus suffix words (asset-media, http-response next to http).
+  for (const kind of ['module', 'platform'] as const) {
+    const ofKind = groups.filter((group) => group.startsWith(`${kind}/`));
+    for (const child of ofKind) {
+      const parent = ofKind.filter((group) => child.startsWith(`${group}-`)).sort((a, b) => b.length - a.length)[0];
+      if (!parent) continue;
+      const count = (from: string, to: string) => edges.filter((edge) => groupOf.get(edge.from) === from && groupOf.get(edge.to) === to).length;
+      const up = count(child, parent);
+      const down = count(parent, child);
+      issues.push({ severity: 'warning', code: 'sub-feature', group: child,
+        detail: `${child} extends ${parent}: ${up + down} edges between them (${up} ${child} → ${parent}, ${down} back)` });
+    }
   }
 
-  // A draft group merged under a name that shares none of its words, with no edge to the rest of the group, has no
-  // evidence for the merge (S5: a sample that named groups by misread ids merged machine-learning into user).
+  // platform holds plumbing that features share. A one-file concern that fewer than two other groups use (registry
+  // wiring aside) is a fold candidate: into its one consumer, or into the concern or feature it serves (S5's plan:
+  // hls, transcoding, mail, check). A composition root is used by no feature, and is no candidate.
+  const registries = new Set(facts.files.filter((file) => file.role === 'registry').map((file) => file.path));
+  for (const group of groups) {
+    const groupMembers = members.get(group)!;
+    const file = groupMembers[0]!.path;
+    if (!group.startsWith('platform/') || groupMembers.length !== 1 || registries.has(file)) continue;
+    const consumers = [...new Set(edges.filter((edge) => edge.to === file && !registries.has(edge.from)).map((edge) => groupOf.get(edge.from)!))]
+      .filter((consumer) => consumer !== group).sort(byCodeUnit);
+    if (consumers.length >= 2) continue;
+    const fold = consumers.length ? `only ${consumers[0]} uses it: consider folding it there` : 'no other planned group uses it: consider folding it into the concern or feature it serves';
+    issues.push({ severity: 'warning', code: 'one-file-platform', group, file, detail: `${group} holds one file, and ${fold}` });
+  }
+
+  // shared/ holds code that at least two modules use (plan §2.2, the layout text the planner reads): a shared file that
+  // exactly one other group uses belongs in that group. One used by none (only pinned code) has no better home.
+  for (const placement of placements) {
+    if (placement.kind !== 'shared') continue;
+    const consumers = [...new Set(edges.filter((edge) => edge.to === placement.path && !registries.has(edge.from)).map((edge) => groupOf.get(edge.from)!))]
+      .filter((consumer) => consumer !== groupKey(placement));
+    if (consumers.length !== 1) continue;
+    issues.push({ severity: 'warning', code: 'single-consumer-shared', group: groupKey(placement), file: placement.path,
+      detail: `${placement.path} is in shared/, but only ${consumers[0]} uses it: it belongs there` });
+  }
+
+  // A draft group merged under a name that shares none of its words, with no edge to the rest of the group and no table
+  // or route prefix in common with it, has no evidence for the merge (S5: a sample that named groups by misread ids
+  // merged machine-learning into user).
+  const dataOf = (paths: Iterable<string>) => new Set([...paths].flatMap((path) => {
+    const { tables, routes } = fileByPath.get(path)!;
+    return [...tables.reads, ...tables.writes].map((table) => `table ${table}`).concat(routes.map((route) => `route ${route}`));
+  }));
   for (const group of groups) {
     const groupMembers = members.get(group)!;
     const nameWords = new Set(wordsOf(groupMembers[0]!.name).map(naiveSingular));
@@ -291,8 +332,10 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
     for (const [label, files] of merged) {
       const linked = edges.some((edge) => (files.has(edge.from) && !files.has(edge.to) && groupOf.get(edge.to) === group)
         || (files.has(edge.to) && !files.has(edge.from) && groupOf.get(edge.from) === group));
-      if (!linked && files.size < groupMembers.length) {
-        issues.push({ severity: 'warning', code: 'unsupported-merge', group, detail: `${group} takes draft group "${label}" (${[...files].join(', ')}): no shared word, no edge` });
+      const restData = dataOf(groupMembers.map((placement) => placement.path).filter((path) => !files.has(path)));
+      const sharesData = [...dataOf(files)].some((item) => restData.has(item));
+      if (!linked && !sharesData && files.size < groupMembers.length) {
+        issues.push({ severity: 'warning', code: 'unsupported-merge', group, detail: `${group} takes draft group "${label}" (${[...files].join(', ')}): no shared word, edge, table or route` });
       }
     }
   }
@@ -302,11 +345,32 @@ export function validatePlan(facts: Facts, draft: Draft, plan: Plan): Validation
 }
 
 /**
+ * What links two groups of a plan beyond a shared word, which a critic merge needs (S5: the critic merged EXIF
+ * metadata into system-metadata on the word "metadata" alone): edges between their files (registry wiring aside), and
+ * tables or route prefixes files of both groups use. File roles are no evidence: every feature has a service.
+ */
+export function mergeEvidence(facts: Facts, plan: Plan, source: string, target: string): { edges: number; tables: string[]; routes: string[] } {
+  const groupOf = new Map(plan.placements.map((placement) => [placement.path, groupKey(placement)]));
+  const registries = new Set(facts.files.filter((file) => file.role === 'registry').map((file) => file.path));
+  const ends = new Set([source, target]);
+  const edges = plannedEdges(facts.edges, groupOf).filter((edge) => !registries.has(edge.from) && !registries.has(edge.to)
+    && groupOf.get(edge.from) !== groupOf.get(edge.to) && ends.has(groupOf.get(edge.from)!) && ends.has(groupOf.get(edge.to)!)).length;
+  const used = (group: string, of: (file: Facts['files'][number]) => string[]) =>
+    new Set(facts.files.filter((file) => groupOf.get(file.path) === group).flatMap(of));
+  const shared = (of: (file: Facts['files'][number]) => string[]) => {
+    const inTarget = used(target, of);
+    return [...used(source, of)].filter((item) => inTarget.has(item)).sort(byCodeUnit);
+  };
+  return { edges, tables: shared((file) => [...file.tables.reads, ...file.tables.writes]), routes: shared((file) => file.routes) };
+}
+
+/**
  * Best candidate first. Picking a plan without ground truth is an open problem: G1 showed TurboMQ alone ranks the
  * unedited draft (or the least-edited sample) first on immich, and S5 saw it again. The validator's warnings encode
- * the layout rules (singletons, sub-features, impure shared, features in platform, registries outside platform), so
- * among valid plans that keep at least `turboMqFloor` of the baseline's TurboMQ (a guard against one merged lump), the
- * plan with the fewest warnings wins; then TurboMQ, cycles and label. plan.md lists every candidate.
+ * the layout rules (singletons, sub-features, impure shared or registry groups, features in platform, registries
+ * outside platform, one-file platform concerns and shared files that one group alone uses), so among valid plans that
+ * keep at least `turboMqFloor` of the baseline's TurboMQ (a guard against one merged lump), the plan with the fewest
+ * warnings wins; then TurboMQ, cycles and label. plan.md lists every candidate.
  */
 export function rankCandidates<T extends { label: string; validation: Validation }>(candidates: T[], baselineTurboMqSum = 0): T[] {
   const count = (candidate: T, severity: Issue['severity']) => candidate.validation.issues.filter((issue) => issue.severity === severity).length;

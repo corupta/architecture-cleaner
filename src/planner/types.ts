@@ -108,7 +108,8 @@ export const groupKey = (placement: { kind: GroupKind; name: string }) => `${pla
 export type IssueCode =
   | 'unknown-draft-group' | 'duplicate-draft-group' | 'missing-draft-group' | 'unknown-file' | 'duplicate-move' | 'bad-name' | 'banned-name' | 'foreign-name'
   | 'kind-conflict' | 'pinned-file' | 'missing-file' | 'duplicate-file' | 'registry-outside-platform'
-  | 'singleton-group' | 'sub-feature' | 'unknown-group' | 'impure-shared' | 'platform-feature' | 'unsupported-merge';
+  | 'singleton-group' | 'sub-feature' | 'unknown-group' | 'impure-shared' | 'platform-feature' | 'unsupported-merge' | 'impure-registry'
+  | 'one-file-platform' | 'single-consumer-shared';
 
 export interface Issue {
   severity: 'error' | 'warning';

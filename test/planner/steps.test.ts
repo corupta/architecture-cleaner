@@ -129,11 +129,11 @@ describe('ac plan outputs', async () => {
 
   it('writes step files for a valid plan', () => {
     expect(run.validation.valid).toBe(true);
-    expect([...planOutputs(run, { name: 'fixture' }, settings).keys()]).toEqual(['plan.yaml', 'plan.md', 'plan.json', 'steps/01-module-album.json']);
+    expect([...planOutputs(run, { name: 'fixture' }, settings).keys()]).toEqual(['plan.yaml', 'plan.md', 'plan.json', 'candidates/seeds-draft.yaml', 'steps/01-module-album.json']);
   });
 
   it('writes no step files for an invalid plan, only the plan to fix', () => {
     const invalid = { ...run, validation: { ...run.validation, valid: false } };
-    expect([...planOutputs(invalid, { name: 'fixture' }, settings).keys()]).toEqual(['plan.yaml', 'plan.md', 'plan.json']);
+    expect([...planOutputs(invalid, { name: 'fixture' }, settings).keys()]).toEqual(['plan.yaml', 'plan.md', 'plan.json', 'candidates/seeds-draft.yaml']);
   });
 });

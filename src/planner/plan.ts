@@ -1,11 +1,13 @@
-// `ac plan`: facts → seeds draft → K Nemotron edits → the validator filters and ranks them → the critic reviews the
-// winner → the final plan (plan §3.5). Every LLM output passes the deterministic validator before it counts.
+// `ac plan`: facts → seeds draft → (opt-in Lightning one-liners) → K Nemotron edits → the validator filters and ranks
+// them → the critic reviews the winner → the final plan (plan §3.5). Every LLM output passes the deterministic
+// validator before it counts.
 import type { RepoFs } from '../analyzer/repo-fs.js';
 import type { Gateway } from '../gateway/types.js';
-import { applyCritique, runCritic, type CriticRun, type CriticSettings, type Suggestion } from './critic.js';
+import { applyCritiques, runCritic, type CriticRun, type CriticSettings, type Suggestion } from './critic.js';
 import { editPrompt, runEdit, type EditRun, type EditSettings } from './edit.js';
 import { buildFacts } from './facts.js';
 import { seedDraft } from './seeds.js';
+import { runSummaries, type SummaryRun, type SummarySettings } from './summaries.js';
 import type { Draft, Facts, Issue, Plan, PlanEdit, Validation } from './types.js';
 import { applyEdit, checkEdit, rankCandidates, validatePlan } from './validate.js';
 
@@ -17,6 +19,8 @@ export interface PlanOptions {
   edit: EditSettings;
   /** null: no critic call. */
   critic: CriticSettings | null;
+  /** Lightning one-liners for the draft's low-confidence files, fed to the editor; off (null or absent) by default. */
+  summaries?: SummarySettings | null;
 }
 
 export interface Candidate {
@@ -34,6 +38,8 @@ export interface PlanRun {
   facts: Facts;
   draft: Draft;
   groupIds: Map<string, string>;
+  /** null when summaries are off. */
+  summaryRun: SummaryRun | null;
   /** The draft as a plan (labels as module names): the baseline every candidate is compared with. */
   draftCandidate: Candidate;
   candidates: Candidate[];
@@ -53,7 +59,8 @@ export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOpti
     throw new Error(`no movable files under ${where} (${facts.pins.length} pinned): check --root and --module-root, or the profile`);
   }
   const draft = seedDraft(facts);
-  const prompt = editPrompt(facts, draft);
+  const summaryRun = options.summaries ? await runSummaries(gateway, repo, facts, draft, options.summaries) : null;
+  const prompt = editPrompt(facts, draft, summaryRun?.purposes);
   const { groupIds } = prompt;
   const asCandidate = (label: string, edit: PlanEdit, extra: Partial<Candidate> = {}): Candidate => {
     const { accepted, issues } = checkEdit(facts, draft, edit, groupIds);
@@ -75,9 +82,9 @@ export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOpti
   let plan = winner.plan;
   if (options.critic && winner !== draftCandidate) {
     const run = await runCritic(gateway, facts, winner.plan, winner.validation, options.critic);
-    const applied = run.critique ? applyCritique(facts, draft, winner.plan, run.critique) : { plan: winner.plan, suggestions: [] };
+    const applied = applyCritiques(facts, draft, winner.plan, run.critiques);
     criticRun = { ...run, suggestions: applied.suggestions };
     plan = applied.plan;
   }
-  return { facts, draft, groupIds, draftCandidate, candidates, winner, editRun, criticRun, plan, validation: validatePlan(facts, draft, plan) };
+  return { facts, draft, groupIds, summaryRun, draftCandidate, candidates, winner, editRun, criticRun, plan, validation: validatePlan(facts, draft, plan) };
 }

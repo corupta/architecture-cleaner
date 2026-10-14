@@ -15,6 +15,8 @@ import { defaultCriticSettings } from '../../src/planner/critic.js';
 import { defaultEditSettings } from '../../src/planner/edit.js';
 import { planOutputs } from '../../src/planner/outputs.js';
 import { planRepo, type PlanOptions } from '../../src/planner/plan.js';
+import { readPlanYaml } from '../../src/planner/plan-file.js';
+import { stepsOf } from '../../src/planner/steps.js';
 
 const sources: Record<string, string> = {
   'server/package.json': '{ "name": "fixture", "type": "module", "main": "dist/main.js" }\n',
@@ -83,6 +85,16 @@ describe('ac plan, recorded then replayed', async () => {
     expect(recorded.outputs.get('plan.yaml')).toContain('services/album.service.ts, tests: [src/services/album.service.spec.ts]');
     expect(recorded.run.validation.valid).toBe(true);
     expect(JSON.parse(recorded.outputs.get('steps/01-module-album.json')!).moves['server/src/services/album.service.spec.ts']).toBe('server/src/modules/album/album.service.spec.ts');
+  });
+
+  it('writes every candidate\'s full plan next to plan.yaml, each one ready for ac steps', () => {
+    const files = [...recorded.outputs.keys()].filter((file) => file.startsWith('candidates/'));
+    expect(files).toEqual(['candidates/seeds-draft.yaml', 'candidates/ultra-1.yaml', 'candidates/ultra-2.yaml', 'candidates/ultra-3.yaml']);
+    const second = readPlanYaml(recorded.outputs.get('candidates/ultra-2.yaml')!);
+    expect(second.groups.get('module/album')!.map((entry) => entry.path)).toContain('src/utils/date.ts');
+    expect(stepsOf(second).map((step) => step.group)).toEqual(['module/album', 'module/user']);
+    expect(recorded.outputs.get(`candidates/${recorded.run.winner.label.replace('#', '-')}.yaml`)).toMatch(/^# ac plan for fixture server\/ @ \w{10}: candidate ultra#\d \(the winner, before the critic\)\n/);
+    expect(recorded.outputs.get('plan.md')).toContain('| `candidates/ultra-2.yaml` |');
   });
 
   it('records two calls (n=3 edit, critic) in the cassette and the ledger', () => {
