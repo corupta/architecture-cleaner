@@ -9,7 +9,7 @@ import { executeMove } from '../executor/execute.js';
 import { normalizationSteps } from '../filename-normalization/index.js';
 import type { PlanFile } from '../planner/plan-file.js';
 import type { RunDirectory } from './run-directory.js';
-import type { BoundaryRung, CertificateRecord, RunEvent, RunFinding, RungId, RungRecord, RunState, StepRecord } from './types.js';
+import type { BoundaryRung, CertificateRecord, RunEvent, RunFailure, RunFinding, RungId, RungRecord, RunState, StepRecord } from './types.js';
 
 export interface RunDependencies {
   executeMove: typeof executeMove;
@@ -76,6 +76,11 @@ export function createRunner(state: RunState, directory: RunDirectory, planFile:
 }
 
 export const elapsed = (started: number) => Math.round(performance.now() - started);
+
+/** Ends the run failed: on a verdict, final, or on a crash, which --resume continues after (types.ts RunFailure). */
+export function failRun(runner: Runner, failure: RunFailure, error: string): void {
+  Object.assign(runner.state, { status: 'failed', failure, error });
+}
 
 export function addFinding(runner: Runner, finding: RunFinding): void {
   runner.state.findings.push(finding);

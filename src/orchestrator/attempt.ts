@@ -11,7 +11,7 @@ import type { MoveResult } from '../executor/execute.js';
 import { type MessageInput, scopeOf, stepMessage } from './commit-message.js';
 import { buildFault } from './fault.js';
 import { amendMessage, commitStaged, headCommit, resetHard } from './git.js';
-import { addFinding, certificateName, certifyRange, elapsed, failingChecks, padded, type Runner, staticCheckIds, storeCertificate } from './runner.js';
+import { addFinding, certificateName, certifyRange, elapsed, failingChecks, failRun, padded, type Runner, staticCheckIds, storeCertificate } from './runner.js';
 import { attributeOffenders, effectiveMoves, type Offender } from './steps.js';
 import type { AttemptRecord, StepRecord } from './types.js';
 
@@ -137,10 +137,24 @@ function injectFault(runner: Runner, committed: Committed): void {
 }
 
 /**
- * Attempts the step on top of HEAD until an attempt commits (executor declines are replanned in place). Null when the
- * step ends without a commit: skipped (nothing left to move) or pinned.
+ * A decline, an unverified move or an executor crash on a speculative parent (--jobs: a commit not yet certified) may
+ * hold only on that tree: nothing is pinned or counted as a replan, and the step waits for certified ground.
  */
-export function commitAttempt(runner: Runner, step: StepRecord): Committed | null {
+function park(runner: Runner, attempt: AttemptRecord, attemptStarted: number): 'parked' {
+  attempt.detail = `${attempt.detail}; on an uncertified parent, so nothing is pinned: the step runs again once the certifications in flight conclude`;
+  finishAttempt(attempt, attemptStarted, 'interrupted');
+  runner.save();
+  return 'parked';
+}
+
+/**
+ * Attempts the step on top of HEAD until an attempt commits (executor declines are replanned in place). Null when the
+ * step ends without a commit: skipped (nothing left to move) or pinned. 'parked' when HEAD is `speculative` and the
+ * executor failed there (park).
+ */
+export function commitAttempt(runner: Runner, step: StepRecord, speculative?: false): Committed | null;
+export function commitAttempt(runner: Runner, step: StepRecord, speculative: boolean): Committed | null | 'parked';
+export function commitAttempt(runner: Runner, step: StepRecord, speculative = false): Committed | null | 'parked' {
   const { state } = runner;
   const repo = state.repo;
   for (;;) {
@@ -167,8 +181,9 @@ export function commitAttempt(runner: Runner, step: StepRecord): Committed | nul
       resetHard(repo, parent);
       attempt.timings.moveMs = elapsed(started);
       attempt.detail = `executor crashed: ${(error as Error).message}`;
-      finishAttempt(attempt, attemptStarted, 'error');
       runner.event({ event: 'move', step: step.index, attempt: attempt.attempt, durationMs: attempt.timings.moveMs, outcome: 'error', detail: attempt.detail });
+      if (speculative) return park(runner, attempt, attemptStarted);
+      finishAttempt(attempt, attemptStarted, 'error');
       pinWholeStep(runner, step, 'executor-error', attempt.detail);
       attempt.pinned = [...effective.keys()];
       return null;
@@ -178,6 +193,7 @@ export function commitAttempt(runner: Runner, step: StepRecord): Committed | nul
     if (result.outcome === 'declined' || result.outcome === 'unverified') {
       const { offenders, detail } = executorOffenders(result);
       attempt.detail = `${result.outcome}: ${detail}`;
+      if (speculative) return park(runner, attempt, attemptStarted);
       finishAttempt(attempt, attemptStarted, result.outcome);
       if (!replan(runner, step, attempt, offenders, attempt.detail, effective, analysis)) return null;
       runner.save();
@@ -251,8 +267,7 @@ export function concludeAttempt(runner: Runner, committed: Committed, certificat
   // A check that crashed gives no evidence about the step: stop (--resume retries it) rather than pin what may be fine.
   if (!certificate.checks.some((check) => check.status === 'fail')) {
     finishAttempt(attempt, committed.attemptStarted, 'interrupted');
-    state.status = 'failed';
-    state.error = `the certifier crashed on step ${step.index} (${failingChecks(certificate).join(', ')}): ${detail}`;
+    failRun(runner, 'crash', `the certifier crashed on step ${step.index} (${failingChecks(certificate).join(', ')}): ${detail}`);
     return 'done';
   }
   finishAttempt(attempt, committed.attemptStarted, 'failed');

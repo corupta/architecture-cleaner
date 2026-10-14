@@ -1,5 +1,6 @@
 // The run directory (contract C7, shapes in types.ts): run.json rewritten atomically at every transition, so a run
-// killed at any point resumes from what is on disk; events.jsonl appended; certificates stored as JSON plus summary.
+// killed at any point resumes from what is on disk; events.jsonl appended; certificates stored as JSON plus summary,
+// a stored FAIL never overwritten.
 import fs from 'node:fs';
 import path from 'node:path';
 import { summarize } from '../certificate/report.js';
@@ -15,6 +16,8 @@ export interface RunDirectory {
   event(event: Omit<RunEvent, 'ts'>): void;
   /** Stores a certificate as `<file>.json` and `<file>.txt`; `file` is run-dir-relative, without extension. */
   storeCertificate(file: string, certificate: Certificate): CertificateRecord;
+  /** `file`, or, when a FAIL is stored there, the first of `<file>-2`, `<file>-3`, ... where none is. */
+  certificateFile(file: string): string;
   /** A fresh scratch directory under work/. */
   workDir(name: string): string;
 }
@@ -39,6 +42,12 @@ export function openRunDirectory(root: string): RunDirectory {
     fs.writeFileSync(temporary, text);
     fs.renameSync(temporary, resolve(file));
   };
+  const holdsFail = (file: string) => fs.existsSync(resolve(`${file}.json`)) && (JSON.parse(fs.readFileSync(resolve(`${file}.json`), 'utf8')) as Certificate).verdict === 'fail';
+  const certificateFile = (file: string) => {
+    let name = file;
+    for (let copy = 2; holdsFail(name); copy++) name = `${file}-${copy}`;
+    return name;
+  };
   return {
     root: absolute,
     path: resolve,
@@ -48,7 +57,9 @@ export function openRunDirectory(root: string): RunDirectory {
     event(event) {
       fs.appendFileSync(resolve('events.jsonl'), `${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`);
     },
-    storeCertificate(file, certificate) {
+    certificateFile,
+    storeCertificate(requested, certificate) {
+      const file = certificateFile(requested);
       write(`${file}.json`, `${JSON.stringify(certificate, null, 1)}\n`);
       write(`${file}.txt`, `${summarize(certificate)}\n`);
       return {

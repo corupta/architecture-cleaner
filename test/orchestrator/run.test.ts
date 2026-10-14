@@ -1,6 +1,7 @@
 // `ac run` end to end on a small fixture repo: the ladder with trailers on every commit and rung certificates, a
 // declined step replanned by pinning, a seeded wrong move rolled back and replanned, the replan bound, declined
-// preflights, a crash and --resume, --max-steps, a K8 bisect, and the run directory's shapes.
+// preflights, a crash and --resume, verdicts --resume refuses, --max-steps, a K8 bisect (and one stopped without
+// evidence), speculative parents under --jobs, and the run directory's shapes.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runBaseline } from '../../src/certificate/baseline.js';
 import { certify } from '../../src/certificate/certify.js';
 import type { Certificate, CertifyOptions } from '../../src/certificate/types.js';
+import { executeMove } from '../../src/executor/execute.js';
 import { resumeRun, type RunDependencies, type StartOptions, startRun } from '../../src/orchestrator/run.js';
 import type { RunEvent, RunState } from '../../src/orchestrator/types.js';
 import { type Files, fixtureRepo, gitOf, groups, planYaml, profileOf, sources, typecheck, unit, userPaths } from './fixture.js';
@@ -388,6 +390,24 @@ describe('ac run: crash, stop and resume', () => {
     await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet })).rejects.toThrow('nothing to resume: the run is completed');
   });
 
+  it('refuses --resume after the whole-PR certificate FAILs (a verdict is final), and keeps the FAIL on record', async () => {
+    const run = setup();
+    let failed = false;
+    const wholePrFailsOnce = async (options: CertifyOptions) => {
+      const certificate = await certify(options);
+      if (failed || path.basename(options.workDir) !== 'run') return certificate;
+      failed = true;
+      Object.assign(certificate.checks.find((check) => check.id === 'K8')!, { status: 'fail', summary: 'injected by the test', violations: [{ detail: 'test X failed' }] });
+      return { ...certificate, verdict: 'fail' as const };
+    };
+    const first = await startRun(run.options({ rungs: ['R0', 'R1', 'R2'] }), { ...noRenames, certify: wholePrFailsOnce });
+    expect(first.exitCode).toBe(1);
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', certificate: { file: 'certificate.json', verdict: 'fail' } });
+    await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, { ...noRenames, certify: wholePrFailsOnce })).rejects.toThrow('failed on a verdict');
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', certificate: { file: 'certificate.json', verdict: 'fail' } });
+    expect(JSON.parse(run.read('certificate.json')).verdict).toBe('fail');
+  });
+
   it('resumes across a message-only rewrite that saved its state but did not move the branch', async () => {
     const run = setup();
     await startRun(run.options({ rungs: ['R0', 'R1'], maxSteps: 1 }));
@@ -460,6 +480,44 @@ describe('ac run: rung oracles', () => {
   });
 });
 
+describe('ac run: a K8 bisect probe without evidence', () => {
+  it('stops the bisect at a probe whose K8 errored, pins nothing, and --resume bisects again without overwriting a FAIL', async () => {
+    const run = setup();
+    // Step 2 (module/user) is the real culprit: the oracle reads user.service.ts at its old path.
+    const pathReader = { name: 'path-reader', kind: 'exit-zero' as const, cwd: 'server', command: ['node', '-e', "process.exit(require('fs').existsSync('src/services/user.service.ts') ? 0 : 1)"] };
+    const profile = profileOf([typecheck, unit, pathReader]);
+    const probeErrors = async (options: CertifyOptions) => {
+      const certificate = await certify(options);
+      if (path.basename(options.workDir) !== 'bisect-R1-001') return certificate;
+      Object.assign(certificate.checks.find((check) => check.id === 'K8')!, { status: 'error', summary: 'crashed: the runner was killed', violations: [{ detail: 'unit on base: no report' }] });
+      return { ...certificate, verdict: 'fail' as const };
+    };
+    const stopped = await startRun(run.options({ rungs: ['R0', 'R1'], profile }), { ...noRenames, certify: probeErrors });
+    expect(stopped.exitCode).toBe(1);
+    let state = run.state();
+    expect(state).toMatchObject({ status: 'failed', failure: 'crash', pins: [], findings: [] });
+    expect(state.error).toContain("rung R1's K8 bisect probe at step 1 gave no evidence (K8 error)");
+    expect(state.rungs[1]).toMatchObject({ status: 'running', bisect: { firstFailingStep: null, probes: [expect.objectContaining({ step: 1, k8: 'error' })] } });
+    expect(state.steps.map((step) => step.status)).toEqual(['certified', 'certified', 'pending']);
+    expect(run.git('rev-parse', 'HEAD')).toBe(state.steps[1]!.commit);
+    expect(run.read('report.md')).toContain('K8 bisect: no evidence at step 1');
+
+    const resumed = await resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames);
+    expect(resumed.state.error).toBeUndefined();
+    state = run.state();
+    expect(state.status).toBe('completed');
+    expect(state.rungs[1]).toMatchObject({ status: 'certified', bisect: { firstFailingStep: 2, probes: [expect.objectContaining({ k8: 'error' }), expect.objectContaining({ k8: 'pass' })] } });
+    expect(state.steps.map((step) => [step.group, step.status])).toEqual([['module/album', 'certified'], ['module/user', 'pinned'], ['shared/shared', 'pending']]);
+    expect(state.findings).toEqual([expect.objectContaining({ kind: 'bisect-pinned', step: 2 })]);
+    expect(branchLog(run.git, run.base).map((commit) => commit.message.split('\n')[0])).toEqual(['refactor(server): move album into src/modules/album']);
+    // Neither the rung certificate the bisects superseded nor the errored probe is overwritten.
+    expect(fs.readdirSync(path.join(run.runDirectory, 'rungs', 'failed')).sort()).toEqual(['R1-2.json', 'R1-2.txt', 'R1.json', 'R1.txt']);
+    expect(JSON.parse(run.read('rungs/bisect/R1-001.json')).checks.find((check: { id: string }) => check.id === 'K8').status).toBe('error');
+    expect(JSON.parse(run.read('rungs/bisect/R1-001-2.json')).verdict).toBe('pass');
+    expect(state.rungs[1]!.bisect!.probes.map((probe) => probe.certificate)).toEqual(['rungs/bisect/R1-001.json', 'rungs/bisect/R1-001-2.json']);
+  });
+});
+
 describe('ac run: R4 through the injected boundary-rules hook (contract C6)', () => {
   const rules = (files: Map<string, string>, fired = true): Partial<RunDependencies> => ({
     ...noRenames,
@@ -481,6 +539,19 @@ describe('ac run: R4 through the injected boundary-rules hook (contract C6)', ()
     expect(JSON.parse(run.read('boundaries/report.json'))).toEqual({ rules: ['shared-is-a-leaf'], moduleRoot: 'src', planGroups: 3 });
     expect(branchLog(run.git, run.base)).toHaveLength(2);
     expect(state.steps.some((step) => step.rung === 'R4')).toBe(false);
+
+    // A verdict is final: --resume refuses it rather than skip R4 and certify the rest.
+    expect(state.failure).toBe('verdict');
+    await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, rules(new Map(), true))).rejects.toThrow('failed on a verdict');
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', rungs: expect.arrayContaining([expect.objectContaining({ id: 'R4', status: 'failed' })]) });
+    // A run.json that says crash while a rung failed: the ladder still stops at the failed rung.
+    fs.writeFileSync(path.join(run.runDirectory, 'run.json'), JSON.stringify({ ...run.state(), failure: 'crash' }));
+    const resumed = await resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, rules(new Map(), true));
+    expect(resumed.exitCode).toBe(1);
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', error: expect.stringContaining('rung R4 failed') });
+    expect(run.state().certificate).toBeUndefined();
+    expect(fs.existsSync(path.join(run.runDirectory, 'certificate.json'))).toBe(false);
+    expect(run.read('report.md')).toContain('- Status: **failed** (exit 1');
   });
 
   it('commits the rules, certifies the commit like a rung end, and rolls it back on a FAIL', async () => {
@@ -495,6 +566,8 @@ describe('ac run: R4 through the injected boundary-rules hook (contract C6)', ()
     expect(state.rungs[4]).toMatchObject({ id: 'R4', status: 'failed' });
     expect(run.git('rev-parse', 'HEAD')).toBe(state.steps[1]!.commit);
     expect(fs.existsSync(path.join(run.repo, 'server/boundaries.txt'))).toBe(false);
+    expect(state.failure).toBe('verdict');
+    await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames)).rejects.toThrow('failed on a verdict');
   });
 });
 
@@ -560,6 +633,44 @@ describe('ac run --jobs: pipelined certification', () => {
     const log = branchLog(run.git, run.base);
     expect(log.map((commit) => commit.sha)).toEqual([state.steps[0]!.commit, state.steps[1]!.commit]);
     for (const commit of log) expect(commit.message).toContain('Ac-Certificate: pass (static)');
+  });
+
+  // The executor fails only on the seeded wrong move's tree: what it says there may not hold once that commit is gone.
+  const onMutant = (run: ReturnType<typeof setup>) => run.git('rev-parse', 'HEAD') === run.state().fault?.mutantCommit;
+  const userRepository = 'server/src/repositories/user.repository.ts';
+
+  it('pins nothing on an uncertified parent: a step declined there waits for certified ground, like --jobs 1', async () => {
+    const run = setup();
+    const declinesOnMutant: RunDependencies['executeMove'] = (repoFs, moves, ...rest) => (onMutant(run) && moves.has(userRepository)
+      ? { outcome: 'declined', moves: new Map(moves), declines: [{ code: 'destination-exists', file: moves.get(userRepository)!, detail: 'only on the mutant' }] }
+      : executeMove(repoFs, moves, ...rest));
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1'], jobs: 2, injectFault: { step: '1', operator: 'M2' } }), { ...noRenames, executeMove: declinesOnMutant });
+    expect(outcome.state.error).toBeUndefined();
+    const state = run.state();
+    expect(state.status).toBe('completed');
+    expect(state.pins).toEqual([{ file: 'server/src/controllers/album.controller.ts', step: 1, group: 'module/album', reason: 'pinned' }]);
+    expect(state.findings.map((finding) => finding.kind)).toEqual(['injected-fault', 'pinned']);
+    const user = state.steps[1]!;
+    expect(user.status).toBe('certified');
+    expect(user.attempts.map((attempt) => attempt.state)).toEqual(['interrupted', 'passed']);
+    expect(user.attempts[0]).toMatchObject({ parent: state.fault!.mutantCommit, pinned: [], detail: expect.stringContaining('uncertified parent') });
+    expect(run.git('ls-tree', '-r', '--name-only', 'HEAD', 'server/src/modules/user').split('\n')).toContain('server/src/modules/user/user.repository.ts');
+    expect(run.git('log', '-1', '--format=%B', user.commit!)).not.toContain('Replanned');
+  });
+
+  it('pins nothing on an uncertified parent when the executor crashes there either', async () => {
+    const run = setup();
+    const crashesOnMutant: RunDependencies['executeMove'] = (repoFs, moves, ...rest) => {
+      if (onMutant(run)) throw new Error('only on the mutant');
+      return executeMove(repoFs, moves, ...rest);
+    };
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1'], jobs: 2, injectFault: { step: '1', operator: 'M2' } }), { ...noRenames, executeMove: crashesOnMutant });
+    expect(outcome.state.error).toBeUndefined();
+    const state = run.state();
+    expect(state.pins.map((pin) => pin.file)).toEqual(['server/src/controllers/album.controller.ts']);
+    expect(state.steps[1]).toMatchObject({ status: 'certified' });
+    expect(state.steps[1]!.attempts.map((attempt) => attempt.state)).toEqual(['interrupted', 'passed']);
+    expect(state.findings.map((finding) => finding.kind)).toEqual(['injected-fault', 'pinned']);
   });
 });
 

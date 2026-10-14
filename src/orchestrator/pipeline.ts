@@ -25,7 +25,9 @@ type Settled = { certificate: Certificate } | { error: unknown };
  * --jobs n: steps execute ahead of their certificates, with up to n certifications in flight (the certifier's runner
  * and runtime probes are child processes, so they overlap the next moves). Certificates are concluded in commit order;
  * a FAIL rolls back to the failing step's parent, which discards the speculative commits after it, and those steps
- * run again. Trailers are written afterwards by one message-only rewrite pass. True when --max-steps stops the run.
+ * run again. A step the executor fails on a speculative parent is parked: it pins nothing and waits at the queue's
+ * head until no certification is in flight. Trailers are written afterwards by one message-only rewrite pass. True
+ * when --max-steps stops the run.
  */
 export async function runPipelined(runner: Runner, steps: StepRecord[]): Promise<boolean> {
   const { state } = runner;
@@ -33,15 +35,20 @@ export async function runPipelined(runner: Runner, steps: StepRecord[]): Promise
   const inFlight: { committed: Committed; settled: Promise<Settled> }[] = [];
   const startedAt = new Map<StepRecord, number>();
   let stopped = false;
+  let parked = false;
   for (;;) {
-    while (inFlight.length < state.options.jobs && queue.length && state.status === 'running') {
+    while (!parked && inFlight.length < state.options.jobs && queue.length && state.status === 'running') {
       if (runner.maxSteps !== null && runner.stepsThisInvocation + inFlight.length >= runner.maxSteps) {
         stopped = true;
         break;
       }
       const step = queue[0]!;
       if (!startedAt.has(step)) startedAt.set(step, beginStep(runner, step));
-      const committed = commitAttempt(runner, step);
+      const committed = commitAttempt(runner, step, inFlight.length > 0);
+      if (committed === 'parked') {
+        parked = true;
+        break;
+      }
       queue.shift();
       if (committed) inFlight.push({ committed, settled: certifyAttempt(runner, committed).then((certificate) => ({ certificate }), (error: unknown) => ({ error })) });
       else endStep(runner, step, startedAt.get(step)!);
@@ -68,6 +75,7 @@ export async function runPipelined(runner: Runner, steps: StepRecord[]): Promise
     }
     if (outcome === 'retry') queue.unshift(step);
     else endStep(runner, step, startedAt.get(step)!);
+    if (!inFlight.length) parked = false;
     runner.save();
     if (state.status !== 'running') return false;
   }

@@ -1,6 +1,6 @@
 // report.md of a run: what happened, how long each step and rung took, the verdicts, totals and cost. A pure
 // function of run.json; the findings section is a seam (src/findings renders the full log in round 2).
-import type { AttemptRecord, RunState, StepRecord } from './types.js';
+import type { AttemptRecord, BisectRecord, RunState, StepRecord } from './types.js';
 
 export interface ReportOptions {
   /** Renders the findings section's body (markdown); default: the run's findings as a list grouped by kind. */
@@ -38,6 +38,12 @@ function defaultFindings(state: RunState): string {
   return lines.join('\n');
 }
 
+function bisectOutcome(bisect: BisectRecord): string {
+  if (bisect.firstFailingStep !== null) return `step ${bisect.firstFailingStep} pinned`;
+  const last = bisect.probes.at(-1)!;
+  return `no evidence at step ${last.step} (K8 ${last.k8}), nothing pinned`;
+}
+
 function stepOutcome(step: StepRecord): string {
   const replans = step.attempts.filter((attempt) => attempt.state !== 'passed' && attempt.state !== 'interrupted').length;
   const fault = step.attempts.some((attempt) => attempt.injectedFault) ? ', injected fault' : '';
@@ -51,7 +57,8 @@ export function renderReport(state: RunState, options: ReportOptions = {}): stri
   const timeline = state.timeline;
   lines.push(`# ac run: ${code(scope)} @ ${code(short(state.base))} on ${code(state.branch)}`, '');
   const exit = state.status === 'declined' ? 3 : state.status === 'failed' ? 1 : 0;
-  lines.push(`- Status: **${state.status}** (exit ${exit})${state.error ? `: ${cell(state.error.split('\n')[0]!)}` : ''}`);
+  const failure = state.status === 'failed' && state.failure ? (state.failure === 'verdict' ? ', a verdict: final' : ', a crash: --resume continues') : '';
+  lines.push(`- Status: **${state.status}** (exit ${exit}${failure})${state.error ? `: ${cell(state.error.split('\n')[0]!)}` : ''}`);
   lines.push(`- Repository ${code(state.repo)}, environment ${code(state.environment)}, profile ${code(state.profile.name)}`);
   lines.push(`- Plan: ${code(state.plan.source)} (sha256 ${code(state.plan.sha256.slice(0, 12))}), ${state.plan.steps} steps, ${state.plan.moves} moves`);
   lines.push(`- Commits: ${code(short(state.base))} → ${code(short(state.head))}`);
@@ -72,7 +79,7 @@ export function renderReport(state: RunState, options: ReportOptions = {}): stri
     const count = (status: StepRecord['status']) => steps.filter((step) => step.status === status).length;
     const stepCell = rung.id === 'R0' ? '–' : `${steps.length} (${count('certified')} certified, ${count('pinned')} pinned, ${count('skipped')} skipped${count('pending') ? `, ${count('pending')} pending` : ''})`;
     const certificate = rung.certificate ? `${rung.certificate.verdict.toUpperCase()} (${rung.certificate.scope}${rung.certificate.partial ? ', partial' : ''}) ${code(rung.certificate.file)}` : rung.note ? cell(rung.note).slice(0, 200) : '–';
-    const bisect = rung.bisect ? `; K8 bisect: step ${rung.bisect.firstFailingStep} pinned (${rung.bisect.probes.length} probes, ${formatDuration(rung.bisect.durationMs)})` : '';
+    const bisect = rung.bisect ? `; K8 bisect: ${bisectOutcome(rung.bisect)} (${rung.bisect.probes.length} probes, ${formatDuration(rung.bisect.durationMs)})` : '';
     lines.push(`| ${rung.id} | ${rung.status} | ${stepCell} | ${rung.id === 'R0' ? '–' : count('certified')} | ${certificate}${bisect} | ${formatDuration(rung.durationMs)} |`);
   }
   lines.push('');

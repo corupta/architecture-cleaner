@@ -15,6 +15,7 @@
 //                                  R4's one commit has only this one
 //   rungs/failed/<rung>.{json,txt}, rungs/bisect/<rung>-<NNN>.{json,txt}   the rung certificate a K8 bisect superseded, its probes
 //   certificate.{json,txt}         the whole PR: run base..final commit, oracles included
+//   (a stored FAIL is never overwritten: a certificate stored under its name again goes to <name>-2, -3, ...)
 //   boundaries/report.json         R4's report (contract C6), when R4 ran
 //   report.md                      the readable report (timeline, verdicts, totals, cost, findings)
 //   work/                          scratch for certifications (removed after each)
@@ -148,8 +149,10 @@ export interface StepRecord {
 export type RungStatus = 'pending' | 'running' | 'passed' | 'declined' | 'certified' | 'failed' | 'skipped' | 'not-available' | 'not-requested';
 
 export interface BisectRecord {
+  /** Every probe, over each try (a bisect stopped without evidence is tried again by --resume). */
   probes: { step: number; commit: string; k8: 'pass' | 'fail' | 'error' | 'skip'; certificate: string; durationMs: number }[];
-  firstFailingStep: number;
+  /** The step pinned; null when a probe gave no evidence (its K8 errored or was skipped) and the bisect stopped there. */
+  firstFailingStep: number | null;
   durationMs: number;
 }
 
@@ -177,6 +180,12 @@ export interface FaultRecord {
   /** Why it couldn't be applied (no instance of the operator on that step). */
   notApplied?: string;
 }
+
+/**
+ * Why a run failed. A verdict (a rung, R4 or whole-PR certificate FAIL, a vacuous boundary rule) is final: --resume
+ * refuses it. A crash (of the tool, or of a check: no evidence either way) is what --resume continues after.
+ */
+export type RunFailure = 'verdict' | 'crash';
 
 /** run.json. */
 export interface RunState {
@@ -238,6 +247,8 @@ export interface RunState {
     resumedAt: string[];
   };
   error?: string;
+  /** Set with status failed. */
+  failure?: RunFailure;
 }
 
 export type RunEventKind =

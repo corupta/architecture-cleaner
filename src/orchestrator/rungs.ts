@@ -10,7 +10,7 @@ import { scopeOf, stepMessage } from './commit-message.js';
 import { amendMessage, commitStaged, git, resetHard, treeOf } from './git.js';
 import { runPipelined, runSequential, writePendingTrailers } from './pipeline.js';
 import type { RunDirectory } from './run-directory.js';
-import { addFinding, certifyRange, elapsed, failingChecks, padded, type Runner, storeCertificate } from './runner.js';
+import { addFinding, certifyRange, elapsed, failingChecks, failRun, padded, type Runner, storeCertificate } from './runner.js';
 import { renameSteps } from './steps.js';
 import type { AttemptRecord, CertificateRecord, RungId, RungRecord, RunState, StepRecord } from './types.js';
 
@@ -18,13 +18,16 @@ const certifiedSteps = (state: RunState, rung: RungId) => state.steps.filter((st
 
 /**
  * K8 bisect of a rung whose cumulative certificate failed only its oracles: the first commit whose rung-start..commit
- * fails K8 is rolled back, its step pinned, and the rung's later steps set to run again.
+ * fails K8 is rolled back, its step pinned, and the rung's later steps set to run again. A probe whose K8 errored or
+ * was skipped gives no evidence: the bisect stops there and pins nothing, a crash that --resume bisects again after.
+ * True when a step was pinned.
  */
-async function bisectRung(runner: Runner, rung: RungRecord): Promise<void> {
+async function bisectRung(runner: Runner, rung: RungRecord): Promise<boolean> {
   const { state } = runner;
   const started = performance.now();
   const steps = certifiedSteps(state, rung.id);
-  const probes: NonNullable<RungRecord['bisect']>['probes'] = [];
+  const probes = rung.bisect?.probes ?? [];
+  const earlierMs = rung.bisect?.durationMs ?? 0;
   let low = 0;
   let high = steps.length - 1;
   while (low < high) {
@@ -37,10 +40,17 @@ async function bisectRung(runner: Runner, rung: RungRecord): Promise<void> {
     probes.push({ step: step.index, commit: step.commit!, k8, certificate: record.file, durationMs: elapsed(probeStarted) });
     runner.event({ event: 'bisect-probe', rung: rung.id, step: step.index, durationMs: elapsed(probeStarted), k8 });
     if (k8 === 'pass') low = middle + 1;
-    else high = middle;
+    else if (k8 === 'fail') high = middle;
+    else {
+      rung.bisect = { probes, firstFailingStep: null, durationMs: earlierMs + elapsed(started) };
+      state.timeline.bisectMs += elapsed(started);
+      failRun(runner, 'crash', `rung ${rung.id}'s K8 bisect probe at step ${step.index} gave no evidence (K8 ${k8}), so nothing is pinned; --resume bisects again: ${certificateOffenders(certificate).detail}`);
+      runner.event({ event: 'bisect', rung: rung.id, durationMs: elapsed(started), step: step.index, detail: `no evidence (K8 ${k8})` });
+      return false;
+    }
   }
   const culprit = steps[low]!;
-  rung.bisect = { probes, firstFailingStep: culprit.index, durationMs: elapsed(started) };
+  rung.bisect = { probes, firstFailingStep: culprit.index, durationMs: earlierMs + elapsed(started) };
   state.timeline.bisectMs += elapsed(started);
   const rollbackTo = culprit.parent!;
   // State first, then the branch: a crash in between leaves the branch ahead by run commits, which --resume resets.
@@ -53,20 +63,26 @@ async function bisectRung(runner: Runner, rung: RungRecord): Promise<void> {
   runner.save();
   resetHard(state.repo, rollbackTo);
   runner.event({ event: 'bisect', rung: rung.id, durationMs: elapsed(started), step: culprit.index, rolledBackTo: rollbackTo });
+  return true;
 }
 
-/** Moves a stored certificate pair aside (a rung certificate that a bisect superseded). */
+/** Moves a stored certificate pair aside (a rung certificate that a bisect superseded), never over a stored FAIL. */
 function moveCertificate(runner: Runner, from: string, to: string): string {
+  const target = runner.directory.certificateFile(to);
   for (const extension of ['.json', '.txt']) {
-    fs.mkdirSync(path.dirname(runner.directory.path(`${to}${extension}`)), { recursive: true });
-    fs.renameSync(runner.directory.path(`${from}${extension}`), runner.directory.path(`${to}${extension}`));
+    fs.mkdirSync(path.dirname(runner.directory.path(`${target}${extension}`)), { recursive: true });
+    fs.renameSync(runner.directory.path(`${from}${extension}`), runner.directory.path(`${target}${extension}`));
   }
-  return `${to}.json`;
+  return `${target}.json`;
 }
 
-type RungCertification = 'certified' | 'bisected' | 'failed' | 'empty';
+/** 'no-evidence': its bisect stopped at a probe without evidence (the run failed as a crash, the rung still runs). */
+type RungCertification = 'certified' | 'bisected' | 'failed' | 'empty' | 'no-evidence';
 
-/** The rung's cumulative full certificate (rung start..its last commit, oracles included); one K8 bisect on failure. */
+/**
+ * The rung's cumulative full certificate (rung start..its last commit, oracles included); one K8 bisect on failure
+ * (again when the last one stopped without evidence).
+ */
 async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): Promise<RungCertification> {
   const { state } = runner;
   if (state.head === rung.start) {
@@ -84,13 +100,12 @@ async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): 
   if (certificate.verdict === 'pass') return 'certified';
   const failing = failingChecks(certificate);
   const k8 = certificate.checks.find((check) => check.id === 'K8')?.status;
-  if (failing.length === 1 && k8 === 'fail' && !rung.bisect) {
-    rung.certificate.file = moveCertificate(runner, `rungs/${rung.id}`, `rungs/failed/${rung.id}`);
+  if (failing.length === 1 && k8 === 'fail' && (!rung.bisect || rung.bisect.firstFailingStep === null)) {
+    rung.certificate.file = moveCertificate(runner, rung.certificate.file.replace(/\.json$/, ''), `rungs/failed/${rung.id}`);
     runner.log(`rung ${rung.id}: K8 fails; bisecting its ${certifiedSteps(state, rung.id).length} commits`);
-    await bisectRung(runner, rung);
-    return 'bisected';
+    return (await bisectRung(runner, rung)) ? 'bisected' : 'no-evidence';
   }
-  state.error = `rung ${rung.id}'s certificate FAILs (${failing.join(', ')})${rung.bisect ? ' after its K8 bisect' : ''}: ${certificateOffenders(certificate).detail}`;
+  failRun(runner, 'verdict', `rung ${rung.id}'s certificate FAILs (${failing.join(', ')})${rung.bisect ? ' after its K8 bisect' : ''}: ${certificateOffenders(certificate).detail}`);
   return 'failed';
 }
 
@@ -113,16 +128,13 @@ export async function runStepRung(runner: Runner, rung: RungRecord): Promise<'st
       writePendingTrailers(runner);
       if (state.status !== 'running') return 'done';
       if (stopped) {
-        if ((await certifyRung(runner, rung, true)) === 'failed') {
-          rung.status = 'failed';
-          state.status = 'failed';
-        }
+        if ((await certifyRung(runner, rung, true)) === 'failed') rung.status = 'failed';
         return 'stopped';
       }
       const outcome = await certifyRung(runner, rung, false);
       if (outcome === 'bisected') continue;
-      rung.status = outcome === 'certified' ? 'certified' : outcome === 'empty' ? 'skipped' : 'failed';
-      if (outcome === 'failed') state.status = 'failed';
+      // Without evidence the rung stays running: --resume certifies it again.
+      if (outcome !== 'no-evidence') rung.status = outcome === 'certified' ? 'certified' : outcome === 'empty' ? 'skipped' : 'failed';
       return 'done';
     }
   } finally {
@@ -174,8 +186,7 @@ export async function runBoundaryRung(runner: Runner, rung: RungRecord): Promise
       rung.status = 'failed';
       rung.note = vacuous.length ? `anti-vacuity: ${vacuous.map((entry) => `${entry.rule} never fired (${entry.detail})`).join('; ')}` : 'anti-vacuity: no rule was checked';
       addFinding(runner, { kind: 'vacuous-boundary-rule', rung: 'R4', files: [], detail: rung.note });
-      state.status = 'failed';
-      state.error = `R4 fails: ${rung.note}`;
+      failRun(runner, 'verdict', `R4 fails: ${rung.note}`);
       return;
     }
     for (const [file, content] of result.files) {
@@ -217,12 +228,13 @@ export async function runBoundaryRung(runner: Runner, rung: RungRecord): Promise
       rung.end = amended;
       rung.status = 'certified';
     } else {
-      resetHard(state.repo, rung.start);
       attempt.state = 'failed';
       step.status = 'pinned';
       rung.status = 'failed';
-      state.status = 'failed';
-      state.error = `R4's certificate FAILs (${failingChecks(certificate).join(', ')}): ${certificateOffenders(certificate).detail}`;
+      failRun(runner, 'verdict', `R4's certificate FAILs (${failingChecks(certificate).join(', ')}): ${certificateOffenders(certificate).detail}`);
+      // State first, then the branch: a crash in between leaves the verdict on record.
+      runner.save();
+      resetHard(state.repo, rung.start);
     }
     attempt.durationMs = elapsed(started);
   } finally {
@@ -239,18 +251,16 @@ export async function certifyRun(runner: Runner): Promise<void> {
   const started = performance.now();
   let record: CertificateRecord;
   if (same?.certificate) {
-    for (const extension of ['.json', '.txt']) fs.copyFileSync(runner.directory.path(same.certificate.file.replace(/\.json$/, extension)), runner.directory.path(`certificate${extension}`));
+    const target = runner.directory.certificateFile('certificate');
+    for (const extension of ['.json', '.txt']) fs.copyFileSync(runner.directory.path(same.certificate.file.replace(/\.json$/, extension)), runner.directory.path(`${target}${extension}`));
     const { partial: _partial, ...certificate } = same.certificate;
-    record = { ...certificate, file: 'certificate.json' };
+    record = { ...certificate, file: `${target}.json` };
   } else {
     runner.log(`run: full certificate of ${state.base.slice(0, 10)}..${state.head.slice(0, 10)}`);
     record = storeCertificate(runner, 'certificate', await certifyRange(runner, state.base, state.head, 'run', { oracles: true }));
   }
   state.certificate = record;
   state.timeline.runCertificationMs += elapsed(started);
+  if (record.verdict === 'fail') failRun(runner, 'verdict', `the whole-PR certificate FAILs (${record.failing.join(', ')}): see ${record.file}`);
   runner.event({ event: 'run-certify', durationMs: elapsed(started), verdict: record.verdict, failing: record.failing, reused: same?.id ?? null });
-  if (record.verdict === 'fail') {
-    state.status = 'failed';
-    state.error = `the whole-PR certificate FAILs (${record.failing.join(', ')}): see ${record.file}`;
-  }
 }

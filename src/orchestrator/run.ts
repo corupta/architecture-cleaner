@@ -3,7 +3,7 @@
 // its parent and, on PASS, given the certificate trailers; each rung certified as a whole with the oracles; the whole
 // PR certified at the end. On a FAIL the step is rolled back and replanned by pinning the offending plan entries, at
 // most twice, else the whole step is pinned; every pin is a finding. State lives in the run directory (types.ts);
-// a run resumes after its last certified commit.
+// a run resumes after its last certified commit, unless it failed on a verdict, which is final.
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import { branchExists, checkout, createBranch, currentBranch, git, headCommit, i
 import { preflight } from './preflight.js';
 import { renderReport } from './report.js';
 import { openRunDirectory, readRunState } from './run-directory.js';
-import { addFinding, createRunner, defaultDependencies, elapsed, type RunDependencies, RunError, type Runner, rungOf } from './runner.js';
+import { addFinding, createRunner, defaultDependencies, elapsed, failRun, type RunDependencies, RunError, type Runner, rungOf } from './runner.js';
 import { addRenameSteps, certifyRun, runBoundaryRung, runStepRung, writeStepFile } from './rungs.js';
 import { planSteps } from './steps.js';
 import { type RungId, rungIds, type RunState } from './types.js';
@@ -74,6 +74,11 @@ async function drive(runner: Runner): Promise<void> {
   for (const id of ['R1', 'R2', 'R3', 'R4'] as const) {
     const rung = rungOf(state, id);
     if (state.status !== 'running') break;
+    // A failed rung is a verdict: no later rung runs on top of it, and the whole PR isn't certified.
+    if (rung.status === 'failed') {
+      failRun(runner, 'verdict', `rung ${id} failed${rung.note ? `: ${rung.note}` : rung.certificate ? `: see ${rung.certificate.file}` : ''}`);
+      break;
+    }
     if (rung.status !== 'pending' && rung.status !== 'running') continue;
     if (id === 'R4') {
       await runBoundaryRung(runner, rung);
@@ -113,8 +118,10 @@ async function guarded(runner: Runner, body: () => Promise<void>): Promise<RunOu
   try {
     await body();
   } catch (error) {
-    runner.state.status = 'failed';
-    runner.state.error = `crashed: ${(error as Error).stack ?? String(error)}`;
+    const crash = `crashed: ${(error as Error).stack ?? String(error)}`;
+    // A crash after a verdict doesn't make the verdict resumable.
+    if (runner.state.failure === 'verdict') runner.state.error = `${runner.state.error}; then ${crash}`;
+    else failRun(runner, 'crash', crash);
   }
   return await finish(runner);
 }
@@ -266,6 +273,9 @@ export async function resumeRun(options: ResumeOptions, overrides: Partial<RunDe
   const state = readRunState(directory.root);
   if (options.repo && topLevelOf(options.repo) !== state.repo) throw new RunError(`the run in ${directory.root} is on ${state.repo}, not ${options.repo}`);
   if (state.status === 'declined' || state.status === 'completed') throw new RunError(`nothing to resume: the run is ${state.status}`);
+  if (state.status === 'failed' && state.failure !== 'crash') {
+    throw new RunError(`nothing to resume: the run failed on a verdict, which is final (--resume continues only after a crash): ${(state.error ?? '').split('\n')[0]}`);
+  }
   const planText = fs.readFileSync(directory.path(state.plan.file), 'utf8');
   if (sha256(planText) !== state.plan.sha256) throw new RunError(`${state.plan.file} changed since the run started (sha256 differs)`);
   const runner = createRunner(state, directory, readPlanYaml(planText), dependencies, options.maxSteps, options.log);
@@ -273,6 +283,7 @@ export async function resumeRun(options: ResumeOptions, overrides: Partial<RunDe
   state.status = 'running';
   if (options.jobs) state.options.jobs = options.jobs;
   delete state.error;
+  delete state.failure;
   delete state.timeline.finishedAt;
   state.timeline.resumedAt.push(new Date().toISOString());
   runner.event({ event: 'resume', head: state.head });
