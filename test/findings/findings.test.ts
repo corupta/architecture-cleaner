@@ -7,7 +7,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { findingsCommand } from '../../src/findings/command.js';
 import { reportSectionOf, runFindings } from '../../src/findings/index.js';
-import type { BoundaryReport } from '../../src/findings/run-data.js';
+import { type BoundaryReport, readRunData } from '../../src/findings/run-data.js';
 import type { Finding } from '../../src/findings/types.js';
 import type { Gateway, StructuredRequest, StructuredResult } from '../../src/gateway/types.js';
 import { createRepo, createRunDirectory } from './fixture.js';
@@ -127,6 +127,7 @@ describe('runFindings on a fixture run', () => {
     expect(markdown).toContain('### Table asset is written by 2 groups');
     const body = read(directory, 'findings/pr-body.md');
     expect(body).toContain('This PR moves 5 files of `server/src/` into 2 feature modules, in 2 commits.');
+    expect(body).toContain('- **Files:** 5 moved; 14 import specifiers rewritten in 6 files (K2 of `certificate.json`, base..head); nothing else edited');
     expect(body).toContain('| R1 rung (`rungs/R1.json`) |');
     expect(body).toContain('| **Whole PR** (`certificate.json`) |');
     expect(body).toContain(`ac certify <checkout> ${repo.base.slice(0, 10)}..ffffffffff --profile fixture --oracles`);
@@ -137,6 +138,19 @@ describe('runFindings on a fixture run', () => {
     expect(body).toContain('Nemotron 3 Ultra (medium_effort)');
     expect(body).toContain('The plan cost $0.1234 when it was recorded');
     expect(reportSectionOf(directory)).toContain(`${findings.length} findings, recorded and never fixed.`);
+  });
+});
+
+describe('the PR body\'s edit counts', () => {
+  it('sums the steps\' counts as edits, not files, when no certificate covers the whole range', async () => {
+    const directory = runDirectory();
+    const state = JSON.parse(read(directory, 'run.json'));
+    delete state.certificate;
+    state.rungs[1].certificate.partial = true;
+    state.rungs[1].certificate.head = 'e'.repeat(40);
+    fs.writeFileSync(path.join(directory, 'run.json'), JSON.stringify(state));
+    await runFindings({ runDirectory: directory, gateway: null });
+    expect(read(directory, 'findings/pr-body.md')).toContain('- **Files:** 5 moved; 15 import-specifier rewrites and 7 file edits summed over 2 steps (a file several steps edit counts once per step); nothing else edited');
   });
 });
 
@@ -157,7 +171,7 @@ describe('runFindings with a boundary report (contract C8)', () => {
   };
 
   it('takes cycles and back-edges from the report instead of the plan graph', async () => {
-    const { document } = await runFindings({ runDirectory: runDirectory({ boundaries: report }), gateway: null });
+    const { document } = await runFindings({ runDirectory: runDirectory({ boundaries: report, r4: 'certified' }), gateway: null });
     const [cycle, ...more] = ofKind(document.findings, 'module-cycle');
     expect(more).toEqual([]);
     expect(cycle).toMatchObject({ source: 'boundaries', title: '3 folders form one import cycle' });
@@ -165,6 +179,38 @@ describe('runFindings with a boundary report (contract C8)', () => {
     expect(cycle!.evidence).toContain('- module/tag → module/album (1 files, e.g. server/src/modules/tag/tag.service.ts → server/src/modules/album/album.service.ts)');
     expect(ofKind(document.findings, 'back-edge').map((finding) => [finding.title, finding.files])).toEqual([['Back-edge module/tag → module/album', ['server/src/modules/album/album.service.ts', 'server/src/modules/tag/tag.service.ts']]]);
     expect(document.sources.map((source) => source.name)).not.toContain('plan-graph');
+    expect(ofKind(document.findings, 'back-edge')[0]!.evidence).toContain("R4's baseline freezes it as a known violation");
+    expect(ofKind(document.findings, 'old-path-in-comment')[0]!.certificates).toEqual(['rungs/R4.json']);
+  });
+
+  it('reads neither the report nor the certificate of an R4 whose commit the run reset', async () => {
+    const directory = runDirectory({ boundaries: report, r4: 'failed' });
+    expect(readRunData(directory).certificates.map((stored) => stored.file)).not.toContain('rungs/R4.json');
+    const { document } = await runFindings({ runDirectory: directory, gateway: null });
+    expect(ofKind(document.findings, 'back-edge')).toEqual([]);
+    expect(ofKind(document.findings, 'module-cycle').map((finding) => finding.source)).toEqual(['plan-graph']);
+    expect(ofKind(document.findings, 'old-path-in-comment')).toEqual([]);
+    expect(read(directory, 'findings/findings.md')).not.toContain('freezes');
+    expect(document.sources.find((source) => source.name === 'plan-graph')!.detail).toContain('R4 failed');
+    const body = read(directory, 'findings/pr-body.md');
+    expect(body).not.toContain('rungs/R4.json');
+    expect(body).not.toContain('frozen baseline');
+  });
+});
+
+describe('certificates of commits the run threw away', () => {
+  it('leaves out the certificate of a step a K8 bisect rolled back and pinned', async () => {
+    const directory = runDirectory();
+    const state = JSON.parse(read(directory, 'run.json'));
+    for (const field of ['commit', 'tree', 'parent', 'certificate', 'counts', 'pathMap']) delete state.steps[0][field];
+    state.steps[0].status = 'pinned';
+    fs.writeFileSync(path.join(directory, 'run.json'), JSON.stringify(state));
+    expect(readRunData(directory).certificates.map((stored) => [stored.file, stored.step])).toEqual([
+      ['certificates/002-R1-module-user.json', 2], ['rungs/R1.json', null], ['certificate.json', null],
+    ]);
+    const { document } = await runFindings({ runDirectory: directory, gateway: null });
+    expect(ofKind(document.findings, 'old-path-in-docs')[0]!.steps).toEqual([2]);
+    expect(ofKind(document.findings, 'default-root-dir')[0]!.steps).toEqual([2]);
   });
 });
 
@@ -185,6 +231,7 @@ describe('narration', () => {
     expect(document.findings.filter((finding) => finding.narration)).toHaveLength(document.findings.length - 1);
     expect(document.narration).toMatchObject({ model: 'nvidia/Nemotron-3_5-Lightning', label: 'Nemotron 3.5 Lightning (thinking off)', replayed: true, narrated: document.findings.length - 1 });
     expect(read(directory, 'findings/pr-body.md')).toContain('1. **4 groups form one import cycle**: This finding is recorded and stays as it was.');
+    expect(read(directory, 'findings/findings.md')).toContain('It checks words, not claims: a number or name from the evidence can still be put to the wrong use.');
   });
 
   it('stops at a failed call and keeps every finding\'s evidence', async () => {

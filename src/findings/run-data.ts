@@ -1,5 +1,6 @@
 // What the findings log reads from a run directory (contract C7): run.json, the plan the run executed, the stored
-// certificates (each step's, each rung's, the whole PR's) and R4's boundary report (contract C8) when R4 ran.
+// certificates of commits the branch still has (each step's, each rung's, the whole PR's) and R4's boundary report
+// (contract C8) when R4 committed its rules.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -49,16 +50,11 @@ export interface RunData {
   /** The planner's plan.md: plan/plan.md, else the one next to the plan's source file while that file is unchanged. */
   planMarkdown: string | null;
   certificates: StoredCertificate[];
+  /** null unless R4 is certified: a failed R4's report describes rules and a baseline the run never committed. */
   boundaries: BoundaryReport | null;
 }
 
 const readText = (file: string) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
-const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-
-function jsonFiles(directory: string): string[] {
-  if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith('.json')).map((entry) => entry.name).sort(byCodeUnit);
-}
 
 function readCertificate(root: string, file: string): Certificate | null {
   try {
@@ -69,16 +65,23 @@ function readCertificate(root: string, file: string): Certificate | null {
   }
 }
 
-/** Passing step certificates, rung certificates and the whole PR's; failed attempts and bisect probes are left out. */
-function readCertificates(root: string): StoredCertificate[] {
-  const listed = [
-    ...jsonFiles(path.join(root, 'certificates')).map((name) => ({ file: `certificates/${name}`, step: Number(/^(\d+)-/.exec(name)?.[1] ?? Number.NaN) })),
-    ...jsonFiles(path.join(root, 'rungs')).map((name) => ({ file: `rungs/${name}`, step: Number.NaN })),
-    ...(fs.existsSync(path.join(root, 'certificate.json')) ? [{ file: 'certificate.json', step: Number.NaN }] : []),
+/**
+ * The certificates run.json names (each certified step's, each rung's, the whole PR's), kept only when their head tree
+ * is a certified step's tree, i.e. the branch still has the commit they certify. Files of failed attempts, bisect
+ * probes, steps a bisect rolled back and an R4 the run reset stay on disk, and are left out.
+ */
+function readCertificates(root: string, state: RunState): StoredCertificate[] {
+  const certified = state.steps.filter((step) => step.status === 'certified');
+  const trees = new Set(certified.map((step) => step.tree));
+  const rungFiles = new Set(state.rungs.flatMap((rung) => (rung.certificate ? [rung.certificate.file] : [])));
+  const named = [
+    ...certified.flatMap((step) => (step.certificate && !rungFiles.has(step.certificate.file) ? [{ file: step.certificate.file, step: step.index }] : [])),
+    ...[...rungFiles].map((file) => ({ file, step: null })),
+    ...(state.certificate ? [{ file: state.certificate.file, step: null }] : []),
   ];
-  return listed.flatMap(({ file, step }) => {
+  return named.flatMap(({ file, step }) => {
     const certificate = readCertificate(root, file);
-    return certificate ? [{ file, step: Number.isNaN(step) ? null : step, certificate }] : [];
+    return certificate && trees.has(certificate.headTree) ? [{ file, step, certificate }] : [];
   });
 }
 
@@ -106,7 +109,7 @@ export function readRunData(runDirectory: string): RunData {
     state,
     planText: readText(path.join(root, state.plan.file)),
     planMarkdown: readText(path.join(root, 'plan', 'plan.md')) ?? planMarkdownBesideSource(state),
-    certificates: readCertificates(root),
-    boundaries: readBoundaries(root),
+    certificates: readCertificates(root, state),
+    boundaries: state.rungs.some((rung) => rung.id === 'R4' && rung.status === 'certified') ? readBoundaries(root) : null,
   };
 }

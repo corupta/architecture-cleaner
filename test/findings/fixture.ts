@@ -88,17 +88,22 @@ const digest = (index: number) => `sha256:${String(index).repeat(64).slice(0, 64
 const head = 'f'.repeat(40);
 
 /** A certificate as the certifier stores it, with only what the findings log reads filled in. */
-function certificate(base: string, findings: Record<string, { kind: string; file?: string; detail: string }[]>, extra: Record<string, unknown> = {}) {
+function certificate(base: string, findings: Record<string, { kind: string; file?: string; detail: string }[]>, extra: Record<string, unknown> = {}, metrics: Record<string, Record<string, number>> = {}) {
   const checks = ['K0', 'K1', 'K2', 'K3a', 'K4', 'K6', 'K7', ...(extra.scope === 'full' ? ['K8'] : [])].map((id) => ({
-    id, title: id, status: 'pass', summary: '', metrics: {}, violations: [], findings: findings[id] ?? [], durationMs: 1,
+    id, title: id, status: 'pass', summary: '', metrics: metrics[id] ?? {}, violations: [], findings: findings[id] ?? [], durationMs: 1,
   }));
   return { format: 'ac-certificate/2', base, head, baseTree: 'a'.repeat(40), headTree: 'b'.repeat(40), pathMap: { entries: {} }, checks, verdict: 'pass', scope: 'static', residualRisk: ['external consumers', 'runtime fs contents'], digest: digest(1), ...extra };
 }
 
 const docsFinding = (move: string) => ({ kind: 'old-path-in-docs', file: 'docs/architecture.md', detail: `line 1: 'server/src/services' is the directory server/src/services, whose contents change with the move of ${move}` });
 
-/** A run directory over `repo` at `base`: two certified R1 steps, a partial R1 rung certificate and a whole-PR one. */
-export function createRunDirectory(repo: string, base: string, options: { boundaries?: unknown } = {}): string {
+const stepTrees = ['', 'c'.repeat(40), 'b'.repeat(40)];
+
+/**
+ * A run directory over `repo` at `base`: two certified R1 steps, an R1 rung certificate and a whole-PR one. `r4`
+ * adds R4: certified (its commit on the branch), or failed (its FAIL certificate's commit reset, as rungs.ts does).
+ */
+export function createRunDirectory(repo: string, base: string, options: { boundaries?: unknown; r4?: 'certified' | 'failed' } = {}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-findings-run-'));
   const write = (file: string, value: unknown) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -106,7 +111,7 @@ export function createRunDirectory(repo: string, base: string, options: { bounda
   };
   const record = (file: string, scope: 'full' | 'static', index: number) => ({ file, verdict: 'pass', scope, digest: digest(index), base, head, failing: [] });
   const step = (index: number, group: string, moved: number) => ({
-    index, rung: 'R1', group, moves: {}, entries: [], status: 'certified', round: 1, attempts: [], commit: head, certificate: record(`certificates/00${index}-R1-${group.replace('/', '-')}.json`, 'static', index),
+    index, rung: 'R1', group, moves: {}, entries: [], status: 'certified', round: 1, attempts: [], commit: head, tree: stepTrees[index], certificate: record(`certificates/00${index}-R1-${group.replace('/', '-')}.json`, 'static', index),
     counts: { filesMoved: moved, specifierEdits: 3 * moved, filesEdited: moved + 1 }, durationMs: 1000,
   });
   write('run.json', {
@@ -117,8 +122,15 @@ export function createRunDirectory(repo: string, base: string, options: { bounda
     rungs: [
       { id: 'R0', status: 'passed', durationMs: 1 },
       { id: 'R1', status: 'certified', start: base, end: head, certificate: { ...record('rungs/R1.json', 'full', 7), partial: false }, durationMs: 1 },
+      ...(options.r4 ? [{ id: 'R4', status: options.r4, start: head, ...(options.r4 === 'certified' ? { end: head } : { note: 'R4\'s certificate FAILs (K8)' }), certificate: { ...record('rungs/R4.json', 'full', 8), verdict: options.r4 === 'certified' ? 'pass' : 'fail', partial: false }, durationMs: 1 }] : []),
     ],
-    steps: [step(1, 'module/album', 3), step(2, 'module/user', 2), { index: 3, rung: 'R1', group: 'module/tag', moves: {}, entries: [], status: 'pinned', round: 1, attempts: [], durationMs: 5 }],
+    steps: [
+      step(1, 'module/album', 3), step(2, 'module/user', 2), { index: 3, rung: 'R1', group: 'module/tag', moves: {}, entries: [], status: 'pinned', round: 1, attempts: [], durationMs: 5 },
+      ...(options.r4 ? [{
+        index: 4, rung: 'R4', group: 'boundaries', moves: {}, entries: [], status: options.r4 === 'certified' ? 'certified' : 'pinned', round: 1, attempts: [], durationMs: 1,
+        ...(options.r4 === 'certified' ? { commit: head, tree: 'd'.repeat(40), certificate: record('rungs/R4.json', 'full', 8), counts: { filesMoved: 0, specifierEdits: 0, filesEdited: 0 } } : {}),
+      }] : []),
+    ],
     pins: [{ file: 'server/src/services/tag.service.ts', step: 3, group: 'module/tag', reason: 'step-pinned' }],
     findings: [
       { kind: 'ungated-coverage-glob', step: 1, rung: 'R1', files: ['server/vitest.config.mjs'], detail: "server/vitest.config.mjs line 4 [test.coverage.include]: coverage glob 'src/services/**' matches differently for server/src/services/album.service.ts" },
@@ -131,11 +143,16 @@ export function createRunDirectory(repo: string, base: string, options: { bounda
   });
   write('plan/plan.yaml', planYaml.replace('SHA', base));
   write('plan/plan.md', planMarkdown);
-  write('certificates/001-R1-module-album.json', certificate(base, { K4: [docsFinding('server/src/services/album.service.ts')], K7: [{ kind: 'default-root-dir', file: 'server/tsconfig.json', detail: 'emits into server/dist without a rootDir' }] }));
+  write('certificates/001-R1-module-album.json', certificate(base, { K4: [docsFinding('server/src/services/album.service.ts')], K7: [{ kind: 'default-root-dir', file: 'server/tsconfig.json', detail: 'emits into server/dist without a rootDir' }] }, { headTree: stepTrees[1] }));
   write('certificates/002-R1-module-user.json', certificate(base, { K4: [docsFinding('server/src/services/user.service.ts')], K7: [{ kind: 'default-root-dir', file: 'server/tsconfig.json', detail: 'emits into server/dist without a rootDir' }] }));
   write('certificates/failed/003-R1-module-tag-attempt1.json', certificate(base, { K4: [{ kind: 'stack-text', file: 'server/src/services/tag.service.ts', detail: 'a failed attempt: never read' }] }));
   write('rungs/R1.json', certificate(base, { K4: [docsFinding('server/src/services/album.service.ts')], K8: [{ kind: 'flaky-test', file: 'server/src/services/album.service.spec.ts', detail: 'suite > lists albums: passed, then failed (log /tmp/ac-work/run-1/unit.log)' }] }, { scope: 'full', digest: digest(7) }));
-  write('certificate.json', certificate(base, { K8: [{ kind: 'flaky-test', file: 'server/src/services/album.service.spec.ts', detail: 'suite > lists albums: passed, then failed (log /tmp/ac-work/run-2/unit.log)' }] }, { scope: 'full', digest: digest(9) }));
+  // The whole range edits fewer distinct files and specifiers than the steps sum: user.service.ts is edited by both steps.
+  write('certificate.json', certificate(base, { K8: [{ kind: 'flaky-test', file: 'server/src/services/album.service.spec.ts', detail: 'suite > lists albums: passed, then failed (log /tmp/ac-work/run-2/unit.log)' }] }, { scope: 'full', digest: digest(9) }, { K2: { comparedFiles: 6, editedFiles: 6, changedSpans: 14 } }));
+  if (options.r4) {
+    const r4Finding = { kind: 'old-path-in-comment', file: 'server/.dependency-cruiser.json', detail: `line 1: 'src/services' is named by ${options.r4} R4 rules` };
+    write('rungs/R4.json', certificate(base, { K4: [r4Finding] }, { scope: 'full', digest: digest(8), headTree: options.r4 === 'certified' ? 'd'.repeat(40) : 'e'.repeat(40), ...(options.r4 === 'failed' ? { verdict: 'fail' } : {}) }));
+  }
   if (options.boundaries) write('boundaries/report.json', options.boundaries);
   write('report.md', '# placeholder\n');
   return root;

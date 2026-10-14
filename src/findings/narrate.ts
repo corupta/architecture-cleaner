@@ -1,8 +1,10 @@
 // The findings narrator (plan §3.2): Nemotron 3.5 Lightning writes 1–2 plain sentences per finding for a reviewer,
 // text only. Findings go in a few batched calls (json_schema strict, thinking off, a short max_tokens). Every
-// narration passes a guard or is dropped, and the finding keeps its deterministic evidence: no empty or overlong
-// text, and no path, identifier or number that the finding's title and evidence (as the model saw them) don't
-// contain. Narration never changes anything but the narration text.
+// narration passes a lexical guard or is dropped, and the finding keeps its deterministic evidence: no empty or
+// overlong text, and none of these unless the finding's title and evidence (as the model saw them) contain it: a path
+// or code identifier, a capitalized name, the name in "the <name> table/module/class/...", a number in digits (as a
+// whole token) or in words (one to twenty, dozen, twice, thrice). The guard checks words, not claims: a number or
+// name the evidence has can still be put to the wrong use. Narration never changes anything but the narration text.
 import { z } from 'zod';
 import { models } from '../gateway/models.js';
 import type { Gateway, ModelKey, TemplateKwargs } from '../gateway/types.js';
@@ -60,33 +62,77 @@ export function shownText(finding: Finding, settings: Pick<NarrationSettings, 'e
 
 const ordinaryWords = new Set(['e.g', 'i.e', 'etc', 'vs']);
 const acronyms = new Set(['PR', 'API', 'APIs', 'CI', 'SQL', 'HTTP', 'ID', 'IDs', 'JSON', 'URL', 'TS', 'DI', 'DAG', 'LLM', 'OK', 'TypeScript', 'JavaScript', 'NestJS']);
+const numberWords = new Map(Object.entries({
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, dozen: 12, twice: 2, thrice: 3,
+}));
+/** "the <name> table": the nouns whose name the guard checks, the words before the name, and names that name nothing. */
+const structuralNouns = /^(tables?|modules?|class(es)?|repositor(y|ies)|services?|controllers?|folders?|groups?)$/i;
+const determiners = new Set(['the', 'a', 'an', 'this', 'that', 'these', 'those', 'its', 'their', 'each', 'every', 'another']);
+const genericWords = new Set([
+  'same', 'other', 'whole', 'shared', 'single', 'separate', 'different', 'feature', 'platform', 'base', 'entire', 'own', 'new', 'old', 'large',
+  'central', 'common', 'given', 'existing', 'specific', 'original', 'current', 'first', 'last', 'next', 'target', 'source', 'related', 'plan', 'moved',
+  'parent', 'owning', 'containing', 'host',
+]);
 
-/** Backticked spans, and the path-like, identifier-like and numeric tokens of a narration: what it may only repeat. */
-export function namedTokens(text: string): string[] {
-  const tokens = [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1]!);
+/** A token a narration may only repeat from what the model was shown, and how that text must contain it. */
+export interface NamedToken {
+  text: string;
+  /** substring: as written; word: as a whole word, in any case; number: `digits` as a whole token, or a number word itself. */
+  match: 'substring' | 'word' | 'number';
+  digits?: string;
+}
+
+/** Whether `start` begins a sentence: the text's start, or after . ! ? : ; and any opening quote or bracket. */
+const sentenceStart = (text: string, start: number) => /(^|[.!?:;]["')\]]*\s+)["'(\[]*$/.test(text.slice(0, start));
+
+/**
+ * What a narration names, which it may only repeat: backticked spans, path-like and identifier-like tokens, numbers in
+ * digits or words, capitalized words inside a sentence, and the name in "the <name> table/module/class/...".
+ */
+export function namedTokens(text: string): NamedToken[] {
+  const tokens: NamedToken[] = [...text.matchAll(/`([^`]+)`/g)].map((match) => ({ text: match[1]!, match: 'substring' as const }));
   const plain = text.replace(/`[^`]+`/g, ' ').replace(/(\d),(\d{3})\b/g, '$1$2');
-  for (const match of plain.matchAll(/[\w$@./<>-]+/g)) {
+  const words = [...plain.matchAll(/[\w$@./<>-]+/g)].map((match) => {
+    const leading = /^[./<>-]*/.exec(match[0])![0].length;
     const token = match[0].replace(/^[./<>-]+|[./<>-]+$/g, '');
-    if (!token || ordinaryWords.has(token.toLowerCase()) || acronyms.has(token)) continue;
+    return { token, start: match.index + leading, end: match.index + leading + token.length };
+  });
+  words.forEach(({ token, start }, index) => {
+    if (!token || ordinaryWords.has(token.toLowerCase()) || acronyms.has(token)) return;
     const pathLike = token.includes('/') || /[\w$]\.[A-Za-z_$<]/.test(token);
-    const numeric = /^\d+(\.\d+)?$/.test(token);
     const identifierLike = /[a-z][A-Z]/.test(token) || /^[A-Z][a-z0-9]*[A-Z]/.test(token) || /[_$<>]/.test(token) || /[A-Za-z]\d|\d[A-Za-z]/.test(token);
-    if (pathLike || numeric || identifierLike) tokens.push(token);
-  }
+    const number = /^\d+(\.\d+)?$/.test(token) ? token : numberWords.get(token.toLowerCase())?.toString();
+    if (pathLike || identifierLike) tokens.push({ text: token, match: 'substring' });
+    else if (number !== undefined) tokens.push({ text: token, match: 'number', digits: number });
+    else if (/^[A-Z][a-z]+$/.test(token) && !sentenceStart(plain, start)) tokens.push({ text: token, match: 'word' });
+    else if (structuralNouns.test(token) && index >= 2) {
+      const [determiner, name] = [words[index - 2]!, words[index - 1]!];
+      const adjacent = /^\s+$/.test(plain.slice(determiner.end, name.start)) && /^\s+$/.test(plain.slice(name.end, start));
+      const named = /^[a-z]+$/.test(name.token) && !genericWords.has(name.token) && !numberWords.has(name.token) && !determiners.has(name.token);
+      if (adjacent && named && determiners.has(determiner.token.toLowerCase())) tokens.push({ text: name.token, match: 'word' });
+    }
+  });
   return tokens;
 }
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const wordPattern = (word: string) => new RegExp(`(^|[^A-Za-z0-9_])${escapeRegExp(word)}(?![A-Za-z0-9_])`, 'i');
+/** A number as a whole token: not inside an identifier, a path segment like e2e, or a longer number. */
+const numberPattern = (digits: string) => new RegExp(`(^|[^\\w.])${escapeRegExp(digits)}(?!\\w|\\.\\d)`);
+
+function contains(shown: string, token: NamedToken): boolean {
+  if (token.match === 'substring') return shown.includes(token.text);
+  if (token.match === 'word') return wordPattern(token.text).test(shown);
+  return numberPattern(token.digits!).test(shown.replace(/(\d),(\d{3})\b/g, '$1$2')) || (token.text !== token.digits && wordPattern(token.text).test(shown));
+}
 
 /** Why a narration is dropped, or null when it may stand. */
 export function narrationProblem(text: string, shown: string, maxCharacters: number): string | null {
   if (!text) return 'empty';
   if (text.length > maxCharacters) return `longer than ${maxCharacters} characters`;
-  for (const token of namedTokens(text)) {
-    const present = /^\d+(\.\d+)?$/.test(token) ? new RegExp(`(^|[^\\d.])${escapeRegExp(token)}(?![\\d]|\\.\\d)`).test(shown) : shown.includes(token);
-    if (!present) return `names "${token}", which the evidence doesn't contain`;
-  }
-  return null;
+  const missing = namedTokens(text).find((token) => !contains(shown, token));
+  return missing ? `names "${missing.text}", which the evidence doesn't contain` : null;
 }
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));

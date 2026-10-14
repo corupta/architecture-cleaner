@@ -7,6 +7,7 @@
 import path from 'node:path';
 import type { Analysis, SiteKind } from '../analyzer/types.js';
 import { testPattern } from '../planner/facts-roles.js';
+import { registryGroup } from '../planner/validate.js';
 
 export interface Layout {
   /** Repo-relative package root ('' for the repo root). */
@@ -59,8 +60,8 @@ export interface FolderGraph {
 /** Sites that load the file they name (mocks, ambient declarations, URLs and `require.resolve` don't). */
 const dependencyKinds = new Set<SiteKind>(['import', 'export', 'import-equals', 'dynamic-import', 'typeof-import', 'require', 'triple-slash']);
 const sampleSize = 3;
-/** The planner's group for registries (DI and route tables): the composition root. */
-export const compositionRootKey = 'platform/registry';
+/** The planner's group for registries (DI and route tables): the composition root, whose registries its validator keeps together. */
+export const compositionRootKey = registryGroup;
 
 export const isTestCode = (file: string) => testPattern.test(file);
 

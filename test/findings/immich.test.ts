@@ -29,7 +29,7 @@ describe.skipIf(!hasBase())('findings on immich server/ @ 02063972e8', () => {
       fs.writeFileSync(path.join(directory, 'run.json'), JSON.stringify({
         format: 'ac-run/1', status: 'running', tool: { name: 'architecture-cleaner', version: '0.1.0' }, repo: immich, environment: immich,
         profile: { name: 'immich', packageRoot: 'server', node: 'system', plan: { moduleRoot: 'src' } }, packageRoot: 'server', moduleRoot: 'src',
-        base, baseTree: '', branch: 'none', head: base, plan: { file: 'plan/plan.yaml', source: 'planner', sha256: '', steps: 58, moves: 0 },
+        base, baseTree: '', branch: 'none', head: base, plan: { file: 'plan/plan.yaml', source: 'planner', sha256: '', steps: 59, moves: 0 },
         rungsRequested: [], options: { jobs: 1, injectFault: null }, rungs: [], steps: [], pins: [], findings: [], quarantine: [], fault: null,
         cost: { budgetRun: null, mode: null, llmUsd: 0, planRecordedUsd: null },
         timeline: { startedAt: '', durationMs: 0, preflightMs: 0, baselineMs: 0, stepsMs: 0, rungCertificationMs: 0, bisectMs: 0, runCertificationMs: 0, resumedAt: [] },

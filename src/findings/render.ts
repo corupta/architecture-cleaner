@@ -70,7 +70,7 @@ function narrationLine(document: FindingsDocument): string {
   if (!record) return 'Narration: off; every finding shows its deterministic evidence only.';
   const spend = record.replayed ? `${money(record.costUsd)} when recorded, replayed now` : money(record.costUsd);
   const dropped = record.dropped.length ? `, ${record.dropped.length} dropped by the guard (they keep their evidence only)` : '';
-  return `Narration: ${record.label} wrote 1–2 sentences for ${record.narrated} findings in ${record.calls} call${record.calls === 1 ? '' : 's'} (${spend})${dropped}${record.error ? `; stopped early: ${cell(record.error)}` : ''}. Text only: the guard drops any narration naming a path, identifier or number its evidence doesn't contain.`;
+  return `Narration: ${record.label} wrote 1–2 sentences for ${record.narrated} findings in ${record.calls} call${record.calls === 1 ? '' : 's'} (${spend})${dropped}${record.error ? `; stopped early: ${cell(record.error)}` : ''}. Text only, under a lexical guard: it drops any narration naming a path, code identifier, capitalized name, the name in "the <name> table/module/class/…", or number (digits, or words up to twenty) that its evidence doesn't contain. It checks words, not claims: a number or name from the evidence can still be put to the wrong use.`;
 }
 
 export function findingsMarkdown(document: FindingsDocument): string {
@@ -132,17 +132,18 @@ export function reportSection(document: FindingsDocument): string {
   ].join('\n').trimEnd();
 }
 
-function checksText(certificate: Certificate | undefined): string {
-  if (!certificate) return '–';
+function checksText(certificate: Certificate): string {
   const byStatus = new Map<string, string[]>();
   for (const check of certificate.checks) byStatus.set(check.status, [...(byStatus.get(check.status) ?? []), check.id]);
   return [...byStatus].map(([status, ids]) => `${status}: ${ids.join(' ')}`).join('; ');
 }
 
-function certificateRow(label: string, record: CertificateRecord & { partial?: boolean }, data: RunData): string {
+/** A row for a certificate the findings log read (see `readCertificates`), or none for one of a commit the run threw away. */
+function certificateRows(label: string, record: CertificateRecord & { partial?: boolean }, data: RunData): string[] {
   const certificate = data.certificates.find((stored) => stored.file === record.file)?.certificate;
+  if (!certificate) return [];
   const verdict = `${record.verdict.toUpperCase()} (${record.scope}${record.partial ? ', partial' : ''})`;
-  return `| ${label} | ${code(`${short(record.base)}..${short(record.head)}`)} | ${verdict} | ${cell(checksText(certificate))} | ${code(`${record.digest.slice(0, 23)}…`)} |`;
+  return [`| ${label} | ${code(`${short(record.base)}..${short(record.head)}`)} | ${verdict} | ${cell(checksText(certificate))} | ${code(`${record.digest.slice(0, 23)}…`)} |`];
 }
 
 /** The planner line: plan.md's "Planner: …" sentence, the recorded cost, and this run's own LLM spend. */
@@ -154,15 +155,33 @@ function planLine(state: RunState, planMarkdown: string | null): string {
   return `Plan (${source}, sha256 ${code(state.plan.sha256.slice(0, 12))}): ${planner ?? 'a plan.yaml whose plan.md is not at hand'}. The plan cost ${recorded} when it was recorded; ${spend}. Nemotron only plans: every step is deterministic and certified.`;
 }
 
+/**
+ * The Files line's edits. K2 of a certificate of exactly base..head counts distinct specifier spans and files over the
+ * whole range; without one, the steps' own counts are summed, and a file that several steps edit counts once per step.
+ */
+function editsText(data: RunData, certified: RunState['steps']): string {
+  const { state } = data;
+  const records = [...(state.certificate ? [state.certificate] : []), ...state.rungs.flatMap((rung) => (rung.certificate ? [rung.certificate] : []))];
+  for (const record of records.filter((candidate) => candidate.base === state.base && candidate.head === state.head)) {
+    const k2 = data.certificates.find((stored) => stored.file === record.file)?.certificate.checks.find((check) => check.id === 'K2');
+    const { changedSpans, editedFiles } = k2?.metrics ?? {};
+    if (k2?.status === 'pass' && typeof changedSpans === 'number' && typeof editedFiles === 'number') {
+      return `${changedSpans} import specifiers rewritten in ${editedFiles} files (K2 of ${code(record.file)}, base..head)`;
+    }
+  }
+  const sum = (key: 'specifierEdits' | 'filesEdited') => certified.reduce((total, step) => total + (step.counts?.[key] ?? 0), 0);
+  return `${sum('specifierEdits')} import-specifier rewrites and ${sum('filesEdited')} file edits summed over ${certified.length} steps (a file several steps edit counts once per step)`;
+}
+
 export function prBodyMarkdown(document: FindingsDocument, data: RunData): string {
   const { state } = data;
   const scope = state.packageRoot ? `${state.packageRoot}/` : '.';
   const moduleRoot = [state.packageRoot, state.moduleRoot].filter(Boolean).join('/');
   const certified = state.steps.filter((step) => step.status === 'certified');
   const ofRung = (rung: string) => certified.filter((step) => step.rung === rung);
-  const total = (steps: typeof certified, key: 'filesMoved' | 'specifierEdits' | 'filesEdited') => steps.reduce((sum, step) => sum + (step.counts?.[key] ?? 0), 0);
-  const moved = total([...ofRung('R1'), ...ofRung('R2')], 'filesMoved');
-  const renamed = total(ofRung('R3'), 'filesMoved');
+  const filesMoved = (steps: typeof certified) => steps.reduce((sum, step) => sum + (step.counts?.filesMoved ?? 0), 0);
+  const moved = filesMoved([...ofRung('R1'), ...ofRung('R2')]);
+  const renamed = filesMoved(ofRung('R3'));
   const platform = ofRung('R2').filter((step) => step.group.startsWith('platform/')).length;
   const shared = ofRung('R2').some((step) => step.group.startsWith('shared/'));
   const boundaries = ofRung('R4').length > 0;
@@ -181,15 +200,15 @@ export function prBodyMarkdown(document: FindingsDocument, data: RunData): strin
     '',
     `- **Status:** ${state.status}${state.error ? ` (${cell(state.error.split('\n')[0]!)})` : ''}; ${code(short(state.base))} → ${code(short(state.head))} on ${code(state.branch)}, wall time ${formatDuration(state.timeline.durationMs)}`,
     `- **Steps:** ${state.steps.length} (${['R1', 'R2', 'R3', 'R4'].map((rung) => `${rung} ${state.steps.filter((step) => step.rung === rung).length}`).join(', ')}): ${certified.length} certified, ${pinnedSteps} pinned, ${skippedSteps} skipped`,
-    `- **Files:** ${moved} moved${renamed ? `, ${renamed} renamed` : ''}; ${total(certified, 'specifierEdits')} import specifiers rewritten in ${total(certified, 'filesEdited')} files; nothing else edited`,
+    `- **Files:** ${moved} moved${renamed ? `, ${renamed} renamed` : ''}; ${editsText(data, certified)}; nothing else edited`,
     `- **Pins:** ${state.pins.length} files the run left in place after a failure${plannerPins === null ? '' : `; ${plannerPins.length} files the plan never moves${reasonText ? ` (${reasonText})` : ''}`}`,
     '',
     '### Certificates',
     '',
   ];
   const rows = [
-    ...state.rungs.flatMap((rung) => (rung.certificate ? [certificateRow(`${rung.id} rung (${code(rung.certificate.file)})`, rung.certificate, data)] : [])),
-    ...(state.certificate ? [certificateRow(`**Whole PR** (${code(state.certificate.file)})`, state.certificate, data)] : []),
+    ...state.rungs.flatMap((rung) => (rung.certificate ? certificateRows(`${rung.id} rung (${code(rung.certificate.file)})`, rung.certificate, data) : [])),
+    ...(state.certificate ? certificateRows(`**Whole PR** (${code(state.certificate.file)})`, state.certificate, data) : []),
   ];
   if (rows.length) lines.push('| Certificate | Range | Verdict | Checks | Digest |', '|---|---|---|---|---|', ...rows);
   else lines.push('No rung or whole-PR certificate yet.');

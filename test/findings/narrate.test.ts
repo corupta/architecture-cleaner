@@ -1,4 +1,4 @@
-// The findings narrator: the guard that drops any narration naming what its evidence doesn't contain, and the
+// The findings narrator: the lexical guard that drops a narration naming what its evidence doesn't contain, and the
 // requests it sends through the real gateway (record with a fake transport, then a byte-identical replay offline).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,10 +13,13 @@ import type { Transport } from '../../src/gateway/transport.js';
 const evidence = 'BaseService (server/src/services/base.service.ts) takes 56 constructor-injected members, and 51 classes extend it.\nMost read: logger (33 classes), jobRepository (23 classes).';
 
 describe('the narration guard', () => {
-  it('collects paths, identifiers and numbers, and lets plain words through', () => {
-    expect(namedTokens('BaseService hands 56 members to every subclass, e.g. `this.jobRepository`; see server/src/services/base.service.ts.'))
+  const texts = (text: string) => namedTokens(text).map((token) => token.text);
+
+  it('collects paths, identifiers, numbers and names, and lets plain words through', () => {
+    expect(texts('BaseService hands 56 members to every subclass, e.g. `this.jobRepository`; see server/src/services/base.service.ts.'))
       .toEqual(['this.jobRepository', 'BaseService', '56', 'server/src/services/base.service.ts']);
-    expect(namedTokens('A multi-writer table is a well-known smell in the K4 check of a PR.')).toEqual(['K4']);
+    expect(texts('A multi-writer table is a well-known smell in the K4 check of a PR.')).toEqual(['K4']);
+    expect(texts('Three of them read the asset table and the same table through the Logger.  Twice is enough.')).toEqual(['Three', 'asset', 'Logger', 'Twice']);
   });
 
   it('keeps a narration that only restates the evidence', () => {
@@ -31,6 +34,24 @@ describe('the narration guard', () => {
     expect(narrationProblem('Each class reads 5 of the 56.', evidence, 360)).toBe('names "5", which the evidence doesn\'t contain');
     expect(narrationProblem('', evidence, 360)).toBe('empty');
     expect(narrationProblem('word '.repeat(80).trim(), evidence, 360)).toBe('longer than 360 characters');
+  });
+
+  const backEdge = 'back-edge\nmodule auth imports module user (4 pairs)\nsrc/modules/auth/auth.service.ts -> src/modules/user/user.repository.ts\n4 pairs';
+  const rootDir = 'k7\nK7: e2e/tsconfig.json emits without a rootDir\ne2e/tsconfig.json has no rootDir; K4 notes it.';
+
+  it('drops numbers in words, and digits the evidence only has inside an identifier or path', () => {
+    expect(narrationProblem('Seven auth files import the user module.', backEdge, 360)).toBe('names "Seven", which the evidence doesn\'t contain');
+    expect(narrationProblem('The auth module imports the user module twice.', backEdge, 360)).toBe('names "twice", which the evidence doesn\'t contain');
+    expect(narrationProblem('7 tsconfig files emit without a rootDir, 2 of them in e2e.', rootDir, 360)).toBe('names "7", which the evidence doesn\'t contain');
+    expect(narrationProblem('Four pairs of files tie the auth module to the user module.', backEdge, 360)).toBeNull();
+  });
+
+  it('drops a capitalized name, or the name of a table, module or class, that the evidence lacks', () => {
+    expect(narrationProblem('Both depend on the Logger through module user.', backEdge, 360)).toBe('names "Logger", which the evidence doesn\'t contain');
+    expect(narrationProblem('Module auth reaches the albums table through 4 pairs.', backEdge, 360)).toBe('names "albums", which the evidence doesn\'t contain');
+    expect(narrationProblem('Module auth imports the album module in 4 pairs.', backEdge, 360)).toBe('names "album", which the evidence doesn\'t contain');
+    expect(narrationProblem('Module auth imports the user module in 4 pairs, against the module order.', backEdge, 360)).toBeNull();
+    expect(narrationProblem('Module auth shares no word with its parent group.', backEdge, 360)).toBeNull();
   });
 });
 

@@ -95,7 +95,9 @@ export function collectFindings(data: RunData, options: Pick<RunFindingsOptions,
     add('boundaries', found, `boundaries/report.json: ${graph.sccs.length} strongly connected sets, ${data.boundaries.backEdges.length} back-edges`);
   } else if (target) {
     const graph = planGraph(target);
-    add('plan-graph', cycleFindings(graph), `no boundaries/report.json (R4 didn't run): cycles from the plan's groups over the facts, ${graph.sccs.length} strongly connected sets; no back-edges without R4's order`);
+    const r4 = data.state.rungs.find((rung) => rung.id === 'R4');
+    const why = r4 && r4.status !== 'not-requested' ? `R4 ${r4.status}${r4.status === 'failed' ? ', its rules never committed' : ''}` : "R4 didn't run";
+    add('plan-graph', cycleFindings(graph), `no committed boundary rules (${why}): cycles from the plan's groups over the facts, ${graph.sccs.length} strongly connected sets; no back-edges without R4's order`);
   }
   if (target) {
     const tables = multiWriterTableFindings(target);
