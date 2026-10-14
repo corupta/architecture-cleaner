@@ -1,0 +1,19 @@
+{
+ "step": 24,
+ "rung": "R1",
+ "group": "module/search",
+ "moves": {
+  "server/src/controllers/search.controller.ts": "server/src/modules/search/search.controller.ts",
+  "server/src/controllers/search.controller.spec.ts": "server/src/modules/search/search.controller.spec.ts",
+  "server/src/dtos/search.dto.ts": "server/src/modules/search/search.dto.ts",
+  "server/src/repositories/search.repository.ts": "server/src/modules/search/search.repository.ts",
+  "server/src/services/search.service.ts": "server/src/modules/search/search.service.ts",
+  "server/src/services/search.service.spec.ts": "server/src/modules/search/search.service.spec.ts",
+  "server/src/services/smart-info.service.ts": "server/src/modules/search/smart-info.service.ts",
+  "server/src/services/smart-info.service.spec.ts": "server/src/modules/search/smart-info.service.spec.ts",
+  "server/src/utils/search-cursor.ts": "server/src/modules/search/search-cursor.ts",
+  "server/src/utils/search-cursor.spec.ts": "server/src/modules/search/search-cursor.spec.ts",
+  "server/src/utils/search-filter.ts": "server/src/modules/search/search-filter.ts",
+  "server/src/utils/search-filter.spec.ts": "server/src/modules/search/search-filter.spec.ts"
+ }
+}

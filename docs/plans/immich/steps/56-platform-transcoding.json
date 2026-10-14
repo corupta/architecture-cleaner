@@ -1,0 +1,9 @@
+{
+ "step": 56,
+ "rung": "R2",
+ "group": "platform/transcoding",
+ "moves": {
+  "server/src/services/transcoding.service.ts": "server/src/platform/transcoding/transcoding.service.ts",
+  "server/src/services/transcoding.service.spec.ts": "server/src/platform/transcoding/transcoding.service.spec.ts"
+ }
+}

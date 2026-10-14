@@ -1,0 +1,12 @@
+{
+ "step": 25,
+ "rung": "R1",
+ "group": "module/server",
+ "moves": {
+  "server/src/controllers/server.controller.ts": "server/src/modules/server/server.controller.ts",
+  "server/src/dtos/server.dto.ts": "server/src/modules/server/server.dto.ts",
+  "server/src/repositories/server-info.repository.ts": "server/src/modules/server/server-info.repository.ts",
+  "server/src/services/server.service.ts": "server/src/modules/server/server.service.ts",
+  "server/src/services/server.service.spec.ts": "server/src/modules/server/server.service.spec.ts"
+ }
+}

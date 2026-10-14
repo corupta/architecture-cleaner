@@ -1,0 +1,11 @@
+{
+ "step": 6,
+ "rung": "R1",
+ "group": "module/cluster-group",
+ "moves": {
+  "server/src/controllers/cluster-group.controller.ts": "server/src/modules/cluster-group/cluster-group.controller.ts",
+  "server/src/dtos/cluster-group.dto.ts": "server/src/modules/cluster-group/cluster-group.dto.ts",
+  "server/src/repositories/cluster-group.repository.ts": "server/src/modules/cluster-group/cluster-group.repository.ts",
+  "server/src/services/cluster-group.service.ts": "server/src/modules/cluster-group/cluster-group.service.ts"
+ }
+}

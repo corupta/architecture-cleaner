@@ -1,0 +1,15 @@
+{
+ "step": 10,
+ "rung": "R1",
+ "group": "module/duplicate",
+ "moves": {
+  "server/src/controllers/duplicate.controller.ts": "server/src/modules/duplicate/duplicate.controller.ts",
+  "server/src/controllers/duplicate.controller.spec.ts": "server/src/modules/duplicate/duplicate.controller.spec.ts",
+  "server/src/dtos/duplicate.dto.ts": "server/src/modules/duplicate/duplicate.dto.ts",
+  "server/src/repositories/duplicate.repository.ts": "server/src/modules/duplicate/duplicate.repository.ts",
+  "server/src/services/duplicate.service.ts": "server/src/modules/duplicate/duplicate.service.ts",
+  "server/src/services/duplicate.service.spec.ts": "server/src/modules/duplicate/duplicate.service.spec.ts",
+  "server/src/utils/duplicate.ts": "server/src/modules/duplicate/duplicate.ts",
+  "server/src/utils/duplicate.spec.ts": "server/src/modules/duplicate/duplicate.spec.ts"
+ }
+}

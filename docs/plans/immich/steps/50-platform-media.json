@@ -1,0 +1,15 @@
+{
+ "step": 50,
+ "rung": "R2",
+ "group": "platform/media",
+ "moves": {
+  "server/src/commands/media-location.command.ts": "server/src/platform/media/media-location.command.ts",
+  "server/src/repositories/media.repository.ts": "server/src/platform/media/media.repository.ts",
+  "server/src/repositories/media.repository.spec.ts": "server/src/platform/media/media.repository.spec.ts",
+  "server/src/services/media.service.ts": "server/src/platform/media/media.service.ts",
+  "server/src/services/media.service.spec.ts": "server/src/platform/media/media.service.spec.ts",
+  "server/src/utils/editor.ts": "server/src/platform/media/editor.ts",
+  "server/src/utils/editor.spec.ts": "server/src/platform/media/editor.spec.ts",
+  "server/src/utils/media.ts": "server/src/platform/media/media.ts"
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "step": 21,
+ "rung": "R1",
+ "group": "module/person",
+ "moves": {
+  "server/src/controllers/face.controller.ts": "server/src/modules/person/face.controller.ts",
+  "server/src/controllers/person.controller.ts": "server/src/modules/person/person.controller.ts",
+  "server/src/controllers/person.controller.spec.ts": "server/src/modules/person/person.controller.spec.ts",
+  "server/src/dtos/person.dto.ts": "server/src/modules/person/person.dto.ts",
+  "server/src/repositories/person-user.repository.ts": "server/src/modules/person/person-user.repository.ts",
+  "server/src/repositories/person.repository.ts": "server/src/modules/person/person.repository.ts",
+  "server/src/services/person.service.ts": "server/src/modules/person/person.service.ts",
+  "server/src/services/person.service.spec.ts": "server/src/modules/person/person.service.spec.ts"
+ }
+}

@@ -1,0 +1,13 @@
+{
+ "step": 33,
+ "rung": "R1",
+ "group": "module/trash",
+ "moves": {
+  "server/src/controllers/trash.controller.ts": "server/src/modules/trash/trash.controller.ts",
+  "server/src/controllers/trash.controller.spec.ts": "server/src/modules/trash/trash.controller.spec.ts",
+  "server/src/dtos/trash.dto.ts": "server/src/modules/trash/trash.dto.ts",
+  "server/src/repositories/trash.repository.ts": "server/src/modules/trash/trash.repository.ts",
+  "server/src/services/trash.service.ts": "server/src/modules/trash/trash.service.ts",
+  "server/src/services/trash.service.spec.ts": "server/src/modules/trash/trash.service.spec.ts"
+ }
+}

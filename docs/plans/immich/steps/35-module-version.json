@@ -1,0 +1,11 @@
+{
+ "step": 35,
+ "rung": "R1",
+ "group": "module/version",
+ "moves": {
+  "server/src/commands/version.command.ts": "server/src/modules/version/version.command.ts",
+  "server/src/repositories/version-history.repository.ts": "server/src/modules/version/version-history.repository.ts",
+  "server/src/services/version.service.ts": "server/src/modules/version/version.service.ts",
+  "server/src/services/version.service.spec.ts": "server/src/modules/version/version.service.spec.ts"
+ }
+}

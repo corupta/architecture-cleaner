@@ -1,0 +1,13 @@
+{
+ "step": 9,
+ "rung": "R1",
+ "group": "module/download",
+ "moves": {
+  "server/src/controllers/download.controller.ts": "server/src/modules/download/download.controller.ts",
+  "server/src/controllers/download.controller.spec.ts": "server/src/modules/download/download.controller.spec.ts",
+  "server/src/dtos/download.dto.ts": "server/src/modules/download/download.dto.ts",
+  "server/src/repositories/download.repository.ts": "server/src/modules/download/download.repository.ts",
+  "server/src/services/download.service.ts": "server/src/modules/download/download.service.ts",
+  "server/src/services/download.service.spec.ts": "server/src/modules/download/download.service.spec.ts"
+ }
+}

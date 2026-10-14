@@ -1,0 +1,11 @@
+{
+ "step": 37,
+ "rung": "R1",
+ "group": "module/view",
+ "moves": {
+  "server/src/controllers/view.controller.ts": "server/src/modules/view/view.controller.ts",
+  "server/src/repositories/view-repository.ts": "server/src/modules/view/view-repository.ts",
+  "server/src/services/view.service.ts": "server/src/modules/view/view.service.ts",
+  "server/src/services/view.service.spec.ts": "server/src/modules/view/view.service.spec.ts"
+ }
+}

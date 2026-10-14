@@ -1,0 +1,19 @@
+{
+ "step": 18,
+ "rung": "R1",
+ "group": "module/notification",
+ "moves": {
+  "server/src/controllers/notification-admin.controller.ts": "server/src/modules/notification/notification-admin.controller.ts",
+  "server/src/controllers/notification-admin.controller.spec.ts": "server/src/modules/notification/notification-admin.controller.spec.ts",
+  "server/src/controllers/notification.controller.ts": "server/src/modules/notification/notification.controller.ts",
+  "server/src/controllers/notification.controller.spec.ts": "server/src/modules/notification/notification.controller.spec.ts",
+  "server/src/dtos/notification.dto.ts": "server/src/modules/notification/notification.dto.ts",
+  "server/src/repositories/email.repository.ts": "server/src/modules/notification/email.repository.ts",
+  "server/src/repositories/email.repository.spec.ts": "server/src/modules/notification/email.repository.spec.ts",
+  "server/src/repositories/notification.repository.ts": "server/src/modules/notification/notification.repository.ts",
+  "server/src/services/notification-admin.service.ts": "server/src/modules/notification/notification-admin.service.ts",
+  "server/src/services/notification-admin.service.spec.ts": "server/src/modules/notification/notification-admin.service.spec.ts",
+  "server/src/services/notification.service.ts": "server/src/modules/notification/notification.service.ts",
+  "server/src/services/notification.service.spec.ts": "server/src/modules/notification/notification.service.spec.ts"
+ }
+}

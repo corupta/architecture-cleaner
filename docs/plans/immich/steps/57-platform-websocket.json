@@ -1,0 +1,9 @@
+{
+ "step": 57,
+ "rung": "R2",
+ "group": "platform/websocket",
+ "moves": {
+  "server/src/middleware/websocket.adapter.ts": "server/src/platform/websocket/websocket.adapter.ts",
+  "server/src/repositories/websocket.repository.ts": "server/src/platform/websocket/websocket.repository.ts"
+ }
+}

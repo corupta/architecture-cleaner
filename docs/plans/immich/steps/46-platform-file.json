@@ -1,0 +1,9 @@
+{
+ "step": 46,
+ "rung": "R2",
+ "group": "platform/file",
+ "moves": {
+  "server/src/middleware/file-upload.interceptor.ts": "server/src/platform/file/file-upload.interceptor.ts",
+  "server/src/utils/file.ts": "server/src/platform/file/file.ts"
+ }
+}

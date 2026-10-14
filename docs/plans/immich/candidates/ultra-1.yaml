@@ -1,0 +1,526 @@
+# ac plan for immich server/ @ 02063972e8: candidate ultra#1
+# Edit freely: move a file line to another group, rename a group key (<module|platform|shared>/<name>), then run `ac steps <this file>`.
+# Each file moves with the tests listed on its line. confidence comes from the seeds draft; contested files are judgment calls.
+version: 1
+packageRoot: server
+moduleRoot: src
+sha: "02063972e82b1bfd17b6fc2e3b3ff39936229ea5"
+groups:
+  module/activity:
+    - { path: src/controllers/activity.controller.ts, tests: [src/controllers/activity.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/activity.dto.ts, confidence: seed }
+    - { path: src/repositories/activity.repository.ts, confidence: seed }
+    - { path: src/services/activity.service.ts, tests: [src/services/activity.service.spec.ts], confidence: seed }
+  module/album:
+    - { path: src/controllers/album.controller.ts, tests: [src/controllers/album.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/album.dto.ts, confidence: seed }
+    - { path: src/repositories/album-user.repository.ts, confidence: seed }
+    - { path: src/repositories/album.repository.ts, confidence: seed }
+    - { path: src/services/album.service.ts, tests: [src/services/album.service.spec.ts], confidence: seed }
+  module/api-key:
+    - { path: src/controllers/api-key.controller.ts, tests: [src/controllers/api-key.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/api-key.dto.ts, confidence: seed }
+    - { path: src/repositories/api-key.repository.ts, confidence: seed }
+    - { path: src/services/api-key.service.ts, tests: [src/services/api-key.service.spec.ts], confidence: seed }
+  module/asset:
+    - { path: src/controllers/asset-file.controller.ts, confidence: seed }
+    - { path: src/controllers/asset-media.controller.ts, tests: [src/controllers/asset-media.controller.spec.ts], confidence: seed }
+    - { path: src/controllers/asset.controller.ts, tests: [src/controllers/asset.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/asset-file.dto.ts, confidence: seed }
+    - { path: src/dtos/asset-ids.response.dto.ts, confidence: seed }
+    - { path: src/dtos/asset-media-response.dto.ts, confidence: seed }
+    - { path: src/dtos/asset-media.dto.ts, confidence: seed }
+    - { path: src/dtos/asset-response.dto.ts, confidence: seed }
+    - { path: src/dtos/asset.dto.ts, confidence: seed }
+    - { path: src/dtos/exif.dto.ts, confidence: propagated-weak, contested: true }
+    - { path: src/dtos/ocr.dto.ts, confidence: seed }
+    - { path: src/middleware/asset-upload.interceptor.ts, confidence: seed }
+    - { path: src/repositories/asset-edit.repository.ts, confidence: seed }
+    - { path: src/repositories/asset-file.repository.ts, confidence: seed }
+    - { path: src/repositories/asset-job.repository.ts, confidence: seed }
+    - { path: src/repositories/asset.repository.ts, confidence: seed }
+    - { path: src/repositories/move.repository.ts, confidence: seed }
+    - { path: src/repositories/ocr.repository.ts, confidence: seed }
+    - { path: src/services/asset-file.service.ts, confidence: seed }
+    - { path: src/services/asset-media.service.ts, tests: [src/services/asset-media.service.spec.ts], confidence: seed }
+    - { path: src/services/asset.service.ts, tests: [src/services/asset.service.spec.ts], confidence: seed }
+    - { path: src/services/ocr.service.ts, tests: [src/services/ocr.service.spec.ts], confidence: seed }
+    - { path: src/utils/asset.util.ts, confidence: seed }
+  module/auth:
+    - { path: src/commands/grant-admin.ts, confidence: isolated, contested: true }
+    - { path: src/commands/oauth-login.ts, confidence: seed }
+    - { path: src/commands/password-login.ts, confidence: isolated, contested: true }
+    - { path: src/controllers/app.controller.ts, tests: [src/controllers/app.controller.spec.ts], confidence: propagated-weak, contested: true }
+    - { path: src/controllers/auth-admin.controller.ts, confidence: seed }
+    - { path: src/controllers/auth.controller.ts, tests: [src/controllers/auth.controller.spec.ts], confidence: seed }
+    - { path: src/controllers/oauth.controller.ts, tests: [src/controllers/oauth.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/auth.dto.ts, confidence: seed }
+    - { path: src/middleware/auth.guard.ts, tests: [src/middleware/auth.guard.spec.ts], confidence: seed }
+    - { path: src/repositories/oauth.repository.ts, confidence: seed }
+    - { path: src/services/auth-admin.service.ts, confidence: seed }
+    - { path: src/services/auth.service.ts, tests: [src/services/auth.service.spec.ts], confidence: seed }
+  module/cluster-group:
+    - { path: src/controllers/cluster-group.controller.ts, confidence: seed }
+    - { path: src/dtos/cluster-group.dto.ts, confidence: seed }
+    - { path: src/repositories/cluster-group.repository.ts, confidence: seed }
+    - { path: src/services/cluster-group.service.ts, confidence: seed }
+  module/config:
+    - { path: src/controllers/config-admin.controller.ts, confidence: seed }
+    - { path: src/controllers/config-public.controller.ts, confidence: seed }
+    - { path: src/controllers/config-user.controller.ts, confidence: seed }
+    - { path: src/controllers/system-config.controller.ts, tests: [src/controllers/system-config.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/config.dto.ts, tests: [src/dtos/config.dto.spec.ts], confidence: seed }
+    - { path: src/services/system-config.service.ts, tests: [src/services/system-config.service.spec.ts], confidence: seed }
+  module/cron:
+    - { path: src/repositories/cron.repository.ts, confidence: seed }
+  module/crypto:
+    - { path: src/repositories/crypto.repository.ts, confidence: seed }
+  module/database-backup:
+    - { path: src/controllers/database-backup.controller.ts, tests: [src/controllers/database-backup.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/database-backup.dto.ts, confidence: seed }
+    - { path: src/services/database-backup.service.ts, tests: [src/services/database-backup.service.spec.ts], confidence: seed }
+  module/download:
+    - { path: src/controllers/download.controller.ts, tests: [src/controllers/download.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/download.dto.ts, confidence: seed }
+    - { path: src/repositories/download.repository.ts, confidence: seed }
+    - { path: src/services/download.service.ts, tests: [src/services/download.service.spec.ts], confidence: seed }
+  module/duplicate:
+    - { path: src/controllers/duplicate.controller.ts, tests: [src/controllers/duplicate.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/duplicate.dto.ts, confidence: seed }
+    - { path: src/repositories/duplicate.repository.ts, confidence: seed }
+    - { path: src/services/duplicate.service.ts, tests: [src/services/duplicate.service.spec.ts], confidence: seed }
+  module/email:
+    - { path: src/repositories/email.repository.ts, tests: [src/repositories/email.repository.spec.ts], confidence: seed }
+  module/file:
+    - { path: src/middleware/file-upload.interceptor.ts, confidence: seed }
+  module/integrity:
+    - { path: src/controllers/integrity-admin.controller.ts, confidence: seed }
+    - { path: src/dtos/integrity.dto.ts, confidence: seed }
+    - { path: src/repositories/integrity.repository.ts, confidence: seed }
+    - { path: src/services/integrity.service.ts, tests: [src/services/integrity.service.spec.ts], confidence: seed }
+  module/job:
+    - { path: src/controllers/job.controller.ts, tests: [src/controllers/job.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/job.dto.ts, confidence: seed }
+    - { path: src/repositories/job.repository.ts, confidence: seed }
+    - { path: src/services/job.service.ts, tests: [src/services/job.service.spec.ts], confidence: seed }
+  module/library:
+    - { path: src/controllers/library.controller.ts, tests: [src/controllers/library.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/library.dto.ts, confidence: seed }
+    - { path: src/repositories/library.repository.ts, confidence: seed }
+    - { path: src/services/library.service.ts, confidence: seed }
+  module/machine-learning:
+    - { path: src/repositories/machine-learning.repository.ts, confidence: seed }
+  module/maintenance:
+    - { path: src/commands/maintenance-mode.ts, confidence: seed }
+    - { path: src/controllers/maintenance.controller.ts, tests: [src/controllers/maintenance.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/maintenance.dto.ts, confidence: seed }
+    - { path: src/maintenance/maintenance-auth.guard.ts, confidence: seed }
+    - { path: src/maintenance/maintenance-websocket.repository.ts, confidence: seed }
+    - { path: src/maintenance/maintenance-worker.controller.ts, confidence: seed }
+    - { path: src/maintenance/maintenance-worker.service.ts, tests: [src/maintenance/maintenance-worker.service.spec.ts], confidence: seed }
+    - { path: src/services/maintenance.service.ts, tests: [src/services/maintenance.service.spec.ts], confidence: seed }
+  module/map:
+    - { path: src/controllers/map.controller.ts, tests: [src/controllers/map.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/map.dto.ts, confidence: seed }
+    - { path: src/repositories/map.repository.ts, confidence: seed }
+    - { path: src/services/map.service.ts, tests: [src/services/map.service.spec.ts], confidence: seed }
+  module/media:
+    - { path: src/commands/media-location.command.ts, confidence: seed }
+    - { path: src/repositories/media.repository.ts, tests: [src/repositories/media.repository.spec.ts], confidence: seed }
+    - { path: src/services/media.service.ts, tests: [src/services/media.service.spec.ts], confidence: seed }
+    - { path: src/services/transcoding.service.ts, tests: [src/services/transcoding.service.spec.ts], confidence: seed }
+  module/memory:
+    - { path: src/controllers/memory.controller.ts, tests: [src/controllers/memory.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/memory.dto.ts, confidence: seed }
+    - { path: src/repositories/memory.repository.ts, confidence: seed }
+    - { path: src/services/memory.service.ts, tests: [src/services/memory.service.spec.ts], confidence: seed }
+  module/notification:
+    - { path: src/controllers/notification-admin.controller.ts, tests: [src/controllers/notification-admin.controller.spec.ts], confidence: seed }
+    - { path: src/controllers/notification.controller.ts, tests: [src/controllers/notification.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/notification.dto.ts, confidence: seed }
+    - { path: src/repositories/notification.repository.ts, confidence: seed }
+    - { path: src/services/notification-admin.service.ts, tests: [src/services/notification-admin.service.spec.ts], confidence: seed }
+    - { path: src/services/notification.service.ts, tests: [src/services/notification.service.spec.ts], confidence: seed }
+  module/partner:
+    - { path: src/controllers/partner.controller.ts, tests: [src/controllers/partner.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/partner.dto.ts, confidence: seed }
+    - { path: src/repositories/partner.repository.ts, confidence: seed }
+    - { path: src/services/partner.service.ts, tests: [src/services/partner.service.spec.ts], confidence: seed }
+  module/person:
+    - { path: src/controllers/face.controller.ts, confidence: propagated-weak, contested: true }
+    - { path: src/controllers/person.controller.ts, tests: [src/controllers/person.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/person.dto.ts, confidence: seed }
+    - { path: src/repositories/person-user.repository.ts, confidence: seed }
+    - { path: src/repositories/person.repository.ts, confidence: seed }
+    - { path: src/services/person.service.ts, tests: [src/services/person.service.spec.ts], confidence: seed }
+  module/plugin:
+    - { path: src/controllers/plugin.controller.ts, tests: [src/controllers/plugin.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/json-schema.dto.ts, confidence: propagated-strong }
+    - { path: src/dtos/plugin-manifest.dto.ts, confidence: seed }
+    - { path: src/dtos/plugin.dto.ts, confidence: seed }
+    - { path: src/repositories/plugin.repository.ts, confidence: seed }
+    - { path: src/services/plugin.service.ts, confidence: seed }
+  module/process:
+    - { path: src/repositories/process.repository.ts, tests: [src/repositories/process.repository.spec.ts], confidence: seed }
+  module/queue:
+    - { path: src/controllers/queue.controller.ts, confidence: seed }
+    - { path: src/dtos/queue-legacy.dto.ts, confidence: seed }
+    - { path: src/dtos/queue.dto.ts, confidence: seed }
+    - { path: src/services/queue.service.ts, tests: [src/services/queue.service.spec.ts], confidence: seed }
+  module/search:
+    - { path: src/controllers/search.controller.ts, tests: [src/controllers/search.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/search.dto.ts, confidence: seed }
+    - { path: src/repositories/search.repository.ts, confidence: seed }
+    - { path: src/services/search.service.ts, tests: [src/services/search.service.spec.ts], confidence: seed }
+    - { path: src/services/smart-info.service.ts, tests: [src/services/smart-info.service.spec.ts], confidence: seed }
+  module/server:
+    - { path: src/controllers/server.controller.ts, confidence: seed }
+    - { path: src/dtos/server.dto.ts, confidence: seed }
+    - { path: src/repositories/server-info.repository.ts, confidence: seed }
+    - { path: src/services/server.service.ts, tests: [src/services/server.service.spec.ts], confidence: seed }
+  module/session:
+    - { path: src/controllers/session.controller.ts, confidence: seed }
+    - { path: src/dtos/session.dto.ts, confidence: seed }
+    - { path: src/repositories/session.repository.ts, confidence: seed }
+    - { path: src/services/session.service.ts, tests: [src/services/session.service.spec.ts], confidence: seed }
+  module/shared-link:
+    - { path: src/controllers/shared-link.controller.ts, tests: [src/controllers/shared-link.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/shared-link.dto.ts, confidence: seed }
+    - { path: src/repositories/shared-link-asset.repository.ts, confidence: seed }
+    - { path: src/repositories/shared-link.repository.ts, confidence: seed }
+    - { path: src/services/shared-link.service.ts, tests: [src/services/shared-link.service.spec.ts], confidence: seed }
+  module/stack:
+    - { path: src/controllers/stack.controller.ts, tests: [src/controllers/stack.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/stack.dto.ts, confidence: seed }
+    - { path: src/repositories/stack.repository.ts, confidence: seed }
+    - { path: src/services/stack.service.ts, tests: [src/services/stack.service.spec.ts], confidence: seed }
+  module/sync:
+    - { path: src/controllers/sync.controller.ts, tests: [src/controllers/sync.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/sync.dto.ts, confidence: seed }
+    - { path: src/repositories/sync-checkpoint.repository.ts, confidence: seed }
+    - { path: src/repositories/sync.repository.ts, confidence: seed }
+    - { path: src/services/sync.service.ts, tests: [src/services/sync.service.spec.ts], confidence: seed }
+  module/system-metadata:
+    - { path: src/controllers/system-metadata.controller.ts, tests: [src/controllers/system-metadata.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/system-metadata.dto.ts, confidence: seed }
+    - { path: src/repositories/system-metadata.repository.ts, confidence: seed }
+    - { path: src/services/system-metadata.service.ts, tests: [src/services/system-metadata.service.spec.ts], confidence: seed }
+  module/tag:
+    - { path: src/controllers/tag.controller.ts, tests: [src/controllers/tag.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/tag.dto.ts, confidence: seed }
+    - { path: src/repositories/tag.repository.ts, confidence: seed }
+    - { path: src/services/tag.service.ts, tests: [src/services/tag.service.spec.ts], confidence: seed }
+  module/timeline:
+    - { path: src/controllers/timeline.controller.ts, tests: [src/controllers/timeline.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/bbox.dto.ts, confidence: propagated-strong }
+    - { path: src/dtos/time-bucket.dto.ts, confidence: propagated-strong }
+    - { path: src/services/timeline.service.ts, tests: [src/services/timeline.service.spec.ts], confidence: seed }
+  module/trash:
+    - { path: src/controllers/trash.controller.ts, tests: [src/controllers/trash.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/trash.dto.ts, confidence: seed }
+    - { path: src/repositories/trash.repository.ts, confidence: seed }
+    - { path: src/services/trash.service.ts, tests: [src/services/trash.service.spec.ts], confidence: seed }
+  module/user:
+    - { path: src/commands/list-users.command.ts, confidence: seed }
+    - { path: src/commands/reset-admin-password.command.ts, confidence: propagated-strong }
+    - { path: src/controllers/user-admin.controller.ts, tests: [src/controllers/user-admin.controller.spec.ts], confidence: seed }
+    - { path: src/controllers/user.controller.ts, tests: [src/controllers/user.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/calendar-heatmap.dto.ts, confidence: propagated-strong }
+    - { path: src/dtos/license.dto.ts, confidence: propagated-weak, contested: true }
+    - { path: src/dtos/onboarding.dto.ts, confidence: propagated-strong }
+    - { path: src/dtos/user-preferences.dto.ts, confidence: seed }
+    - { path: src/dtos/user-profile.dto.ts, confidence: seed }
+    - { path: src/dtos/user.dto.ts, tests: [src/dtos/user.dto.spec.ts], confidence: seed }
+    - { path: src/repositories/user.repository.ts, confidence: seed }
+    - { path: src/services/shared/user-methods.ts, confidence: seed }
+    - { path: src/services/user-admin.service.ts, tests: [src/services/user-admin.service.spec.ts], confidence: seed }
+    - { path: src/services/user.service.ts, tests: [src/services/user.service.spec.ts], confidence: seed }
+  module/video-stream:
+    - { path: src/controllers/video-stream.controller.ts, confidence: seed }
+    - { path: src/dtos/streaming.dto.ts, confidence: propagated-strong }
+    - { path: src/repositories/video-stream.repository.ts, confidence: seed }
+    - { path: src/services/hls.service.ts, tests: [src/services/hls.service.spec.ts], confidence: seed }
+  module/view:
+    - { path: src/controllers/view.controller.ts, confidence: seed }
+    - { path: src/repositories/view-repository.ts, confidence: seed }
+    - { path: src/services/view.service.ts, tests: [src/services/view.service.spec.ts], confidence: seed }
+  module/workflow:
+    - { path: src/controllers/workflow.controller.ts, tests: [src/controllers/workflow.controller.spec.ts], confidence: seed }
+    - { path: src/dtos/workflow.dto.ts, confidence: seed }
+    - { path: src/repositories/workflow.repository.ts, confidence: seed }
+    - { path: src/services/workflow-execution.service.ts, confidence: seed }
+    - { path: src/services/workflow.service.ts, confidence: seed }
+  platform/access:
+    - { path: src/repositories/access.repository.ts, confidence: seed }
+  platform/database:
+    - { path: src/database.ts, confidence: seed }
+    - { path: src/services/database.service.ts, tests: [src/services/database.service.spec.ts], confidence: seed }
+  platform/event:
+    - { path: src/repositories/event.repository.ts, confidence: seed }
+  platform/logging:
+    - { path: src/middleware/error.interceptor.ts, confidence: propagated-strong }
+    - { path: src/middleware/global-exception.filter.ts, confidence: propagated-weak, contested: true }
+    - { path: src/middleware/logging.interceptor.ts, confidence: seed }
+    - { path: src/repositories/logging.repository.ts, tests: [src/repositories/logging.repository.spec.ts], confidence: seed }
+  platform/metadata:
+    - { path: src/repositories/metadata.repository.ts, confidence: seed }
+    - { path: src/services/metadata.service.ts, tests: [src/services/metadata.service.spec.ts], confidence: seed }
+  platform/registry:
+    - { path: src/app.module.ts, confidence: seed }
+    - { path: src/commands/index.ts, confidence: seed }
+    - { path: src/controllers/index.ts, tests: [src/controllers/index.spec.ts], confidence: seed }
+    - { path: src/repositories/index.ts, confidence: seed }
+    - { path: src/services/base.service.ts, confidence: seed }
+    - { path: src/services/index.ts, confidence: seed }
+  platform/storage:
+    - { path: src/cores/storage.core.ts, tests: [src/cores/storage.core.spec.ts], confidence: seed }
+    - { path: src/repositories/storage.repository.ts, confidence: seed }
+    - { path: src/services/storage-template.service.ts, tests: [src/services/storage-template.service.spec.ts], confidence: seed }
+    - { path: src/services/storage.service.ts, tests: [src/services/storage.service.spec.ts], confidence: seed }
+  platform/telemetry:
+    - { path: src/repositories/telemetry.repository.ts, confidence: seed }
+    - { path: src/services/telemetry.service.ts, confidence: seed }
+  platform/version:
+    - { path: src/commands/version.command.ts, confidence: seed }
+    - { path: src/repositories/version-history.repository.ts, confidence: seed }
+    - { path: src/services/version.service.ts, tests: [src/services/version.service.spec.ts], confidence: seed }
+  shared/shared:
+    - { path: src/app.common.ts, confidence: contested, contested: true }
+    - { path: src/commands/schema-check.ts, confidence: isolated, contested: true }
+    - { path: src/decorators.ts, confidence: contested, contested: true }
+    - { path: src/dtos/editing.dto.ts, confidence: contested, contested: true }
+    - { path: src/dtos/env.dto.ts, confidence: isolated, contested: true }
+    - { path: src/enum.ts, confidence: contested, contested: true }
+    - { path: src/middleware/websocket.adapter.ts, confidence: seed }
+    - { path: src/repositories/app.repository.ts, confidence: contested, contested: true }
+    - { path: src/repositories/websocket.repository.ts, confidence: seed }
+    - { path: src/services/api.service.ts, tests: [src/services/api.service.spec.ts], confidence: contested, contested: true }
+    - { path: src/types.ts, confidence: contested, contested: true }
+    - { path: src/utils/access.ts, confidence: seed, contested: true, source: planner, rationale: "Pure access‑check utilities used by multiple modules; belong in shared." }
+    - { path: src/utils/bytes.ts, confidence: contested, contested: true }
+    - { path: src/utils/config.ts, confidence: seed, contested: true, source: planner, rationale: "Config cache helpers are pure utilities." }
+    - { path: src/utils/database-backups.ts, confidence: seed, contested: true, source: planner, rationale: "Backup name helpers are pure utilities." }
+    - { path: src/utils/database.ts, confidence: seed, contested: true, source: planner, rationale: "Database‑related utilities are pure code; shared." }
+    - { path: src/utils/date.ts, tests: [src/utils/date.spec.ts], confidence: contested, contested: true }
+    - { path: src/utils/duplicate.ts, tests: [src/utils/duplicate.spec.ts], confidence: seed, contested: true, source: planner, rationale: "Duplicate detection helpers are pure utilities." }
+    - { path: src/utils/editor.ts, tests: [src/utils/editor.spec.ts], confidence: contested, contested: true }
+    - { path: src/utils/event.ts, confidence: seed, contested: true, source: planner, rationale: "Event helpers are pure utilities." }
+    - { path: src/utils/fetch.ts, tests: [src/utils/fetch.spec.ts], confidence: isolated, contested: true }
+    - { path: src/utils/file.ts, confidence: seed, contested: true, source: planner, rationale: "File utilities are pure helpers used everywhere." }
+    - { path: src/utils/logger.ts, confidence: propagated-weak, contested: true, source: planner, rationale: "Logger helpers are pure utilities." }
+    - { path: src/utils/maintenance.ts, confidence: seed, contested: true, source: planner, rationale: "Maintenance JWT helpers are pure utilities." }
+    - { path: src/utils/media.ts, confidence: seed, contested: true, source: planner, rationale: "Media config helpers are pure utilities." }
+    - { path: src/utils/mime-types.ts, tests: [src/utils/mime-types.spec.ts], confidence: contested, contested: true }
+    - { path: src/utils/object.ts, confidence: propagated-weak, contested: true, source: planner, rationale: "Object helpers are pure utilities." }
+    - { path: src/utils/pagination.ts, confidence: propagated-weak, contested: true, source: planner, rationale: "Pagination helpers are pure utilities." }
+    - { path: src/utils/preferences.ts, confidence: contested, contested: true }
+    - { path: src/utils/profile-image.ts, confidence: contested, contested: true }
+    - { path: src/utils/replace-template-tags.ts, confidence: seed, contested: true, source: planner, rationale: "Template tag replacer is pure utility." }
+    - { path: src/utils/request.ts, tests: [src/utils/request.spec.ts], confidence: contested, contested: true }
+    - { path: src/utils/response.ts, confidence: seed }
+    - { path: src/utils/search-cursor.ts, tests: [src/utils/search-cursor.spec.ts], confidence: seed, contested: true, source: planner, rationale: "Search cursor codec is pure utility." }
+    - { path: src/utils/search-filter.ts, tests: [src/utils/search-filter.spec.ts], confidence: seed, contested: true, source: planner, rationale: "Search filter helpers are pure utilities." }
+    - { path: src/utils/set.ts, confidence: propagated-strong, contested: true, source: planner, rationale: "Generic set helpers; shared code." }
+    - { path: src/utils/sync.ts, confidence: seed, contested: true, source: planner, rationale: "Sync serialization helpers are pure utilities." }
+    - { path: src/utils/tag.ts, confidence: seed, contested: true, source: planner, rationale: "Tag upsert helper is pure utility." }
+    - { path: src/utils/tasks.ts, confidence: propagated-strong, contested: true, source: planner, rationale: "Task runner is pure utility." }
+    - { path: src/utils/transform.ts, tests: [src/utils/transform.spec.ts], confidence: contested, contested: true }
+    - { path: src/utils/workflow.ts, tests: [src/utils/workflow.spec.ts], confidence: seed, contested: true, source: planner, rationale: "Workflow helpers are pure utilities." }
+    - { path: src/validation.ts, tests: [src/validation.spec.ts], confidence: contested, contested: true }
+pinned:
+  - { path: src/bin/sync-open-api.ts, reason: worker-or-bin, detail: "under src/bin/" }
+  - { path: src/bin/sync-sql.ts, reason: worker-or-bin, detail: "under src/bin/" }
+  - { path: src/constants.ts, reason: location-sensitive, detail: "import.meta.filename" }
+  - { path: src/controllers/config.controller.spec.ts, reason: test, detail: "no co-located subject" }
+  - { path: src/dtos/album-response.dto.spec.ts, reason: test, detail: "no co-located subject" }
+  - { path: src/emails/album-invite.email.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/album-update.email.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/components/button.component.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/components/footer.template.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/components/futo.layout.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/components/immich.layout.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/license.email.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/test.email.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/emails/welcome.email.tsx, reason: script-reference, detail: "scripts.email:dev names src/emails/" }
+  - { path: src/main.ts, reason: entrypoint, detail: "nest-cli.json entry src/main (also location-sensitive)" }
+  - { path: src/maintenance/maintenance-health.repository.ts, reason: location-sensitive, detail: "import.meta.filename" }
+  - { path: src/repositories/config.repository.spec.ts, reason: test, detail: "subject src/repositories/config.repository.ts is pinned" }
+  - { path: src/repositories/config.repository.ts, reason: location-sensitive, detail: "import.meta.dirname" }
+  - { path: src/repositories/database.repository.ts, reason: location-sensitive, detail: "import.meta.dirname (also dynamic-reference)" }
+  - { path: src/repositories/storage.repository.spec.ts, reason: location-sensitive, detail: "process.cwd()" }
+  - { path: src/schema/enums.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/functions.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/index.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1744910873969-InitialMigration.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1744991379464-AddNotificationsTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1745244781846-AddUserAvatarColorColumn.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1745902563899-AddAssetVisibilityColumn.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1746636476623-DropExtraIndexes.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1746768490606-AddUserPincode.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1746844028242-AddLockedVisibilityEnum.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1746987967923-AddPinExpiresAtColumn.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1747329504572-AddNewSessionColumns.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1747338664832-SessionRename.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1747664684909-AddAlbumAuditTables.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1749067526135-UserOnboardingDefault.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1750107668827-PartnerCreateId.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1750189909087-AddAlbumUserCreateFields.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1750323941566-UnsetPrewarmDimParameter.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1750676477029-AlbumAssetUpdateId.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1750694237564-AlbumAssetAuditTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1750780093818-AddAlbumToAssetDeleteTrigger.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1751035357937-MemorySyncChanges.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1751304834247-StackSyncChanges.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1751924596408-AddOverrides.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752004072340-UpdateIndexOverrides.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752152941084-PeopleAuditTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752161055253-RenameGeodataPKConstraint.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752161055254-AddActivityAssetFk.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752169992364-AddIsPendingSyncReset.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752250924342-UserMetadataSync.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752267649968-StandardizeNames.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1752759108283-ConvertToAbsolutePaths.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1753104909784-AssetFaceUpdateIdAndAuditTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1753464178233-RenameApiKeyPermissions.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1753471866748-AddSharedLinkSlug.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1753800911775-ProfileImageCheckpointRemoval.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1754389095885-ResetAlbumAssetSync.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1756318797207-AssetMetadataTables.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1758705774125-CreateAssetOCRTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1758705789125-CreateOCRSearchTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1758705804128-UpsertOcrAssetJobStatus.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1761078763279-AddAppVersionColumnToSession.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1761755618862-FixColumnNames.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1762297277677-AddPluginAndWorkflowTables.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1764483051488-OCRBigramsForCJK.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1764698859174-SidecarInAssetFile.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1764705680041-ChangeWorkflowTableColumnsName.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1764957138636-AddLockedPropertiesToAssetExif.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768336661963-AddAssetWidthHeight.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768336671610-CreateAssetEditTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768336694315-CreateIsVisibleColumns.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768587436457-AddEditCountToAsset.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768757482271-SwitchToIsEdited.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768828334807-AddIsEditedToAssetFile.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1768847456553-AddTagsToExif.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1769105700133-AddAssetEditSequence.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1769441657564-AddIsProgressiveColumn.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1769635093204-DropThumbnailJobStatusColumns.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1771478781948-PeopleSearchIndex.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1771535611395-ConvertRating0ToNull.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1771639515206-AddIsTransparentColumn.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1771873044511-ChangesTokensToBuffers.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1771873813973-AssetEditSync.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1772121424533-AddAssetExifGistEarthcoord.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1772129818245-FixStupidWhiteSpace.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1772609167000-UpdateOpusCodecName.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1773242919341-EncodedVideoAssetFiles.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1773956345315-DuplicateSharedLinkAssets.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1774393726320-AssetFaceSyncReset.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1774548649115-AddChecksumAlgorithm.ts.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1775165531374-AddPersonNameTrigramIndex.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1776217577402-DropAuditTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1776263790468-DropDeviceIdAndDeviceAssetId.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1776332807985-SetOAuthAllowInsecureRequests.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1776442031775-AddOauthSidToSession.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1776792304485-ReconcileSqlToolsUpgradeChanges.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1776848612954-MigrateAlbumOwnerIdToAlbumUser.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1777415973792-AddVideoStreamTables.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1777654048096-CreateAudioVideoTables.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1777667825574-ChangeDurationToInteger.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1777897107000-PartnerAssetSyncReset.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1778614946174-UpdateWorkflowTables.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1779806699547-AddPluginTemplates.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1780435471692-DeleteMismatchedAssetFaces.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1780592070031-ConvertNegativeRatingToNull.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1780592071031-AssetOcrSync.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1781089983296-CreateIntegrityReportTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1782414436633-AddPluginMethodAllowedHosts.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1782500000000-RestoreLivePhotoStillVisibility.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1784647658615-AddOAuthBearerTokenToSession.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1784836013770-MinFacePreferenceMigration.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1784986754473-ConvertUserPasswordEmptyStringToNull.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1784986754474-AlbumDescriptionNullable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1786385711807-AlbumOwnerDeleteTrigger.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1786741078327-AddWorkflowLogsTable.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1786972746371-AssetOcrUpdatedAtTrigger.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1786972746372-AssetOcrSyncReset.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1787148183729-ClusterGroups.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1787148183730-DeleteMismatchedMemoryAssets.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1789419229196-ConvertUserOAuthIdEmptyStringToNull.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1790587508209-RenameGeoNamesCountries.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1790616293884-PersonSharing.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/migrations/1790693088454-AddPersonUserTableSharedBySharedWithConstraint.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/activity.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/album-asset-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/album-asset.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/album-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/album-user-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/album-user.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/album.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/api-key.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-av.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-edit-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-edit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-exif.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-face-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-face.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-file.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-job-status.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-metadata-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-metadata.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-ocr-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset-ocr.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/asset.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/cluster-group-request.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/cluster-group.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/face-search.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/geodata-places.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/integrity-report.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/library.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/memory-asset-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/memory-asset.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/memory-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/memory.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/move.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/natural-earth-countries.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/notification.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/ocr-search.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/partner-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/partner.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/person-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/person-group-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/person-group.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/person-user.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/person.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/plugin-method.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/plugin.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/session.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/shared-link-asset.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/shared-link.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/smart-search.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/stack-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/stack.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/sync-checkpoint.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/system-metadata.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/tag-asset.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/tag-closure.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/tag.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/user-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/user-metadata-audit.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/user-metadata.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/user.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/version-history.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/video-stream.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/workflow-log.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/workflow-step.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/schema/tables/workflow.table.ts, reason: migration-or-schema, detail: "under src/schema/" }
+  - { path: src/services/cli.service.spec.ts, reason: test, detail: "subject src/services/cli.service.ts is pinned" }
+  - { path: src/services/cli.service.ts, reason: location-sensitive, detail: "import.meta.dirname" }
+  - { path: src/services/library.service.spec.ts, reason: location-sensitive, detail: "process.cwd()" }
+  - { path: src/utils/misc.spec.ts, reason: test, detail: "subject src/utils/misc.ts is pinned" }
+  - { path: src/utils/misc.ts, reason: location-sensitive, detail: "process.cwd()" }
+  - { path: src/workers/api.ts, reason: worker-or-bin, detail: "under src/workers/" }
+  - { path: src/workers/maintenance.ts, reason: worker-or-bin, detail: "under src/workers/" }
+  - { path: src/workers/microservices.ts, reason: worker-or-bin, detail: "under src/workers/" }

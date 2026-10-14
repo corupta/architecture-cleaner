@@ -1,0 +1,13 @@
+{
+ "step": 1,
+ "rung": "R1",
+ "group": "module/activity",
+ "moves": {
+  "server/src/controllers/activity.controller.ts": "server/src/modules/activity/activity.controller.ts",
+  "server/src/controllers/activity.controller.spec.ts": "server/src/modules/activity/activity.controller.spec.ts",
+  "server/src/dtos/activity.dto.ts": "server/src/modules/activity/activity.dto.ts",
+  "server/src/repositories/activity.repository.ts": "server/src/modules/activity/activity.repository.ts",
+  "server/src/services/activity.service.ts": "server/src/modules/activity/activity.service.ts",
+  "server/src/services/activity.service.spec.ts": "server/src/modules/activity/activity.service.spec.ts"
+ }
+}

@@ -1,0 +1,13 @@
+{
+ "step": 8,
+ "rung": "R1",
+ "group": "module/database-backup",
+ "moves": {
+  "server/src/controllers/database-backup.controller.ts": "server/src/modules/database-backup/database-backup.controller.ts",
+  "server/src/controllers/database-backup.controller.spec.ts": "server/src/modules/database-backup/database-backup.controller.spec.ts",
+  "server/src/dtos/database-backup.dto.ts": "server/src/modules/database-backup/database-backup.dto.ts",
+  "server/src/services/database-backup.service.ts": "server/src/modules/database-backup/database-backup.service.ts",
+  "server/src/services/database-backup.service.spec.ts": "server/src/modules/database-backup/database-backup.service.spec.ts",
+  "server/src/utils/database-backups.ts": "server/src/modules/database-backup/database-backups.ts"
+ }
+}

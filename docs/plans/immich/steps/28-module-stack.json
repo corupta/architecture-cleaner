@@ -1,0 +1,13 @@
+{
+ "step": 28,
+ "rung": "R1",
+ "group": "module/stack",
+ "moves": {
+  "server/src/controllers/stack.controller.ts": "server/src/modules/stack/stack.controller.ts",
+  "server/src/controllers/stack.controller.spec.ts": "server/src/modules/stack/stack.controller.spec.ts",
+  "server/src/dtos/stack.dto.ts": "server/src/modules/stack/stack.dto.ts",
+  "server/src/repositories/stack.repository.ts": "server/src/modules/stack/stack.repository.ts",
+  "server/src/services/stack.service.ts": "server/src/modules/stack/stack.service.ts",
+  "server/src/services/stack.service.spec.ts": "server/src/modules/stack/stack.service.spec.ts"
+ }
+}

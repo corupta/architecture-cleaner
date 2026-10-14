@@ -1,0 +1,13 @@
+{
+ "step": 49,
+ "rung": "R2",
+ "group": "platform/logging",
+ "moves": {
+  "server/src/middleware/error.interceptor.ts": "server/src/platform/logging/error.interceptor.ts",
+  "server/src/middleware/global-exception.filter.ts": "server/src/platform/logging/global-exception.filter.ts",
+  "server/src/middleware/logging.interceptor.ts": "server/src/platform/logging/logging.interceptor.ts",
+  "server/src/repositories/logging.repository.ts": "server/src/platform/logging/logging.repository.ts",
+  "server/src/repositories/logging.repository.spec.ts": "server/src/platform/logging/logging.repository.spec.ts",
+  "server/src/utils/logger.ts": "server/src/platform/logging/logger.ts"
+ }
+}

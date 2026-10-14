@@ -1,0 +1,22 @@
+{
+ "step": 5,
+ "rung": "R1",
+ "group": "module/auth",
+ "moves": {
+  "server/src/commands/grant-admin.ts": "server/src/modules/auth/grant-admin.ts",
+  "server/src/commands/oauth-login.ts": "server/src/modules/auth/oauth-login.ts",
+  "server/src/commands/password-login.ts": "server/src/modules/auth/password-login.ts",
+  "server/src/controllers/auth-admin.controller.ts": "server/src/modules/auth/auth-admin.controller.ts",
+  "server/src/controllers/auth.controller.ts": "server/src/modules/auth/auth.controller.ts",
+  "server/src/controllers/auth.controller.spec.ts": "server/src/modules/auth/auth.controller.spec.ts",
+  "server/src/controllers/oauth.controller.ts": "server/src/modules/auth/oauth.controller.ts",
+  "server/src/controllers/oauth.controller.spec.ts": "server/src/modules/auth/oauth.controller.spec.ts",
+  "server/src/dtos/auth.dto.ts": "server/src/modules/auth/auth.dto.ts",
+  "server/src/middleware/auth.guard.ts": "server/src/modules/auth/auth.guard.ts",
+  "server/src/middleware/auth.guard.spec.ts": "server/src/modules/auth/auth.guard.spec.ts",
+  "server/src/repositories/oauth.repository.ts": "server/src/modules/auth/oauth.repository.ts",
+  "server/src/services/auth-admin.service.ts": "server/src/modules/auth/auth-admin.service.ts",
+  "server/src/services/auth.service.ts": "server/src/modules/auth/auth.service.ts",
+  "server/src/services/auth.service.spec.ts": "server/src/modules/auth/auth.service.spec.ts"
+ }
+}

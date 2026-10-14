@@ -1,0 +1,12 @@
+{
+ "step": 36,
+ "rung": "R1",
+ "group": "module/video-stream",
+ "moves": {
+  "server/src/controllers/video-stream.controller.ts": "server/src/modules/video-stream/video-stream.controller.ts",
+  "server/src/dtos/streaming.dto.ts": "server/src/modules/video-stream/streaming.dto.ts",
+  "server/src/repositories/video-stream.repository.ts": "server/src/modules/video-stream/video-stream.repository.ts",
+  "server/src/services/hls.service.ts": "server/src/modules/video-stream/hls.service.ts",
+  "server/src/services/hls.service.spec.ts": "server/src/modules/video-stream/hls.service.spec.ts"
+ }
+}

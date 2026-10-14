@@ -23,7 +23,6 @@ groups:
     - { path: src/repositories/api-key.repository.ts, confidence: seed }
     - { path: src/services/api-key.service.ts, tests: [src/services/api-key.service.spec.ts], confidence: seed }
   module/asset:
-    - { path: src/commands/media-location.command.ts, confidence: seed }
     - { path: src/controllers/asset-file.controller.ts, confidence: seed }
     - { path: src/controllers/asset-media.controller.ts, tests: [src/controllers/asset-media.controller.spec.ts], confidence: seed }
     - { path: src/controllers/asset.controller.ts, tests: [src/controllers/asset.controller.spec.ts], confidence: seed }
@@ -40,13 +39,11 @@ groups:
     - { path: src/repositories/asset-file.repository.ts, confidence: seed }
     - { path: src/repositories/asset-job.repository.ts, confidence: seed }
     - { path: src/repositories/asset.repository.ts, confidence: seed }
-    - { path: src/repositories/media.repository.ts, tests: [src/repositories/media.repository.spec.ts], confidence: seed }
+    - { path: src/repositories/move.repository.ts, confidence: seed }
     - { path: src/services/asset-file.service.ts, confidence: seed }
     - { path: src/services/asset-media.service.ts, tests: [src/services/asset-media.service.spec.ts], confidence: seed }
     - { path: src/services/asset.service.ts, tests: [src/services/asset.service.spec.ts], confidence: seed }
-    - { path: src/services/media.service.ts, tests: [src/services/media.service.spec.ts], confidence: seed }
     - { path: src/utils/asset.util.ts, confidence: seed }
-    - { path: src/utils/media.ts, confidence: seed }
   module/auth:
     - { path: src/commands/grant-admin.ts, confidence: isolated, contested: true }
     - { path: src/commands/oauth-login.ts, confidence: seed }
@@ -103,6 +100,8 @@ groups:
     - { path: src/dtos/library.dto.ts, confidence: seed }
     - { path: src/repositories/library.repository.ts, confidence: seed }
     - { path: src/services/library.service.ts, confidence: seed }
+  module/machine-learning:
+    - { path: src/repositories/machine-learning.repository.ts, confidence: seed }
   module/maintenance:
     - { path: src/commands/maintenance-mode.ts, confidence: seed }
     - { path: src/controllers/maintenance.controller.ts, tests: [src/controllers/maintenance.controller.spec.ts], confidence: seed }
@@ -111,6 +110,7 @@ groups:
     - { path: src/maintenance/maintenance-websocket.repository.ts, confidence: seed }
     - { path: src/maintenance/maintenance-worker.controller.ts, confidence: seed }
     - { path: src/maintenance/maintenance-worker.service.ts, tests: [src/maintenance/maintenance-worker.service.spec.ts], confidence: seed }
+    - { path: src/repositories/app.repository.ts, confidence: contested, contested: true, source: critic, rationale: "Only the maintenance module consumes this repository; fixes the impure‑shared warning." }
     - { path: src/services/maintenance.service.ts, tests: [src/services/maintenance.service.spec.ts], confidence: seed }
     - { path: src/utils/maintenance.ts, confidence: seed }
   module/map:
@@ -123,12 +123,11 @@ groups:
     - { path: src/dtos/memory.dto.ts, confidence: seed }
     - { path: src/repositories/memory.repository.ts, confidence: seed }
     - { path: src/services/memory.service.ts, tests: [src/services/memory.service.spec.ts], confidence: seed }
-  module/move-history:
-    - { path: src/repositories/move.repository.ts, confidence: seed }
   module/notification:
     - { path: src/controllers/notification-admin.controller.ts, tests: [src/controllers/notification-admin.controller.spec.ts], confidence: seed }
     - { path: src/controllers/notification.controller.ts, tests: [src/controllers/notification.controller.spec.ts], confidence: seed }
     - { path: src/dtos/notification.dto.ts, confidence: seed }
+    - { path: src/repositories/email.repository.ts, tests: [src/repositories/email.repository.spec.ts], confidence: seed }
     - { path: src/repositories/notification.repository.ts, confidence: seed }
     - { path: src/services/notification-admin.service.ts, tests: [src/services/notification-admin.service.spec.ts], confidence: seed }
     - { path: src/services/notification.service.ts, tests: [src/services/notification.service.spec.ts], confidence: seed }
@@ -145,7 +144,6 @@ groups:
     - { path: src/controllers/face.controller.ts, confidence: propagated-weak, contested: true }
     - { path: src/controllers/person.controller.ts, tests: [src/controllers/person.controller.spec.ts], confidence: seed }
     - { path: src/dtos/person.dto.ts, confidence: seed }
-    - { path: src/repositories/machine-learning.repository.ts, confidence: seed }
     - { path: src/repositories/person-user.repository.ts, confidence: seed }
     - { path: src/repositories/person.repository.ts, confidence: seed }
     - { path: src/services/person.service.ts, tests: [src/services/person.service.spec.ts], confidence: seed }
@@ -170,7 +168,6 @@ groups:
     - { path: src/utils/search-cursor.ts, tests: [src/utils/search-cursor.spec.ts], confidence: seed }
     - { path: src/utils/search-filter.ts, tests: [src/utils/search-filter.spec.ts], confidence: seed }
   module/server:
-    - { path: src/controllers/app.controller.ts, tests: [src/controllers/app.controller.spec.ts], confidence: propagated-weak, contested: true, source: critic, rationale: "Controller serves HTTP routes; feature code must live in a feature module, not in platform bootstrap." }
     - { path: src/controllers/server.controller.ts, confidence: seed }
     - { path: src/dtos/server.dto.ts, confidence: seed }
     - { path: src/repositories/server-info.repository.ts, confidence: seed }
@@ -202,11 +199,8 @@ groups:
     - { path: src/controllers/system-metadata.controller.ts, tests: [src/controllers/system-metadata.controller.spec.ts], confidence: seed }
     - { path: src/dtos/onboarding.dto.ts, confidence: propagated-strong, contested: true, source: planner, rationale: "Onboarding DTOs used by system‑metadata controller." }
     - { path: src/dtos/system-metadata.dto.ts, confidence: seed }
-    - { path: src/repositories/metadata.repository.ts, confidence: seed }
     - { path: src/repositories/system-metadata.repository.ts, confidence: seed }
-    - { path: src/services/metadata.service.ts, tests: [src/services/metadata.service.spec.ts], confidence: seed }
     - { path: src/services/system-metadata.service.ts, tests: [src/services/system-metadata.service.spec.ts], confidence: seed }
-    - { path: src/utils/tasks.ts, confidence: propagated-strong }
   module/tag:
     - { path: src/controllers/tag.controller.ts, tests: [src/controllers/tag.controller.spec.ts], confidence: seed }
     - { path: src/dtos/tag.dto.ts, confidence: seed }
@@ -247,6 +241,7 @@ groups:
     - { path: src/controllers/video-stream.controller.ts, confidence: seed }
     - { path: src/dtos/streaming.dto.ts, confidence: propagated-strong }
     - { path: src/repositories/video-stream.repository.ts, confidence: seed }
+    - { path: src/services/hls.service.ts, tests: [src/services/hls.service.spec.ts], confidence: seed }
   module/view:
     - { path: src/controllers/view.controller.ts, confidence: seed }
     - { path: src/repositories/view-repository.ts, confidence: seed }
@@ -264,6 +259,7 @@ groups:
     - { path: src/utils/set.ts, confidence: propagated-strong }
   platform/bootstrap:
     - { path: src/app.common.ts, confidence: contested, contested: true, source: planner, rationale: "Bootstrap wiring for Express and telemetry; belongs to platform plumbing." }
+    - { path: src/controllers/app.controller.ts, tests: [src/controllers/app.controller.spec.ts], confidence: propagated-weak, contested: true, source: planner, rationale: "Root app controller only serves health/info endpoints; platform plumbing." }
   platform/check:
     - { path: src/commands/schema-check.ts, confidence: isolated, contested: true }
   platform/cron:
@@ -280,8 +276,6 @@ groups:
   platform/file:
     - { path: src/middleware/file-upload.interceptor.ts, confidence: seed }
     - { path: src/utils/file.ts, confidence: seed }
-  platform/hls:
-    - { path: src/services/hls.service.ts, tests: [src/services/hls.service.spec.ts], confidence: seed }
   platform/http-client:
     - { path: src/utils/fetch.ts, tests: [src/utils/fetch.spec.ts], confidence: isolated, contested: true }
   platform/http-response:
@@ -292,17 +286,23 @@ groups:
     - { path: src/middleware/logging.interceptor.ts, confidence: seed }
     - { path: src/repositories/logging.repository.ts, tests: [src/repositories/logging.repository.spec.ts], confidence: seed }
     - { path: src/utils/logger.ts, confidence: propagated-weak, contested: true }
-  platform/mail:
-    - { path: src/repositories/email.repository.ts, tests: [src/repositories/email.repository.spec.ts], confidence: seed }
+  platform/media:
+    - { path: src/commands/media-location.command.ts, confidence: seed }
+    - { path: src/repositories/media.repository.ts, tests: [src/repositories/media.repository.spec.ts], confidence: seed }
+    - { path: src/services/media.service.ts, tests: [src/services/media.service.spec.ts], confidence: seed }
+    - { path: src/utils/editor.ts, tests: [src/utils/editor.spec.ts], confidence: contested, contested: true, source: critic, rationale: "Utility is only imported by platform/media; moving it out of shared resolves the single‑consumer warning." }
+    - { path: src/utils/media.ts, confidence: seed }
+  platform/metadata:
+    - { path: src/repositories/metadata.repository.ts, confidence: seed }
+    - { path: src/services/metadata.service.ts, tests: [src/services/metadata.service.spec.ts], confidence: seed }
+    - { path: src/utils/tasks.ts, confidence: propagated-strong }
   platform/process:
     - { path: src/repositories/process.repository.ts, tests: [src/repositories/process.repository.spec.ts], confidence: seed }
   platform/registry:
     - { path: src/app.module.ts, confidence: seed }
     - { path: src/commands/index.ts, confidence: seed }
     - { path: src/controllers/index.ts, tests: [src/controllers/index.spec.ts], confidence: seed }
-    - { path: src/repositories/app.repository.ts, confidence: contested, contested: true, source: critic, rationale: "Repository removed from shared (impure) and placed in the composition‑root registry group." }
     - { path: src/repositories/index.ts, confidence: seed }
-    - { path: src/services/api.service.ts, tests: [src/services/api.service.spec.ts], confidence: contested, contested: true, source: critic, rationale: "Service removed from shared (impure) and placed in the composition‑root registry group." }
     - { path: src/services/base.service.ts, confidence: seed }
     - { path: src/services/index.ts, confidence: seed }
   platform/storage:
@@ -322,10 +322,10 @@ groups:
     - { path: src/decorators.ts, confidence: contested, contested: true }
     - { path: src/dtos/env.dto.ts, confidence: isolated, contested: true, source: planner, rationale: "Environment schema DTO is a pure type shared across config." }
     - { path: src/enum.ts, confidence: contested, contested: true }
+    - { path: src/services/api.service.ts, tests: [src/services/api.service.spec.ts], confidence: contested, contested: true }
     - { path: src/types.ts, confidence: contested, contested: true }
     - { path: src/utils/bytes.ts, confidence: contested, contested: true }
     - { path: src/utils/date.ts, tests: [src/utils/date.spec.ts], confidence: contested, contested: true }
-    - { path: src/utils/editor.ts, tests: [src/utils/editor.spec.ts], confidence: contested, contested: true }
     - { path: src/utils/mime-types.ts, tests: [src/utils/mime-types.spec.ts], confidence: contested, contested: true }
     - { path: src/utils/object.ts, confidence: propagated-weak, contested: true, source: planner, rationale: "Plain object utilities." }
     - { path: src/utils/pagination.ts, confidence: propagated-weak, contested: true, source: planner, rationale: "Pagination helpers used everywhere." }

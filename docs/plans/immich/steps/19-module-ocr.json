@@ -1,0 +1,11 @@
+{
+ "step": 19,
+ "rung": "R1",
+ "group": "module/ocr",
+ "moves": {
+  "server/src/dtos/ocr.dto.ts": "server/src/modules/ocr/ocr.dto.ts",
+  "server/src/repositories/ocr.repository.ts": "server/src/modules/ocr/ocr.repository.ts",
+  "server/src/services/ocr.service.ts": "server/src/modules/ocr/ocr.service.ts",
+  "server/src/services/ocr.service.spec.ts": "server/src/modules/ocr/ocr.service.spec.ts"
+ }
+}

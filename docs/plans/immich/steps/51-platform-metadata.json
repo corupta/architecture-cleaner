@@ -1,0 +1,11 @@
+{
+ "step": 51,
+ "rung": "R2",
+ "group": "platform/metadata",
+ "moves": {
+  "server/src/repositories/metadata.repository.ts": "server/src/platform/metadata/metadata.repository.ts",
+  "server/src/services/metadata.service.ts": "server/src/platform/metadata/metadata.service.ts",
+  "server/src/services/metadata.service.spec.ts": "server/src/platform/metadata/metadata.service.spec.ts",
+  "server/src/utils/tasks.ts": "server/src/platform/metadata/tasks.ts"
+ }
+}

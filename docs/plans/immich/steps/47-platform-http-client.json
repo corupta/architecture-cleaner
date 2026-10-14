@@ -1,0 +1,9 @@
+{
+ "step": 47,
+ "rung": "R2",
+ "group": "platform/http-client",
+ "moves": {
+  "server/src/utils/fetch.ts": "server/src/platform/http-client/fetch.ts",
+  "server/src/utils/fetch.spec.ts": "server/src/platform/http-client/fetch.spec.ts"
+ }
+}
