@@ -650,6 +650,6 @@ Still open:
 - ts-morph/TS 6 spike items. The analyzer spike used the raw TS 6.0.3 API on 5 repos (immich at two SHAs, hoppscotch, kaneo, mcphub, realworld), covering NodeNext, Bundler and node10 with `ignoreDeprecations`. Every internal specifier resolved at base except mcphub's 8 pre-existing broken ones (test scripts importing `./src/...`, and a CSS import).
 - dependency-cruiser attribution through barrels.
 - A GT-free plan-selection objective (§3.5). S5 ranks by validator warnings under a TurboMQ floor; a heuristic, not a solution.
-- Whether `usage` equals billing for `n>1`, and whether TF's prompt-cache hits (13,056 of ~17k tokens on S5's Ultra calls) are discounted. Check the console bill (/workspace/.anomalies/2026-10-07-tf-prompt-cache-hits-unpriced.md).
-
 Closed in S5: Ultra accepts `n>1` (`cassettes/s5-probes.jsonl`; the prompt is counted once in `usage`).
+
+Closed in S6, by the Nebius console bill (2026-10-14): `usage` equals billing. An `n>1` call bills its prompt once, prompt-cache hits are billed at the full input price (no discount), and per model the bill matches the ledger's tokens. The bill's only extra, $0.05, is one G1 Super call lost to `fetch failed` that the spike's gateway booked at $0, the failure mode S6's gateway now charges.
