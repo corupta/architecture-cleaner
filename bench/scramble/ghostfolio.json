@@ -1,0 +1,9 @@
+{
+  "name": "ghostfolio",
+  "sha": "347cd06a4012931259224bc16ebe85249aa60fd0",
+  "packageRoot": "apps/api",
+  "moduleRoot": "src/app",
+  "depth": { "endpoints": 2 },
+  "shared": [],
+  "exclude": []
+}

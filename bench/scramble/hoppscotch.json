@@ -1,0 +1,9 @@
+{
+  "name": "hoppscotch",
+  "sha": "63273f8e599e73f0fb38c0739314e8d46b6bc83d",
+  "packageRoot": "packages/hoppscotch-backend",
+  "moduleRoot": "src",
+  "depth": { "orchestration": 2 },
+  "shared": ["types", "guards", "interceptors", "decorators", "plugins"],
+  "exclude": ["^src/generated/"]
+}

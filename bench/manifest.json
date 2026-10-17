@@ -1,0 +1,51 @@
+{
+  "_doc": "ac bench entries (src/bench/types.ts BenchEntry). Scramble entries flatten a feature-modular package (bench/scramble/<name>.json) and score recovery against its original folders; real entries are type-sliced targets scored without ground truth. repo is a pristine checkout (never written; the bench makes worktrees). cassette paths are relative to this package.",
+  "entries": [
+    {
+      "name": "hoppscotch",
+      "kind": "scramble",
+      "repo": "~/ac-targets/hoppscotch",
+      "scramble": "bench/scramble/hoppscotch.json",
+      "variant": "default",
+      "profile": "hoppscotch",
+      "cassette": "cassettes/s7-bench.jsonl"
+    },
+    {
+      "name": "hoppscotch-H1",
+      "kind": "scramble",
+      "repo": "~/ac-targets/hoppscotch",
+      "scramble": "bench/scramble/hoppscotch.json",
+      "variant": "H1",
+      "profile": "hoppscotch",
+      "cassette": "cassettes/s7-bench.jsonl"
+    },
+    {
+      "name": "kaneo",
+      "kind": "scramble",
+      "repo": "~/ac-targets/kaneo",
+      "scramble": "bench/scramble/kaneo.json",
+      "variant": "default",
+      "profile": "kaneo",
+      "cassette": "cassettes/s7-bench.jsonl"
+    },
+    {
+      "name": "ghostfolio",
+      "kind": "scramble",
+      "repo": "~/ac-targets/ghostfolio",
+      "scramble": "bench/scramble/ghostfolio.json",
+      "variant": "default",
+      "profile": "ghostfolio",
+      "cassette": "cassettes/s7-bench.jsonl"
+    },
+    {
+      "name": "immich",
+      "kind": "real",
+      "repo": "~/ac-targets/immich",
+      "sha": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+      "packageRoot": "server",
+      "moduleRoot": "src",
+      "profile": "immich",
+      "cassette": "cassettes/s6-immich.jsonl"
+    }
+  ]
+}

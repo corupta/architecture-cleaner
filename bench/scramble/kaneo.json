@@ -1,0 +1,9 @@
+{
+  "name": "kaneo",
+  "sha": "b80818fe2e9327648a420b7006d53c89463c68ba",
+  "packageRoot": "apps/api",
+  "moduleRoot": "src",
+  "depth": { "plugins": 2 },
+  "shared": ["utils", "config"],
+  "exclude": ["^src/migrations/"]
+}

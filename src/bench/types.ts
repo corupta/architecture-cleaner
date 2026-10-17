@@ -30,6 +30,7 @@ export interface MethodScore {
   /** `B0 type folders`, `name-token (anchored)`, `Louvain r=4 (mean of seeds 1-5)`, `seeds draft`, `planner (Ultra)`. */
   method: string;
   kind: 'baseline' | 'draft' | 'planner';
+  /** Clusters over every movable file the method partitions (Louvain rows: the mean over seeds). */
   clusters: number;
   /** Against the ground truth (scramble entries only; null on real targets). MoJoFM in 0–100. */
   mojoFm: number | null;
@@ -71,7 +72,7 @@ export interface BenchResult {
     certificate: { verdict: 'pass' | 'fail'; scope: 'full' | 'static'; digest: string; failing: string[] } | null;
   } | null;
   methods: MethodScore[];
-  /** The best baseline by MoJoFM (scrambles) or by TurboMQ (real targets). */
+  /** The best deterministic method (baselines and the seeds draft) by MoJoFM (scrambles) or by TurboMQ's sum (real targets). */
   bestBaseline: { method: string; mojoFm: number | null; turboMq: number } | null;
   planner: {
     cassette: string;
@@ -84,4 +85,6 @@ export interface BenchResult {
   } | null;
   /** Louvain MoJoFM per resolution, one value per seed. */
   louvainMojoFmByResolution: Record<string, number[]> | null;
+  /** Plain-words remarks: the planner not run or not recorded, an invalid plan, feature files the facts pin. */
+  notes?: string[];
 }
