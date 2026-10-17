@@ -1,0 +1,13 @@
+{
+ "step": 16,
+ "rung": "R1",
+ "group": "module/map",
+ "moves": {
+  "server/src/controllers/map.controller.ts": "server/src/modules/map/map.controller.ts",
+  "server/src/controllers/map.controller.spec.ts": "server/src/modules/map/map.controller.spec.ts",
+  "server/src/dtos/map.dto.ts": "server/src/modules/map/map.dto.ts",
+  "server/src/repositories/map.repository.ts": "server/src/modules/map/map.repository.ts",
+  "server/src/services/map.service.ts": "server/src/modules/map/map.service.ts",
+  "server/src/services/map.service.spec.ts": "server/src/modules/map/map.service.spec.ts"
+ }
+}

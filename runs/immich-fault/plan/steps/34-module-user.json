@@ -1,0 +1,26 @@
+{
+ "step": 34,
+ "rung": "R1",
+ "group": "module/user",
+ "moves": {
+  "server/src/commands/list-users.command.ts": "server/src/modules/user/list-users.command.ts",
+  "server/src/commands/reset-admin-password.command.ts": "server/src/modules/user/reset-admin-password.command.ts",
+  "server/src/controllers/user-admin.controller.ts": "server/src/modules/user/user-admin.controller.ts",
+  "server/src/controllers/user-admin.controller.spec.ts": "server/src/modules/user/user-admin.controller.spec.ts",
+  "server/src/controllers/user.controller.ts": "server/src/modules/user/user.controller.ts",
+  "server/src/controllers/user.controller.spec.ts": "server/src/modules/user/user.controller.spec.ts",
+  "server/src/dtos/calendar-heatmap.dto.ts": "server/src/modules/user/calendar-heatmap.dto.ts",
+  "server/src/dtos/license.dto.ts": "server/src/modules/user/license.dto.ts",
+  "server/src/dtos/user-preferences.dto.ts": "server/src/modules/user/user-preferences.dto.ts",
+  "server/src/dtos/user-profile.dto.ts": "server/src/modules/user/user-profile.dto.ts",
+  "server/src/dtos/user.dto.ts": "server/src/modules/user/user.dto.ts",
+  "server/src/dtos/user.dto.spec.ts": "server/src/modules/user/user.dto.spec.ts",
+  "server/src/repositories/user.repository.ts": "server/src/modules/user/user.repository.ts",
+  "server/src/services/shared/user-methods.ts": "server/src/modules/user/user-methods.ts",
+  "server/src/services/user-admin.service.ts": "server/src/modules/user/user-admin.service.ts",
+  "server/src/services/user-admin.service.spec.ts": "server/src/modules/user/user-admin.service.spec.ts",
+  "server/src/services/user.service.ts": "server/src/modules/user/user.service.ts",
+  "server/src/services/user.service.spec.ts": "server/src/modules/user/user.service.spec.ts",
+  "server/src/utils/profile-image.ts": "server/src/modules/user/profile-image.ts"
+ }
+}

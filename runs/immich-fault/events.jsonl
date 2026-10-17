@@ -1,0 +1,31 @@
+{"ts":"2026-10-17T21:10:42.475Z","event":"run-start","repo":"/home/paseo/ac-work/s7/fault-immich","branch":"ac/s7-fault","base":"02063972e82b1bfd17b6fc2e3b3ff39936229ea5","plan":"/workspace/architecture-cleaner/runs/immich-ladder/plan/plan.yaml","rungs":["R0","R1"]}
+{"ts":"2026-10-17T21:14:46.406Z","event":"preflight","rung":"R0","durationMs":14192,"declined":false,"declines":0}
+{"ts":"2026-10-17T21:14:46.406Z","event":"baseline","rung":"R0","durationMs":229736,"green":true,"flaky":0}
+{"ts":"2026-10-17T21:14:46.451Z","event":"branch","branch":"ac/s7-fault","commit":"02063972e82b1bfd17b6fc2e3b3ff39936229ea5"}
+{"ts":"2026-10-17T21:14:46.457Z","event":"rung-start","rung":"R1","commit":"02063972e82b1bfd17b6fc2e3b3ff39936229ea5"}
+{"ts":"2026-10-17T21:14:46.461Z","event":"step-start","step":1,"group":"module/activity","rung":"R1"}
+{"ts":"2026-10-17T21:14:55.227Z","event":"move","step":1,"attempt":1,"durationMs":8750,"outcome":"applied","moves":6}
+{"ts":"2026-10-17T21:14:55.283Z","event":"commit","step":1,"attempt":1,"durationMs":55,"commit":"37bbc124334689f78bdeca159529bbfe64727425"}
+{"ts":"2026-10-17T21:17:10.927Z","event":"certify","step":1,"attempt":1,"durationMs":135636,"verdict":"pass","scope":"static","failing":[]}
+{"ts":"2026-10-17T21:17:11.004Z","event":"amend","step":1,"attempt":1,"durationMs":74,"commit":"fd2b27e4749f4fe14a54c2474a00c0bffb4513ec"}
+{"ts":"2026-10-17T21:17:11.004Z","event":"step-end","step":1,"group":"module/activity","rung":"R1","durationMs":144543,"status":"certified","commit":"fd2b27e4749f4fe14a54c2474a00c0bffb4513ec"}
+{"ts":"2026-10-17T21:17:11.007Z","event":"step-start","step":2,"group":"module/album","rung":"R1"}
+{"ts":"2026-10-17T21:17:20.400Z","event":"move","step":2,"attempt":1,"durationMs":9371,"outcome":"applied","moves":7}
+{"ts":"2026-10-17T21:17:20.468Z","event":"commit","step":2,"attempt":1,"durationMs":67,"commit":"d5550f1b47b0ffc025dc7d587ac141b6b27da9a8"}
+{"ts":"2026-10-17T21:17:31.725Z","event":"fault","step":2,"attempt":1,"durationMs":11201,"operator":"M2","applied":true,"detail":"M2 (Drop one importer rewrite): server/src/services/workflow-execution.service.ts: import specifier 'src/modules/album/album.dto.js' left as in base, 'src/dtos/album.dto.js'"}
+{"ts":"2026-10-17T21:18:54.976Z","event":"certify","step":2,"attempt":1,"durationMs":83245,"verdict":"fail","scope":"static","failing":["K3a","K3b","K3c"]}
+{"ts":"2026-10-17T21:18:55.036Z","event":"rollback","step":2,"attempt":1,"durationMs":58,"to":"fd2b27e4749f4fe14a54c2474a00c0bffb4513ec"}
+{"ts":"2026-10-17T21:18:55.064Z","event":"pin","step":2,"group":"module/album","rung":"R1","files":["server/src/dtos/album.dto.ts"],"reason":"pinned","detail":"attempt 1 (failed): certificate FAIL (K3a, K3b, K3c): K3a server/src/services/workflow-execution.service.ts: line 14: import 'src/dtos/album.dto.js': expected file server/src/modules/album/album.dto.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json; K3b server/src/services/workflow-execution.service.ts: site 7 'src/dtos/album.dto.js' (import): base server/src/modules/album/album.dto.ts, head unresolved; K3c server/src/services/workflow-execution.service.ts: nest-cli/emit: import 'src/dtos/album.dto.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/modules/album/album.dto.ts; base server/src/services/workflow-execution.service.ts 'src/dtos/album.dto.js'"}
+{"ts":"2026-10-17T21:19:04.048Z","event":"move","step":2,"attempt":2,"durationMs":8962,"outcome":"applied","moves":6}
+{"ts":"2026-10-17T21:19:04.115Z","event":"commit","step":2,"attempt":2,"durationMs":66,"commit":"21972e12b6a01fe1fffc24173586a972abd83698"}
+{"ts":"2026-10-17T21:20:25.787Z","event":"certify","step":2,"attempt":2,"durationMs":81665,"verdict":"pass","scope":"static","failing":[]}
+{"ts":"2026-10-17T21:20:25.868Z","event":"amend","step":2,"attempt":2,"durationMs":80,"commit":"3876d5c90ee7a1290810181b572a1d92e7f36dc5"}
+{"ts":"2026-10-17T21:20:25.868Z","event":"step-end","step":2,"group":"module/album","rung":"R1","durationMs":194861,"status":"certified","commit":"3876d5c90ee7a1290810181b572a1d92e7f36dc5"}
+{"ts":"2026-10-17T21:20:25.870Z","event":"step-start","step":3,"group":"module/api-key","rung":"R1"}
+{"ts":"2026-10-17T21:20:34.803Z","event":"move","step":3,"attempt":1,"durationMs":8913,"outcome":"applied","moves":6}
+{"ts":"2026-10-17T21:20:34.876Z","event":"commit","step":3,"attempt":1,"durationMs":72,"commit":"1230e2184dc55bfd891ae81b5f19357525640b65"}
+{"ts":"2026-10-17T21:21:56.932Z","event":"certify","step":3,"attempt":1,"durationMs":82049,"verdict":"pass","scope":"static","failing":[]}
+{"ts":"2026-10-17T21:21:57.017Z","event":"amend","step":3,"attempt":1,"durationMs":84,"commit":"ac512281719130a99e5b3ede6cb06b648d294c6c"}
+{"ts":"2026-10-17T21:21:57.017Z","event":"step-end","step":3,"group":"module/api-key","rung":"R1","durationMs":91147,"status":"certified","commit":"ac512281719130a99e5b3ede6cb06b648d294c6c"}
+{"ts":"2026-10-17T21:24:19.210Z","event":"rung-certify","rung":"R1","durationMs":142187,"verdict":"pass","scope":"full","failing":[],"partial":true}
+{"ts":"2026-10-17T21:24:19.217Z","event":"run-end","durationMs":816737,"status":"stopped","head":"ac512281719130a99e5b3ede6cb06b648d294c6c"}

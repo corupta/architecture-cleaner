@@ -1,0 +1,8 @@
+{
+ "step": 48,
+ "rung": "R2",
+ "group": "platform/http-response",
+ "moves": {
+  "server/src/utils/response.ts": "server/src/platform/http-response/response.ts"
+ }
+}

@@ -1,0 +1,8 @@
+{
+ "step": 52,
+ "rung": "R2",
+ "group": "platform/move",
+ "moves": {
+  "server/src/repositories/move.repository.ts": "server/src/platform/move/move.repository.ts"
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "step": 54,
+ "rung": "R2",
+ "group": "platform/registry",
+ "moves": {
+  "server/src/app.module.ts": "server/src/platform/registry/app.module.ts",
+  "server/src/commands/index.ts": "server/src/platform/registry/commands/index.ts",
+  "server/src/controllers/index.ts": "server/src/platform/registry/controllers/index.ts",
+  "server/src/controllers/index.spec.ts": "server/src/platform/registry/controllers/index.spec.ts",
+  "server/src/repositories/index.ts": "server/src/platform/registry/repositories/index.ts",
+  "server/src/services/base.service.ts": "server/src/platform/registry/base.service.ts",
+  "server/src/services/index.ts": "server/src/platform/registry/services/index.ts"
+ }
+}

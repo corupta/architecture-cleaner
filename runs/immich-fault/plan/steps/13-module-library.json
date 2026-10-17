@@ -1,0 +1,12 @@
+{
+ "step": 13,
+ "rung": "R1",
+ "group": "module/library",
+ "moves": {
+  "server/src/controllers/library.controller.ts": "server/src/modules/library/library.controller.ts",
+  "server/src/controllers/library.controller.spec.ts": "server/src/modules/library/library.controller.spec.ts",
+  "server/src/dtos/library.dto.ts": "server/src/modules/library/library.dto.ts",
+  "server/src/repositories/library.repository.ts": "server/src/modules/library/library.repository.ts",
+  "server/src/services/library.service.ts": "server/src/modules/library/library.service.ts"
+ }
+}

@@ -1,0 +1,2522 @@
+{
+ "format": "ac-run/1",
+ "status": "stopped",
+ "tool": {
+  "name": "architecture-cleaner",
+  "version": "0.1.0"
+ },
+ "repo": "/home/paseo/ac-work/s7/fault-immich",
+ "environment": "/home/paseo/ac-targets/immich",
+ "profile": {
+  "name": "immich",
+  "packageRoot": "server",
+  "node": "24.21.0",
+  "offline": true,
+  "env": {
+   "TZ": "UTC"
+  },
+  "runner": {
+   "kind": "vitest",
+   "cwd": "server",
+   "config": "server/test/vitest.config.mjs"
+  },
+  "plan": {
+   "moduleRoot": "src",
+   "criticPrompt": 1
+  },
+  "oracles": [
+   {
+    "name": "tsc",
+    "kind": "exit-zero",
+    "cwd": "server",
+    "command": [
+     "node_modules/.bin/tsc",
+     "--noEmit",
+     "--incremental",
+     "false",
+     "--pretty",
+     "false"
+    ],
+    "diagnostics": "tsc",
+    "requires": [
+     "server/node_modules/.bin/tsc"
+    ]
+   },
+   {
+    "name": "unit",
+    "kind": "tests",
+    "format": "vitest",
+    "cwd": "server",
+    "command": [
+     "node_modules/.bin/vitest",
+     "--config",
+     "test/vitest.config.mjs",
+     "--run",
+     "--reporter=dot",
+     "--reporter=json",
+     "--outputFile.json={artifacts}/report.json"
+    ],
+    "report": "{artifacts}/report.json",
+    "requires": [
+     "server/node_modules/.bin/vitest",
+     "server/node_modules/@immich/plugin-sdk/dist/index.js",
+     "packages/plugin-sdk/node_modules/@immich/sdk/build/index.js"
+    ],
+    "timeoutSeconds": 1200
+   },
+   {
+    "name": "openapi",
+    "kind": "artifact-identical",
+    "setup": [
+     {
+      "cwd": "server",
+      "command": [
+       "rm",
+       "-rf",
+       "dist"
+      ]
+     },
+     {
+      "cwd": "server",
+      "command": [
+       "node_modules/.bin/nest",
+       "build"
+      ]
+     },
+     {
+      "cwd": "{scratch}",
+      "command": [
+       "mkdir",
+       "-p",
+       "open-api"
+      ]
+     }
+    ],
+    "cwd": "{scratch}/server",
+    "command": [
+     "node",
+     "{worktree}/server/dist/bin/sync-open-api.js"
+    ],
+    "artifact": "{scratch}/open-api/immich-openapi-specs.json",
+    "reference": "open-api/immich-openapi-specs.json",
+    "requires": [
+     "server/node_modules/.bin/nest"
+    ]
+   }
+  ]
+ },
+ "packageRoot": "server",
+ "moduleRoot": "src",
+ "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+ "baseTree": "424df72c3407dd1e7df5ee4e81a1d5fcd85cc01c",
+ "branch": "ac/s7-fault",
+ "head": "ac512281719130a99e5b3ede6cb06b648d294c6c",
+ "plan": {
+  "file": "plan/plan.yaml",
+  "source": "/workspace/architecture-cleaner/runs/immich-ladder/plan/plan.yaml",
+  "sha256": "b4c7c548883c0635951f893c7717727f3d086a0c4e23b2db442e796dd416cc7f",
+  "steps": 59,
+  "moves": 367
+ },
+ "rungsRequested": [
+  "R0",
+  "R1"
+ ],
+ "options": {
+  "jobs": 1,
+  "injectFault": {
+   "step": "2",
+   "operator": "M2"
+  }
+ },
+ "rungs": [
+  {
+   "id": "R0",
+   "status": "passed",
+   "durationMs": 243928,
+   "start": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5"
+  },
+  {
+   "id": "R1",
+   "status": "running",
+   "durationMs": 572750,
+   "start": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+   "end": "ac512281719130a99e5b3ede6cb06b648d294c6c",
+   "certificate": {
+    "file": "rungs/R1.json",
+    "verdict": "pass",
+    "scope": "full",
+    "digest": "sha256:8ea0a7596256d5ec473d99d32b042f0e410bb145c4b461fc4b0fed6527024777",
+    "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+    "head": "ac512281719130a99e5b3ede6cb06b648d294c6c",
+    "failing": [],
+    "partial": true
+   }
+  },
+  {
+   "id": "R2",
+   "status": "not-requested",
+   "durationMs": 0
+  },
+  {
+   "id": "R3",
+   "status": "not-requested",
+   "durationMs": 0
+  },
+  {
+   "id": "R4",
+   "status": "not-requested",
+   "durationMs": 0
+  }
+ ],
+ "steps": [
+  {
+   "index": 1,
+   "rung": "R1",
+   "group": "module/activity",
+   "moves": {
+    "server/src/controllers/activity.controller.ts": "server/src/modules/activity/activity.controller.ts",
+    "server/src/controllers/activity.controller.spec.ts": "server/src/modules/activity/activity.controller.spec.ts",
+    "server/src/dtos/activity.dto.ts": "server/src/modules/activity/activity.dto.ts",
+    "server/src/repositories/activity.repository.ts": "server/src/modules/activity/activity.repository.ts",
+    "server/src/services/activity.service.ts": "server/src/modules/activity/activity.service.ts",
+    "server/src/services/activity.service.spec.ts": "server/src/modules/activity/activity.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/activity.controller.ts",
+     "server/src/controllers/activity.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/activity.dto.ts"
+    ],
+    [
+     "server/src/repositories/activity.repository.ts"
+    ],
+    [
+     "server/src/services/activity.service.ts",
+     "server/src/services/activity.service.spec.ts"
+    ]
+   ],
+   "status": "certified",
+   "round": 1,
+   "attempts": [
+    {
+     "attempt": 1,
+     "round": 1,
+     "state": "passed",
+     "parent": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+     "moves": 6,
+     "offending": [],
+     "pinned": [],
+     "detail": "",
+     "startedAt": "2026-10-17T21:14:46.474Z",
+     "durationMs": 144527,
+     "timings": {
+      "moveMs": 8750,
+      "commitMs": 55,
+      "certifyMs": 135636,
+      "amendMs": 74
+     },
+     "commit": "37bbc124334689f78bdeca159529bbfe64727425",
+     "certificate": {
+      "file": "certificates/001-R1-module-activity.json",
+      "verdict": "pass",
+      "scope": "static",
+      "digest": "sha256:909262855d4acc3f478bb34600f1209cda980a479c70a3cf7232da297ffac519",
+      "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+      "head": "37bbc124334689f78bdeca159529bbfe64727425",
+      "failing": []
+     }
+    }
+   ],
+   "durationMs": 144543,
+   "commit": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+   "tree": "e6c86400e6aba4584b58dce69f982ffda608e85f",
+   "parent": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+   "certificate": {
+    "file": "certificates/001-R1-module-activity.json",
+    "verdict": "pass",
+    "scope": "static",
+    "digest": "sha256:909262855d4acc3f478bb34600f1209cda980a479c70a3cf7232da297ffac519",
+    "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+    "head": "37bbc124334689f78bdeca159529bbfe64727425",
+    "failing": []
+   },
+   "counts": {
+    "filesMoved": 6,
+    "specifierEdits": 17,
+    "filesEdited": 12
+   },
+   "pathMap": {
+    "server/src/controllers/activity.controller.spec.ts": "server/src/modules/activity/activity.controller.spec.ts",
+    "server/src/controllers/activity.controller.ts": "server/src/modules/activity/activity.controller.ts",
+    "server/src/dtos/activity.dto.ts": "server/src/modules/activity/activity.dto.ts",
+    "server/src/repositories/activity.repository.ts": "server/src/modules/activity/activity.repository.ts",
+    "server/src/services/activity.service.spec.ts": "server/src/modules/activity/activity.service.spec.ts",
+    "server/src/services/activity.service.ts": "server/src/modules/activity/activity.service.ts"
+   }
+  },
+  {
+   "index": 2,
+   "rung": "R1",
+   "group": "module/album",
+   "moves": {
+    "server/src/controllers/album.controller.ts": "server/src/modules/album/album.controller.ts",
+    "server/src/controllers/album.controller.spec.ts": "server/src/modules/album/album.controller.spec.ts",
+    "server/src/dtos/album.dto.ts": "server/src/modules/album/album.dto.ts",
+    "server/src/repositories/album-user.repository.ts": "server/src/modules/album/album-user.repository.ts",
+    "server/src/repositories/album.repository.ts": "server/src/modules/album/album.repository.ts",
+    "server/src/services/album.service.ts": "server/src/modules/album/album.service.ts",
+    "server/src/services/album.service.spec.ts": "server/src/modules/album/album.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/album.controller.ts",
+     "server/src/controllers/album.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/album.dto.ts"
+    ],
+    [
+     "server/src/repositories/album-user.repository.ts"
+    ],
+    [
+     "server/src/repositories/album.repository.ts"
+    ],
+    [
+     "server/src/services/album.service.ts",
+     "server/src/services/album.service.spec.ts"
+    ]
+   ],
+   "status": "certified",
+   "round": 1,
+   "attempts": [
+    {
+     "attempt": 1,
+     "round": 1,
+     "state": "failed",
+     "parent": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+     "moves": 7,
+     "offending": [
+      "server/src/services/workflow-execution.service.ts"
+     ],
+     "pinned": [
+      "server/src/dtos/album.dto.ts"
+     ],
+     "detail": "certificate FAIL (K3a, K3b, K3c): K3a server/src/services/workflow-execution.service.ts: line 14: import 'src/dtos/album.dto.js': expected file server/src/modules/album/album.dto.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json; K3b server/src/services/workflow-execution.service.ts: site 7 'src/dtos/album.dto.js' (import): base server/src/modules/album/album.dto.ts, head unresolved; K3c server/src/services/workflow-execution.service.ts: nest-cli/emit: import 'src/dtos/album.dto.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/modules/album/album.dto.ts; base server/src/services/workflow-execution.service.ts 'src/dtos/album.dto.js'",
+     "startedAt": "2026-10-17T21:17:11.026Z",
+     "durationMs": 104009,
+     "timings": {
+      "moveMs": 9371,
+      "commitMs": 67,
+      "faultMs": 11201,
+      "certifyMs": 83245,
+      "rollbackMs": 58
+     },
+     "commit": "1389c1c3ae1920ba5c486a04f91d188a52e512ef",
+     "injectedFault": {
+      "operator": "M2",
+      "description": "M2 (Drop one importer rewrite): server/src/services/workflow-execution.service.ts: import specifier 'src/modules/album/album.dto.js' left as in base, 'src/dtos/album.dto.js'"
+     },
+     "certificate": {
+      "file": "certificates/failed/002-R1-module-album-attempt1.json",
+      "verdict": "fail",
+      "scope": "static",
+      "digest": "sha256:72254a76e23cdf2167d261fbf37d829a80b34856d77581e94722cc575009b8e4",
+      "base": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+      "head": "1389c1c3ae1920ba5c486a04f91d188a52e512ef",
+      "failing": [
+       "K3a",
+       "K3b",
+       "K3c"
+      ]
+     }
+    },
+    {
+     "attempt": 2,
+     "round": 1,
+     "state": "passed",
+     "parent": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+     "moves": 6,
+     "offending": [],
+     "pinned": [],
+     "detail": "",
+     "startedAt": "2026-10-17T21:18:55.083Z",
+     "durationMs": 90782,
+     "timings": {
+      "moveMs": 8962,
+      "commitMs": 66,
+      "certifyMs": 81665,
+      "amendMs": 80
+     },
+     "commit": "21972e12b6a01fe1fffc24173586a972abd83698",
+     "certificate": {
+      "file": "certificates/002-R1-module-album.json",
+      "verdict": "pass",
+      "scope": "static",
+      "digest": "sha256:78e6b72fe0cab9da2574f6a455ed76aba71f3ef704d946bbdb494822634d0562",
+      "base": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+      "head": "21972e12b6a01fe1fffc24173586a972abd83698",
+      "failing": []
+     }
+    }
+   ],
+   "durationMs": 194861,
+   "commit": "3876d5c90ee7a1290810181b572a1d92e7f36dc5",
+   "tree": "7c25e3c579de431aa67a951a497dbfb36026a76e",
+   "parent": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+   "certificate": {
+    "file": "certificates/002-R1-module-album.json",
+    "verdict": "pass",
+    "scope": "static",
+    "digest": "sha256:78e6b72fe0cab9da2574f6a455ed76aba71f3ef704d946bbdb494822634d0562",
+    "base": "fd2b27e4749f4fe14a54c2474a00c0bffb4513ec",
+    "head": "21972e12b6a01fe1fffc24173586a972abd83698",
+    "failing": []
+   },
+   "counts": {
+    "filesMoved": 6,
+    "specifierEdits": 28,
+    "filesEdited": 20
+   },
+   "pathMap": {
+    "server/src/controllers/album.controller.spec.ts": "server/src/modules/album/album.controller.spec.ts",
+    "server/src/controllers/album.controller.ts": "server/src/modules/album/album.controller.ts",
+    "server/src/repositories/album-user.repository.ts": "server/src/modules/album/album-user.repository.ts",
+    "server/src/repositories/album.repository.ts": "server/src/modules/album/album.repository.ts",
+    "server/src/services/album.service.spec.ts": "server/src/modules/album/album.service.spec.ts",
+    "server/src/services/album.service.ts": "server/src/modules/album/album.service.ts"
+   }
+  },
+  {
+   "index": 3,
+   "rung": "R1",
+   "group": "module/api-key",
+   "moves": {
+    "server/src/controllers/api-key.controller.ts": "server/src/modules/api-key/api-key.controller.ts",
+    "server/src/controllers/api-key.controller.spec.ts": "server/src/modules/api-key/api-key.controller.spec.ts",
+    "server/src/dtos/api-key.dto.ts": "server/src/modules/api-key/api-key.dto.ts",
+    "server/src/repositories/api-key.repository.ts": "server/src/modules/api-key/api-key.repository.ts",
+    "server/src/services/api-key.service.ts": "server/src/modules/api-key/api-key.service.ts",
+    "server/src/services/api-key.service.spec.ts": "server/src/modules/api-key/api-key.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/api-key.controller.ts",
+     "server/src/controllers/api-key.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/api-key.dto.ts"
+    ],
+    [
+     "server/src/repositories/api-key.repository.ts"
+    ],
+    [
+     "server/src/services/api-key.service.ts",
+     "server/src/services/api-key.service.spec.ts"
+    ]
+   ],
+   "status": "certified",
+   "round": 1,
+   "attempts": [
+    {
+     "attempt": 1,
+     "round": 1,
+     "state": "passed",
+     "parent": "3876d5c90ee7a1290810181b572a1d92e7f36dc5",
+     "moves": 6,
+     "offending": [],
+     "pinned": [],
+     "detail": "",
+     "startedAt": "2026-10-17T21:20:25.887Z",
+     "durationMs": 91127,
+     "timings": {
+      "moveMs": 8913,
+      "commitMs": 72,
+      "certifyMs": 82049,
+      "amendMs": 84
+     },
+     "commit": "1230e2184dc55bfd891ae81b5f19357525640b65",
+     "certificate": {
+      "file": "certificates/003-R1-module-api-key.json",
+      "verdict": "pass",
+      "scope": "static",
+      "digest": "sha256:5791cb1a9e19bfecb7516d1acad9515378a4d03b6a2dcc0c29aeb4d5de0d7fed",
+      "base": "3876d5c90ee7a1290810181b572a1d92e7f36dc5",
+      "head": "1230e2184dc55bfd891ae81b5f19357525640b65",
+      "failing": []
+     }
+    }
+   ],
+   "durationMs": 91147,
+   "commit": "ac512281719130a99e5b3ede6cb06b648d294c6c",
+   "tree": "5912e52b568ec2cca43143258ebd3aee23713da2",
+   "parent": "3876d5c90ee7a1290810181b572a1d92e7f36dc5",
+   "certificate": {
+    "file": "certificates/003-R1-module-api-key.json",
+    "verdict": "pass",
+    "scope": "static",
+    "digest": "sha256:5791cb1a9e19bfecb7516d1acad9515378a4d03b6a2dcc0c29aeb4d5de0d7fed",
+    "base": "3876d5c90ee7a1290810181b572a1d92e7f36dc5",
+    "head": "1230e2184dc55bfd891ae81b5f19357525640b65",
+    "failing": []
+   },
+   "counts": {
+    "filesMoved": 6,
+    "specifierEdits": 14,
+    "filesEdited": 11
+   },
+   "pathMap": {
+    "server/src/controllers/api-key.controller.spec.ts": "server/src/modules/api-key/api-key.controller.spec.ts",
+    "server/src/controllers/api-key.controller.ts": "server/src/modules/api-key/api-key.controller.ts",
+    "server/src/dtos/api-key.dto.ts": "server/src/modules/api-key/api-key.dto.ts",
+    "server/src/repositories/api-key.repository.ts": "server/src/modules/api-key/api-key.repository.ts",
+    "server/src/services/api-key.service.spec.ts": "server/src/modules/api-key/api-key.service.spec.ts",
+    "server/src/services/api-key.service.ts": "server/src/modules/api-key/api-key.service.ts"
+   }
+  },
+  {
+   "index": 4,
+   "rung": "R1",
+   "group": "module/asset",
+   "moves": {
+    "server/src/controllers/asset-file.controller.ts": "server/src/modules/asset/asset-file.controller.ts",
+    "server/src/controllers/asset-media.controller.ts": "server/src/modules/asset/asset-media.controller.ts",
+    "server/src/controllers/asset-media.controller.spec.ts": "server/src/modules/asset/asset-media.controller.spec.ts",
+    "server/src/controllers/asset.controller.ts": "server/src/modules/asset/asset.controller.ts",
+    "server/src/controllers/asset.controller.spec.ts": "server/src/modules/asset/asset.controller.spec.ts",
+    "server/src/dtos/asset-file.dto.ts": "server/src/modules/asset/asset-file.dto.ts",
+    "server/src/dtos/asset-ids.response.dto.ts": "server/src/modules/asset/asset-ids.response.dto.ts",
+    "server/src/dtos/asset-media-response.dto.ts": "server/src/modules/asset/asset-media-response.dto.ts",
+    "server/src/dtos/asset-media.dto.ts": "server/src/modules/asset/asset-media.dto.ts",
+    "server/src/dtos/asset-response.dto.ts": "server/src/modules/asset/asset-response.dto.ts",
+    "server/src/dtos/asset.dto.ts": "server/src/modules/asset/asset.dto.ts",
+    "server/src/dtos/editing.dto.ts": "server/src/modules/asset/editing.dto.ts",
+    "server/src/dtos/exif.dto.ts": "server/src/modules/asset/exif.dto.ts",
+    "server/src/middleware/asset-upload.interceptor.ts": "server/src/modules/asset/asset-upload.interceptor.ts",
+    "server/src/repositories/asset-edit.repository.ts": "server/src/modules/asset/asset-edit.repository.ts",
+    "server/src/repositories/asset-file.repository.ts": "server/src/modules/asset/asset-file.repository.ts",
+    "server/src/repositories/asset-job.repository.ts": "server/src/modules/asset/asset-job.repository.ts",
+    "server/src/repositories/asset.repository.ts": "server/src/modules/asset/asset.repository.ts",
+    "server/src/services/asset-file.service.ts": "server/src/modules/asset/asset-file.service.ts",
+    "server/src/services/asset-media.service.ts": "server/src/modules/asset/asset-media.service.ts",
+    "server/src/services/asset-media.service.spec.ts": "server/src/modules/asset/asset-media.service.spec.ts",
+    "server/src/services/asset.service.ts": "server/src/modules/asset/asset.service.ts",
+    "server/src/services/asset.service.spec.ts": "server/src/modules/asset/asset.service.spec.ts",
+    "server/src/utils/asset.util.ts": "server/src/modules/asset/asset.util.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/asset-file.controller.ts"
+    ],
+    [
+     "server/src/controllers/asset-media.controller.ts",
+     "server/src/controllers/asset-media.controller.spec.ts"
+    ],
+    [
+     "server/src/controllers/asset.controller.ts",
+     "server/src/controllers/asset.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/asset-file.dto.ts"
+    ],
+    [
+     "server/src/dtos/asset-ids.response.dto.ts"
+    ],
+    [
+     "server/src/dtos/asset-media-response.dto.ts"
+    ],
+    [
+     "server/src/dtos/asset-media.dto.ts"
+    ],
+    [
+     "server/src/dtos/asset-response.dto.ts"
+    ],
+    [
+     "server/src/dtos/asset.dto.ts"
+    ],
+    [
+     "server/src/dtos/editing.dto.ts"
+    ],
+    [
+     "server/src/dtos/exif.dto.ts"
+    ],
+    [
+     "server/src/middleware/asset-upload.interceptor.ts"
+    ],
+    [
+     "server/src/repositories/asset-edit.repository.ts"
+    ],
+    [
+     "server/src/repositories/asset-file.repository.ts"
+    ],
+    [
+     "server/src/repositories/asset-job.repository.ts"
+    ],
+    [
+     "server/src/repositories/asset.repository.ts"
+    ],
+    [
+     "server/src/services/asset-file.service.ts"
+    ],
+    [
+     "server/src/services/asset-media.service.ts",
+     "server/src/services/asset-media.service.spec.ts"
+    ],
+    [
+     "server/src/services/asset.service.ts",
+     "server/src/services/asset.service.spec.ts"
+    ],
+    [
+     "server/src/utils/asset.util.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 5,
+   "rung": "R1",
+   "group": "module/auth",
+   "moves": {
+    "server/src/commands/grant-admin.ts": "server/src/modules/auth/grant-admin.ts",
+    "server/src/commands/oauth-login.ts": "server/src/modules/auth/oauth-login.ts",
+    "server/src/commands/password-login.ts": "server/src/modules/auth/password-login.ts",
+    "server/src/controllers/auth-admin.controller.ts": "server/src/modules/auth/auth-admin.controller.ts",
+    "server/src/controllers/auth.controller.ts": "server/src/modules/auth/auth.controller.ts",
+    "server/src/controllers/auth.controller.spec.ts": "server/src/modules/auth/auth.controller.spec.ts",
+    "server/src/controllers/oauth.controller.ts": "server/src/modules/auth/oauth.controller.ts",
+    "server/src/controllers/oauth.controller.spec.ts": "server/src/modules/auth/oauth.controller.spec.ts",
+    "server/src/dtos/auth.dto.ts": "server/src/modules/auth/auth.dto.ts",
+    "server/src/middleware/auth.guard.ts": "server/src/modules/auth/auth.guard.ts",
+    "server/src/middleware/auth.guard.spec.ts": "server/src/modules/auth/auth.guard.spec.ts",
+    "server/src/repositories/oauth.repository.ts": "server/src/modules/auth/oauth.repository.ts",
+    "server/src/services/auth-admin.service.ts": "server/src/modules/auth/auth-admin.service.ts",
+    "server/src/services/auth.service.ts": "server/src/modules/auth/auth.service.ts",
+    "server/src/services/auth.service.spec.ts": "server/src/modules/auth/auth.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/commands/grant-admin.ts"
+    ],
+    [
+     "server/src/commands/oauth-login.ts"
+    ],
+    [
+     "server/src/commands/password-login.ts"
+    ],
+    [
+     "server/src/controllers/auth-admin.controller.ts"
+    ],
+    [
+     "server/src/controllers/auth.controller.ts",
+     "server/src/controllers/auth.controller.spec.ts"
+    ],
+    [
+     "server/src/controllers/oauth.controller.ts",
+     "server/src/controllers/oauth.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/auth.dto.ts"
+    ],
+    [
+     "server/src/middleware/auth.guard.ts",
+     "server/src/middleware/auth.guard.spec.ts"
+    ],
+    [
+     "server/src/repositories/oauth.repository.ts"
+    ],
+    [
+     "server/src/services/auth-admin.service.ts"
+    ],
+    [
+     "server/src/services/auth.service.ts",
+     "server/src/services/auth.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 6,
+   "rung": "R1",
+   "group": "module/cluster-group",
+   "moves": {
+    "server/src/controllers/cluster-group.controller.ts": "server/src/modules/cluster-group/cluster-group.controller.ts",
+    "server/src/dtos/cluster-group.dto.ts": "server/src/modules/cluster-group/cluster-group.dto.ts",
+    "server/src/repositories/cluster-group.repository.ts": "server/src/modules/cluster-group/cluster-group.repository.ts",
+    "server/src/services/cluster-group.service.ts": "server/src/modules/cluster-group/cluster-group.service.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/cluster-group.controller.ts"
+    ],
+    [
+     "server/src/dtos/cluster-group.dto.ts"
+    ],
+    [
+     "server/src/repositories/cluster-group.repository.ts"
+    ],
+    [
+     "server/src/services/cluster-group.service.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 7,
+   "rung": "R1",
+   "group": "module/config",
+   "moves": {
+    "server/src/controllers/config-admin.controller.ts": "server/src/modules/config/config-admin.controller.ts",
+    "server/src/controllers/config-public.controller.ts": "server/src/modules/config/config-public.controller.ts",
+    "server/src/controllers/config-user.controller.ts": "server/src/modules/config/config-user.controller.ts",
+    "server/src/controllers/system-config.controller.ts": "server/src/modules/config/system-config.controller.ts",
+    "server/src/controllers/system-config.controller.spec.ts": "server/src/modules/config/system-config.controller.spec.ts",
+    "server/src/dtos/config.dto.ts": "server/src/modules/config/config.dto.ts",
+    "server/src/dtos/config.dto.spec.ts": "server/src/modules/config/config.dto.spec.ts",
+    "server/src/services/system-config.service.ts": "server/src/modules/config/system-config.service.ts",
+    "server/src/services/system-config.service.spec.ts": "server/src/modules/config/system-config.service.spec.ts",
+    "server/src/utils/config.ts": "server/src/modules/config/config.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/config-admin.controller.ts"
+    ],
+    [
+     "server/src/controllers/config-public.controller.ts"
+    ],
+    [
+     "server/src/controllers/config-user.controller.ts"
+    ],
+    [
+     "server/src/controllers/system-config.controller.ts",
+     "server/src/controllers/system-config.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/config.dto.ts",
+     "server/src/dtos/config.dto.spec.ts"
+    ],
+    [
+     "server/src/services/system-config.service.ts",
+     "server/src/services/system-config.service.spec.ts"
+    ],
+    [
+     "server/src/utils/config.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 8,
+   "rung": "R1",
+   "group": "module/database-backup",
+   "moves": {
+    "server/src/controllers/database-backup.controller.ts": "server/src/modules/database-backup/database-backup.controller.ts",
+    "server/src/controllers/database-backup.controller.spec.ts": "server/src/modules/database-backup/database-backup.controller.spec.ts",
+    "server/src/dtos/database-backup.dto.ts": "server/src/modules/database-backup/database-backup.dto.ts",
+    "server/src/services/database-backup.service.ts": "server/src/modules/database-backup/database-backup.service.ts",
+    "server/src/services/database-backup.service.spec.ts": "server/src/modules/database-backup/database-backup.service.spec.ts",
+    "server/src/utils/database-backups.ts": "server/src/modules/database-backup/database-backups.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/database-backup.controller.ts",
+     "server/src/controllers/database-backup.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/database-backup.dto.ts"
+    ],
+    [
+     "server/src/services/database-backup.service.ts",
+     "server/src/services/database-backup.service.spec.ts"
+    ],
+    [
+     "server/src/utils/database-backups.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 9,
+   "rung": "R1",
+   "group": "module/download",
+   "moves": {
+    "server/src/controllers/download.controller.ts": "server/src/modules/download/download.controller.ts",
+    "server/src/controllers/download.controller.spec.ts": "server/src/modules/download/download.controller.spec.ts",
+    "server/src/dtos/download.dto.ts": "server/src/modules/download/download.dto.ts",
+    "server/src/repositories/download.repository.ts": "server/src/modules/download/download.repository.ts",
+    "server/src/services/download.service.ts": "server/src/modules/download/download.service.ts",
+    "server/src/services/download.service.spec.ts": "server/src/modules/download/download.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/download.controller.ts",
+     "server/src/controllers/download.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/download.dto.ts"
+    ],
+    [
+     "server/src/repositories/download.repository.ts"
+    ],
+    [
+     "server/src/services/download.service.ts",
+     "server/src/services/download.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 10,
+   "rung": "R1",
+   "group": "module/duplicate",
+   "moves": {
+    "server/src/controllers/duplicate.controller.ts": "server/src/modules/duplicate/duplicate.controller.ts",
+    "server/src/controllers/duplicate.controller.spec.ts": "server/src/modules/duplicate/duplicate.controller.spec.ts",
+    "server/src/dtos/duplicate.dto.ts": "server/src/modules/duplicate/duplicate.dto.ts",
+    "server/src/repositories/duplicate.repository.ts": "server/src/modules/duplicate/duplicate.repository.ts",
+    "server/src/services/duplicate.service.ts": "server/src/modules/duplicate/duplicate.service.ts",
+    "server/src/services/duplicate.service.spec.ts": "server/src/modules/duplicate/duplicate.service.spec.ts",
+    "server/src/utils/duplicate.ts": "server/src/modules/duplicate/duplicate.ts",
+    "server/src/utils/duplicate.spec.ts": "server/src/modules/duplicate/duplicate.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/duplicate.controller.ts",
+     "server/src/controllers/duplicate.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/duplicate.dto.ts"
+    ],
+    [
+     "server/src/repositories/duplicate.repository.ts"
+    ],
+    [
+     "server/src/services/duplicate.service.ts",
+     "server/src/services/duplicate.service.spec.ts"
+    ],
+    [
+     "server/src/utils/duplicate.ts",
+     "server/src/utils/duplicate.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 11,
+   "rung": "R1",
+   "group": "module/integrity",
+   "moves": {
+    "server/src/controllers/integrity-admin.controller.ts": "server/src/modules/integrity/integrity-admin.controller.ts",
+    "server/src/dtos/integrity.dto.ts": "server/src/modules/integrity/integrity.dto.ts",
+    "server/src/repositories/integrity.repository.ts": "server/src/modules/integrity/integrity.repository.ts",
+    "server/src/services/integrity.service.ts": "server/src/modules/integrity/integrity.service.ts",
+    "server/src/services/integrity.service.spec.ts": "server/src/modules/integrity/integrity.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/integrity-admin.controller.ts"
+    ],
+    [
+     "server/src/dtos/integrity.dto.ts"
+    ],
+    [
+     "server/src/repositories/integrity.repository.ts"
+    ],
+    [
+     "server/src/services/integrity.service.ts",
+     "server/src/services/integrity.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 12,
+   "rung": "R1",
+   "group": "module/job",
+   "moves": {
+    "server/src/controllers/job.controller.ts": "server/src/modules/job/job.controller.ts",
+    "server/src/controllers/job.controller.spec.ts": "server/src/modules/job/job.controller.spec.ts",
+    "server/src/dtos/job.dto.ts": "server/src/modules/job/job.dto.ts",
+    "server/src/repositories/job.repository.ts": "server/src/modules/job/job.repository.ts",
+    "server/src/services/job.service.ts": "server/src/modules/job/job.service.ts",
+    "server/src/services/job.service.spec.ts": "server/src/modules/job/job.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/job.controller.ts",
+     "server/src/controllers/job.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/job.dto.ts"
+    ],
+    [
+     "server/src/repositories/job.repository.ts"
+    ],
+    [
+     "server/src/services/job.service.ts",
+     "server/src/services/job.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 13,
+   "rung": "R1",
+   "group": "module/library",
+   "moves": {
+    "server/src/controllers/library.controller.ts": "server/src/modules/library/library.controller.ts",
+    "server/src/controllers/library.controller.spec.ts": "server/src/modules/library/library.controller.spec.ts",
+    "server/src/dtos/library.dto.ts": "server/src/modules/library/library.dto.ts",
+    "server/src/repositories/library.repository.ts": "server/src/modules/library/library.repository.ts",
+    "server/src/services/library.service.ts": "server/src/modules/library/library.service.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/library.controller.ts",
+     "server/src/controllers/library.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/library.dto.ts"
+    ],
+    [
+     "server/src/repositories/library.repository.ts"
+    ],
+    [
+     "server/src/services/library.service.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 14,
+   "rung": "R1",
+   "group": "module/machine-learning",
+   "moves": {
+    "server/src/repositories/machine-learning.repository.ts": "server/src/modules/machine-learning/machine-learning.repository.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/machine-learning.repository.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 15,
+   "rung": "R1",
+   "group": "module/maintenance",
+   "moves": {
+    "server/src/commands/maintenance-mode.ts": "server/src/modules/maintenance/maintenance-mode.ts",
+    "server/src/controllers/maintenance.controller.ts": "server/src/modules/maintenance/maintenance.controller.ts",
+    "server/src/controllers/maintenance.controller.spec.ts": "server/src/modules/maintenance/maintenance.controller.spec.ts",
+    "server/src/dtos/maintenance.dto.ts": "server/src/modules/maintenance/maintenance.dto.ts",
+    "server/src/maintenance/maintenance-auth.guard.ts": "server/src/modules/maintenance/maintenance-auth.guard.ts",
+    "server/src/maintenance/maintenance-websocket.repository.ts": "server/src/modules/maintenance/maintenance-websocket.repository.ts",
+    "server/src/maintenance/maintenance-worker.controller.ts": "server/src/modules/maintenance/maintenance-worker.controller.ts",
+    "server/src/maintenance/maintenance-worker.service.ts": "server/src/modules/maintenance/maintenance-worker.service.ts",
+    "server/src/maintenance/maintenance-worker.service.spec.ts": "server/src/modules/maintenance/maintenance-worker.service.spec.ts",
+    "server/src/repositories/app.repository.ts": "server/src/modules/maintenance/app.repository.ts",
+    "server/src/services/maintenance.service.ts": "server/src/modules/maintenance/maintenance.service.ts",
+    "server/src/services/maintenance.service.spec.ts": "server/src/modules/maintenance/maintenance.service.spec.ts",
+    "server/src/utils/maintenance.ts": "server/src/modules/maintenance/maintenance.ts"
+   },
+   "entries": [
+    [
+     "server/src/commands/maintenance-mode.ts"
+    ],
+    [
+     "server/src/controllers/maintenance.controller.ts",
+     "server/src/controllers/maintenance.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/maintenance.dto.ts"
+    ],
+    [
+     "server/src/maintenance/maintenance-auth.guard.ts"
+    ],
+    [
+     "server/src/maintenance/maintenance-websocket.repository.ts"
+    ],
+    [
+     "server/src/maintenance/maintenance-worker.controller.ts"
+    ],
+    [
+     "server/src/maintenance/maintenance-worker.service.ts",
+     "server/src/maintenance/maintenance-worker.service.spec.ts"
+    ],
+    [
+     "server/src/repositories/app.repository.ts"
+    ],
+    [
+     "server/src/services/maintenance.service.ts",
+     "server/src/services/maintenance.service.spec.ts"
+    ],
+    [
+     "server/src/utils/maintenance.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 16,
+   "rung": "R1",
+   "group": "module/map",
+   "moves": {
+    "server/src/controllers/map.controller.ts": "server/src/modules/map/map.controller.ts",
+    "server/src/controllers/map.controller.spec.ts": "server/src/modules/map/map.controller.spec.ts",
+    "server/src/dtos/map.dto.ts": "server/src/modules/map/map.dto.ts",
+    "server/src/repositories/map.repository.ts": "server/src/modules/map/map.repository.ts",
+    "server/src/services/map.service.ts": "server/src/modules/map/map.service.ts",
+    "server/src/services/map.service.spec.ts": "server/src/modules/map/map.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/map.controller.ts",
+     "server/src/controllers/map.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/map.dto.ts"
+    ],
+    [
+     "server/src/repositories/map.repository.ts"
+    ],
+    [
+     "server/src/services/map.service.ts",
+     "server/src/services/map.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 17,
+   "rung": "R1",
+   "group": "module/memory",
+   "moves": {
+    "server/src/controllers/memory.controller.ts": "server/src/modules/memory/memory.controller.ts",
+    "server/src/controllers/memory.controller.spec.ts": "server/src/modules/memory/memory.controller.spec.ts",
+    "server/src/dtos/memory.dto.ts": "server/src/modules/memory/memory.dto.ts",
+    "server/src/repositories/memory.repository.ts": "server/src/modules/memory/memory.repository.ts",
+    "server/src/services/memory.service.ts": "server/src/modules/memory/memory.service.ts",
+    "server/src/services/memory.service.spec.ts": "server/src/modules/memory/memory.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/memory.controller.ts",
+     "server/src/controllers/memory.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/memory.dto.ts"
+    ],
+    [
+     "server/src/repositories/memory.repository.ts"
+    ],
+    [
+     "server/src/services/memory.service.ts",
+     "server/src/services/memory.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 18,
+   "rung": "R1",
+   "group": "module/notification",
+   "moves": {
+    "server/src/controllers/notification-admin.controller.ts": "server/src/modules/notification/notification-admin.controller.ts",
+    "server/src/controllers/notification-admin.controller.spec.ts": "server/src/modules/notification/notification-admin.controller.spec.ts",
+    "server/src/controllers/notification.controller.ts": "server/src/modules/notification/notification.controller.ts",
+    "server/src/controllers/notification.controller.spec.ts": "server/src/modules/notification/notification.controller.spec.ts",
+    "server/src/dtos/notification.dto.ts": "server/src/modules/notification/notification.dto.ts",
+    "server/src/repositories/email.repository.ts": "server/src/modules/notification/email.repository.ts",
+    "server/src/repositories/email.repository.spec.ts": "server/src/modules/notification/email.repository.spec.ts",
+    "server/src/repositories/notification.repository.ts": "server/src/modules/notification/notification.repository.ts",
+    "server/src/services/notification-admin.service.ts": "server/src/modules/notification/notification-admin.service.ts",
+    "server/src/services/notification-admin.service.spec.ts": "server/src/modules/notification/notification-admin.service.spec.ts",
+    "server/src/services/notification.service.ts": "server/src/modules/notification/notification.service.ts",
+    "server/src/services/notification.service.spec.ts": "server/src/modules/notification/notification.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/notification-admin.controller.ts",
+     "server/src/controllers/notification-admin.controller.spec.ts"
+    ],
+    [
+     "server/src/controllers/notification.controller.ts",
+     "server/src/controllers/notification.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/notification.dto.ts"
+    ],
+    [
+     "server/src/repositories/email.repository.ts",
+     "server/src/repositories/email.repository.spec.ts"
+    ],
+    [
+     "server/src/repositories/notification.repository.ts"
+    ],
+    [
+     "server/src/services/notification-admin.service.ts",
+     "server/src/services/notification-admin.service.spec.ts"
+    ],
+    [
+     "server/src/services/notification.service.ts",
+     "server/src/services/notification.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 19,
+   "rung": "R1",
+   "group": "module/ocr",
+   "moves": {
+    "server/src/dtos/ocr.dto.ts": "server/src/modules/ocr/ocr.dto.ts",
+    "server/src/repositories/ocr.repository.ts": "server/src/modules/ocr/ocr.repository.ts",
+    "server/src/services/ocr.service.ts": "server/src/modules/ocr/ocr.service.ts",
+    "server/src/services/ocr.service.spec.ts": "server/src/modules/ocr/ocr.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/dtos/ocr.dto.ts"
+    ],
+    [
+     "server/src/repositories/ocr.repository.ts"
+    ],
+    [
+     "server/src/services/ocr.service.ts",
+     "server/src/services/ocr.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 20,
+   "rung": "R1",
+   "group": "module/partner",
+   "moves": {
+    "server/src/controllers/partner.controller.ts": "server/src/modules/partner/partner.controller.ts",
+    "server/src/controllers/partner.controller.spec.ts": "server/src/modules/partner/partner.controller.spec.ts",
+    "server/src/dtos/partner.dto.ts": "server/src/modules/partner/partner.dto.ts",
+    "server/src/repositories/partner.repository.ts": "server/src/modules/partner/partner.repository.ts",
+    "server/src/services/partner.service.ts": "server/src/modules/partner/partner.service.ts",
+    "server/src/services/partner.service.spec.ts": "server/src/modules/partner/partner.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/partner.controller.ts",
+     "server/src/controllers/partner.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/partner.dto.ts"
+    ],
+    [
+     "server/src/repositories/partner.repository.ts"
+    ],
+    [
+     "server/src/services/partner.service.ts",
+     "server/src/services/partner.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 21,
+   "rung": "R1",
+   "group": "module/person",
+   "moves": {
+    "server/src/controllers/face.controller.ts": "server/src/modules/person/face.controller.ts",
+    "server/src/controllers/person.controller.ts": "server/src/modules/person/person.controller.ts",
+    "server/src/controllers/person.controller.spec.ts": "server/src/modules/person/person.controller.spec.ts",
+    "server/src/dtos/person.dto.ts": "server/src/modules/person/person.dto.ts",
+    "server/src/repositories/person-user.repository.ts": "server/src/modules/person/person-user.repository.ts",
+    "server/src/repositories/person.repository.ts": "server/src/modules/person/person.repository.ts",
+    "server/src/services/person.service.ts": "server/src/modules/person/person.service.ts",
+    "server/src/services/person.service.spec.ts": "server/src/modules/person/person.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/face.controller.ts"
+    ],
+    [
+     "server/src/controllers/person.controller.ts",
+     "server/src/controllers/person.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/person.dto.ts"
+    ],
+    [
+     "server/src/repositories/person-user.repository.ts"
+    ],
+    [
+     "server/src/repositories/person.repository.ts"
+    ],
+    [
+     "server/src/services/person.service.ts",
+     "server/src/services/person.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 22,
+   "rung": "R1",
+   "group": "module/plugin",
+   "moves": {
+    "server/src/controllers/plugin.controller.ts": "server/src/modules/plugin/plugin.controller.ts",
+    "server/src/controllers/plugin.controller.spec.ts": "server/src/modules/plugin/plugin.controller.spec.ts",
+    "server/src/dtos/json-schema.dto.ts": "server/src/modules/plugin/json-schema.dto.ts",
+    "server/src/dtos/plugin-manifest.dto.ts": "server/src/modules/plugin/plugin-manifest.dto.ts",
+    "server/src/dtos/plugin.dto.ts": "server/src/modules/plugin/plugin.dto.ts",
+    "server/src/repositories/plugin.repository.ts": "server/src/modules/plugin/plugin.repository.ts",
+    "server/src/services/plugin.service.ts": "server/src/modules/plugin/plugin.service.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/plugin.controller.ts",
+     "server/src/controllers/plugin.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/json-schema.dto.ts"
+    ],
+    [
+     "server/src/dtos/plugin-manifest.dto.ts"
+    ],
+    [
+     "server/src/dtos/plugin.dto.ts"
+    ],
+    [
+     "server/src/repositories/plugin.repository.ts"
+    ],
+    [
+     "server/src/services/plugin.service.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 23,
+   "rung": "R1",
+   "group": "module/queue",
+   "moves": {
+    "server/src/controllers/queue.controller.ts": "server/src/modules/queue/queue.controller.ts",
+    "server/src/dtos/queue-legacy.dto.ts": "server/src/modules/queue/queue-legacy.dto.ts",
+    "server/src/dtos/queue.dto.ts": "server/src/modules/queue/queue.dto.ts",
+    "server/src/services/queue.service.ts": "server/src/modules/queue/queue.service.ts",
+    "server/src/services/queue.service.spec.ts": "server/src/modules/queue/queue.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/queue.controller.ts"
+    ],
+    [
+     "server/src/dtos/queue-legacy.dto.ts"
+    ],
+    [
+     "server/src/dtos/queue.dto.ts"
+    ],
+    [
+     "server/src/services/queue.service.ts",
+     "server/src/services/queue.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 24,
+   "rung": "R1",
+   "group": "module/search",
+   "moves": {
+    "server/src/controllers/search.controller.ts": "server/src/modules/search/search.controller.ts",
+    "server/src/controllers/search.controller.spec.ts": "server/src/modules/search/search.controller.spec.ts",
+    "server/src/dtos/search.dto.ts": "server/src/modules/search/search.dto.ts",
+    "server/src/repositories/search.repository.ts": "server/src/modules/search/search.repository.ts",
+    "server/src/services/search.service.ts": "server/src/modules/search/search.service.ts",
+    "server/src/services/search.service.spec.ts": "server/src/modules/search/search.service.spec.ts",
+    "server/src/services/smart-info.service.ts": "server/src/modules/search/smart-info.service.ts",
+    "server/src/services/smart-info.service.spec.ts": "server/src/modules/search/smart-info.service.spec.ts",
+    "server/src/utils/search-cursor.ts": "server/src/modules/search/search-cursor.ts",
+    "server/src/utils/search-cursor.spec.ts": "server/src/modules/search/search-cursor.spec.ts",
+    "server/src/utils/search-filter.ts": "server/src/modules/search/search-filter.ts",
+    "server/src/utils/search-filter.spec.ts": "server/src/modules/search/search-filter.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/search.controller.ts",
+     "server/src/controllers/search.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/search.dto.ts"
+    ],
+    [
+     "server/src/repositories/search.repository.ts"
+    ],
+    [
+     "server/src/services/search.service.ts",
+     "server/src/services/search.service.spec.ts"
+    ],
+    [
+     "server/src/services/smart-info.service.ts",
+     "server/src/services/smart-info.service.spec.ts"
+    ],
+    [
+     "server/src/utils/search-cursor.ts",
+     "server/src/utils/search-cursor.spec.ts"
+    ],
+    [
+     "server/src/utils/search-filter.ts",
+     "server/src/utils/search-filter.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 25,
+   "rung": "R1",
+   "group": "module/server",
+   "moves": {
+    "server/src/controllers/server.controller.ts": "server/src/modules/server/server.controller.ts",
+    "server/src/dtos/server.dto.ts": "server/src/modules/server/server.dto.ts",
+    "server/src/repositories/server-info.repository.ts": "server/src/modules/server/server-info.repository.ts",
+    "server/src/services/server.service.ts": "server/src/modules/server/server.service.ts",
+    "server/src/services/server.service.spec.ts": "server/src/modules/server/server.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/server.controller.ts"
+    ],
+    [
+     "server/src/dtos/server.dto.ts"
+    ],
+    [
+     "server/src/repositories/server-info.repository.ts"
+    ],
+    [
+     "server/src/services/server.service.ts",
+     "server/src/services/server.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 26,
+   "rung": "R1",
+   "group": "module/session",
+   "moves": {
+    "server/src/controllers/session.controller.ts": "server/src/modules/session/session.controller.ts",
+    "server/src/dtos/session.dto.ts": "server/src/modules/session/session.dto.ts",
+    "server/src/repositories/session.repository.ts": "server/src/modules/session/session.repository.ts",
+    "server/src/services/session.service.ts": "server/src/modules/session/session.service.ts",
+    "server/src/services/session.service.spec.ts": "server/src/modules/session/session.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/session.controller.ts"
+    ],
+    [
+     "server/src/dtos/session.dto.ts"
+    ],
+    [
+     "server/src/repositories/session.repository.ts"
+    ],
+    [
+     "server/src/services/session.service.ts",
+     "server/src/services/session.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 27,
+   "rung": "R1",
+   "group": "module/shared-link",
+   "moves": {
+    "server/src/controllers/shared-link.controller.ts": "server/src/modules/shared-link/shared-link.controller.ts",
+    "server/src/controllers/shared-link.controller.spec.ts": "server/src/modules/shared-link/shared-link.controller.spec.ts",
+    "server/src/dtos/shared-link.dto.ts": "server/src/modules/shared-link/shared-link.dto.ts",
+    "server/src/repositories/shared-link-asset.repository.ts": "server/src/modules/shared-link/shared-link-asset.repository.ts",
+    "server/src/repositories/shared-link.repository.ts": "server/src/modules/shared-link/shared-link.repository.ts",
+    "server/src/services/shared-link.service.ts": "server/src/modules/shared-link/shared-link.service.ts",
+    "server/src/services/shared-link.service.spec.ts": "server/src/modules/shared-link/shared-link.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/shared-link.controller.ts",
+     "server/src/controllers/shared-link.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/shared-link.dto.ts"
+    ],
+    [
+     "server/src/repositories/shared-link-asset.repository.ts"
+    ],
+    [
+     "server/src/repositories/shared-link.repository.ts"
+    ],
+    [
+     "server/src/services/shared-link.service.ts",
+     "server/src/services/shared-link.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 28,
+   "rung": "R1",
+   "group": "module/stack",
+   "moves": {
+    "server/src/controllers/stack.controller.ts": "server/src/modules/stack/stack.controller.ts",
+    "server/src/controllers/stack.controller.spec.ts": "server/src/modules/stack/stack.controller.spec.ts",
+    "server/src/dtos/stack.dto.ts": "server/src/modules/stack/stack.dto.ts",
+    "server/src/repositories/stack.repository.ts": "server/src/modules/stack/stack.repository.ts",
+    "server/src/services/stack.service.ts": "server/src/modules/stack/stack.service.ts",
+    "server/src/services/stack.service.spec.ts": "server/src/modules/stack/stack.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/stack.controller.ts",
+     "server/src/controllers/stack.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/stack.dto.ts"
+    ],
+    [
+     "server/src/repositories/stack.repository.ts"
+    ],
+    [
+     "server/src/services/stack.service.ts",
+     "server/src/services/stack.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 29,
+   "rung": "R1",
+   "group": "module/sync",
+   "moves": {
+    "server/src/controllers/sync.controller.ts": "server/src/modules/sync/sync.controller.ts",
+    "server/src/controllers/sync.controller.spec.ts": "server/src/modules/sync/sync.controller.spec.ts",
+    "server/src/dtos/sync.dto.ts": "server/src/modules/sync/sync.dto.ts",
+    "server/src/repositories/sync-checkpoint.repository.ts": "server/src/modules/sync/sync-checkpoint.repository.ts",
+    "server/src/repositories/sync.repository.ts": "server/src/modules/sync/sync.repository.ts",
+    "server/src/services/sync.service.ts": "server/src/modules/sync/sync.service.ts",
+    "server/src/services/sync.service.spec.ts": "server/src/modules/sync/sync.service.spec.ts",
+    "server/src/utils/sync.ts": "server/src/modules/sync/sync.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/sync.controller.ts",
+     "server/src/controllers/sync.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/sync.dto.ts"
+    ],
+    [
+     "server/src/repositories/sync-checkpoint.repository.ts"
+    ],
+    [
+     "server/src/repositories/sync.repository.ts"
+    ],
+    [
+     "server/src/services/sync.service.ts",
+     "server/src/services/sync.service.spec.ts"
+    ],
+    [
+     "server/src/utils/sync.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 30,
+   "rung": "R1",
+   "group": "module/system-metadata",
+   "moves": {
+    "server/src/controllers/system-metadata.controller.ts": "server/src/modules/system-metadata/system-metadata.controller.ts",
+    "server/src/controllers/system-metadata.controller.spec.ts": "server/src/modules/system-metadata/system-metadata.controller.spec.ts",
+    "server/src/dtos/onboarding.dto.ts": "server/src/modules/system-metadata/onboarding.dto.ts",
+    "server/src/dtos/system-metadata.dto.ts": "server/src/modules/system-metadata/system-metadata.dto.ts",
+    "server/src/repositories/system-metadata.repository.ts": "server/src/modules/system-metadata/system-metadata.repository.ts",
+    "server/src/services/system-metadata.service.ts": "server/src/modules/system-metadata/system-metadata.service.ts",
+    "server/src/services/system-metadata.service.spec.ts": "server/src/modules/system-metadata/system-metadata.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/system-metadata.controller.ts",
+     "server/src/controllers/system-metadata.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/onboarding.dto.ts"
+    ],
+    [
+     "server/src/dtos/system-metadata.dto.ts"
+    ],
+    [
+     "server/src/repositories/system-metadata.repository.ts"
+    ],
+    [
+     "server/src/services/system-metadata.service.ts",
+     "server/src/services/system-metadata.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 31,
+   "rung": "R1",
+   "group": "module/tag",
+   "moves": {
+    "server/src/controllers/tag.controller.ts": "server/src/modules/tag/tag.controller.ts",
+    "server/src/controllers/tag.controller.spec.ts": "server/src/modules/tag/tag.controller.spec.ts",
+    "server/src/dtos/tag.dto.ts": "server/src/modules/tag/tag.dto.ts",
+    "server/src/repositories/tag.repository.ts": "server/src/modules/tag/tag.repository.ts",
+    "server/src/services/tag.service.ts": "server/src/modules/tag/tag.service.ts",
+    "server/src/services/tag.service.spec.ts": "server/src/modules/tag/tag.service.spec.ts",
+    "server/src/utils/replace-template-tags.ts": "server/src/modules/tag/replace-template-tags.ts",
+    "server/src/utils/tag.ts": "server/src/modules/tag/tag.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/tag.controller.ts",
+     "server/src/controllers/tag.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/tag.dto.ts"
+    ],
+    [
+     "server/src/repositories/tag.repository.ts"
+    ],
+    [
+     "server/src/services/tag.service.ts",
+     "server/src/services/tag.service.spec.ts"
+    ],
+    [
+     "server/src/utils/replace-template-tags.ts"
+    ],
+    [
+     "server/src/utils/tag.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 32,
+   "rung": "R1",
+   "group": "module/timeline",
+   "moves": {
+    "server/src/controllers/timeline.controller.ts": "server/src/modules/timeline/timeline.controller.ts",
+    "server/src/controllers/timeline.controller.spec.ts": "server/src/modules/timeline/timeline.controller.spec.ts",
+    "server/src/dtos/bbox.dto.ts": "server/src/modules/timeline/bbox.dto.ts",
+    "server/src/dtos/time-bucket.dto.ts": "server/src/modules/timeline/time-bucket.dto.ts",
+    "server/src/services/timeline.service.ts": "server/src/modules/timeline/timeline.service.ts",
+    "server/src/services/timeline.service.spec.ts": "server/src/modules/timeline/timeline.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/timeline.controller.ts",
+     "server/src/controllers/timeline.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/bbox.dto.ts"
+    ],
+    [
+     "server/src/dtos/time-bucket.dto.ts"
+    ],
+    [
+     "server/src/services/timeline.service.ts",
+     "server/src/services/timeline.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 33,
+   "rung": "R1",
+   "group": "module/trash",
+   "moves": {
+    "server/src/controllers/trash.controller.ts": "server/src/modules/trash/trash.controller.ts",
+    "server/src/controllers/trash.controller.spec.ts": "server/src/modules/trash/trash.controller.spec.ts",
+    "server/src/dtos/trash.dto.ts": "server/src/modules/trash/trash.dto.ts",
+    "server/src/repositories/trash.repository.ts": "server/src/modules/trash/trash.repository.ts",
+    "server/src/services/trash.service.ts": "server/src/modules/trash/trash.service.ts",
+    "server/src/services/trash.service.spec.ts": "server/src/modules/trash/trash.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/trash.controller.ts",
+     "server/src/controllers/trash.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/trash.dto.ts"
+    ],
+    [
+     "server/src/repositories/trash.repository.ts"
+    ],
+    [
+     "server/src/services/trash.service.ts",
+     "server/src/services/trash.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 34,
+   "rung": "R1",
+   "group": "module/user",
+   "moves": {
+    "server/src/commands/list-users.command.ts": "server/src/modules/user/list-users.command.ts",
+    "server/src/commands/reset-admin-password.command.ts": "server/src/modules/user/reset-admin-password.command.ts",
+    "server/src/controllers/user-admin.controller.ts": "server/src/modules/user/user-admin.controller.ts",
+    "server/src/controllers/user-admin.controller.spec.ts": "server/src/modules/user/user-admin.controller.spec.ts",
+    "server/src/controllers/user.controller.ts": "server/src/modules/user/user.controller.ts",
+    "server/src/controllers/user.controller.spec.ts": "server/src/modules/user/user.controller.spec.ts",
+    "server/src/dtos/calendar-heatmap.dto.ts": "server/src/modules/user/calendar-heatmap.dto.ts",
+    "server/src/dtos/license.dto.ts": "server/src/modules/user/license.dto.ts",
+    "server/src/dtos/user-preferences.dto.ts": "server/src/modules/user/user-preferences.dto.ts",
+    "server/src/dtos/user-profile.dto.ts": "server/src/modules/user/user-profile.dto.ts",
+    "server/src/dtos/user.dto.ts": "server/src/modules/user/user.dto.ts",
+    "server/src/dtos/user.dto.spec.ts": "server/src/modules/user/user.dto.spec.ts",
+    "server/src/repositories/user.repository.ts": "server/src/modules/user/user.repository.ts",
+    "server/src/services/shared/user-methods.ts": "server/src/modules/user/user-methods.ts",
+    "server/src/services/user-admin.service.ts": "server/src/modules/user/user-admin.service.ts",
+    "server/src/services/user-admin.service.spec.ts": "server/src/modules/user/user-admin.service.spec.ts",
+    "server/src/services/user.service.ts": "server/src/modules/user/user.service.ts",
+    "server/src/services/user.service.spec.ts": "server/src/modules/user/user.service.spec.ts",
+    "server/src/utils/profile-image.ts": "server/src/modules/user/profile-image.ts"
+   },
+   "entries": [
+    [
+     "server/src/commands/list-users.command.ts"
+    ],
+    [
+     "server/src/commands/reset-admin-password.command.ts"
+    ],
+    [
+     "server/src/controllers/user-admin.controller.ts",
+     "server/src/controllers/user-admin.controller.spec.ts"
+    ],
+    [
+     "server/src/controllers/user.controller.ts",
+     "server/src/controllers/user.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/calendar-heatmap.dto.ts"
+    ],
+    [
+     "server/src/dtos/license.dto.ts"
+    ],
+    [
+     "server/src/dtos/user-preferences.dto.ts"
+    ],
+    [
+     "server/src/dtos/user-profile.dto.ts"
+    ],
+    [
+     "server/src/dtos/user.dto.ts",
+     "server/src/dtos/user.dto.spec.ts"
+    ],
+    [
+     "server/src/repositories/user.repository.ts"
+    ],
+    [
+     "server/src/services/shared/user-methods.ts"
+    ],
+    [
+     "server/src/services/user-admin.service.ts",
+     "server/src/services/user-admin.service.spec.ts"
+    ],
+    [
+     "server/src/services/user.service.ts",
+     "server/src/services/user.service.spec.ts"
+    ],
+    [
+     "server/src/utils/profile-image.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 35,
+   "rung": "R1",
+   "group": "module/version",
+   "moves": {
+    "server/src/commands/version.command.ts": "server/src/modules/version/version.command.ts",
+    "server/src/repositories/version-history.repository.ts": "server/src/modules/version/version-history.repository.ts",
+    "server/src/services/version.service.ts": "server/src/modules/version/version.service.ts",
+    "server/src/services/version.service.spec.ts": "server/src/modules/version/version.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/commands/version.command.ts"
+    ],
+    [
+     "server/src/repositories/version-history.repository.ts"
+    ],
+    [
+     "server/src/services/version.service.ts",
+     "server/src/services/version.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 36,
+   "rung": "R1",
+   "group": "module/video-stream",
+   "moves": {
+    "server/src/controllers/video-stream.controller.ts": "server/src/modules/video-stream/video-stream.controller.ts",
+    "server/src/dtos/streaming.dto.ts": "server/src/modules/video-stream/streaming.dto.ts",
+    "server/src/repositories/video-stream.repository.ts": "server/src/modules/video-stream/video-stream.repository.ts",
+    "server/src/services/hls.service.ts": "server/src/modules/video-stream/hls.service.ts",
+    "server/src/services/hls.service.spec.ts": "server/src/modules/video-stream/hls.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/video-stream.controller.ts"
+    ],
+    [
+     "server/src/dtos/streaming.dto.ts"
+    ],
+    [
+     "server/src/repositories/video-stream.repository.ts"
+    ],
+    [
+     "server/src/services/hls.service.ts",
+     "server/src/services/hls.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 37,
+   "rung": "R1",
+   "group": "module/view",
+   "moves": {
+    "server/src/controllers/view.controller.ts": "server/src/modules/view/view.controller.ts",
+    "server/src/repositories/view-repository.ts": "server/src/modules/view/view-repository.ts",
+    "server/src/services/view.service.ts": "server/src/modules/view/view.service.ts",
+    "server/src/services/view.service.spec.ts": "server/src/modules/view/view.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/view.controller.ts"
+    ],
+    [
+     "server/src/repositories/view-repository.ts"
+    ],
+    [
+     "server/src/services/view.service.ts",
+     "server/src/services/view.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 38,
+   "rung": "R1",
+   "group": "module/workflow",
+   "moves": {
+    "server/src/controllers/workflow.controller.ts": "server/src/modules/workflow/workflow.controller.ts",
+    "server/src/controllers/workflow.controller.spec.ts": "server/src/modules/workflow/workflow.controller.spec.ts",
+    "server/src/dtos/workflow.dto.ts": "server/src/modules/workflow/workflow.dto.ts",
+    "server/src/repositories/workflow.repository.ts": "server/src/modules/workflow/workflow.repository.ts",
+    "server/src/services/workflow-execution.service.ts": "server/src/modules/workflow/workflow-execution.service.ts",
+    "server/src/services/workflow.service.ts": "server/src/modules/workflow/workflow.service.ts",
+    "server/src/utils/workflow.ts": "server/src/modules/workflow/workflow.ts",
+    "server/src/utils/workflow.spec.ts": "server/src/modules/workflow/workflow.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/controllers/workflow.controller.ts",
+     "server/src/controllers/workflow.controller.spec.ts"
+    ],
+    [
+     "server/src/dtos/workflow.dto.ts"
+    ],
+    [
+     "server/src/repositories/workflow.repository.ts"
+    ],
+    [
+     "server/src/services/workflow-execution.service.ts"
+    ],
+    [
+     "server/src/services/workflow.service.ts"
+    ],
+    [
+     "server/src/utils/workflow.ts",
+     "server/src/utils/workflow.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 39,
+   "rung": "R2",
+   "group": "platform/access",
+   "moves": {
+    "server/src/repositories/access.repository.ts": "server/src/platform/access/access.repository.ts",
+    "server/src/utils/access.ts": "server/src/platform/access/access.ts",
+    "server/src/utils/set.ts": "server/src/platform/access/set.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/access.repository.ts"
+    ],
+    [
+     "server/src/utils/access.ts"
+    ],
+    [
+     "server/src/utils/set.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 40,
+   "rung": "R2",
+   "group": "platform/bootstrap",
+   "moves": {
+    "server/src/app.common.ts": "server/src/platform/bootstrap/app.common.ts",
+    "server/src/controllers/app.controller.ts": "server/src/platform/bootstrap/app.controller.ts",
+    "server/src/controllers/app.controller.spec.ts": "server/src/platform/bootstrap/app.controller.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/app.common.ts"
+    ],
+    [
+     "server/src/controllers/app.controller.ts",
+     "server/src/controllers/app.controller.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 41,
+   "rung": "R2",
+   "group": "platform/check",
+   "moves": {
+    "server/src/commands/schema-check.ts": "server/src/platform/check/schema-check.ts"
+   },
+   "entries": [
+    [
+     "server/src/commands/schema-check.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 42,
+   "rung": "R2",
+   "group": "platform/cron",
+   "moves": {
+    "server/src/repositories/cron.repository.ts": "server/src/platform/cron/cron.repository.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/cron.repository.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 43,
+   "rung": "R2",
+   "group": "platform/crypto",
+   "moves": {
+    "server/src/repositories/crypto.repository.ts": "server/src/platform/crypto/crypto.repository.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/crypto.repository.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 44,
+   "rung": "R2",
+   "group": "platform/database",
+   "moves": {
+    "server/src/database.ts": "server/src/platform/database/database.ts",
+    "server/src/services/database.service.ts": "server/src/platform/database/database.service.ts",
+    "server/src/services/database.service.spec.ts": "server/src/platform/database/database.service.spec.ts",
+    "server/src/utils/database.ts": "server/src/platform/database/utils/database.ts"
+   },
+   "entries": [
+    [
+     "server/src/database.ts"
+    ],
+    [
+     "server/src/services/database.service.ts",
+     "server/src/services/database.service.spec.ts"
+    ],
+    [
+     "server/src/utils/database.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 45,
+   "rung": "R2",
+   "group": "platform/event",
+   "moves": {
+    "server/src/repositories/event.repository.ts": "server/src/platform/event/event.repository.ts",
+    "server/src/utils/event.ts": "server/src/platform/event/event.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/event.repository.ts"
+    ],
+    [
+     "server/src/utils/event.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 46,
+   "rung": "R2",
+   "group": "platform/file",
+   "moves": {
+    "server/src/middleware/file-upload.interceptor.ts": "server/src/platform/file/file-upload.interceptor.ts",
+    "server/src/utils/file.ts": "server/src/platform/file/file.ts"
+   },
+   "entries": [
+    [
+     "server/src/middleware/file-upload.interceptor.ts"
+    ],
+    [
+     "server/src/utils/file.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 47,
+   "rung": "R2",
+   "group": "platform/http-client",
+   "moves": {
+    "server/src/utils/fetch.ts": "server/src/platform/http-client/fetch.ts",
+    "server/src/utils/fetch.spec.ts": "server/src/platform/http-client/fetch.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/utils/fetch.ts",
+     "server/src/utils/fetch.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 48,
+   "rung": "R2",
+   "group": "platform/http-response",
+   "moves": {
+    "server/src/utils/response.ts": "server/src/platform/http-response/response.ts"
+   },
+   "entries": [
+    [
+     "server/src/utils/response.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 49,
+   "rung": "R2",
+   "group": "platform/logging",
+   "moves": {
+    "server/src/middleware/error.interceptor.ts": "server/src/platform/logging/error.interceptor.ts",
+    "server/src/middleware/global-exception.filter.ts": "server/src/platform/logging/global-exception.filter.ts",
+    "server/src/middleware/logging.interceptor.ts": "server/src/platform/logging/logging.interceptor.ts",
+    "server/src/repositories/logging.repository.ts": "server/src/platform/logging/logging.repository.ts",
+    "server/src/repositories/logging.repository.spec.ts": "server/src/platform/logging/logging.repository.spec.ts",
+    "server/src/utils/logger.ts": "server/src/platform/logging/logger.ts"
+   },
+   "entries": [
+    [
+     "server/src/middleware/error.interceptor.ts"
+    ],
+    [
+     "server/src/middleware/global-exception.filter.ts"
+    ],
+    [
+     "server/src/middleware/logging.interceptor.ts"
+    ],
+    [
+     "server/src/repositories/logging.repository.ts",
+     "server/src/repositories/logging.repository.spec.ts"
+    ],
+    [
+     "server/src/utils/logger.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 50,
+   "rung": "R2",
+   "group": "platform/media",
+   "moves": {
+    "server/src/commands/media-location.command.ts": "server/src/platform/media/media-location.command.ts",
+    "server/src/repositories/media.repository.ts": "server/src/platform/media/media.repository.ts",
+    "server/src/repositories/media.repository.spec.ts": "server/src/platform/media/media.repository.spec.ts",
+    "server/src/services/media.service.ts": "server/src/platform/media/media.service.ts",
+    "server/src/services/media.service.spec.ts": "server/src/platform/media/media.service.spec.ts",
+    "server/src/utils/editor.ts": "server/src/platform/media/editor.ts",
+    "server/src/utils/editor.spec.ts": "server/src/platform/media/editor.spec.ts",
+    "server/src/utils/media.ts": "server/src/platform/media/media.ts"
+   },
+   "entries": [
+    [
+     "server/src/commands/media-location.command.ts"
+    ],
+    [
+     "server/src/repositories/media.repository.ts",
+     "server/src/repositories/media.repository.spec.ts"
+    ],
+    [
+     "server/src/services/media.service.ts",
+     "server/src/services/media.service.spec.ts"
+    ],
+    [
+     "server/src/utils/editor.ts",
+     "server/src/utils/editor.spec.ts"
+    ],
+    [
+     "server/src/utils/media.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 51,
+   "rung": "R2",
+   "group": "platform/metadata",
+   "moves": {
+    "server/src/repositories/metadata.repository.ts": "server/src/platform/metadata/metadata.repository.ts",
+    "server/src/services/metadata.service.ts": "server/src/platform/metadata/metadata.service.ts",
+    "server/src/services/metadata.service.spec.ts": "server/src/platform/metadata/metadata.service.spec.ts",
+    "server/src/utils/tasks.ts": "server/src/platform/metadata/tasks.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/metadata.repository.ts"
+    ],
+    [
+     "server/src/services/metadata.service.ts",
+     "server/src/services/metadata.service.spec.ts"
+    ],
+    [
+     "server/src/utils/tasks.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 52,
+   "rung": "R2",
+   "group": "platform/move",
+   "moves": {
+    "server/src/repositories/move.repository.ts": "server/src/platform/move/move.repository.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/move.repository.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 53,
+   "rung": "R2",
+   "group": "platform/process",
+   "moves": {
+    "server/src/repositories/process.repository.ts": "server/src/platform/process/process.repository.ts",
+    "server/src/repositories/process.repository.spec.ts": "server/src/platform/process/process.repository.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/process.repository.ts",
+     "server/src/repositories/process.repository.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 54,
+   "rung": "R2",
+   "group": "platform/registry",
+   "moves": {
+    "server/src/app.module.ts": "server/src/platform/registry/app.module.ts",
+    "server/src/commands/index.ts": "server/src/platform/registry/commands/index.ts",
+    "server/src/controllers/index.ts": "server/src/platform/registry/controllers/index.ts",
+    "server/src/controllers/index.spec.ts": "server/src/platform/registry/controllers/index.spec.ts",
+    "server/src/repositories/index.ts": "server/src/platform/registry/repositories/index.ts",
+    "server/src/services/base.service.ts": "server/src/platform/registry/base.service.ts",
+    "server/src/services/index.ts": "server/src/platform/registry/services/index.ts"
+   },
+   "entries": [
+    [
+     "server/src/app.module.ts"
+    ],
+    [
+     "server/src/commands/index.ts"
+    ],
+    [
+     "server/src/controllers/index.ts",
+     "server/src/controllers/index.spec.ts"
+    ],
+    [
+     "server/src/repositories/index.ts"
+    ],
+    [
+     "server/src/services/base.service.ts"
+    ],
+    [
+     "server/src/services/index.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 55,
+   "rung": "R2",
+   "group": "platform/storage",
+   "moves": {
+    "server/src/cores/storage.core.ts": "server/src/platform/storage/storage.core.ts",
+    "server/src/cores/storage.core.spec.ts": "server/src/platform/storage/storage.core.spec.ts",
+    "server/src/repositories/storage.repository.ts": "server/src/platform/storage/storage.repository.ts",
+    "server/src/services/storage-template.service.ts": "server/src/platform/storage/storage-template.service.ts",
+    "server/src/services/storage-template.service.spec.ts": "server/src/platform/storage/storage-template.service.spec.ts",
+    "server/src/services/storage.service.ts": "server/src/platform/storage/storage.service.ts",
+    "server/src/services/storage.service.spec.ts": "server/src/platform/storage/storage.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/cores/storage.core.ts",
+     "server/src/cores/storage.core.spec.ts"
+    ],
+    [
+     "server/src/repositories/storage.repository.ts"
+    ],
+    [
+     "server/src/services/storage-template.service.ts",
+     "server/src/services/storage-template.service.spec.ts"
+    ],
+    [
+     "server/src/services/storage.service.ts",
+     "server/src/services/storage.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 56,
+   "rung": "R2",
+   "group": "platform/telemetry",
+   "moves": {
+    "server/src/repositories/telemetry.repository.ts": "server/src/platform/telemetry/telemetry.repository.ts",
+    "server/src/services/telemetry.service.ts": "server/src/platform/telemetry/telemetry.service.ts"
+   },
+   "entries": [
+    [
+     "server/src/repositories/telemetry.repository.ts"
+    ],
+    [
+     "server/src/services/telemetry.service.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 57,
+   "rung": "R2",
+   "group": "platform/transcoding",
+   "moves": {
+    "server/src/services/transcoding.service.ts": "server/src/platform/transcoding/transcoding.service.ts",
+    "server/src/services/transcoding.service.spec.ts": "server/src/platform/transcoding/transcoding.service.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/services/transcoding.service.ts",
+     "server/src/services/transcoding.service.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 58,
+   "rung": "R2",
+   "group": "platform/websocket",
+   "moves": {
+    "server/src/middleware/websocket.adapter.ts": "server/src/platform/websocket/websocket.adapter.ts",
+    "server/src/repositories/websocket.repository.ts": "server/src/platform/websocket/websocket.repository.ts"
+   },
+   "entries": [
+    [
+     "server/src/middleware/websocket.adapter.ts"
+    ],
+    [
+     "server/src/repositories/websocket.repository.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  },
+  {
+   "index": 59,
+   "rung": "R2",
+   "group": "shared/shared",
+   "moves": {
+    "server/src/decorators.ts": "server/src/shared/decorators.ts",
+    "server/src/dtos/env.dto.ts": "server/src/shared/env.dto.ts",
+    "server/src/enum.ts": "server/src/shared/enum.ts",
+    "server/src/services/api.service.ts": "server/src/shared/api.service.ts",
+    "server/src/services/api.service.spec.ts": "server/src/shared/api.service.spec.ts",
+    "server/src/types.ts": "server/src/shared/types.ts",
+    "server/src/utils/bytes.ts": "server/src/shared/bytes.ts",
+    "server/src/utils/date.ts": "server/src/shared/date.ts",
+    "server/src/utils/date.spec.ts": "server/src/shared/date.spec.ts",
+    "server/src/utils/mime-types.ts": "server/src/shared/mime-types.ts",
+    "server/src/utils/mime-types.spec.ts": "server/src/shared/mime-types.spec.ts",
+    "server/src/utils/object.ts": "server/src/shared/object.ts",
+    "server/src/utils/pagination.ts": "server/src/shared/pagination.ts",
+    "server/src/utils/preferences.ts": "server/src/shared/preferences.ts",
+    "server/src/utils/request.ts": "server/src/shared/request.ts",
+    "server/src/utils/request.spec.ts": "server/src/shared/request.spec.ts",
+    "server/src/utils/transform.ts": "server/src/shared/transform.ts",
+    "server/src/utils/transform.spec.ts": "server/src/shared/transform.spec.ts",
+    "server/src/validation.ts": "server/src/shared/validation.ts",
+    "server/src/validation.spec.ts": "server/src/shared/validation.spec.ts"
+   },
+   "entries": [
+    [
+     "server/src/decorators.ts"
+    ],
+    [
+     "server/src/dtos/env.dto.ts"
+    ],
+    [
+     "server/src/enum.ts"
+    ],
+    [
+     "server/src/services/api.service.ts",
+     "server/src/services/api.service.spec.ts"
+    ],
+    [
+     "server/src/types.ts"
+    ],
+    [
+     "server/src/utils/bytes.ts"
+    ],
+    [
+     "server/src/utils/date.ts",
+     "server/src/utils/date.spec.ts"
+    ],
+    [
+     "server/src/utils/mime-types.ts",
+     "server/src/utils/mime-types.spec.ts"
+    ],
+    [
+     "server/src/utils/object.ts"
+    ],
+    [
+     "server/src/utils/pagination.ts"
+    ],
+    [
+     "server/src/utils/preferences.ts"
+    ],
+    [
+     "server/src/utils/request.ts",
+     "server/src/utils/request.spec.ts"
+    ],
+    [
+     "server/src/utils/transform.ts",
+     "server/src/utils/transform.spec.ts"
+    ],
+    [
+     "server/src/validation.ts",
+     "server/src/validation.spec.ts"
+    ]
+   ],
+   "status": "pending",
+   "round": 1,
+   "attempts": [],
+   "durationMs": 0
+  }
+ ],
+ "pins": [
+  {
+   "file": "server/src/dtos/album.dto.ts",
+   "step": 2,
+   "group": "module/album",
+   "reason": "pinned"
+  }
+ ],
+ "findings": [
+  {
+   "kind": "ungated-coverage-glob",
+   "step": 1,
+   "rung": "R1",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "detail": "server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/services/**' (server/src/services/**) matches differently for server/src/services/activity.service.ts (moving to server/src/modules/activity/activity.service.ts), server/src/services/activity.service.spec.ts (moving to server/src/modules/activity/activity.service.spec.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes"
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "step": 1,
+   "rung": "R1",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "detail": "server/test/vitest.config.mjs line 21 [test.coverage.exclude]: coverage glob 'src/services/*.spec.ts' (server/src/services/*.spec.ts) matches differently for server/src/services/activity.service.spec.ts (moving to server/src/modules/activity/activity.service.spec.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes"
+  },
+  {
+   "kind": "injected-fault",
+   "step": 2,
+   "rung": "R1",
+   "files": [],
+   "detail": "seeded wrong move (--inject-fault): M2 (Drop one importer rewrite): server/src/services/workflow-execution.service.ts: import specifier 'src/modules/album/album.dto.js' left as in base, 'src/dtos/album.dto.js'"
+  },
+  {
+   "kind": "pinned",
+   "step": 2,
+   "rung": "R1",
+   "files": [
+    "server/src/dtos/album.dto.ts"
+   ],
+   "detail": "attempt 1 (failed): certificate FAIL (K3a, K3b, K3c): K3a server/src/services/workflow-execution.service.ts: line 14: import 'src/dtos/album.dto.js': expected file server/src/modules/album/album.dto.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json; K3b server/src/services/workflow-execution.service.ts: site 7 'src/dtos/album.dto.js' (import): base server/src/modules/album/album.dto.ts, head unresolved; K3c server/src/services/workflow-execution.service.ts: nest-cli/emit: import 'src/dtos/album.dto.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/modules/album/album.dto.ts; base server/src/services/workflow-execution.service.ts 'src/dtos/album.dto.js'"
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "step": 2,
+   "rung": "R1",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "detail": "server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/services/**' (server/src/services/**) matches differently for server/src/services/album.service.ts (moving to server/src/modules/album/album.service.ts), server/src/services/album.service.spec.ts (moving to server/src/modules/album/album.service.spec.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes"
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "step": 2,
+   "rung": "R1",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "detail": "server/test/vitest.config.mjs line 21 [test.coverage.exclude]: coverage glob 'src/services/*.spec.ts' (server/src/services/*.spec.ts) matches differently for server/src/services/album.service.spec.ts (moving to server/src/modules/album/album.service.spec.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes"
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "step": 3,
+   "rung": "R1",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "detail": "server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/services/**' (server/src/services/**) matches differently for server/src/services/api-key.service.ts (moving to server/src/modules/api-key/api-key.service.ts), server/src/services/api-key.service.spec.ts (moving to server/src/modules/api-key/api-key.service.spec.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes"
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "step": 3,
+   "rung": "R1",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "detail": "server/test/vitest.config.mjs line 21 [test.coverage.exclude]: coverage glob 'src/services/*.spec.ts' (server/src/services/*.spec.ts) matches differently for server/src/services/api-key.service.spec.ts (moving to server/src/modules/api-key/api-key.service.spec.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage), so coverage now measures a different file set and no gate changes"
+  }
+ ],
+ "quarantine": [],
+ "fault": {
+  "step": "2",
+  "operator": "M2",
+  "appliedTo": 2,
+  "description": "M2 (Drop one importer rewrite): server/src/services/workflow-execution.service.ts: import specifier 'src/modules/album/album.dto.js' left as in base, 'src/dtos/album.dto.js'",
+  "mutantCommit": "1389c1c3ae1920ba5c486a04f91d188a52e512ef"
+ },
+ "cost": {
+  "budgetRun": null,
+  "mode": null,
+  "llmUsd": 0,
+  "planRecordedUsd": 0.1998
+ },
+ "timeline": {
+  "startedAt": "2026-10-17T21:10:42.441Z",
+  "durationMs": 816737,
+  "preflightMs": 14192,
+  "baselineMs": 229736,
+  "stepsMs": 430560,
+  "rungCertificationMs": 142187,
+  "bisectMs": 0,
+  "runCertificationMs": 0,
+  "resumedAt": [],
+  "finishedAt": "2026-10-17T21:24:19.212Z"
+ }
+}

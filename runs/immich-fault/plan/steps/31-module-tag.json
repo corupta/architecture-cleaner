@@ -1,0 +1,15 @@
+{
+ "step": 31,
+ "rung": "R1",
+ "group": "module/tag",
+ "moves": {
+  "server/src/controllers/tag.controller.ts": "server/src/modules/tag/tag.controller.ts",
+  "server/src/controllers/tag.controller.spec.ts": "server/src/modules/tag/tag.controller.spec.ts",
+  "server/src/dtos/tag.dto.ts": "server/src/modules/tag/tag.dto.ts",
+  "server/src/repositories/tag.repository.ts": "server/src/modules/tag/tag.repository.ts",
+  "server/src/services/tag.service.ts": "server/src/modules/tag/tag.service.ts",
+  "server/src/services/tag.service.spec.ts": "server/src/modules/tag/tag.service.spec.ts",
+  "server/src/utils/replace-template-tags.ts": "server/src/modules/tag/replace-template-tags.ts",
+  "server/src/utils/tag.ts": "server/src/modules/tag/tag.ts"
+ }
+}

@@ -1,0 +1,20 @@
+{
+ "step": 15,
+ "rung": "R1",
+ "group": "module/maintenance",
+ "moves": {
+  "server/src/commands/maintenance-mode.ts": "server/src/modules/maintenance/maintenance-mode.ts",
+  "server/src/controllers/maintenance.controller.ts": "server/src/modules/maintenance/maintenance.controller.ts",
+  "server/src/controllers/maintenance.controller.spec.ts": "server/src/modules/maintenance/maintenance.controller.spec.ts",
+  "server/src/dtos/maintenance.dto.ts": "server/src/modules/maintenance/maintenance.dto.ts",
+  "server/src/maintenance/maintenance-auth.guard.ts": "server/src/modules/maintenance/maintenance-auth.guard.ts",
+  "server/src/maintenance/maintenance-websocket.repository.ts": "server/src/modules/maintenance/maintenance-websocket.repository.ts",
+  "server/src/maintenance/maintenance-worker.controller.ts": "server/src/modules/maintenance/maintenance-worker.controller.ts",
+  "server/src/maintenance/maintenance-worker.service.ts": "server/src/modules/maintenance/maintenance-worker.service.ts",
+  "server/src/maintenance/maintenance-worker.service.spec.ts": "server/src/modules/maintenance/maintenance-worker.service.spec.ts",
+  "server/src/repositories/app.repository.ts": "server/src/modules/maintenance/app.repository.ts",
+  "server/src/services/maintenance.service.ts": "server/src/modules/maintenance/maintenance.service.ts",
+  "server/src/services/maintenance.service.spec.ts": "server/src/modules/maintenance/maintenance.service.spec.ts",
+  "server/src/utils/maintenance.ts": "server/src/modules/maintenance/maintenance.ts"
+ }
+}

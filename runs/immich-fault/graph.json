@@ -1,0 +1,1448 @@
+{
+ "format": "ac-graph/1",
+ "origin": "https://github.com/immich-app/immich",
+ "packageRoot": "server",
+ "moduleRoot": "src",
+ "base": {
+  "commit": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+  "tree": "424df72c3407dd1e7df5ee4e81a1d5fcd85cc01c",
+  "folders": [
+   {
+    "key": "src/bin/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/commands/",
+    "kind": "folder",
+    "files": 10,
+    "productionFiles": 10,
+    "internalPairs": 9
+   },
+   {
+    "key": "src/controllers/",
+    "kind": "folder",
+    "files": 82,
+    "productionFiles": 47,
+    "internalPairs": 46
+   },
+   {
+    "key": "src/cores/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/dtos/",
+    "kind": "folder",
+    "files": 55,
+    "productionFiles": 52,
+    "internalPairs": 33
+   },
+   {
+    "key": "src/emails/",
+    "kind": "folder",
+    "files": 9,
+    "productionFiles": 9,
+    "internalPairs": 11
+   },
+   {
+    "key": "src/maintenance/",
+    "kind": "folder",
+    "files": 6,
+    "productionFiles": 5,
+    "internalPairs": 5
+   },
+   {
+    "key": "src/middleware/",
+    "kind": "folder",
+    "files": 8,
+    "productionFiles": 7,
+    "internalPairs": 2
+   },
+   {
+    "key": "src/repositories/",
+    "kind": "folder",
+    "files": 63,
+    "productionFiles": 57,
+    "internalPairs": 89
+   },
+   {
+    "key": "src/schema/",
+    "kind": "folder",
+    "files": 168,
+    "productionFiles": 168,
+    "internalPairs": 152
+   },
+   {
+    "key": "src/services/",
+    "kind": "folder",
+    "files": 102,
+    "productionFiles": 56,
+    "internalPairs": 111
+   },
+   {
+    "key": "src/utils/",
+    "kind": "folder",
+    "files": 43,
+    "productionFiles": 32,
+    "internalPairs": 9
+   },
+   {
+    "key": "src/workers/",
+    "kind": "folder",
+    "files": 3,
+    "productionFiles": 3,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/",
+    "kind": "root",
+    "files": 10,
+    "productionFiles": 9,
+    "internalPairs": 12
+   }
+  ],
+  "edges": [
+   {
+    "from": "src/",
+    "to": "src/commands/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/controllers/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/dtos/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/maintenance/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/middleware/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/repositories/",
+    "pairs": 18,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/schema/",
+    "pairs": 6,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/",
+    "to": "src/services/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/dtos/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/services/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/",
+    "pairs": 117,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/dtos/",
+    "pairs": 112,
+    "typeOnlyPairs": 34
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/middleware/",
+    "pairs": 50,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/repositories/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/services/",
+    "pairs": 54,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/utils/",
+    "pairs": 13,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/repositories/",
+    "pairs": 8,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/",
+    "pairs": 90,
+    "typeOnlyPairs": 9
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/utils/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "src/repositories/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/",
+    "pairs": 7,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/controllers/",
+    "pairs": 2,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/cores/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/dtos/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/repositories/",
+    "pairs": 12,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/services/",
+    "pairs": 7,
+    "typeOnlyPairs": 5
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/",
+    "pairs": 5,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/dtos/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/repositories/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/services/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/utils/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/",
+    "pairs": 111,
+    "typeOnlyPairs": 10
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/dtos/",
+    "pairs": 28,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/emails/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/schema/",
+    "pairs": 85,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/utils/",
+    "pairs": 30,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/",
+    "pairs": 72,
+    "typeOnlyPairs": 4
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/dtos/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/repositories/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/",
+    "pairs": 129,
+    "typeOnlyPairs": 25
+   },
+   {
+    "from": "src/services/",
+    "to": "src/cores/",
+    "pairs": 14,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/dtos/",
+    "pairs": 124,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/services/",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/repositories/",
+    "pairs": 109,
+    "typeOnlyPairs": 18
+   },
+   {
+    "from": "src/services/",
+    "to": "src/schema/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/utils/",
+    "pairs": 119,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/",
+    "pairs": 34,
+    "typeOnlyPairs": 8
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/cores/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/dtos/",
+    "pairs": 21,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/repositories/",
+    "pairs": 20,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   }
+  ],
+  "internalPairs": 479,
+  "crossPairs": 1572,
+  "cycles": [
+   [
+    "src/",
+    "src/commands/",
+    "src/controllers/",
+    "src/cores/",
+    "src/dtos/",
+    "src/emails/",
+    "src/maintenance/",
+    "src/middleware/",
+    "src/repositories/",
+    "src/schema/",
+    "src/services/",
+    "src/utils/"
+   ]
+  ]
+ },
+ "head": {
+  "commit": "ac512281719130a99e5b3ede6cb06b648d294c6c",
+  "tree": "5912e52b568ec2cca43143258ebd3aee23713da2",
+  "folders": [
+   {
+    "key": "src/bin/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/commands/",
+    "kind": "folder",
+    "files": 10,
+    "productionFiles": 10,
+    "internalPairs": 9
+   },
+   {
+    "key": "src/controllers/",
+    "kind": "folder",
+    "files": 76,
+    "productionFiles": 44,
+    "internalPairs": 43
+   },
+   {
+    "key": "src/cores/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/dtos/",
+    "kind": "folder",
+    "files": 53,
+    "productionFiles": 50,
+    "internalPairs": 32
+   },
+   {
+    "key": "src/emails/",
+    "kind": "folder",
+    "files": 9,
+    "productionFiles": 9,
+    "internalPairs": 11
+   },
+   {
+    "key": "src/maintenance/",
+    "kind": "folder",
+    "files": 6,
+    "productionFiles": 5,
+    "internalPairs": 5
+   },
+   {
+    "key": "src/middleware/",
+    "kind": "folder",
+    "files": 8,
+    "productionFiles": 7,
+    "internalPairs": 2
+   },
+   {
+    "key": "src/repositories/",
+    "kind": "folder",
+    "files": 59,
+    "productionFiles": 53,
+    "internalPairs": 85
+   },
+   {
+    "key": "src/schema/",
+    "kind": "folder",
+    "files": 168,
+    "productionFiles": 168,
+    "internalPairs": 152
+   },
+   {
+    "key": "src/services/",
+    "kind": "folder",
+    "files": 96,
+    "productionFiles": 53,
+    "internalPairs": 104
+   },
+   {
+    "key": "src/utils/",
+    "kind": "folder",
+    "files": 43,
+    "productionFiles": 32,
+    "internalPairs": 9
+   },
+   {
+    "key": "src/workers/",
+    "kind": "folder",
+    "files": 3,
+    "productionFiles": 3,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/",
+    "kind": "root",
+    "files": 10,
+    "productionFiles": 9,
+    "internalPairs": 12
+   },
+   {
+    "key": "module/activity",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/album",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 2
+   },
+   {
+    "key": "module/api-key",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   }
+  ],
+  "edges": [
+   {
+    "from": "module/activity",
+    "to": "src/",
+    "pairs": 10,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "src/dtos/",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/activity",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "src/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "src/dtos/",
+    "pairs": 9,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/album",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "src/schema/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/",
+    "pairs": 10,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/dtos/",
+    "pairs": 2,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/commands/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/controllers/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/dtos/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/maintenance/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/middleware/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/repositories/",
+    "pairs": 18,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/schema/",
+    "pairs": 6,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/",
+    "to": "src/services/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/dtos/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/services/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "module/activity",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "module/album",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "module/api-key",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/",
+    "pairs": 108,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/dtos/",
+    "pairs": 104,
+    "typeOnlyPairs": 31
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/middleware/",
+    "pairs": 47,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/repositories/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/services/",
+    "pairs": 51,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/utils/",
+    "pairs": 13,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/repositories/",
+    "pairs": 8,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/",
+    "pairs": 85,
+    "typeOnlyPairs": 9
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/utils/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "src/repositories/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/",
+    "pairs": 7,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/controllers/",
+    "pairs": 2,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/cores/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/dtos/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/repositories/",
+    "pairs": 12,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/services/",
+    "pairs": 7,
+    "typeOnlyPairs": 5
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/",
+    "pairs": 5,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/dtos/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/repositories/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/services/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/utils/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "module/activity",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "module/album",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "module/api-key",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/",
+    "pairs": 101,
+    "typeOnlyPairs": 10
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/dtos/",
+    "pairs": 27,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/emails/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/schema/",
+    "pairs": 76,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/utils/",
+    "pairs": 27,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/",
+    "pairs": 72,
+    "typeOnlyPairs": 4
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/dtos/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/repositories/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "module/activity",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "module/album",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "module/api-key",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/",
+    "pairs": 124,
+    "typeOnlyPairs": 25
+   },
+   {
+    "from": "src/services/",
+    "to": "src/cores/",
+    "pairs": 14,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/dtos/",
+    "pairs": 115,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/services/",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/repositories/",
+    "pairs": 104,
+    "typeOnlyPairs": 18
+   },
+   {
+    "from": "src/services/",
+    "to": "src/schema/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/utils/",
+    "pairs": 113,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/",
+    "pairs": 34,
+    "typeOnlyPairs": 8
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/cores/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/dtos/",
+    "pairs": 21,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/repositories/",
+    "pairs": 20,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   }
+  ],
+  "internalPairs": 472,
+  "crossPairs": 1579,
+  "cycles": [
+   [
+    "module/activity",
+    "module/album",
+    "module/api-key",
+    "src/",
+    "src/commands/",
+    "src/controllers/",
+    "src/cores/",
+    "src/dtos/",
+    "src/emails/",
+    "src/maintenance/",
+    "src/middleware/",
+    "src/repositories/",
+    "src/schema/",
+    "src/services/",
+    "src/utils/"
+   ]
+  ]
+ },
+ "flow": [
+  {
+   "from": "src/",
+   "to": "src/",
+   "files": 10
+  },
+  {
+   "from": "src/bin/",
+   "to": "src/bin/",
+   "files": 2
+  },
+  {
+   "from": "src/commands/",
+   "to": "src/commands/",
+   "files": 10
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/activity",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/album",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/api-key",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "src/controllers/",
+   "files": 76
+  },
+  {
+   "from": "src/cores/",
+   "to": "src/cores/",
+   "files": 2
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/activity",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/api-key",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "src/dtos/",
+   "files": 53
+  },
+  {
+   "from": "src/emails/",
+   "to": "src/emails/",
+   "files": 9
+  },
+  {
+   "from": "src/maintenance/",
+   "to": "src/maintenance/",
+   "files": 6
+  },
+  {
+   "from": "src/middleware/",
+   "to": "src/middleware/",
+   "files": 8
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/activity",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/album",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/api-key",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "src/repositories/",
+   "files": 59
+  },
+  {
+   "from": "src/schema/",
+   "to": "src/schema/",
+   "files": 168
+  },
+  {
+   "from": "src/services/",
+   "to": "module/activity",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/album",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/api-key",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "src/services/",
+   "files": 96
+  },
+  {
+   "from": "src/utils/",
+   "to": "src/utils/",
+   "files": 43
+  },
+  {
+   "from": "src/workers/",
+   "to": "src/workers/",
+   "files": 3
+  }
+ ],
+ "unmatched": [],
+ "source": {
+  "analyzer": "architecture-cleaner analyzer (TypeScript module resolution), production importers under the module root",
+  "typescript": "6.0.3"
+ }
+}

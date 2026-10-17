@@ -1,0 +1,475 @@
+{
+ "format": "ac-findings/1",
+ "run": {
+  "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+  "head": "ac512281719130a99e5b3ede6cb06b648d294c6c",
+  "branch": "ac/s7-fault",
+  "status": "stopped",
+  "packageRoot": "server",
+  "profile": "immich"
+ },
+ "sources": [
+  {
+   "name": "target",
+   "detail": "facts at 02063972e8: 269 movable files, 1759 edges, 269 placed by the plan"
+  },
+  {
+   "name": "plan-graph",
+   "detail": "no committed boundary rules (R4 didn't run): cycles from the plan's groups over the facts, 1 strongly connected sets; no back-edges without R4's order"
+  },
+  {
+   "name": "facts",
+   "detail": "3 tables with writers in several groups, 1 god-injection base classes"
+  },
+  {
+   "name": "analyzer",
+   "detail": "458 production files analyzed, 0 import test code"
+  },
+  {
+   "name": "validator",
+   "detail": "10 warnings on the run's plan"
+  },
+  {
+   "name": "certificate",
+   "detail": "4 certificates read (steps, rungs, whole PR)"
+  },
+  {
+   "name": "run",
+   "detail": "8 run.json findings"
+  }
+ ],
+ "narration": null,
+ "findings": [
+  {
+   "kind": "module-cycle",
+   "title": "55 groups form one import cycle",
+   "files": [
+    "server/src/controllers/album.controller.ts",
+    "server/src/controllers/auth.controller.ts",
+    "server/src/controllers/search.controller.ts",
+    "server/src/controllers/server.controller.ts",
+    "server/src/controllers/shared-link.controller.ts",
+    "server/src/controllers/stack.controller.ts",
+    "server/src/controllers/tag.controller.ts",
+    "server/src/cores/storage.core.ts",
+    "server/src/dtos/asset-ids.response.dto.ts",
+    "server/src/dtos/asset-response.dto.ts",
+    "server/src/dtos/editing.dto.ts",
+    "server/src/dtos/license.dto.ts",
+    "server/src/dtos/partner.dto.ts",
+    "server/src/dtos/person.dto.ts",
+    "server/src/dtos/user.dto.ts",
+    "server/src/repositories/access.repository.ts",
+    "server/src/repositories/asset.repository.ts",
+    "server/src/repositories/media.repository.ts",
+    "server/src/services/asset-file.service.ts",
+    "server/src/services/base.service.ts",
+    "server/src/services/job.service.ts",
+    "server/src/services/notification.service.ts"
+   ],
+   "evidence": "55 of 59 groups are strongly connected (from the planner's facts at 02063972e8, grouped by the run's plan.yaml): each reaches every other through imports.\nMembers: module/activity, module/album, module/api-key, module/asset, module/auth, module/cluster-group, module/config, module/database-backup, module/download, module/duplicate, module/integrity, module/job, module/library, module/machine-learning, module/maintenance, module/map, module/memory, module/notification, module/ocr, module/partner, module/person, module/plugin, module/queue, module/search, module/server, module/session, module/shared-link, module/stack, module/sync, module/system-metadata, module/tag, module/timeline, module/trash, module/user, module/version, module/video-stream, module/view, module/workflow, platform/access, platform/bootstrap, platform/cron, platform/database, platform/event, platform/file, platform/http-response, platform/logging, platform/media, platform/metadata, platform/move, platform/registry, platform/storage, platform/telemetry, platform/transcoding, platform/websocket, shared/shared.\nInside the set: 506 edges between them over 1437 file pairs. These 118 edges (193 file pairs) close every cycle; without them the set is acyclic:\n- module/search → module/asset (7 file pairs, e.g. server/src/controllers/search.controller.ts → server/src/dtos/asset-response.dto.ts)\n- module/auth → module/user (6 file pairs, e.g. server/src/controllers/auth.controller.ts → server/src/dtos/user.dto.ts)\n- module/album → module/asset (5 file pairs, e.g. server/src/controllers/album.controller.ts → server/src/dtos/asset-ids.response.dto.ts)\n- module/shared-link → module/asset (5 file pairs, e.g. server/src/controllers/shared-link.controller.ts → server/src/dtos/asset-ids.response.dto.ts)\n- platform/media → module/asset (5 file pairs, e.g. server/src/repositories/media.repository.ts → server/src/dtos/editing.dto.ts)\n- platform/storage → module/asset (5 file pairs, e.g. server/src/cores/storage.core.ts → server/src/repositories/asset.repository.ts)\n- module/stack → module/asset (4 file pairs, e.g. server/src/controllers/stack.controller.ts → server/src/dtos/asset-ids.response.dto.ts)\n- module/tag → module/asset (4 file pairs, e.g. server/src/controllers/tag.controller.ts → server/src/dtos/asset-ids.response.dto.ts)\n- platform/access → module/person (4 file pairs, e.g. server/src/repositories/access.repository.ts → server/src/dtos/person.dto.ts)\n- module/asset → platform/registry (3 file pairs, e.g. server/src/services/asset-file.service.ts → server/src/services/base.service.ts)\n- module/job → module/asset (3 file pairs, e.g. server/src/services/job.service.ts → server/src/dtos/asset-response.dto.ts)\n- module/notification → module/asset (3 file pairs, e.g. server/src/services/notification.service.ts → server/src/dtos/asset-response.dto.ts)\n- module/partner → module/user (3 file pairs, e.g. server/src/dtos/partner.dto.ts → server/src/dtos/user.dto.ts)\n- module/search → module/person (3 file pairs, e.g. server/src/controllers/search.controller.ts → server/src/dtos/person.dto.ts)\n- module/server → module/user (3 file pairs, e.g. server/src/controllers/server.controller.ts → server/src/dtos/license.dto.ts)\n- … 103 more edges (130 file pairs)",
+   "source": "plan-graph",
+   "weight": 55,
+   "id": "F-f0f96c77a088",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "god-injection",
+   "title": "BaseService injects 56 members into 51 classes",
+   "files": [
+    "server/src/services/activity.service.ts",
+    "server/src/services/album.service.ts",
+    "server/src/services/api-key.service.ts",
+    "server/src/services/asset-file.service.ts",
+    "server/src/services/asset-media.service.ts",
+    "server/src/services/asset.service.ts",
+    "server/src/services/auth-admin.service.ts",
+    "server/src/services/auth.service.ts",
+    "server/src/services/base.service.ts",
+    "server/src/services/cli.service.ts",
+    "server/src/services/cluster-group.service.ts",
+    "server/src/services/database.service.ts",
+    "server/src/services/download.service.ts",
+    "server/src/services/duplicate.service.ts",
+    "server/src/services/hls.service.ts",
+    "server/src/services/integrity.service.ts",
+    "server/src/services/job.service.ts",
+    "server/src/services/library.service.ts",
+    "server/src/services/maintenance.service.ts",
+    "server/src/services/map.service.ts",
+    "server/src/services/media.service.ts",
+    "server/src/services/memory.service.ts",
+    "server/src/services/metadata.service.ts",
+    "server/src/services/notification-admin.service.ts",
+    "server/src/services/notification.service.ts",
+    "server/src/services/ocr.service.ts",
+    "server/src/services/partner.service.ts",
+    "server/src/services/person.service.ts",
+    "server/src/services/plugin.service.ts",
+    "server/src/services/queue.service.ts",
+    "server/src/services/search.service.ts",
+    "server/src/services/server.service.ts",
+    "server/src/services/session.service.ts",
+    "server/src/services/shared-link.service.ts",
+    "server/src/services/smart-info.service.ts",
+    "server/src/services/stack.service.ts",
+    "server/src/services/storage-template.service.ts",
+    "server/src/services/storage.service.ts",
+    "server/src/services/sync.service.ts",
+    "server/src/services/system-config.service.ts",
+    "server/src/services/system-metadata.service.ts",
+    "server/src/services/tag.service.ts",
+    "server/src/services/telemetry.service.ts",
+    "server/src/services/timeline.service.ts",
+    "server/src/services/transcoding.service.ts",
+    "server/src/services/trash.service.ts",
+    "server/src/services/user-admin.service.ts",
+    "server/src/services/user.service.ts",
+    "server/src/services/version.service.ts",
+    "server/src/services/view.service.ts",
+    "server/src/services/workflow-execution.service.ts",
+    "server/src/services/workflow.service.ts"
+   ],
+   "evidence": "BaseService (server/src/services/base.service.ts) takes 56 constructor-injected members (56 of them repositories), and 51 classes extend it, so each receives all 56.\nEach subclass reads 5.7 of them on average through this.<member> (median 5, min 1, max 15 in MetadataService); every member has a reader.\nMost read: logger (33 classes), jobRepository (23 classes), assetRepository (21 classes), eventRepository (18 classes), userRepository (18 classes).\nPer class (members read of 56):\n- MetadataService (server/src/services/metadata.service.ts): 15 (albumRepository, assetJobRepository, assetRepository, cryptoRepository, databaseRepository, eventRepository, jobRepository, logger, … 7 more)\n- PersonService (server/src/services/person.service.ts): 15 (assetJobRepository, assetRepository, clusterGroupRepository, cryptoRepository, databaseRepository, jobRepository, logger, machineLearningRepository, … 7 more)\n- AssetService (server/src/services/asset.service.ts): 13 (albumRepository, assetEditRepository, assetJobRepository, assetRepository, eventRepository, jobRepository, logger, ocrRepository, … 5 more)\n- AuthService (server/src/services/auth.service.ts): 10 (apiKeyRepository, cryptoRepository, eventRepository, jobRepository, logger, mediaRepository, oauthRepository, sessionRepository, … 2 more)\n- LibraryService (server/src/services/library.service.ts): 10 (assetJobRepository, assetRepository, cronRepository, cryptoRepository, databaseRepository, eventRepository, jobRepository, libraryRepository, … 2 more)\n- UserService (server/src/services/user.service.ts): 10 (albumRepository, assetRepository, configRepository, cryptoRepository, eventRepository, jobRepository, logger, mediaRepository, … 2 more)\n- CliService (server/src/services/cli.service.ts): 9 (appRepository, assetRepository, cryptoRepository, databaseRepository, personRepository, sessionRepository, storageRepository, systemMetadataRepository, … 1 more)\n- DuplicateService (server/src/services/duplicate.service.ts): 9 (albumRepository, assetJobRepository, assetRepository, cryptoRepository, duplicateRepository, eventRepository, jobRepository, logger, … 1 more)\n- IntegrityService (server/src/services/integrity.service.ts): 9 (assetRepository, cronRepository, databaseRepository, eventRepository, integrityRepository, jobRepository, logger, storageRepository, … 1 more)\n- NotificationService (server/src/services/notification.service.ts): 9 (albumRepository, assetJobRepository, assetRepository, emailRepository, jobRepository, logger, notificationRepository, userRepository, … 1 more)\n- VersionService (server/src/services/version.service.ts): 9 (configRepository, cronRepository, databaseRepository, jobRepository, logger, serverInfoRepository, systemMetadataRepository, versionRepository, … 1 more)\n- MediaService (server/src/services/media.service.ts): 8 (assetJobRepository, assetRepository, jobRepository, logger, mediaRepository, ocrRepository, personRepository, storageRepository)\n- MemoryService (server/src/services/memory.service.ts): 8 (accessRepository, assetRepository, databaseRepository, logger, memoryRepository, personRepository, systemMetadataRepository, userRepository)\n- StorageTemplateService (server/src/services/storage-template.service.ts): 8 (albumRepository, assetJobRepository, databaseRepository, jobRepository, logger, moveRepository, storageRepository, userRepository)\n- UserAdminService (server/src/services/user-admin.service.ts): 8 (albumRepository, assetRepository, cryptoRepository, eventRepository, jobRepository, logger, sessionRepository, userRepository)\n- WorkflowExecutionService (server/src/services/workflow-execution.service.ts): 8 (configRepository, cryptoRepository, databaseRepository, jobRepository, logger, pluginRepository, storageRepository, workflowRepository)\n- AlbumService (server/src/services/album.service.ts): 7 (accessRepository, albumRepository, albumUserRepository, eventRepository, logger, mapRepository, userRepository)\n- AssetMediaService (server/src/services/asset-media.service.ts): 7 (albumRepository, assetRepository, eventRepository, jobRepository, logger, sharedLinkRepository, storageRepository)\n- ServerService (server/src/services/server.service.ts): 7 (configRepository, cryptoRepository, logger, serverInfoRepository, storageRepository, systemMetadataRepository, userRepository)\n- JobService (server/src/services/job.service.ts): 6 (assetEditRepository, assetRepository, eventRepository, jobRepository, logger, websocketRepository)\n- OcrService (server/src/services/ocr.service.ts): 6 (assetJobRepository, assetRepository, jobRepository, logger, machineLearningRepository, ocrRepository)\n- SmartInfoService (server/src/services/smart-info.service.ts): 6 (assetJobRepository, databaseRepository, jobRepository, logger, machineLearningRepository, searchRepository)\n- StorageService (server/src/services/storage.service.ts): 6 (assetRepository, configRepository, databaseRepository, logger, storageRepository, systemMetadataRepository)\n- TranscodingService (server/src/services/transcoding.service.ts): 6 (databaseRepository, logger, processRepository, storageRepository, videoStreamRepository, websocketRepository)\n- ClusterGroupService (server/src/services/cluster-group.service.ts): 5 (clusterGroupRepository, eventRepository, jobRepository, personRepository, userRepository)\n- DownloadService (server/src/services/download.service.ts): 5 (assetRepository, downloadRepository, logger, storageRepository, userRepository)\n- MaintenanceService (server/src/services/maintenance.service.ts): 5 (appRepository, eventRepository, logger, storageRepository, systemMetadataRepository)\n- QueueService (server/src/services/queue.service.ts): 5 (cronRepository, databaseRepository, eventRepository, jobRepository, logger)\n- SearchService (server/src/services/search.service.ts): 5 (assetRepository, machineLearningRepository, partnerRepository, personRepository, searchRepository)\n- TagService (server/src/services/tag.service.ts): 5 (accessRepository, assetRepository, eventRepository, jobRepository, tagRepository)\n- HlsService (server/src/services/hls.service.ts): 4 (cryptoRepository, storageRepository, videoStreamRepository, websocketRepository)\n- SharedLinkService (server/src/services/shared-link.service.ts): 4 (cryptoRepository, logger, sharedLinkAssetRepository, sharedLinkRepository)\n- SyncService (server/src/services/sync.service.ts): 4 (logger, sessionRepository, syncCheckpointRepository, syncRepository)\n- SystemConfigService (server/src/services/system-config.service.ts): 4 (configRepository, eventRepository, logger, machineLearningRepository)\n- TrashService (server/src/services/trash.service.ts): 4 (eventRepository, jobRepository, logger, trashRepository)\n- DatabaseService (server/src/services/database.service.ts): 3 (configRepository, databaseRepository, logger)\n- MapService (server/src/services/map.service.ts): 3 (albumRepository, mapRepository, partnerRepository)\n- NotificationAdminService (server/src/services/notification-admin.service.ts): 3 (emailRepository, notificationRepository, userRepository)\n- PartnerService (server/src/services/partner.service.ts): 3 (logger, partnerRepository, userRepository)\n- SessionService (server/src/services/session.service.ts): 3 (cryptoRepository, logger, sessionRepository)\n- StackService (server/src/services/stack.service.ts): 3 (assetRepository, eventRepository, stackRepository)\n- ApiKeyService (server/src/services/api-key.service.ts): 2 (apiKeyRepository, cryptoRepository)\n- AssetFileService (server/src/services/asset-file.service.ts): 2 (assetFileRepository, jobRepository)\n- TelemetryService (server/src/services/telemetry.service.ts): 2 (telemetryRepository, userRepository)\n- TimelineService (server/src/services/timeline.service.ts): 2 (assetRepository, partnerRepository)\n- WorkflowService (server/src/services/workflow.service.ts): 2 (pluginRepository, workflowRepository)\n- ActivityService (server/src/services/activity.service.ts): 1 (activityRepository)\n- AuthAdminService (server/src/services/auth-admin.service.ts): 1 (userRepository)\n- PluginService (server/src/services/plugin.service.ts): 1 (pluginRepository)\n- SystemMetadataService (server/src/services/system-metadata.service.ts): 1 (systemMetadataRepository)\n- ViewService (server/src/services/view.service.ts): 1 (viewRepository)",
+   "source": "facts",
+   "weight": 2856,
+   "id": "F-190847636c3d",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "multi-writer-table",
+   "title": "Table asset is written by 4 groups",
+   "files": [
+    "server/src/repositories/asset.repository.ts",
+    "server/src/repositories/duplicate.repository.ts",
+    "server/src/repositories/stack.repository.ts",
+    "server/src/repositories/trash.repository.ts"
+   ],
+   "evidence": "Table asset is written by 4 files in 4 plan groups (and read by 23 files in 22 groups):\n- module/asset: server/src/repositories/asset.repository.ts\n- module/duplicate: server/src/repositories/duplicate.repository.ts\n- module/stack: server/src/repositories/stack.repository.ts\n- module/trash: server/src/repositories/trash.repository.ts",
+   "source": "facts",
+   "weight": 4,
+   "id": "F-471f7dbe2fc2",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "multi-writer-table",
+   "title": "Table cluster_group is written by 2 groups",
+   "files": [
+    "server/src/repositories/cluster-group.repository.ts",
+    "server/src/repositories/person.repository.ts"
+   ],
+   "evidence": "Table cluster_group is written by 2 files in 2 plan groups:\n- module/cluster-group: server/src/repositories/cluster-group.repository.ts\n- module/person: server/src/repositories/person.repository.ts",
+   "source": "facts",
+   "weight": 2,
+   "id": "F-bdcfcf0f1886",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "multi-writer-table",
+   "title": "Table session_sync_checkpoint is written by 2 groups",
+   "files": [
+    "server/src/repositories/session.repository.ts",
+    "server/src/repositories/sync-checkpoint.repository.ts"
+   ],
+   "evidence": "Table session_sync_checkpoint is written by 2 files in 2 plan groups (and read by 1 file in 1 group):\n- module/session: server/src/repositories/session.repository.ts\n- module/sync: server/src/repositories/sync-checkpoint.repository.ts",
+   "source": "facts",
+   "weight": 2,
+   "id": "F-e7b889cd5d1e",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "injected-fault",
+   "title": "Injected fault (--inject-fault): step 2",
+   "files": [],
+   "evidence": "step 2 (R1): seeded wrong move (--inject-fault): M2 (Drop one importer rewrite): server/src/services/workflow-execution.service.ts: import specifier 'src/modules/album/album.dto.js' left as in base, 'src/dtos/album.dto.js'",
+   "source": "run",
+   "steps": [
+    2
+   ],
+   "weight": 1,
+   "id": "F-0daf1592fc4d",
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "pinned",
+   "title": "Files pinned by a replan: step 2",
+   "files": [
+    "server/src/dtos/album.dto.ts"
+   ],
+   "evidence": "step 2 (R1): attempt 1 (failed): certificate FAIL (K3a, K3b, K3c): K3a server/src/services/workflow-execution.service.ts: line 14: import 'src/dtos/album.dto.js': expected file server/src/modules/album/album.dto.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json; K3b server/src/services/workflow-execution.service.ts: site 7 'src/dtos/album.dto.js' (import): base server/src/modules/album/album.dto.ts, head unresolved; K3c server/src/services/workflow-execution.service.ts: nest-cli/emit: import 'src/dtos/album.dto.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/modules/album/album.dto.ts; base server/src/services/workflow-execution.service.ts 'src/dtos/album.dto.js'\n1 file: server/src/dtos/album.dto.ts",
+   "source": "run",
+   "steps": [
+    2
+   ],
+   "weight": 1,
+   "id": "F-0056b169b7fc",
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "title": "Coverage globs match other files, with no gate: server/test/vitest.config.mjs",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "evidence": "The run recorded 2 distinct findings in server/test/vitest.config.mjs, 6 times (steps 1–3):\n- server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/services/**' (server/src/services/**) matches differently for server/src/services/activity.service.ts (moving to server/src/modules/activity/activity.service.ts), server/src/services/activity.service.spec.ts (moving t… (steps 1–3)\n- server/test/vitest.config.mjs line 21 [test.coverage.exclude]: coverage glob 'src/services/*.spec.ts' (server/src/services/*.spec.ts) matches differently for server/src/services/activity.service.spec.ts (moving to server/src/modules/activity/activity.service.spec.ts); nothing in server/test/vitest.… (steps 1–3)",
+   "source": "run",
+   "steps": [
+    1,
+    2,
+    3
+   ],
+   "weight": 2,
+   "id": "F-89500b32bdee",
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "coverage-scope",
+   "title": "Coverage globs match other files (K4): server/test/vitest.config.mjs",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "evidence": "K4 reported 2 distinct findings in server/test/vitest.config.mjs, 8 times (steps 1–3, rungs/R1.json):\n- line 19: 'src/services/**' is the glob server/src/services/** whose matches change (2 moved files, e.g. server/src/services/activity.service.spec.ts -> server/src/modules/activity/activity.service.spec.ts) of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activit… (steps 1–3, rungs/R1.json)\n- line 21: 'src/services/*.spec.ts' is the glob server/src/services/*.spec.ts whose matches change (1 moved files, e.g. server/src/services/activity.service.spec.ts -> server/src/modules/activity/activity.service.spec.ts) of server/src/services/activity.service.spec.ts (moved to server/src/modules/ac… (steps 1–3, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3
+   ],
+   "certificates": [
+    "rungs/R1.json"
+   ],
+   "weight": 2,
+   "id": "F-800da5f4439a",
+   "narration": null
+  },
+  {
+   "kind": "default-root-dir",
+   "title": "Emit without a rootDir (K7): e2e/tsconfig.json",
+   "files": [
+    "e2e/tsconfig.json"
+   ],
+   "evidence": "K7 reported one finding in e2e/tsconfig.json, 4 times (steps 1–3, rungs/R1.json):\n- emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e (steps 1–3, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3
+   ],
+   "certificates": [
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-966da7d59056",
+   "narration": null
+  },
+  {
+   "kind": "old-path-in-docs",
+   "title": "Docs name old paths (K4): docs/docs/developer/architecture.mdx",
+   "files": [
+    "docs/docs/developer/architecture.mdx"
+   ],
+   "evidence": "K4 reported 3 distinct findings in docs/docs/developer/architecture.mdx, 12 times (steps 1–3, rungs/R1.json):\n- line 60: 'src/repositories' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/activity.repository.ts (moved to server/src/modules/activity/activity.repository.ts) (steps 1–3, rungs/R1.json)\n- line 60: 'src/services' is the directory server/src/services, whose contents change with the move of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activity.service.spec.ts) (steps 1–3, rungs/R1.json)\n- line 64: 'src/controllers' is the directory server/src/controllers, whose contents change with the move of server/src/controllers/activity.controller.spec.ts (moved to server/src/modules/activity/activity.controller.spec.ts) (steps 1–3, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3
+   ],
+   "certificates": [
+    "rungs/R1.json"
+   ],
+   "weight": 3,
+   "id": "F-68921a0c7282",
+   "narration": null
+  },
+  {
+   "kind": "old-path-in-docs",
+   "title": "Docs name old paths (K4): .github/pull_request_template.md",
+   "files": [
+    ".github/pull_request_template.md"
+   ],
+   "evidence": "K4 reported 3 distinct findings in .github/pull_request_template.md, 12 times (steps 1–3, rungs/R1.json):\n- line 36: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activity.service.spec.ts) (steps 1–3, rungs/R1.json)\n- line 37: 'src/repositories/' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/activity.repository.ts (moved to server/src/modules/activity/activity.repository.ts) (steps 1–3, rungs/R1.json)\n- line 37: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activity.service.spec.ts) (steps 1–3, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3
+   ],
+   "certificates": [
+    "rungs/R1.json"
+   ],
+   "weight": 3,
+   "id": "F-8759fa26d236",
+   "narration": null
+  },
+  {
+   "kind": "opaque-dynamic-load",
+   "title": "A module loaded by a computed path (K4): server/src/repositories/database.repository.ts",
+   "files": [
+    "server/src/repositories/database.repository.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/repositories/database.repository.ts, 4 times (steps 1–3, rungs/R1.json):\n- line 510: import(filePath) loads a module by a path K4 can't evaluate (steps 1–3, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3
+   ],
+   "certificates": [
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-70d9e19108a1",
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/http-client",
+   "files": [
+    "server/src/utils/fetch.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/http-client): platform/http-client holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-14d96dec2313",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/check",
+   "files": [
+    "server/src/commands/schema-check.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/check): platform/check holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-175fe3a4820a",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (singleton-group): module/machine-learning",
+   "files": [
+    "server/src/repositories/machine-learning.repository.ts"
+   ],
+   "evidence": "The plan validator's rule singleton-group, on the run's plan.yaml (group module/machine-learning): module/machine-learning holds one file",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-545a4b88a62f",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (unsupported-merge): module/auth",
+   "files": [],
+   "evidence": "The plan validator's rule unsupported-merge, on the run's plan.yaml (group module/auth): module/auth takes draft group \"grant\" (src/commands/grant-admin.ts): no shared word, edge, table or route",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-692ad4017c11",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (platform-feature): platform/move",
+   "files": [
+    "server/src/repositories/move.repository.ts"
+   ],
+   "evidence": "The plan validator's rule platform-feature, on the run's plan.yaml (group platform/move): src/repositories/move.repository.ts writes tables (move_history): a feature, not plumbing",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-6dc722024105",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/move",
+   "files": [
+    "server/src/repositories/move.repository.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/move): platform/move holds one file, and only platform/storage uses it: consider folding it there",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-af06f12438b8",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (platform-feature): platform/bootstrap",
+   "files": [
+    "server/src/controllers/app.controller.ts"
+   ],
+   "evidence": "The plan validator's rule platform-feature, on the run's plan.yaml (group platform/bootstrap): src/controllers/app.controller.ts serves routes: a feature, not plumbing",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-e1c975dc8064",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (impure-shared): shared/shared",
+   "files": [
+    "server/src/services/api.service.ts"
+   ],
+   "evidence": "The plan validator's rule impure-shared, on the run's plan.yaml (group shared/shared): src/services/api.service.ts is a service; shared/ holds pure code only",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-e3b63d08f742",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/transcoding",
+   "files": [
+    "server/src/services/transcoding.service.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/transcoding): platform/transcoding holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-fa4aa2cae116",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (unsupported-merge): module/auth",
+   "files": [],
+   "evidence": "The plan validator's rule unsupported-merge, on the run's plan.yaml (group module/auth): module/auth takes draft group \"password-login\" (src/commands/password-login.ts): no shared word, edge, table or route",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-ff0edb54f50f",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  }
+ ]
+}

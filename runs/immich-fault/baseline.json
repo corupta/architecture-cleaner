@@ -1,0 +1,69 @@
+{
+ "commit": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+ "tree": "424df72c3407dd1e7df5ee4e81a1d5fcd85cc01c",
+ "oracles": [
+  {
+   "name": "tsc",
+   "kind": "exit-zero",
+   "ok": true,
+   "runs": [
+    {
+     "ok": true,
+     "exitCode": 0,
+     "durationMs": 8549,
+     "summary": "exit 0"
+    },
+    {
+     "ok": true,
+     "exitCode": 0,
+     "durationMs": 8480,
+     "summary": "exit 0"
+    }
+   ],
+   "detail": "exit 0 in 2 runs"
+  },
+  {
+   "name": "unit",
+   "kind": "tests",
+   "ok": true,
+   "runs": [
+    {
+     "exitCode": 0,
+     "durationMs": 57001,
+     "ok": true,
+     "summary": "exit 0: 105/105 files load, 2,337 passed, 0 failed, 0 skipped"
+    },
+    {
+     "exitCode": 0,
+     "durationMs": 57085,
+     "ok": true,
+     "summary": "exit 0: 105/105 files load, 2,337 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "detail": "green in 2 complete runs; no flaky test"
+  },
+  {
+   "name": "openapi",
+   "kind": "artifact-identical",
+   "ok": true,
+   "runs": [
+    {
+     "ok": true,
+     "exitCode": 0,
+     "durationMs": 48219,
+     "summary": "947,932 bytes, sha256 d4f4d34b9b8a"
+    },
+    {
+     "ok": true,
+     "exitCode": 0,
+     "durationMs": 48044,
+     "summary": "947,932 bytes, sha256 d4f4d34b9b8a"
+    }
+   ],
+   "detail": "byte-identical in 2 runs; byte-identical to the tracked open-api/immich-openapi-specs.json"
+  }
+ ],
+ "flaky": [],
+ "green": true,
+ "durationMs": 229736
+}

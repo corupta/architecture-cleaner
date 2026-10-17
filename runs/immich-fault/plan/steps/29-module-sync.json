@@ -1,0 +1,15 @@
+{
+ "step": 29,
+ "rung": "R1",
+ "group": "module/sync",
+ "moves": {
+  "server/src/controllers/sync.controller.ts": "server/src/modules/sync/sync.controller.ts",
+  "server/src/controllers/sync.controller.spec.ts": "server/src/modules/sync/sync.controller.spec.ts",
+  "server/src/dtos/sync.dto.ts": "server/src/modules/sync/sync.dto.ts",
+  "server/src/repositories/sync-checkpoint.repository.ts": "server/src/modules/sync/sync-checkpoint.repository.ts",
+  "server/src/repositories/sync.repository.ts": "server/src/modules/sync/sync.repository.ts",
+  "server/src/services/sync.service.ts": "server/src/modules/sync/sync.service.ts",
+  "server/src/services/sync.service.spec.ts": "server/src/modules/sync/sync.service.spec.ts",
+  "server/src/utils/sync.ts": "server/src/modules/sync/sync.ts"
+ }
+}

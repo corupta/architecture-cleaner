@@ -1,0 +1,12 @@
+{
+ "step": 26,
+ "rung": "R1",
+ "group": "module/session",
+ "moves": {
+  "server/src/controllers/session.controller.ts": "server/src/modules/session/session.controller.ts",
+  "server/src/dtos/session.dto.ts": "server/src/modules/session/session.dto.ts",
+  "server/src/repositories/session.repository.ts": "server/src/modules/session/session.repository.ts",
+  "server/src/services/session.service.ts": "server/src/modules/session/session.service.ts",
+  "server/src/services/session.service.spec.ts": "server/src/modules/session/session.service.spec.ts"
+ }
+}

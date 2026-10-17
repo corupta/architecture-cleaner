@@ -1,0 +1,13 @@
+{
+ "step": 12,
+ "rung": "R1",
+ "group": "module/job",
+ "moves": {
+  "server/src/controllers/job.controller.ts": "server/src/modules/job/job.controller.ts",
+  "server/src/controllers/job.controller.spec.ts": "server/src/modules/job/job.controller.spec.ts",
+  "server/src/dtos/job.dto.ts": "server/src/modules/job/job.dto.ts",
+  "server/src/repositories/job.repository.ts": "server/src/modules/job/job.repository.ts",
+  "server/src/services/job.service.ts": "server/src/modules/job/job.service.ts",
+  "server/src/services/job.service.spec.ts": "server/src/modules/job/job.service.spec.ts"
+ }
+}

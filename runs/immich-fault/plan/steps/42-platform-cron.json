@@ -1,0 +1,8 @@
+{
+ "step": 42,
+ "rung": "R2",
+ "group": "platform/cron",
+ "moves": {
+  "server/src/repositories/cron.repository.ts": "server/src/platform/cron/cron.repository.ts"
+ }
+}

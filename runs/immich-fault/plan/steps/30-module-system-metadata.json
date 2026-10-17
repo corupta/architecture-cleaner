@@ -1,0 +1,14 @@
+{
+ "step": 30,
+ "rung": "R1",
+ "group": "module/system-metadata",
+ "moves": {
+  "server/src/controllers/system-metadata.controller.ts": "server/src/modules/system-metadata/system-metadata.controller.ts",
+  "server/src/controllers/system-metadata.controller.spec.ts": "server/src/modules/system-metadata/system-metadata.controller.spec.ts",
+  "server/src/dtos/onboarding.dto.ts": "server/src/modules/system-metadata/onboarding.dto.ts",
+  "server/src/dtos/system-metadata.dto.ts": "server/src/modules/system-metadata/system-metadata.dto.ts",
+  "server/src/repositories/system-metadata.repository.ts": "server/src/modules/system-metadata/system-metadata.repository.ts",
+  "server/src/services/system-metadata.service.ts": "server/src/modules/system-metadata/system-metadata.service.ts",
+  "server/src/services/system-metadata.service.spec.ts": "server/src/modules/system-metadata/system-metadata.service.spec.ts"
+ }
+}

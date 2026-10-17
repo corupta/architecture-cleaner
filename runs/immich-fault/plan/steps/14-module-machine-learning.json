@@ -1,0 +1,8 @@
+{
+ "step": 14,
+ "rung": "R1",
+ "group": "module/machine-learning",
+ "moves": {
+  "server/src/repositories/machine-learning.repository.ts": "server/src/modules/machine-learning/machine-learning.repository.ts"
+ }
+}

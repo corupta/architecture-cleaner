@@ -1,0 +1,14 @@
+{
+ "step": 2,
+ "rung": "R1",
+ "group": "module/album",
+ "moves": {
+  "server/src/controllers/album.controller.ts": "server/src/modules/album/album.controller.ts",
+  "server/src/controllers/album.controller.spec.ts": "server/src/modules/album/album.controller.spec.ts",
+  "server/src/dtos/album.dto.ts": "server/src/modules/album/album.dto.ts",
+  "server/src/repositories/album-user.repository.ts": "server/src/modules/album/album-user.repository.ts",
+  "server/src/repositories/album.repository.ts": "server/src/modules/album/album.repository.ts",
+  "server/src/services/album.service.ts": "server/src/modules/album/album.service.ts",
+  "server/src/services/album.service.spec.ts": "server/src/modules/album/album.service.spec.ts"
+ }
+}

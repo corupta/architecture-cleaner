@@ -1,0 +1,8 @@
+{
+ "step": 43,
+ "rung": "R2",
+ "group": "platform/crypto",
+ "moves": {
+  "server/src/repositories/crypto.repository.ts": "server/src/platform/crypto/crypto.repository.ts"
+ }
+}

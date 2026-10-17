@@ -1,0 +1,13 @@
+{
+ "step": 3,
+ "rung": "R1",
+ "group": "module/api-key",
+ "moves": {
+  "server/src/controllers/api-key.controller.ts": "server/src/modules/api-key/api-key.controller.ts",
+  "server/src/controllers/api-key.controller.spec.ts": "server/src/modules/api-key/api-key.controller.spec.ts",
+  "server/src/dtos/api-key.dto.ts": "server/src/modules/api-key/api-key.dto.ts",
+  "server/src/repositories/api-key.repository.ts": "server/src/modules/api-key/api-key.repository.ts",
+  "server/src/services/api-key.service.ts": "server/src/modules/api-key/api-key.service.ts",
+  "server/src/services/api-key.service.spec.ts": "server/src/modules/api-key/api-key.service.spec.ts"
+ }
+}

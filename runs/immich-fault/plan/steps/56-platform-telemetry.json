@@ -1,0 +1,9 @@
+{
+ "step": 56,
+ "rung": "R2",
+ "group": "platform/telemetry",
+ "moves": {
+  "server/src/repositories/telemetry.repository.ts": "server/src/platform/telemetry/telemetry.repository.ts",
+  "server/src/services/telemetry.service.ts": "server/src/platform/telemetry/telemetry.service.ts"
+ }
+}

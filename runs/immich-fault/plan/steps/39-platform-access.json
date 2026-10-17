@@ -1,0 +1,10 @@
+{
+ "step": 39,
+ "rung": "R2",
+ "group": "platform/access",
+ "moves": {
+  "server/src/repositories/access.repository.ts": "server/src/platform/access/access.repository.ts",
+  "server/src/utils/access.ts": "server/src/platform/access/access.ts",
+  "server/src/utils/set.ts": "server/src/platform/access/set.ts"
+ }
+}

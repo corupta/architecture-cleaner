@@ -1,0 +1,11 @@
+{
+ "step": 44,
+ "rung": "R2",
+ "group": "platform/database",
+ "moves": {
+  "server/src/database.ts": "server/src/platform/database/database.ts",
+  "server/src/services/database.service.ts": "server/src/platform/database/database.service.ts",
+  "server/src/services/database.service.spec.ts": "server/src/platform/database/database.service.spec.ts",
+  "server/src/utils/database.ts": "server/src/platform/database/utils/database.ts"
+ }
+}

@@ -1,0 +1,8 @@
+{
+ "step": 41,
+ "rung": "R2",
+ "group": "platform/check",
+ "moves": {
+  "server/src/commands/schema-check.ts": "server/src/platform/check/schema-check.ts"
+ }
+}

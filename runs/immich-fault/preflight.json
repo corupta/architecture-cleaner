@@ -1,0 +1,39 @@
+{
+ "format": "ac-preflight/1",
+ "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+ "plan": {
+  "sha": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+  "resolved": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+  "matchesBranchStart": true,
+  "missingFiles": []
+ },
+ "inventory": {
+  "trackedFiles": 3464,
+  "packageFiles": 736,
+  "analyzedFiles": 1100,
+  "sites": 6647,
+  "hazards": {
+   "location-sensitive": 28,
+   "dynamic-reference": 2
+  }
+ },
+ "envelope": {
+  "plannedMoves": 367,
+  "violations": [],
+  "metrics": {
+   "moves": 367,
+   "baseTypeScriptFiles": 678,
+   "baseJavaScriptFiles": 3,
+   "headTypeScriptFiles": 678,
+   "headJavaScriptFiles": 3
+  }
+ },
+ "baseline": {
+  "green": true,
+  "flaky": 0,
+  "durationMs": 229736
+ },
+ "declines": [],
+ "declined": false,
+ "durationMs": 243924
+}

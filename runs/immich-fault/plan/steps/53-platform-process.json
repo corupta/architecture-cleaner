@@ -1,0 +1,9 @@
+{
+ "step": 53,
+ "rung": "R2",
+ "group": "platform/process",
+ "moves": {
+  "server/src/repositories/process.repository.ts": "server/src/platform/process/process.repository.ts",
+  "server/src/repositories/process.repository.spec.ts": "server/src/platform/process/process.repository.spec.ts"
+ }
+}

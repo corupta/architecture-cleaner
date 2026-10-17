@@ -1,0 +1,14 @@
+{
+ "step": 27,
+ "rung": "R1",
+ "group": "module/shared-link",
+ "moves": {
+  "server/src/controllers/shared-link.controller.ts": "server/src/modules/shared-link/shared-link.controller.ts",
+  "server/src/controllers/shared-link.controller.spec.ts": "server/src/modules/shared-link/shared-link.controller.spec.ts",
+  "server/src/dtos/shared-link.dto.ts": "server/src/modules/shared-link/shared-link.dto.ts",
+  "server/src/repositories/shared-link-asset.repository.ts": "server/src/modules/shared-link/shared-link-asset.repository.ts",
+  "server/src/repositories/shared-link.repository.ts": "server/src/modules/shared-link/shared-link.repository.ts",
+  "server/src/services/shared-link.service.ts": "server/src/modules/shared-link/shared-link.service.ts",
+  "server/src/services/shared-link.service.spec.ts": "server/src/modules/shared-link/shared-link.service.spec.ts"
+ }
+}
