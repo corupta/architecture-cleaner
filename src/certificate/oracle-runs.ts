@@ -1,13 +1,15 @@
 // K8 runs: an oracle's steps executed in a commit's fresh worktree under the target's Node (offline when the profile
-// says so), each step's output in a log of the run directory. Base runs are cached by repo + base commit + oracle so
-// repeated certifications of one base reuse them; head runs never are.
+// says so), each step's output in a log of the run directory. With a per-tree cache (CertifyOptions.cacheDir) a
+// complete run of either side is stored per tree under oracleRunKey, so a tree certified again (the next rung's base,
+// the whole PR's head) reuses it; without one, base runs are cached by repo + base commit + oracle (AC_ORACLE_CACHE)
+// and head runs never are.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { OracleSpec, OracleStep, Profile } from './profile.js';
-import { targetEnvironment } from './toolchain.js';
+import { nodeBinary, targetEnvironment } from './toolchain.js';
 import type { Side } from './types.js';
 
 export interface StepRun {
@@ -226,4 +228,31 @@ export function storeRun(run: OracleRun, directory: string): void {
   } catch {
     fs.rmSync(staging, { recursive: true, force: true });
   }
+}
+
+/** The tree cache's kind for oracle runs. */
+export const oracleRunKind = 'K8-run';
+
+/** What a stored run leaves out: the scratch directory (a build's output, the checkout copies an oracle made). */
+export const outsideScratch = (relative: string) => relative !== 'scratch' && !relative.startsWith('scratch/');
+
+/**
+ * What an oracle run depends on besides its tree, the package root, the environment's node_modules and lockfiles and
+ * the tool (the tree cache's own key): the oracle as the profile defines it, the `{quarantine}` expansion of the side
+ * it runs as, the target's Node binary, the variables its steps see (hashed: they may hold secrets) and the
+ * prerequisite builds it requires in the environment.
+ */
+export function oracleRunKey(profile: Profile, oracle: OracleSpec, quarantine: string[], checkout: string): unknown {
+  const binary = fs.realpathSync(nodeBinary(profile.node));
+  const node = fs.statSync(binary);
+  const variables = Object.entries(targetEnvironment({ node: profile.node, ...(profile.offline ? { offlineLog: '{offline-log}' } : {}), ...(profile.env ? { extra: profile.env } : {}) }))
+    .filter(([, value]) => value !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const prerequisites = (oracle.requires ?? []).map((file) => {
+    const found = fs.statSync(path.join(checkout, file), { throwIfNoEntry: false });
+    return [file, found?.size ?? null, found?.mtimeMs ?? null];
+  });
+  return {
+    oracle, quarantine, node: [profile.node, binary, node.size, node.mtimeMs],
+    environment: createHash('sha256').update(JSON.stringify(variables)).digest('hex'), prerequisites,
+  };
 }

@@ -66,8 +66,9 @@ export interface CertifyOptions {
   /** K8: extra runs of base and head on a test mismatch, to tell flaky tests from real differences (default 2). */
   flakyRetries?: number;
   /**
-   * Per-tree result cache (tree-cache.ts): results computed from one tree are reused by any certification that meets
-   * the same tree, environment and tool again, on either side. Off when unset.
+   * Per-tree result cache (tree-cache.ts): results computed from one tree (the analyses, K6's inventory, K8's oracle
+   * runs) are reused by any certification that meets the same tree, environment and tool again, on either side. Off
+   * when unset; K8 then caches base runs per base commit only (AC_ORACLE_CACHE).
    */
   cacheDir?: string;
 }

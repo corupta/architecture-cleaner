@@ -6,7 +6,9 @@
 // its code), the cache format, and what the check adds (runner spec, target Node, the child's environment). Keys are
 // stored only as hashes: a child's environment may hold secrets. Machine paths in a stored value (the worktree and
 // scratch directory it was computed in) become placeholders and are put back for the reading certification, so a hit
-// equals a fresh run. Only complete results are stored; an unreadable, corrupt or mismatched entry is a miss.
+// equals a fresh run. Only complete results are stored; an unreadable, corrupt or mismatched entry is a miss. Results
+// that are files (K8's oracle runs: logs, reports, artifacts) are stored as a directory with a manifest of hashes and
+// copied out to where a fresh run would have written them.
 import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -119,6 +121,32 @@ export interface TreeCache {
   read<T>(kind: string, tree: string, key: unknown, places: Places): T | undefined;
   /** Stores a complete result. Best effort: a failed write only means a later miss. */
   write(kind: string, tree: string, key: unknown, places: Places, value: unknown): void;
+  /**
+   * Copies the files stored for `tree` under `key` into `target` (emptied first), each checked against its stored
+   * sha256; false on a miss or a damaged entry (target then holds nothing). Paths inside the files are left as stored.
+   */
+  readFiles(kind: string, tree: string, key: unknown, target: string): boolean;
+  /** Stores a copy of the files under `source` but those `exclude` names (relative paths). Best effort, like write. */
+  writeFiles(kind: string, tree: string, key: unknown, source: string, exclude?: (relative: string) => boolean): void;
+}
+
+/** A file entry's manifest: what readFiles checks before it copies anything out. */
+interface FilesManifest {
+  format: number;
+  kind: string;
+  tree: string;
+  key: string;
+  files: [relative: string, sha256: string][];
+}
+
+const manifestName = 'manifest.json';
+
+/** Regular files under `directory`, relative and sorted; symbolic links and other entries are left out. */
+function regularFiles(directory: string): string[] {
+  return fs.readdirSync(directory, { recursive: true, encoding: 'utf8' })
+    .filter((relative) => fs.lstatSync(path.join(directory, relative)).isFile())
+    .map((relative) => relative.split(path.sep).join('/'))
+    .sort();
 }
 
 export interface CacheScope {
@@ -135,9 +163,19 @@ export function openTreeCache(directory: string, scope: CacheScope, log: (messag
     shared ??= JSON.stringify({ format: cacheFormat, tool: scope.tool ?? toolIdentity(), packageRoot: scope.packageRoot, environment: environmentIdentity(scope.environment) });
     return sha256(JSON.stringify({ shared, kind, tree, key }));
   };
-  const fileOf = (kind: string, tree: string, hash: string) => {
+  const entryOf = (kind: string, tree: string, hash: string) => {
     if (!/^[\w.-]+$/.test(kind) || !/^[0-9a-f]+$/.test(tree)) throw new Error(`tree cache: bad entry name ${kind}/${tree}`);
-    return path.join(directory, kind, `${tree.slice(0, 12)}-${hash.slice(0, 32)}.json`);
+    return path.join(directory, kind, `${tree.slice(0, 12)}-${hash.slice(0, 32)}`);
+  };
+  const fileOf = (kind: string, tree: string, hash: string) => `${entryOf(kind, tree, hash)}.json`;
+  /** The manifest of a files entry, when it is one for `hash`. */
+  const manifestOf = (entry: string, hash: string): FilesManifest | undefined => {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(path.join(entry, manifestName), 'utf8')) as FilesManifest;
+      return manifest.format === cacheFormat && manifest.key === hash && Array.isArray(manifest.files) ? manifest : undefined;
+    } catch {
+      return undefined;
+    }
   };
   return {
     directory,
@@ -173,6 +211,53 @@ export function openTreeCache(directory: string, scope: CacheScope, log: (messag
       } catch (error) {
         fs.rmSync(staging, { force: true });
         log(`tree cache: could not store ${file}: ${(error as Error).message}`);
+      }
+    },
+    readFiles(kind, tree, key, target) {
+      const hash = keyOf(kind, tree, key);
+      const entry = entryOf(kind, tree, hash);
+      fs.rmSync(target, { recursive: true, force: true });
+      if (!fs.existsSync(entry)) return false;
+      try {
+        const manifest = manifestOf(entry, hash);
+        if (!manifest) throw new Error('no manifest for this key');
+        for (const [relative, digest] of manifest.files) {
+          if (relative.split('/').includes('..') || path.isAbsolute(relative)) throw new Error(`bad path ${relative}`);
+          const bytes = fs.readFileSync(path.join(entry, 'files', relative));
+          if (sha256(bytes) !== digest) throw new Error(`${relative} changed`);
+          fs.mkdirSync(path.dirname(path.join(target, relative)), { recursive: true });
+          fs.writeFileSync(path.join(target, relative), bytes);
+        }
+        return true;
+      } catch (error) {
+        fs.rmSync(target, { recursive: true, force: true });
+        // Removed, so the next complete result is stored in its place.
+        fs.rmSync(entry, { recursive: true, force: true });
+        log(`tree cache: removed the unreadable entry ${entry}: ${(error as Error).message}`);
+        return false;
+      }
+    },
+    writeFiles(kind, tree, key, source, exclude = () => false) {
+      const hash = keyOf(kind, tree, key);
+      const entry = entryOf(kind, tree, hash);
+      if (manifestOf(entry, hash)) return;
+      const staging = `${entry}.tmp-${process.pid}-${randomBytes(4).toString('hex')}`;
+      try {
+        const files: FilesManifest['files'] = [];
+        for (const relative of regularFiles(source).filter((file) => !exclude(file))) {
+          const bytes = fs.readFileSync(path.join(source, relative));
+          fs.mkdirSync(path.dirname(path.join(staging, 'files', relative)), { recursive: true });
+          fs.writeFileSync(path.join(staging, 'files', relative), bytes);
+          files.push([relative, sha256(bytes)]);
+        }
+        fs.mkdirSync(staging, { recursive: true });
+        fs.writeFileSync(path.join(staging, manifestName), JSON.stringify({ format: cacheFormat, kind, tree, key: hash, files } satisfies FilesManifest));
+        // A damaged entry under this name would never be read again: replace it.
+        fs.rmSync(entry, { recursive: true, force: true });
+        fs.renameSync(staging, entry);
+      } catch (error) {
+        fs.rmSync(staging, { recursive: true, force: true });
+        log(`tree cache: could not store ${entry}: ${(error as Error).message}`);
       }
     },
   };

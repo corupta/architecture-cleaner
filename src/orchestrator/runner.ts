@@ -114,7 +114,8 @@ export async function certifyRange(runner: Runner, base: string, head: string, w
     oracles: options.oracles,
     ...(options.only ? { only: options.only } : {}),
     workDir: runner.directory.workDir(work),
-    // Per-tree results (K6's inventory, the analyses) survive between certifications: step k+1's base is step k's head.
+    // Per-tree results (K6's inventory, the analyses, K8's oracle runs) survive between certifications: step k+1's base
+    // is step k's head, a rung's base the previous rung's head, the whole PR's head R4's; the baseline seeds the base.
     cacheDir: runner.directory.path('cache'),
     keep: false,
     // Only the oracles read it; a speculative base (--jobs) has no certified pathMap to map it through yet.

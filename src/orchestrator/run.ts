@@ -184,7 +184,7 @@ export async function startRun(options: StartOptions, overrides: Partial<RunDepe
       r0.start = base;
       const outcome = await preflight({
         repo, environment: state.environment, profile: state.profile, packageRoot: state.packageRoot, planSha: planFile.sha, base, steps,
-        workDir: directory.workDir('preflight'), runBaseline: dependencies.runBaseline, log: options.log,
+        workDir: directory.workDir('preflight'), cacheDir: directory.path('cache'), runBaseline: dependencies.runBaseline, log: options.log,
       });
       fs.rmSync(directory.path('work', 'preflight'), { recursive: true, force: true });
       preflightRecord = outcome.preflight;

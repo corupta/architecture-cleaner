@@ -23,6 +23,8 @@ export interface PreflightInput {
   /** R1 and R2 steps of the plan. */
   steps: StepRecord[];
   workDir: string;
+  /** The run's per-tree cache: the baseline stores its first complete run of each oracle there, as K8's base run. */
+  cacheDir?: string;
   /** Run the baseline (skipped when an earlier preflight check already declines). */
   runBaseline: (options: BaselineOptions) => Promise<BaselineResult>;
   log(message: string): void;
@@ -108,6 +110,7 @@ export async function preflight(input: PreflightInput): Promise<{ preflight: Pre
     input.log(`preflight: baseline, every oracle twice on ${base.slice(0, 10)}`);
     baseline = await input.runBaseline({
       repo, commit: base, packageRoot, environment: input.environment, profile, runs: 2, workDir: path.join(input.workDir, 'baseline'), log: input.log,
+      ...(input.cacheDir ? { cacheDir: input.cacheDir } : {}),
     });
     for (const oracle of baseline.oracles.filter((candidate) => !candidate.ok)) {
       declines.push({ code: 'baseline-not-green', detail: `${oracle.name} (${oracle.kind}): ${oracle.detail}` });

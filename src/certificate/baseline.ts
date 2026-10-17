@@ -5,16 +5,19 @@
 // another run lists stopped short: it is replaced (up to `extraRuns` more runs) and never read for flaky tests. The
 // commit is green when `runs` complete runs of every oracle pass, flaky tests aside, and the flaky tests sit in at most
 // flakyFileLimit files (more, and the suite is not reproducible here: plan §2.5 declines it). The first complete run
-// of each oracle seeds K8's base cache.
+// of each oracle seeds K8's base cache, and the per-tree cache when one is given.
 import fs from 'node:fs';
 import path from 'node:path';
 import { addWorktree, removeWorktrees } from './certify.js';
 import { createEnvironment } from './commit-fs.js';
 import { readCommitTree } from './git-tree.js';
 import { effectiveExit, excludeTests, fileFails, flakyFileCount, flakyFileLimit, flakyTests, selectTests, sha256, shortReports, type TestReport, totalsOf } from './oracle-reports.js';
-import { cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, readCachedRun, runOracle, stepBroken, stepOk, storeRun } from './oracle-runs.js';
+import {
+  cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, oracleRunKey, oracleRunKind, outsideScratch, readCachedRun, runOracle, stepBroken, stepOk, storeRun,
+} from './oracle-runs.js';
 import { linksOf, loadReport, resetWorktree, runnerQuarantine, validateOracles } from './oracles.js';
 import type { OracleSpec, Profile } from './profile.js';
+import { openTreeCache } from './tree-cache.js';
 
 /**
  * A test left out of K8's comparisons. `file` is repo-relative at the certify base commit (K8 maps it to head through
@@ -42,6 +45,8 @@ export interface BaselineOptions {
   workDir: string;
   /** Keep the worktree's logs (the worktree itself is always removed). */
   keep?: boolean;
+  /** A per-tree cache (CertifyOptions.cacheDir) the first complete run of each oracle is stored in, as K8's base run. */
+  cacheDir?: string;
   log?: (message: string) => void;
 }
 
@@ -182,6 +187,7 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
     }
     resetWorktree(root, links);
     const cacheRoot = oracleCacheRoot();
+    const treeCache = options.cacheDir ? openTreeCache(options.cacheDir, { packageRoot: options.packageRoot, environment }, log) : null;
     const oracles: BaselineOracleResult[] = [];
     const flaky: QuarantineEntry[] = [];
     for (const oracle of specs) {
@@ -197,6 +203,9 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
       if (cacheRoot && complete) {
         const cached = cacheDirectory(cacheRoot, { repo: options.repo, baseCommit: tree.commit, oracle, profile, checkout: environment.checkout, linked: environment.linked });
         if (!readCachedRun(cached)) storeRun(complete, cached);
+      }
+      if (treeCache && complete) {
+        treeCache.writeFiles(oracleRunKind, tree.tree, oracleRunKey(profile, oracle, runnerQuarantine(oracle, (file) => file), environment.checkout), complete.directory, (relative) => !outsideScratch(relative));
       }
       if (oracle.kind === 'tests') {
         const evaluated = tests(oracle, profile, oracleRuns, options.runs);

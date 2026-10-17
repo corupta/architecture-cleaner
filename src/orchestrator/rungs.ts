@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
 import { trailers } from '../certificate/report.js';
+import type { Certificate } from '../certificate/types.js';
 import { certificateOffenders, pinWholeStep } from './attempt.js';
 import { scopeOf, stepMessage } from './commit-message.js';
 import { amendMessage, commitStaged, git, resetHard, treeOf } from './git.js';
@@ -76,8 +77,18 @@ function moveCertificate(runner: Runner, from: string, to: string): string {
   return `${target}.json`;
 }
 
-/** 'no-evidence': its bisect stopped at a probe without evidence (the run failed as a crash, the rung still runs). */
+/**
+ * 'no-evidence': the certificate has no verdict (every check that didn't pass errored), or its bisect stopped at a
+ * probe without evidence; the run failed as a crash and the rung still runs, so --resume certifies it again.
+ */
 type RungCertification = 'certified' | 'bisected' | 'failed' | 'empty' | 'no-evidence';
+
+/**
+ * A FAIL in which no check failed: every check that didn't pass errored (a check crashed, an oracle couldn't run on
+ * base). It says nothing about the change either way, like a step certificate that only errored: a crash that
+ * --resume certifies again, never a verdict. A check that failed next to one that errored is a verdict.
+ */
+export const withoutVerdict = (certificate: Certificate) => certificate.verdict === 'fail' && !certificate.checks.some((check) => check.status === 'fail');
 
 /**
  * The rung's cumulative full certificate (rung start..its last commit, oracles included); one K8 bisect on failure
@@ -99,6 +110,10 @@ async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): 
   runner.event({ event: 'rung-certify', rung: rung.id, durationMs, verdict: certificate.verdict, scope: certificate.scope, failing: failingChecks(certificate), partial });
   if (certificate.verdict === 'pass') return 'certified';
   const failing = failingChecks(certificate);
+  if (withoutVerdict(certificate)) {
+    failRun(runner, 'crash', `rung ${rung.id}'s certificate has no verdict: ${failing.join(', ')} errored and no check failed; --resume certifies the rung again: ${certificateOffenders(certificate).detail}`);
+    return 'no-evidence';
+  }
   const k8 = certificate.checks.find((check) => check.id === 'K8')?.status;
   if (failing.length === 1 && k8 === 'fail' && (!rung.bisect || rung.bisect.firstFailingStep === null)) {
     rung.certificate.file = moveCertificate(runner, rung.certificate.file.replace(/\.json$/, ''), `rungs/failed/${rung.id}`);
@@ -194,24 +209,27 @@ export async function runBoundaryRung(runner: Runner, rung: RungRecord): Promise
       fs.writeFileSync(path.join(state.repo, file), content);
     }
     git(state.repo, ['add', '--', ...result.files.keys()]);
-    const step: StepRecord = {
+    // An earlier attempt whose certificate had no verdict left its step running: this attempt is its next.
+    const earlier = state.steps.find((candidate) => candidate.rung === 'R4' && candidate.status === 'running');
+    const step: StepRecord = earlier ?? {
       index: Math.max(0, ...state.steps.map((candidate) => candidate.index)) + 1, rung: 'R4', group: 'boundaries', moves: {}, entries: [], status: 'running', round: 1,
       attempts: [], durationMs: 0,
     };
-    state.steps.push(step);
+    if (!earlier) state.steps.push(step);
     const messageInput = {
       scope: scopeOf(state.repo, state.packageRoot), packageRoot: state.packageRoot, rung: 'R4' as const, index: step.index, group: step.group, moves: new Map<string, string>(),
       planSha256: state.plan.sha256, counts: { filesMoved: 0, specifierEdits: 0, filesEdited: 0 }, pinned: [], replans: 0, added: [...result.files.keys()], summary: result.summary,
     };
     const attempt: AttemptRecord = {
-      attempt: 1, round: 1, state: 'executing', parent: rung.start, moves: 0, offending: [], pinned: [], detail: result.summary, startedAt: new Date().toISOString(), durationMs: 0, timings: {},
+      attempt: step.attempts.length + 1, round: 1, state: 'executing', parent: rung.start, moves: 0, offending: [], pinned: [], detail: result.summary, startedAt: new Date().toISOString(),
+      durationMs: 0, timings: {},
     };
     step.attempts.push(attempt);
     let phase = performance.now();
     attempt.commit = commitStaged(state.repo, stepMessage(messageInput));
     attempt.timings.commitMs = elapsed(phase);
     attempt.state = 'certifying';
-    runner.event({ event: 'commit', rung: 'R4', step: step.index, attempt: 1, durationMs: attempt.timings.commitMs, commit: attempt.commit });
+    runner.event({ event: 'commit', rung: 'R4', step: step.index, attempt: attempt.attempt, durationMs: attempt.timings.commitMs, commit: attempt.commit });
     runner.save();
     phase = performance.now();
     const certificate = await certifyRange(runner, rung.start, attempt.commit, 'rung-R4', { oracles: true });
@@ -227,6 +245,13 @@ export async function runBoundaryRung(runner: Runner, rung: RungRecord): Promise
       state.head = amended;
       rung.end = amended;
       rung.status = 'certified';
+    } else if (withoutVerdict(certificate)) {
+      // No evidence either way: the commit is rolled back and R4 starts over on --resume, as this step's next attempt.
+      attempt.state = 'interrupted';
+      rung.status = 'pending';
+      failRun(runner, 'crash', `R4's certificate has no verdict: ${failingChecks(certificate).join(', ')} errored and no check failed; --resume generates and certifies the rules again: ${certificateOffenders(certificate).detail}`);
+      runner.save();
+      resetHard(state.repo, rung.start);
     } else {
       attempt.state = 'failed';
       step.status = 'pinned';
@@ -250,6 +275,7 @@ export async function certifyRun(runner: Runner): Promise<void> {
   const same = state.rungs.find((rung) => rung.certificate && !rung.certificate.partial && rung.start === state.base && rung.end === state.head);
   const started = performance.now();
   let record: CertificateRecord;
+  let noVerdict = false;
   if (same?.certificate) {
     const target = runner.directory.certificateFile('certificate');
     for (const extension of ['.json', '.txt']) fs.copyFileSync(runner.directory.path(same.certificate.file.replace(/\.json$/, extension)), runner.directory.path(`${target}${extension}`));
@@ -257,10 +283,13 @@ export async function certifyRun(runner: Runner): Promise<void> {
     record = { ...certificate, file: `${target}.json` };
   } else {
     runner.log(`run: full certificate of ${state.base.slice(0, 10)}..${state.head.slice(0, 10)}`);
-    record = storeCertificate(runner, 'certificate', await certifyRange(runner, state.base, state.head, 'run', { oracles: true }));
+    const certificate = await certifyRange(runner, state.base, state.head, 'run', { oracles: true });
+    noVerdict = withoutVerdict(certificate);
+    record = storeCertificate(runner, 'certificate', certificate);
   }
   state.certificate = record;
   state.timeline.runCertificationMs += elapsed(started);
-  if (record.verdict === 'fail') failRun(runner, 'verdict', `the whole-PR certificate FAILs (${record.failing.join(', ')}): see ${record.file}`);
+  if (noVerdict) failRun(runner, 'crash', `the whole-PR certificate has no verdict: ${record.failing.join(', ')} errored and no check failed; --resume certifies the PR again: see ${record.file}`);
+  else if (record.verdict === 'fail') failRun(runner, 'verdict', `the whole-PR certificate FAILs (${record.failing.join(', ')}): see ${record.file}`);
   runner.event({ event: 'run-certify', durationMs: elapsed(started), verdict: record.verdict, failing: record.failing, reused: same?.id ?? null });
 }

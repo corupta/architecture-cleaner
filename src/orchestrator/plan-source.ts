@@ -5,8 +5,8 @@ import path from 'node:path';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
 import type { Profile } from '../certificate/profile.js';
 import { createGateway } from '../gateway/gateway.js';
-import type { CassetteMode } from '../gateway/types.js';
-import { defaultCriticSettings } from '../planner/critic.js';
+import type { CassetteMode, Gateway } from '../gateway/types.js';
+import { criticSettingsFor } from '../planner/critic.js';
 import { defaultEditSettings } from '../planner/edit.js';
 import { planOutputs } from '../planner/outputs.js';
 import { planRepo } from '../planner/plan.js';
@@ -36,15 +36,17 @@ export interface PlannerOptions {
   mode: CassetteMode;
   /** Budget run charged by live calls (record and auto need one). */
   run: string | null;
+  /** The gateway to plan through (default: one on `cassette` in `mode`, charging `run`). */
+  gateway?: Gateway;
 }
 
 /** Plans the repo at its checked-out commit; every output but plan.yaml and the step files (the run writes its own) goes to plan/. */
 export async function planInProcess(options: PlannerOptions): Promise<PlannedRun> {
   const runId = options.run ?? 'replay';
-  const gateway = createGateway({ runId, mode: options.mode, cassettePath: path.resolve(options.cassette) });
+  const gateway = options.gateway ?? createGateway({ runId, mode: options.mode, cassettePath: path.resolve(options.cassette) });
   const spentBefore = gateway.spent().run;
   const packageRoot = options.profile.packageRoot.replace(/^\.\/?/, '').replace(/\/$/, '');
-  const critic = defaultCriticSettings;
+  const critic = criticSettingsFor(options.profile);
   const run = await planRepo(gitRepoFs(options.repo), gateway, {
     packageRoot, moduleRoot: options.profile.plan?.moduleRoot ?? 'src', pins: options.profile.plan?.pins ?? [], edit: defaultEditSettings, critic,
   });

@@ -9,7 +9,8 @@ import { groupKey, type Draft, type Facts, type Issue, type Placement, type Plan
 
 const groupKinds = ['module', 'shared', 'platform'] as const;
 
-const systemPrompt = `You are a staff engineer reviewing a proposed feature-module plan for a TypeScript backend that is sliced by technical type. A deterministic tool moves the files later and certifies every move, so you only judge the map.
+/** Everything but the gate's rules, the same in every prompt version. */
+const reviewText = `You are a staff engineer reviewing a proposed feature-module plan for a TypeScript backend that is sliced by technical type. A deterministic tool moves the files later and certifies every move, so you only judge the map.
 
 ${layoutText}
 
@@ -20,8 +21,27 @@ You receive per-file facts (with ids, for the edges), the PLAN (final groups wit
 - "review": at most 120 words of plain prose: what is right, what is wrong, and what you change and why.
 - "groups": changes to whole groups only, each {group: the current "<kind>/<name>", name, kind}: rename it, change its kind, or merge it into another group by giving that group's name. Omit the groups you keep.
 - "moves": single files to move, each {file: its path exactly as the PLAN lists it, to: the final group name, kind, rationale}.
-Keep the changes small and certain: at most one file in ten, and none where the plan is defensible. Names come from the repo's own vocabulary.
-Each change is checked on its own and dropped if it adds any validator warning to any group, even while it clears another. Merging a group into an existing one needs evidence: an edge between their files, or a table or route prefix both use; a shared word is not enough. A registry group holds registries only.`;
+Keep the changes small and certain: at most one file in ten, and none where the plan is defensible. Names come from the repo's own vocabulary.`;
+
+/**
+ * The critic's system prompt by version. Version 1 (S6) states the gate loosely: the committed immich plan was recorded
+ * with it, and a request's hash covers its prompt, so profiles/immich.json pins it for the replay. Version 2 states the
+ * gate's rules as applyCritiques applies them (S7), for new recordings.
+ */
+export const criticPrompts = {
+  1: `${reviewText}
+Each change is checked on its own and dropped if it adds any validator warning to any group, even while it clears another. Merging a group into an existing one needs evidence: an edge between their files, or a table or route prefix both use; a shared word is not enough. A registry group holds registries only.`,
+  2: `${reviewText}
+
+A gate checks your changes one at a time, in your order (all "groups" changes, then all "moves"), and keeps a change only if all of these hold:
+1. It adds no validator error and no warning. Warnings are counted per code and group, so a change that clears one warning and adds another is dropped; a renamed group keeps its warnings under its new name. A one-file module is a warning.
+2. Joining an existing group needs evidence. A group renamed or merged onto an existing group, or a group's last file moved into one, needs an edge (a → in FILES, either way) between the two groups' files, or a table or route prefix both groups use. One file moved into an existing group that keeps others needs an edge between that file and the group's files, or a table or route prefix they both use. Edges to or from a registry don't count. A table that more than three groups of the plan read or write is a hub and links nothing. A shared word or a shared role (every feature has a service) is no evidence. A file moved into a new group needs none.
+3. Registries belong in ${registryGroup}, the composition root, which holds registries only; a registry joins it without evidence.
+4. A change to a group or a file that an earlier kept change already changed is dropped.
+5. A group or file the PLAN doesn't list is dropped: copy group names and paths exactly as the PLAN writes them.`,
+} as const;
+
+export type CriticPromptVersion = keyof typeof criticPrompts;
 
 const critiqueSchema = {
   type: 'object',
@@ -68,9 +88,22 @@ export interface CriticSettings {
    * made only evidenced changes.
    */
   samples: number;
+  /** The system prompt's version (criticPrompts): part of the request, so a recorded plan replays only with its own. */
+  prompt: CriticPromptVersion;
 }
 
-export const defaultCriticSettings: CriticSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, maxTokens: 32_000, samples: 1 };
+export const defaultCriticSettings: CriticSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, maxTokens: 32_000, samples: 1, prompt: 2 };
+
+/**
+ * The critic settings for a target: the defaults, with the prompt version its profile pins (`plan.criticPrompt`), so a
+ * plan recorded with an older prompt replays from its cassette (profiles/immich.json pins 1).
+ */
+export function criticSettingsFor(profile: { plan?: { criticPrompt?: number } } | null | undefined): CriticSettings {
+  const pinned = profile?.plan?.criticPrompt;
+  if (pinned === undefined) return defaultCriticSettings;
+  if (!Object.hasOwn(criticPrompts, pinned)) throw new Error(`no critic prompt version ${pinned} (versions: ${Object.keys(criticPrompts).join(', ')})`);
+  return { ...defaultCriticSettings, prompt: pinned as CriticPromptVersion };
+}
 
 export interface Suggestion {
   /** `group module/asset-media → module/asset` or `move src/utils/date.ts → module/album`. */
@@ -119,7 +152,7 @@ export function planText(facts: Facts, plan: Plan, validation: Validation): stri
 export async function runCritic(gateway: Gateway, facts: Facts, plan: Plan, validation: Validation, settings: CriticSettings = defaultCriticSettings): Promise<CriticRun> {
   const result = await gateway.structured({
     model: settings.model,
-    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: `${factsText(facts)}\n\n${planText(facts, plan, validation)}` }],
+    messages: [{ role: 'system', content: criticPrompts[settings.prompt] }, { role: 'user', content: `${factsText(facts)}\n\n${planText(facts, plan, validation)}` }],
     schemaName: 'plan_review',
     schema: critiqueSchema,
     parse: (value: unknown) => critiqueValue.parse(value),

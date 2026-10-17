@@ -1,6 +1,8 @@
 // K8 Oracles on the commit (plan §3.4): the target's own tools (tsc, the unit suite, per-target artifacts) run in a
 // fresh worktree of the head commit (hooks bypassed, HUSKY=0) under the target's Node, offline, and must agree with
-// the base commit under the pathMap. Base runs happen only when a verdict needs them and are cached per base commit.
+// the base commit under the pathMap. Base runs happen only when a verdict needs them. With a per-tree cache, runs of
+// either side are reused wherever their tree is certified again (oracle-runs.ts oracleRunKey), and the certificate's
+// `run` facts say which came from it (`<oracle>.<side>.cached`); without one, base runs are cached per base commit.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,7 +10,9 @@ import {
   compareDiagnostics, compareTestReports, describeArtifactDifference, type Diagnostic, effectiveExit, escapeRegExp, excludeTests, flakyFileCount, flakyFileLimit, type FlakyTest, flakyTests,
   formatDiagnostic, parseTestReport, parseTscDiagnostics, reportFails, selectTests, sha256, shortReports, type TestReport, totalsOf,
 } from './oracle-reports.js';
-import { cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, readCachedRun, runOracle, stepBroken, stepOk, storeRun } from './oracle-runs.js';
+import {
+  cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, oracleRunKey, oracleRunKind, outsideScratch, readCachedRun, runOracle, stepBroken, stepOk, storeRun,
+} from './oracle-runs.js';
 import type { OracleSpec, Profile } from './profile.js';
 import { nodeBinary, targetEnvironment } from './toolchain.js';
 import { type Check, type CertifyContext, type Finding, result, type Side, skipped, type Violation } from './types.js';
@@ -111,11 +115,30 @@ function createSession(context: CertifyContext, profile: Profile, headRoot: stri
     if (!runs.has(key)) runs.set(key, create());
     return runs.get(key)!;
   };
+  /**
+   * With a per-tree cache: the run stored for this side's tree (whichever side ran it), copied to where a fresh run
+   * would have written it, so every text naming its logs is the same; else a fresh run, stored when complete.
+   */
+  const perTree = async (oracle: OracleSpec, side: Side): Promise<OracleRun> => {
+    const cache = context.cache!;
+    const tree = context[side].tree;
+    const key = oracleRunKey(profile, oracle, quarantine(oracle, side), context.environment.checkout);
+    const directory = path.join(options.workDir, 'oracles', side, oracle.name);
+    const hit = cache.readFiles(oracleRunKind, tree, key, directory) ? readCachedRun(directory) : undefined;
+    if (hit) {
+      context.log(`K8 ${oracle.name} on ${side}: from the tree cache`);
+      return { ...hit, side };
+    }
+    const fresh = await run(oracle, side);
+    if (!fresh.steps.some(stepBroken)) cache.writeFiles(oracleRunKind, tree, key, fresh.directory, (relative) => !outsideScratch(relative));
+    return fresh;
+  };
   return {
     context,
     profile,
-    head: (oracle) => memo(`head:${oracle.name}`, () => run(oracle, 'head')),
+    head: (oracle) => memo(`head:${oracle.name}`, () => (context.cache ? perTree(oracle, 'head') : run(oracle, 'head'))),
     base: (oracle) => memo(`base:${oracle.name}`, async () => {
+      if (context.cache) return perTree(oracle, 'base');
       const cacheRoot = oracleCacheRoot();
       const cached = cacheRoot ? cacheDirectory(cacheRoot, { repo: options.repo, baseCommit: context.base.commit, oracle, profile, checkout: context.environment.checkout, linked: context.environment.linked }) : undefined;
       const hit = cached ? readCachedRun(cached) : undefined;
@@ -143,7 +166,7 @@ function recordRun(evaluation: Evaluation, name: string, run: OracleRun) {
   evaluation.metrics[`${name}.${run.side}.networkAttempts`] = run.networkAttempts;
   evaluation.run[`${name}.${run.side}.seconds`] = Math.round(run.seconds);
   evaluation.run[`${name}.${run.side}.logs`] = run.directory;
-  if (run.side === 'base') evaluation.run[`${name}.base.cached`] = run.cached;
+  evaluation.run[`${name}.${run.side}.cached`] = run.cached;
 }
 
 /** Setup steps (and, unless `exceptMain`, the command) must exit 0 on head, or fail the same way on base. */
@@ -500,7 +523,7 @@ export const oracles: Check = {
       hooksBypassed: `core.hooksPath=/dev/null (worktree add and resets); HUSKY=${targetEnvironment({ node: profile.node, ...(profile.env ? { extra: profile.env } : {}) }).HUSKY}`,
       prerequisitesReachable: required.join(', ') || 'none declared',
     };
-    const run: Metrics = { worktree: headRoot, logs: path.join(options.workDir, 'oracles'), cache: oracleCacheRoot() ?? 'off' };
+    const run: Metrics = { worktree: headRoot, logs: path.join(options.workDir, 'oracles'), cache: context.cache ? `per tree: ${context.cache.directory}` : oracleCacheRoot() ?? 'off' };
     const session = createSession(context, profile, headRoot);
     const evaluations: Evaluation[] = [];
     for (const oracle of profile.oracles) {

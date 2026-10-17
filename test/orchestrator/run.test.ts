@@ -431,6 +431,122 @@ describe('ac run: crash, stop and resume', () => {
   });
 });
 
+describe('ac run: oracle runs cached per tree', () => {
+  it('seeds R1\'s base from the baseline, R2\'s base from R1\'s head, and the whole PR from both ends, with digests a fresh run gives', async () => {
+    const run = setup();
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1', 'R2'] }), noRenames);
+    expect(outcome.exitCode).toBe(0);
+    const facts = (file: string) => {
+      const certificate = JSON.parse(run.read(file)) as Certificate;
+      return Object.fromEntries(Object.entries(certificate.checks.find((check) => check.id === 'K8')!.run ?? {}).filter(([key]) => key.endsWith('.cached')));
+    };
+    expect(facts('rungs/R1.json')).toEqual({ 'tsc.head.cached': false, 'unit.head.cached': false, 'unit.base.cached': true });
+    expect(facts('rungs/R2.json')).toEqual({ 'tsc.head.cached': false, 'unit.head.cached': false, 'unit.base.cached': true });
+    expect(facts('certificate.json')).toEqual({ 'tsc.head.cached': true, 'unit.head.cached': true, 'unit.base.cached': true });
+    const state = run.state();
+    const fresh = await certify({
+      repo: run.repo, base: state.base, head: state.head, packageRoot: 'server', environment: run.repo, profile: profileOf(), oracles: true,
+      workDir: fs.mkdtempSync(path.join(run.scratch, 'fresh-')), keep: false, quarantine: [],
+    });
+    expect(fresh.digest).toBe(state.certificate!.digest);
+  });
+});
+
+describe('ac run: certificates without a verdict', () => {
+  /** K8 errors (no check fails) in the certifications whose work dir is named `work`, `times` times. */
+  const k8Errors = (work: string, times = 1) => {
+    let left = times;
+    return async (options: CertifyOptions) => {
+      const certificate = await certify(options);
+      if (path.basename(options.workDir) !== work || left <= 0) return certificate;
+      left--;
+      Object.assign(certificate.checks.find((check) => check.id === 'K8')!, { status: 'error', summary: 'crashed: the runner was killed', violations: [{ detail: 'error: unit on base: no report' }] });
+      return { ...certificate, verdict: 'fail' as const };
+    };
+  };
+
+  it('stops on a rung certificate whose checks only errored, keeps it on record, and --resume certifies the rung again', async () => {
+    const run = setup();
+    const errors = k8Errors('rung-R1');
+    const stopped = await startRun(run.options({ rungs: ['R0', 'R1'] }), { ...noRenames, certify: errors });
+    expect(stopped.exitCode).toBe(1);
+    let state = run.state();
+    expect(state).toMatchObject({ status: 'failed', failure: 'crash', pins: [] });
+    expect(state.error).toContain("rung R1's certificate has no verdict: K8 errored and no check failed");
+    expect(state.rungs[1]).toMatchObject({ id: 'R1', status: 'running', certificate: { file: 'rungs/R1.json', verdict: 'fail', failing: ['K8'] } });
+    expect(state.rungs[1]!.bisect).toBeUndefined();
+    expect(state.steps.map((step) => step.status)).toEqual(['certified', 'certified', 'pending']);
+
+    const resumed = await resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, { ...noRenames, certify: errors });
+    expect(resumed.exitCode).toBe(0);
+    state = run.state();
+    expect(state.status).toBe('completed');
+    expect(state.rungs[1]).toMatchObject({ status: 'certified', certificate: { file: 'rungs/R1-2.json', verdict: 'pass' } });
+    expect(JSON.parse(run.read('rungs/R1.json')).verdict).toBe('fail');
+    expect(branchLog(run.git, run.base)).toHaveLength(2);
+  });
+
+  it('keeps a rung certificate with a failing check next to an errored one a verdict', async () => {
+    const run = setup();
+    const failAndError = async (options: CertifyOptions) => {
+      const certificate = await certify(options);
+      if (path.basename(options.workDir) !== 'rung-R1') return certificate;
+      Object.assign(certificate.checks.find((check) => check.id === 'K8')!, { status: 'error', summary: 'crashed', violations: [{ detail: 'error: boom' }] });
+      Object.assign(certificate.checks.find((check) => check.id === 'K4')!, { status: 'fail', summary: 'injected', violations: [{ detail: 'an old path' }] });
+      return { ...certificate, verdict: 'fail' as const };
+    };
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1'] }), { ...noRenames, certify: failAndError });
+    expect(outcome.exitCode).toBe(1);
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', rungs: expect.arrayContaining([expect.objectContaining({ id: 'R1', status: 'failed' })]) });
+    await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames)).rejects.toThrow('failed on a verdict');
+  });
+
+  it('rolls back R4 when its certificate only errored, and --resume commits the rules again as the same step\'s next attempt', async () => {
+    const run = setup();
+    const rules: Partial<RunDependencies> = {
+      ...noRenames,
+      boundaryRung: async () => ({
+        files: new Map([['server/.dependency-cruiser.json', '{}\n']]), report: { rules: [] }, antiVacuity: [{ rule: 'shared-is-a-leaf', fired: true, detail: 'fired' }], summary: '1 rule',
+      }),
+    };
+    const stopped = await startRun(run.options({ rungs: ['R0', 'R1', 'R4'] }), { ...rules, certify: k8Errors('rung-R4') });
+    expect(stopped.exitCode).toBe(1);
+    let state = run.state();
+    expect(state).toMatchObject({ status: 'failed', failure: 'crash' });
+    expect(state.error).toContain("R4's certificate has no verdict");
+    expect(state.rungs[4]).toMatchObject({ id: 'R4', status: 'pending' });
+    const r4 = state.steps.find((step) => step.rung === 'R4')!;
+    expect(r4).toMatchObject({ index: 4, status: 'running', attempts: [expect.objectContaining({ attempt: 1, state: 'interrupted' })] });
+    expect(run.git('rev-parse', 'HEAD')).toBe(state.steps[1]!.commit);
+    expect(fs.existsSync(path.join(run.repo, 'server/.dependency-cruiser.json'))).toBe(false);
+
+    const resumed = await resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, rules);
+    expect(resumed.exitCode).toBe(0);
+    state = run.state();
+    expect(state.status).toBe('completed');
+    expect(state.steps.filter((step) => step.rung === 'R4')).toEqual([expect.objectContaining({
+      index: 4, status: 'certified', attempts: [expect.objectContaining({ attempt: 1, state: 'interrupted' }), expect.objectContaining({ attempt: 2, state: 'passed' })],
+    })]);
+    expect(state.rungs[4]).toMatchObject({ status: 'certified', certificate: { file: 'rungs/R4-2.json', verdict: 'pass' } });
+    expect(branchLog(run.git, run.base).map((commit) => commit.message.split('\n')[0])).toEqual([
+      'refactor(server): move album into src/modules/album', 'refactor(server): move user into src/modules/user', 'chore(server): add boundary rules with a frozen baseline',
+    ]);
+  });
+
+  it('stops on a whole-PR certificate that only errored, and --resume certifies the PR again', async () => {
+    const run = setup();
+    const errors = k8Errors('run');
+    const stopped = await startRun(run.options({ rungs: ['R0', 'R1', 'R2'] }), { ...noRenames, certify: errors });
+    expect(stopped.exitCode).toBe(1);
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'crash', certificate: { file: 'certificate.json', verdict: 'fail' } });
+    expect(run.state().error).toContain('the whole-PR certificate has no verdict');
+    const resumed = await resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, { ...noRenames, certify: errors });
+    expect(resumed.exitCode).toBe(0);
+    expect(run.state()).toMatchObject({ status: 'completed', certificate: { file: 'certificate-2.json', verdict: 'pass' } });
+    expect(JSON.parse(run.read('certificate.json')).verdict).toBe('fail');
+  });
+});
+
 describe('ac run: the baseline quarantine', () => {
   it('records flaky tests and hands K8 the quarantine at each certified range\'s base paths', async () => {
     const run = setup();
