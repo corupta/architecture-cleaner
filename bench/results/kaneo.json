@@ -1,0 +1,223 @@
+{
+ "format": "ac-bench/1",
+ "entry": "kaneo",
+ "kind": "scramble",
+ "variant": "default",
+ "repo": "~/ac-targets/kaneo",
+ "sha": "b80818fe2e9327648a420b7006d53c89463c68ba",
+ "packageRoot": "apps/api",
+ "moduleRoot": "src",
+ "files": 454,
+ "featureFiles": 401,
+ "groundTruthModules": 47,
+ "hardFiles": 234,
+ "leakyFiles": 58,
+ "scramble": {
+  "commit": "aad6fc97e3c73ecd2cf9c6084c01456e5cc01568",
+  "tree": "2c0d5a4c6bc43b69b238ffa1651e22b0a1d409d8",
+  "moved": 400,
+  "declined": 1,
+  "excluded": 12,
+  "certificate": {
+   "verdict": "fail",
+   "scope": "static",
+   "digest": "sha256:d68239231a542ab562bc6d35e4090bb1cb8cfc0b81bfc5a3213eb96222892767",
+   "failing": [
+    "K3c",
+    "K4"
+   ]
+  }
+ },
+ "methods": [
+  {
+   "method": "B0 type folders",
+   "kind": "baseline",
+   "clusters": 10,
+   "mojoFm": 13.32,
+   "ari": 0.017,
+   "c2cCvg": 0,
+   "clusterCountRatio": 0.17,
+   "mojoFmHard": 16.44,
+   "turboMq": {
+    "sum": 1.0678,
+    "mean": 0.1068
+   },
+   "backEdges": 8
+  },
+  {
+   "method": "name-token (full stem)",
+   "kind": "baseline",
+   "clusters": 426,
+   "mojoFm": 13.05,
+   "ari": 0.012,
+   "c2cCvg": 0.149,
+   "clusterCountRatio": 7.96,
+   "mojoFmHard": 14.61,
+   "turboMq": {
+    "sum": 2.3804,
+    "mean": 0.0056
+   },
+   "backEdges": 4
+  },
+  {
+   "method": "name-token (anchored)",
+   "kind": "baseline",
+   "clusters": 156,
+   "mojoFm": 49.61,
+   "ari": 0.254,
+   "c2cCvg": 0.426,
+   "clusterCountRatio": 2.91,
+   "mojoFmHard": 30.59,
+   "turboMq": {
+    "sum": 9.7462,
+    "mean": 0.0625
+   },
+   "backEdges": 95
+  },
+  {
+   "method": "export-token (anchored)",
+   "kind": "baseline",
+   "clusters": 252,
+   "mojoFm": 26.37,
+   "ari": 0.08,
+   "c2cCvg": 0.085,
+   "clusterCountRatio": 4.96,
+   "mojoFmHard": 29.22,
+   "turboMq": {
+    "sum": 3.3214,
+    "mean": 0.0132
+   },
+   "backEdges": 61
+  },
+  {
+   "method": "seeds draft (file names)",
+   "kind": "draft",
+   "clusters": 114,
+   "mojoFm": 50.13,
+   "ari": 0.236,
+   "c2cCvg": 0.404,
+   "clusterCountRatio": 2.23,
+   "mojoFmHard": 31.96,
+   "turboMq": {
+    "sum": 10.3974,
+    "mean": 0.0912
+   },
+   "backEdges": 72
+  },
+  {
+   "method": "seeds draft (export names)",
+   "kind": "baseline",
+   "clusters": 104,
+   "mojoFm": 31.07,
+   "ari": 0.078,
+   "c2cCvg": 0.064,
+   "clusterCountRatio": 1.96,
+   "mojoFmHard": 30.59,
+   "turboMq": {
+    "sum": 6.2988,
+    "mean": 0.0606
+   },
+   "backEdges": 104
+  },
+  {
+   "method": "Louvain r=1 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 11.2,
+   "mojoFm": 29.45,
+   "ari": 0.213,
+   "c2cCvg": 0.021,
+   "clusterCountRatio": 0.19,
+   "mojoFmHard": 37.35,
+   "turboMq": {
+    "sum": 4.9184,
+    "mean": 0.4381
+   },
+   "backEdges": 16.2,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=2 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 23,
+   "mojoFm": 51.02,
+   "ari": 0.389,
+   "c2cCvg": 0.094,
+   "clusterCountRatio": 0.45,
+   "mojoFmHard": 49.5,
+   "turboMq": {
+    "sum": 10.0081,
+    "mean": 0.4351
+   },
+   "backEdges": 43.4,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=4 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 39.6,
+   "mojoFm": 66.9,
+   "ari": 0.465,
+   "c2cCvg": 0.311,
+   "clusterCountRatio": 0.8,
+   "mojoFmHard": 64.48,
+   "turboMq": {
+    "sum": 16.0516,
+    "mean": 0.4053
+   },
+   "backEdges": 60.8,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "planner (Ultra)",
+   "kind": "planner",
+   "clusters": 68,
+   "mojoFm": 49.61,
+   "ari": 0.247,
+   "c2cCvg": 0.277,
+   "clusterCountRatio": 1.4,
+   "mojoFmHard": 34.7,
+   "turboMq": {
+    "sum": 10.3107,
+    "mean": 0.1516
+   },
+   "backEdges": 57
+  }
+ ],
+ "bestBaseline": {
+  "method": "Louvain r=4 (mean of seeds 1-5)",
+  "mojoFm": 66.9,
+  "turboMq": 16.0516
+ },
+ "planner": {
+  "cassette": "cassettes/s7-bench.jsonl",
+  "recordedCostUsd": 0.168342,
+  "spentUsd": 0,
+  "replayed": true,
+  "groups": 68,
+  "planSha256": "670cef01884321d5b119036ecb0e41a1943475c7b8c1cace8bc09e95bb7d2e50"
+ },
+ "louvainMojoFmByResolution": {
+  "1": [
+   27.15,
+   31.85,
+   27.68,
+   32.9,
+   27.68
+  ],
+  "2": [
+   51.44,
+   50.13,
+   48.3,
+   52.22,
+   53
+  ],
+  "4": [
+   63.97,
+   65.8,
+   68.15,
+   68.15,
+   68.41
+  ]
+ },
+ "notes": []
+}

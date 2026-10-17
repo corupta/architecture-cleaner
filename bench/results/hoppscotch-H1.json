@@ -1,0 +1,222 @@
+{
+ "format": "ac-bench/1",
+ "entry": "hoppscotch-H1",
+ "kind": "scramble",
+ "variant": "H1",
+ "repo": "~/ac-targets/hoppscotch",
+ "sha": "63273f8e599e73f0fb38c0739314e8d46b6bc83d",
+ "packageRoot": "packages/hoppscotch-backend",
+ "moduleRoot": "src",
+ "files": 186,
+ "featureFiles": 156,
+ "groundTruthModules": 25,
+ "hardFiles": 46,
+ "leakyFiles": 3,
+ "scramble": {
+  "commit": "d61af1c77de0649eb3dc333373f8497c4878acfb",
+  "tree": "762f2e75b4fd48e078a30f375b126d08d5dce498",
+  "moved": 156,
+  "declined": 1,
+  "excluded": 22,
+  "certificate": {
+   "verdict": "pass",
+   "scope": "static",
+   "digest": "sha256:a93ef8132e86e8859bb735c1006bfb2e5067b6fdd6acf336209a290f7aed2fb6",
+   "failing": []
+  }
+ },
+ "methods": [
+  {
+   "method": "B0 type folders",
+   "kind": "baseline",
+   "clusters": 17,
+   "mojoFm": 9.66,
+   "ari": -0.022,
+   "c2cCvg": 0,
+   "clusterCountRatio": 0.6,
+   "mojoFmHard": 30,
+   "turboMq": {
+    "sum": 1.1112,
+    "mean": 0.0654
+   },
+   "backEdges": 15
+  },
+  {
+   "method": "name-token (full stem)",
+   "kind": "baseline",
+   "clusters": 183,
+   "mojoFm": 9.66,
+   "ari": 0,
+   "c2cCvg": 0,
+   "clusterCountRatio": 6.24,
+   "mojoFmHard": 22.5,
+   "turboMq": {
+    "sum": 0.0625,
+    "mean": 0.0003
+   },
+   "backEdges": 1
+  },
+  {
+   "method": "name-token (anchored)",
+   "kind": "baseline",
+   "clusters": 175,
+   "mojoFm": 9.66,
+   "ari": 0,
+   "c2cCvg": 0,
+   "clusterCountRatio": 6.24,
+   "mojoFmHard": 22.5,
+   "turboMq": {
+    "sum": 0.0625,
+    "mean": 0.0004
+   },
+   "backEdges": 2
+  },
+  {
+   "method": "export-token (anchored)",
+   "kind": "baseline",
+   "clusters": 62,
+   "mojoFm": 74.48,
+   "ari": 0.528,
+   "c2cCvg": 0.76,
+   "clusterCountRatio": 2.04,
+   "mojoFmHard": 45,
+   "turboMq": {
+    "sum": 6.9181,
+    "mean": 0.1116
+   },
+   "backEdges": 47
+  },
+  {
+   "method": "seeds draft (file names)",
+   "kind": "baseline",
+   "clusters": 92,
+   "mojoFm": 23.45,
+   "ari": 0.015,
+   "c2cCvg": 0.08,
+   "clusterCountRatio": 3.4,
+   "mojoFmHard": 15,
+   "turboMq": {
+    "sum": 2.8811,
+    "mean": 0.0313
+   },
+   "backEdges": 48
+  },
+  {
+   "method": "seeds draft (export names)",
+   "kind": "draft",
+   "clusters": 45,
+   "mojoFm": 81.38,
+   "ari": 0.634,
+   "c2cCvg": 0.8,
+   "clusterCountRatio": 1.6,
+   "mojoFmHard": 62.5,
+   "turboMq": {
+    "sum": 7.3714,
+    "mean": 0.1638
+   },
+   "backEdges": 36
+  },
+  {
+   "method": "Louvain r=1 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 9.4,
+   "mojoFm": 33.38,
+   "ari": 0.299,
+   "c2cCvg": 0.048,
+   "clusterCountRatio": 0.34,
+   "mojoFmHard": 56.5,
+   "turboMq": {
+    "sum": 4.4355,
+    "mean": 0.472
+   },
+   "backEdges": 22.4,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=2 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 16.6,
+   "mojoFm": 53.1,
+   "ari": 0.499,
+   "c2cCvg": 0.216,
+   "clusterCountRatio": 0.62,
+   "mojoFmHard": 74,
+   "turboMq": {
+    "sum": 6.7177,
+    "mean": 0.4048
+   },
+   "backEdges": 57.4,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=4 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 33.2,
+   "mojoFm": 76.27,
+   "ari": 0.601,
+   "c2cCvg": 0.616,
+   "clusterCountRatio": 1.22,
+   "mojoFmHard": 80.5,
+   "turboMq": {
+    "sum": 9.5659,
+    "mean": 0.2882
+   },
+   "backEdges": 70.4,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "planner (Ultra)",
+   "kind": "planner",
+   "clusters": 31,
+   "mojoFm": 79.31,
+   "ari": 0.666,
+   "c2cCvg": 0.72,
+   "clusterCountRatio": 1.16,
+   "mojoFmHard": 67.5,
+   "turboMq": {
+    "sum": 7.394,
+    "mean": 0.2385
+   },
+   "backEdges": 49
+  }
+ ],
+ "bestBaseline": {
+  "method": "seeds draft (export names)",
+  "mojoFm": 81.38,
+  "turboMq": 7.3714
+ },
+ "planner": {
+  "cassette": "cassettes/s7-bench.jsonl",
+  "recordedCostUsd": 0.137732,
+  "spentUsd": 0,
+  "replayed": true,
+  "groups": 31,
+  "planSha256": "a38f96c02a773d99220c27862074fc1f9e1a6b1ad71bcd79b8fe6e2b0d714f27"
+ },
+ "louvainMojoFmByResolution": {
+  "1": [
+   26.21,
+   34.48,
+   42.76,
+   33.1,
+   30.34
+  ],
+  "2": [
+   55.86,
+   51.03,
+   54.48,
+   51.03,
+   53.1
+  ],
+  "4": [
+   74.48,
+   76.55,
+   76.55,
+   80,
+   73.79
+  ]
+ },
+ "notes": [
+  "1 feature file is pinned in the facts (no method can place it) and not scored."
+ ]
+}

@@ -1,0 +1,186 @@
+{
+ "format": "ac-bench/1",
+ "entry": "immich",
+ "kind": "real",
+ "variant": "default",
+ "repo": "~/ac-targets/immich",
+ "sha": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+ "packageRoot": "server",
+ "moduleRoot": "src",
+ "files": 269,
+ "featureFiles": null,
+ "groundTruthModules": null,
+ "hardFiles": null,
+ "leakyFiles": null,
+ "scramble": null,
+ "methods": [
+  {
+   "method": "B0 type folders",
+   "kind": "baseline",
+   "clusters": 10,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 1.9362,
+    "mean": 0.1936
+   },
+   "backEdges": 25
+  },
+  {
+   "method": "name-token (full stem)",
+   "kind": "baseline",
+   "clusters": 138,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 9.0334,
+    "mean": 0.0655
+   },
+   "backEdges": 212
+  },
+  {
+   "method": "name-token (anchored)",
+   "kind": "baseline",
+   "clusters": 118,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 9.5095,
+    "mean": 0.0806
+   },
+   "backEdges": 129
+  },
+  {
+   "method": "export-token (anchored)",
+   "kind": "baseline",
+   "clusters": 122,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 8.3861,
+    "mean": 0.0687
+   },
+   "backEdges": 127
+  },
+  {
+   "method": "seeds draft (file names)",
+   "kind": "draft",
+   "clusters": 81,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 10.1935,
+    "mean": 0.1258
+   },
+   "backEdges": 141
+  },
+  {
+   "method": "seeds draft (export names)",
+   "kind": "baseline",
+   "clusters": 83,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 9.1102,
+    "mean": 0.1098
+   },
+   "backEdges": 142
+  },
+  {
+   "method": "Louvain r=1 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 9.2,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 3.8066,
+    "mean": 0.4139
+   },
+   "backEdges": 20.8,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=2 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 25.6,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 7.0928,
+    "mean": 0.2772
+   },
+   "backEdges": 136.8,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=4 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 47.6,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 10.4984,
+    "mean": 0.2206
+   },
+   "backEdges": 166,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "planner (Ultra)",
+   "kind": "planner",
+   "clusters": 59,
+   "mojoFm": null,
+   "ari": null,
+   "c2cCvg": null,
+   "clusterCountRatio": null,
+   "mojoFmHard": null,
+   "turboMq": {
+    "sum": 10.0702,
+    "mean": 0.1707
+   },
+   "backEdges": 118
+  }
+ ],
+ "bestBaseline": {
+  "method": "Louvain r=4 (mean of seeds 1-5)",
+  "mojoFm": null,
+  "turboMq": 10.4984
+ },
+ "planner": {
+  "cassette": "cassettes/s6-immich.jsonl",
+  "recordedCostUsd": 0.199784,
+  "spentUsd": 0,
+  "replayed": true,
+  "groups": 59,
+  "planSha256": "b4c7c548883c0635951f893c7717727f3d086a0c4e23b2db442e796dd416cc7f"
+ },
+ "louvainMojoFmByResolution": null,
+ "notes": []
+}
