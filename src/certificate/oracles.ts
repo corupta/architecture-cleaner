@@ -13,6 +13,7 @@ import {
 import {
   cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, oracleRunKey, oracleRunKind, outsideScratch, readCachedRun, runOracle, stepBroken, stepOk, storeRun,
 } from './oracle-runs.js';
+import type { QuarantineEntry } from './baseline.js';
 import type { OracleSpec, Profile } from './profile.js';
 import { nodeBinary, targetEnvironment } from './toolchain.js';
 import { type Check, type CertifyContext, type Finding, result, type Side, skipped, type Violation } from './types.js';
@@ -75,7 +76,21 @@ export function resetWorktree(root: string, links: ReadonlySet<string>): { modif
 }
 
 /** The expansion of a `{quarantine}` argv element: the oracle's quarantined files (mapped to the side) as path patterns. */
-export const runnerQuarantine = (oracle: OracleSpec, map: (file: string) => string) => (oracle.quarantine ?? []).map((file) => `/${escapeRegExp(map(file))}$`);
+export const runnerQuarantine = (files: readonly string[], map: (file: string) => string) => files.map((file) => `/${escapeRegExp(map(file))}$`);
+
+/**
+ * The files an oracle's runner leaves out (`{quarantine}`), at the base commit's paths. The profile writes them at
+ * the target's original layout; a caller that knows where they are at this range's base (the orchestrator maps them
+ * through every certified step, as it does the flaky entries) passes them as quarantine entries tagged with the
+ * oracle, which then stand for the profile's list.
+ */
+export function quarantinedFiles(oracle: OracleSpec, entries: readonly QuarantineEntry[] = []): string[] {
+  const mapped = entries.filter((entry) => entry.oracle === oracle.name).map((entry) => entry.file);
+  return mapped.length ? mapped : oracle.quarantine ?? [];
+}
+
+/** The quarantine entries K8 leaves out of one oracle's comparison: the untagged ones (flaky tests) and its own. */
+const entriesFor = (oracle: OracleSpec, entries: readonly QuarantineEntry[] = []) => entries.filter((entry) => entry.oracle === undefined || entry.oracle === oracle.name);
 
 interface Session {
   context: CertifyContext;
@@ -102,7 +117,7 @@ function createSession(context: CertifyContext, profile: Profile, headRoot: stri
     if (found.extra.length) context.log(`K8 removed ${found.extra.length} untracked or ignored entries ${previous[side]} left in the ${side} worktree: ${found.extra.slice(0, 5).join(', ')}`);
     removed += found.extra.length;
   };
-  const quarantine = (oracle: OracleSpec, side: Side) => runnerQuarantine(oracle, side === 'head' ? pathMap.map : (file) => file);
+  const quarantine = (oracle: OracleSpec, side: Side) => runnerQuarantine(quarantinedFiles(oracle, options.quarantine), side === 'head' ? pathMap.map : (file) => file);
   const run = (oracle: OracleSpec, side: Side, attempt = 0) => {
     roots[side] ??= context.materialize(side);
     reset(side, `the ${oracle.name} oracle`);
@@ -315,7 +330,7 @@ function judgeTests(session: Session, oracle: OracleSpec, allRuns: Record<Side, 
   const runs = { head: complete.head.map((entry) => entry.run), base: complete.base.map((entry) => entry.run) };
   const reports = { head: complete.head.map((entry) => entry.report), base: complete.base.map((entry) => entry.report) };
   const flaky = flakyTests(reports.base).map((test) => ({ ...test, file: pathMap.map(test.file) }));
-  const quarantined = (options.quarantine ?? []).map((entry) => ({ ...entry, file: pathMap.map(entry.file) }));
+  const quarantined = entriesFor(oracle, options.quarantine).map((entry) => ({ ...entry, file: pathMap.map(entry.file) }));
   const excludedHead = selectTests([...quarantined, ...flaky]);
   const excluded: Record<Side, (file: string, fullName?: string) => boolean> = { head: excludedHead, base: (file, fullName) => excludedHead(pathMap.map(file), fullName) };
   const unstableOnHead = flakyTests(reports.head).filter((test) => !excludedHead(test.file, test.name));
@@ -417,12 +432,14 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
   for (const test of verdict.flaky) {
     evaluation.findings.push({ kind: 'flaky-test', file: test.file, detail: `${oracle.name}: ${testName(test)} changed outcome between runs of base (${test.outcomes.join(', ')}); left out of the comparison` });
   }
-  for (const entry of options.quarantine ?? []) {
+  const entries = entriesFor(oracle, options.quarantine);
+  for (const entry of entries) {
     const file = session.context.pathMap.map(entry.file);
     evaluation.findings.push({ kind: 'quarantined-test', file, detail: `${oracle.name}: ${entry.name === undefined ? 'every test in the file' : `'${entry.name}'`} left out of the comparison on both sides: ${entry.reason}` });
   }
-  if (oracle.quarantine?.length) evaluation.metrics[`${oracle.name}.quarantined`] = oracle.quarantine.length;
-  if (options.quarantine?.length) evaluation.metrics[`${oracle.name}.quarantineEntries`] = options.quarantine.length;
+  const runnerQuarantined = quarantinedFiles(oracle, options.quarantine).length;
+  if (runnerQuarantined) evaluation.metrics[`${oracle.name}.quarantined`] = runnerQuarantined;
+  if (entries.length) evaluation.metrics[`${oracle.name}.quarantineEntries`] = entries.length;
   if (runs.head.length > 1) evaluation.metrics[`${oracle.name}.runs`] = runs.head.length;
   evaluation.metrics[`${oracle.name}.flaky`] = verdict.flaky.length;
   const compared = { head: totalsOf(verdict.compared.head), base: totalsOf(verdict.compared.base) };
@@ -436,7 +453,7 @@ async function tests(session: Session, oracle: OracleSpec): Promise<Evaluation> 
   const left = totals.head.cases - compared.head.cases;
   const { head: after } = totals;
   evaluation.summary = `${oracle.name} ${count(verdict.equalFiles)}/${count(files)} files and ${count(verdict.equalCases)}/${count(cases)} cases equal to base`
-    + `${left || verdict.flaky.length ? ` (${count(left)} cases left out: ${verdict.flaky.length} flaky, ${options.quarantine?.length ?? 0} quarantined)` : ''}`
+    + `${left || verdict.flaky.length ? ` (${count(left)} cases left out: ${verdict.flaky.length} flaky, ${entries.length} quarantined)` : ''}`
     + ` (head: ${count(after.loaded)}/${count(after.files)} files load, ${count(after.passed)} passed, ${count(after.failed)} failed, ${count(after.skipped)} skipped)`;
   return evaluation;
 }
@@ -527,6 +544,19 @@ export const oracles: Check = {
     const session = createSession(context, profile, headRoot);
     const evaluations: Evaluation[] = [];
     for (const oracle of profile.oracles) {
+      // A quarantine at another layout's paths matches nothing here, and the runner would run what it should leave out;
+      // tagged entries stand for the profile's whole list, one per file.
+      const files = quarantinedFiles(oracle, options.quarantine);
+      const misplaced = files.filter((file) => !context.base.entries.has(file));
+      const partial = files.length !== (oracle.quarantine ?? []).length;
+      if (misplaced.length || partial) {
+        const errors = [
+          ...misplaced.map((file) => ({ file, detail: `${oracle.name}: the quarantine names ${file}, which is not a file of the base commit, so the runner would not leave it out; pass the quarantine at this range's paths (quarantine entries tagged with the oracle)` })),
+          ...(partial ? [{ detail: `${oracle.name}: ${files.length} quarantine entries tagged with the oracle stand for the profile's ${(oracle.quarantine ?? []).length} quarantined files` }] : []),
+        ];
+        evaluations.push({ ...newEvaluation(), summary: `${oracle.name} not run: its quarantine is not at the base's paths`, errors });
+        continue;
+      }
       const evaluation = await evaluators[oracle.kind](session, oracle);
       for (const side of ['head', 'base'] as const) {
         const attempts = evaluation.metrics[`${oracle.name}.${side}.networkAttempts`];

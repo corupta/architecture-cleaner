@@ -203,8 +203,10 @@ export async function startRun(options: StartOptions, overrides: Partial<RunDepe
         return;
       }
       r0.status = 'passed';
-      state.quarantine = outcome.baseline?.flaky ?? [];
-      for (const entry of state.quarantine) addFinding(runner, { kind: 'flaky-test', rung: 'R0', files: [entry.file], detail: `${entry.name ?? 'the whole file'}: ${entry.reason} (quarantined: K8 leaves it out)` });
+      // The profile's own oracle quarantines join the flaky entries, so both follow the moves into later ranges.
+      const flaky = outcome.baseline?.flaky ?? [];
+      state.quarantine = [...flaky, ...(outcome.baseline?.quarantined ?? [])];
+      for (const entry of flaky) addFinding(runner, { kind: 'flaky-test', rung: 'R0', files: [entry.file], detail: `${entry.name ?? 'the whole file'}: ${entry.reason} (quarantined: K8 leaves it out)` });
     }
     createBranch(repo, options.branch, base);
     const head = headCommit(repo);

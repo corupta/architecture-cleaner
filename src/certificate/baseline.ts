@@ -5,7 +5,8 @@
 // another run lists stopped short: it is replaced (up to `extraRuns` more runs) and never read for flaky tests. The
 // commit is green when `runs` complete runs of every oracle pass, flaky tests aside, and the flaky tests sit in at most
 // flakyFileLimit files (more, and the suite is not reproducible here: plan §2.5 declines it). The first complete run
-// of each oracle seeds K8's base cache, and the per-tree cache when one is given.
+// of each oracle seeds K8's base cache, and the per-tree cache when one is given. The profile's oracle quarantines come
+// back as entries too (`quarantined`), so that they follow the moves into later ranges like the flaky ones.
 import fs from 'node:fs';
 import path from 'node:path';
 import { addWorktree, removeWorktrees } from './certify.js';
@@ -28,6 +29,11 @@ export interface QuarantineEntry {
   file: string;
   name?: string;
   reason: string;
+  /**
+   * A profile oracle's own quarantine (`oracle.quarantine`): that oracle's runner leaves the whole file out of its
+   * runs (`{quarantine}`), and the entry carries the file to the paths of a later range's base.
+   */
+  oracle?: string;
 }
 
 export interface BaselineOptions {
@@ -65,6 +71,11 @@ export interface BaselineResult {
   oracles: BaselineOracleResult[];
   /** Flaky tests as quarantine entries (the commit is the certify base of the first step). */
   flaky: QuarantineEntry[];
+  /**
+   * The profile's oracle quarantines as entries at this commit's paths, present when the profile has any: mapped
+   * through each certified step like `flaky`, they give K8 the files at a later range's base.
+   */
+  quarantined?: QuarantineEntry[];
   /** Every oracle ok in every run, ignoring flaky tests. */
   green: boolean;
   durationMs: number;
@@ -163,21 +174,24 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
   const links = linksOf(environment.linked);
   try {
     const missing = new Map(specs.map((oracle) => [oracle.name, (oracle.requires ?? []).filter((file) => !fs.existsSync(path.join(root, file)))]));
+    // A quarantine that names no file of this commit was written at another layout: the runner would run those tests.
+    const misplaced = new Map(specs.map((oracle) => [oracle.name, (oracle.quarantine ?? []).filter((file) => !tree.entries.has(file))]));
+    const runnable = (oracle: OracleSpec) => !missing.get(oracle.name)!.length && !misplaced.get(oracle.name)!.length;
     const runs = new Map<string, OracleRun[]>(specs.map((oracle) => [oracle.name, []]));
     const runOnce = async (oracle: OracleSpec, label: string) => {
       resetWorktree(root, links);
       const index = runs.get(oracle.name)!.length + 1;
       log(`${oracle.name}: run ${index}${label}`);
       const directory = path.join(options.workDir, 'runs', String(index), oracle.name);
-      runs.get(oracle.name)!.push(await runOracle({ profile, oracle, side: 'base', root, directory, quarantine: runnerQuarantine(oracle, (file) => file) }));
+      runs.get(oracle.name)!.push(await runOracle({ profile, oracle, side: 'base', root, directory, quarantine: runnerQuarantine(oracle.quarantine ?? [], (file) => file) }));
     };
     for (let index = 0; index < options.runs; index++) {
-      for (const oracle of specs) if (!missing.get(oracle.name)!.length) await runOnce(oracle, ` of ${options.runs}`);
+      for (const oracle of specs) if (runnable(oracle)) await runOnce(oracle, ` of ${options.runs}`);
     }
     // A tests run that stopped short is replaced, so `runs` complete runs are compared.
     for (const oracle of specs) {
       const format = oracle.format ?? profile.runner?.kind;
-      if (oracle.kind !== 'tests' || !format || missing.get(oracle.name)!.length) continue;
+      if (oracle.kind !== 'tests' || !format || !runnable(oracle)) continue;
       for (let extra = 0; extra < (options.extraRuns ?? 2); extra++) {
         const oracleRuns = runs.get(oracle.name)!;
         const reports = oracleRuns.map((run) => loadReport(run, format));
@@ -196,6 +210,11 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
         oracles.push({ name: oracle.name, kind: oracle.kind, ok: false, runs: [], detail: `not run: the environment lacks ${absent.join(', ')} (prerequisite builds)` });
         continue;
       }
+      const elsewhere = misplaced.get(oracle.name)!;
+      if (elsewhere.length) {
+        oracles.push({ name: oracle.name, kind: oracle.kind, ok: false, runs: [], detail: `not run: its quarantine names ${elsewhere.join(', ')}, not files of ${tree.commit.slice(0, 12)} (written at another layout)` });
+        continue;
+      }
       const oracleRuns = runs.get(oracle.name)!;
       const format = oracle.format ?? profile.runner?.kind;
       const short = oracle.kind === 'tests' && format ? shortRuns(oracleRuns.map((run) => loadReport(run, format))) : new Set<number>();
@@ -205,7 +224,7 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
         if (!readCachedRun(cached)) storeRun(complete, cached);
       }
       if (treeCache && complete) {
-        treeCache.writeFiles(oracleRunKind, tree.tree, oracleRunKey(profile, oracle, runnerQuarantine(oracle, (file) => file), environment.checkout), complete.directory, (relative) => !outsideScratch(relative));
+        treeCache.writeFiles(oracleRunKind, tree.tree, oracleRunKey(profile, oracle, runnerQuarantine(oracle.quarantine ?? [], (file) => file), environment.checkout), complete.directory, (relative) => !outsideScratch(relative));
       }
       if (oracle.kind === 'tests') {
         const evaluated = tests(oracle, profile, oracleRuns, options.runs);
@@ -215,7 +234,10 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
       else oracles.push(artifactIdentical(oracle, oracleRuns, oracle.reference ? tree.bytes(oracle.reference) : undefined));
     }
     for (const oracle of oracles) log(`${oracle.name}: ${oracle.ok ? 'ok' : 'NOT OK'}, ${oracle.detail}`);
-    return { commit: tree.commit, tree: tree.tree, oracles, flaky, green: oracles.every((oracle) => oracle.ok), durationMs: Math.round(performance.now() - started) };
+    const quarantined = specs.flatMap((oracle) => (oracle.quarantine ?? []).map((file) => ({ file, reason: `the profile's ${oracle.name} oracle leaves it out of its runs`, oracle: oracle.name })));
+    return {
+      commit: tree.commit, tree: tree.tree, oracles, flaky, ...(quarantined.length ? { quarantined } : {}), green: oracles.every((oracle) => oracle.ok), durationMs: Math.round(performance.now() - started),
+    };
   } finally {
     removeWorktrees(options.repo, [root]);
     if (!options.keep) fs.rmSync(options.workDir, { recursive: true, force: true });

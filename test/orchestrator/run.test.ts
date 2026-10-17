@@ -574,6 +574,29 @@ describe('ac run: the baseline quarantine', () => {
   });
 });
 
+describe('ac run: the profile\'s oracle quarantine', () => {
+  it('follows the moves into later ranges like the flaky entries, without a flaky-test finding', async () => {
+    const run = setup();
+    const quarantined = { file: 'server/src/services/user.service.spec.ts', reason: "the profile's unit oracle leaves it out of its runs", oracle: 'unit' };
+    const quarantines: { base: string; files: string[] }[] = [];
+    const recording = async (options: CertifyOptions) => {
+      if (options.oracles) quarantines.push({ base: options.base, files: (options.quarantine ?? []).map((entry) => entry.file) });
+      return certify(options);
+    };
+    const profile = profileOf([typecheck, { ...unit, quarantine: [quarantined.file] }]);
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1', 'R2'], profile }), { ...noRenames, certify: recording });
+    expect(outcome.state.error).toBeUndefined();
+    const state = run.state();
+    expect(state.quarantine).toEqual([quarantined]);
+    expect(state.findings.filter((finding) => finding.kind === 'flaky-test')).toEqual([]);
+    expect(quarantines).toEqual([
+      { base: state.base, files: ['server/src/services/user.service.spec.ts'] },
+      { base: state.steps[1]!.commit, files: ['server/src/modules/user/user.service.spec.ts'] },
+      { base: state.base, files: ['server/src/services/user.service.spec.ts'] },
+    ]);
+  });
+});
+
 describe('ac run: rung oracles', () => {
   it('bisects a rung whose oracles fail, pins the first failing step, re-executes the rest and certifies the rung', async () => {
     const run = setup();
