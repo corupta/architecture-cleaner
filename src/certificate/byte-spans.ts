@@ -4,8 +4,9 @@
 // Spans are only as good as their recognition, so in every moved or edited file each loader call must be one the
 // extractor reads, through the real loader: a call it reads by name only (`require` bound to a parameter) has an
 // argument that isn't a specifier relative to the file, and one it can't read (`(require)('./x')`) is invisible to
-// K2 and K3 alike. Unmoved files may not reach a moved file through a loader call the extractor can't read, nor through
-// an import in a file it doesn't read at all (a .vue component importing `@/services/user`).
+// K2 and K3 alike. A `vi` or `jest` imported from another package is the runner's only when the environment proves
+// that package re-exports it (genuine-loaders.ts). Unmoved files may not reach a moved file through a loader call the
+// extractor can't read, nor through an import in a file it doesn't read at all (a .vue component importing `@/services/user`).
 import path from 'node:path';
 import ts from 'typescript';
 import { isSourceFile } from '../analyzer/analyze.js';
@@ -13,6 +14,7 @@ import { scriptKindOf } from '../analyzer/reference-sites.js';
 import type { ReferenceSite } from '../analyzer/types.js';
 import { unwrapExpression } from './path-expressions.js';
 import type { CommitTree } from './git-tree.js';
+import { genuineReExports } from './genuine-loaders.js';
 import type { SpanView } from './spans.js';
 import { type Check, type CertifyContext, result, type Violation } from './types.js';
 
@@ -26,6 +28,12 @@ const loaderCallees = new Set(['require', 'require.resolve',
 const loaderRoots = new Set(['require', 'jest', 'vi', 'URL']);
 // Imports that bind a root to the real thing: the runners' explicit globals, Node's URL.
 const genuineImports: Record<string, Set<string>> = { jest: new Set(['@jest/globals']), vi: new Set(['vitest']), URL: new Set(['url', 'node:url']) };
+// The runners' bindings another package may re-export (vite-plus/test re-exports vitest's vi).
+const reExportable = { jest: genuineImports.jest!, vi: genuineImports.vi! };
+
+/** Whether `import { name } from 'module'` in `file` binds the real loader root. */
+type GenuineImport = (name: string, module: string) => boolean;
+const byName: GenuineImport = (name, module) => genuineImports[name]?.has(module) === true;
 const loaderHint = /\brequire\b|\bimport\s*\(|\b(jest|vi)\s*\.|\bURL\b/;
 
 function lineOf(text: string, offset: number): number {
@@ -71,7 +79,7 @@ function isFileRequire(declaration: ts.VariableDeclaration): boolean {
  * Loader-shaped calls whose argument is a literal once parentheses and casts are peeled off, and the loader roots
  * (require, jest, vi, URL) the file binds at runtime to something other than the real loader, with the line.
  */
-function scanLoaders(file: string, text: string): { calls: LoaderCall[]; shadowed: Map<string, number> } {
+function scanLoaders(file: string, text: string, genuineImport: GenuineImport = byName): { calls: LoaderCall[]; shadowed: Map<string, number> } {
   const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKindOf(file));
   const calls: LoaderCall[] = [];
   const shadowed = new Map<string, number>();
@@ -102,7 +110,7 @@ function scanLoaders(file: string, text: string): { calls: LoaderCall[]; shadowe
       if (namedBindings && ts.isNamespaceImport(namedBindings)) declare(namedBindings.name);
       if (namedBindings && ts.isNamedImports(namedBindings)) {
         for (const element of namedBindings.elements) {
-          if (!element.isTypeOnly) declare(element.name, (element.propertyName ?? element.name).text === element.name.text && genuineImports[element.name.text]?.has(module) === true);
+          if (!element.isTypeOnly) declare(element.name, (element.propertyName ?? element.name).text === element.name.text && genuineImport(element.name.text, module));
         }
       }
     } else if (ts.isVariableDeclaration(node)) declare(node.name, ts.isIdentifier(node.name) && node.name.text === 'require' && isFileRequire(node));
@@ -115,9 +123,9 @@ function scanLoaders(file: string, text: string): { calls: LoaderCall[]; shadowe
 }
 
 /** Problems with the loader calls of a moved or edited file (its head text and sites). */
-function loaderViolations(file: string, text: string, sites: readonly ReferenceSite[]): string[] {
+function loaderViolations(file: string, text: string, sites: readonly ReferenceSite[], genuineImport: GenuineImport): string[] {
   if (!loaderHint.test(text)) return [];
-  const { calls, shadowed } = scanLoaders(file, text);
+  const { calls, shadowed } = scanLoaders(file, text, genuineImport);
   const starts = new Set(sites.map((site) => site.start));
   const problems: string[] = [];
   for (const call of calls) {
@@ -239,9 +247,11 @@ export function checkByteSpans(context: CertifyContext): { violations: Violation
   let compared = 0;
   let changedSpans = 0;
   let editedFiles = 0;
+  const reExports = genuineReExports(context.environment.checkout, reExportable);
   const loaderCheck = (file: string, view: SpanView | undefined) => {
     const text = view?.source ? head.text(file) : undefined;
-    if (text !== undefined) for (const detail of loaderViolations(file, text, view!.sites)) violations.push({ file, detail });
+    const genuineImport: GenuineImport = (name, module) => byName(name, module) || reExports(name, module, file);
+    if (text !== undefined) for (const detail of loaderViolations(file, text, view!.sites, genuineImport)) violations.push({ file, detail });
   };
   const unchanged: string[] = [];
   for (const [from, to] of pathMap.forward) {

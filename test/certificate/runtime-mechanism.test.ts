@@ -113,10 +113,81 @@ describe('runtime mechanism detection', () => {
 
   it('lists the mechanisms it does not model', () => {
     expect(detect({ 'package.json': manifest({ scripts: { build: 'tsc && tsc-alias', start: 'node dist/main.js' } }) }).unsupported).toEqual(['tsc-alias']);
-    expect(detect({ 'package.json': manifest({ scripts: { build: 'webpack --mode production', start: 'node dist/main.js' } }) }).unsupported).toEqual(['bundler or transpiler (webpack)']);
+    expect(detect({ 'package.json': manifest({ scripts: { build: 'webpack --mode production', start: 'node dist/main.js' } }) })).toMatchObject({ ids: [], unsupported: ['bundler or transpiler (webpack)', 'Node on a bundle (webpack)'] });
     expect(detect({ 'package.json': manifest({ scripts: { build: 'nest build' } }), 'nest-cli.json': JSON.stringify({ compilerOptions: { builder: 'swc' } }) }).unsupported).toEqual(['Nest CLI swc builder']);
     expect(detect({ 'package.json': manifest({ scripts: { start: 'node --loader ts-node/esm src/main.ts' } }) }).unsupported).toEqual(['ts-node ESM loader']);
     expect(detect({ 'package.json': manifest({}), 'src/main.ts': "import { register } from 'tsconfig-paths';\nregister({ baseUrl: '.', paths: {} });\n" }).unsupported).toEqual(['programmatic tsconfig-paths registration']);
+  });
+
+  it("treats node running a test runner's CLI as that runner (hoppscotch's test:debug), not as a runtime", () => {
+    const scripts = {
+      build: 'nest build', start: 'nest start', 'start:prod': 'node dist/main',
+      'test:debug': 'node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand',
+      'test:cli': 'node ./node_modules/jest/bin/jest.js', 'test:mocha': 'NODE_OPTIONS="-r ts-node/register" node node_modules/mocha/bin/_mocha', 'test:vitest': 'node node_modules/.bin/vitest run',
+    };
+    expect(detect({ 'package.json': manifest({ scripts }), 'nest-cli.json': '{}', 'tsconfig.json': '{}' })).toMatchObject({ ids: ['nest-cli/emit'], unsupported: [] });
+    // The same layers in front of the app's own entry are a runtime.
+    expect(detect({ 'package.json': manifest({ scripts: { ...scripts, 'start:prod': 'node -r tsconfig-paths/register -r ts-node/register dist/main' } }), 'nest-cli.json': '{}', 'tsconfig.json': '{}' }).ids)
+      .toEqual(['nest-cli/emit', 'nest-cli/emit+tsconfig-paths']);
+    expect(detect({ 'package.json': manifest({ scripts: { start: 'node node_modules/my-server/bin/serve.js' } }) }).ids).toEqual(['node/emit']);
+  });
+
+  const kaneoViteConfig = [
+    'import { defineConfig } from "vite-plus";', '', 'export default defineConfig({', '  run: {', '    tasks: {',
+    '      compile: {', '        command: "esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --packages=external",',
+    '        dependsOn: [{ task: "build", from: ["dependencies", "devDependencies"] }],', '        cache: { input: [{ auto: true }, ".env*"], output: ["dist/**"] },', '      },',
+    '      "check:types": { command: "tsc --noEmit -p tsconfig.json" },', '      "test:run": "vp test run --config vitest.config.ts",', '    },', '  },', '});', '',
+  ].join('\n');
+  const kaneo = (fields: object = {}, config = kaneoViteConfig) => ({
+    'apps/api/package.json': manifest({
+      type: 'module', main: './dist/index.js', scripts: { dev: 'tsx watch src/index.ts', build: 'vp run compile', typecheck: 'vp run check:types', test: 'vp run test:run', 'test:watch': 'vp test' }, ...fields,
+    }),
+    'apps/api/vite.config.ts': config,
+    'apps/api/Dockerfile': 'FROM node:24 AS runtime\nWORKDIR /app/apps/api\nCMD ["node", "--enable-source-maps", "dist/index.js"]\n',
+  });
+
+  it("reads vite-plus tasks (kaneo): node on the esbuild bundle `vp run compile` builds is a launch it doesn't model, never Node on tsc's output", () => {
+    const { ids, runtimes, unsupported } = detect(kaneo(), 'apps/api');
+    expect(ids).toEqual(['tsx/source']);
+    expect(unsupported).toEqual(['bundler or transpiler (esbuild)', 'Node on a bundle (esbuild)']);
+    const tree = treeOf(kaneo());
+    const launch = detectRuntimes(tree, 'apps/api', spanViews(tree)).unsupported.find((entry) => entry.launch)!;
+    expect(launch.evidence).toBe('apps/api/Dockerfile: CMD ["node", "--enable-source-maps", "dist/index.js"]; built by package.json scripts.build: vp run compile -> apps/api/vite.config.ts run.tasks.compile: esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --packages=external');
+    expect(runtimes[0]!.evidence).toEqual(['package.json scripts.dev: tsx watch src/index.ts']);
+  });
+
+  it('still models Node on what tsc builds: a transpiler, esbuild without --bundle, or a bundle written elsewhere next to a tsc build', () => {
+    const start = { start: 'node dist/main.js' };
+    expect(detect({ 'package.json': manifest({ scripts: { ...start, build: 'swc src -d dist' } }) })).toMatchObject({ ids: ['node/emit'], unsupported: ['bundler or transpiler (swc)'] });
+    expect(detect({ 'package.json': manifest({ scripts: { ...start, build: 'esbuild src/*.ts --outdir=dist' } }) })).toMatchObject({ ids: ['node/emit'], unsupported: ['bundler or transpiler (esbuild)'] });
+    expect(detect({ 'package.json': manifest({ scripts: { ...start, build: 'tsc && esbuild src/worker.ts --bundle --outfile=public/worker.js' } }) }))
+      .toMatchObject({ ids: ['node/emit'], unsupported: ['bundler or transpiler (esbuild)'] });
+    // A committed script runs as committed, whatever a frontend bundler next to it builds.
+    expect(detect({ 'package.json': manifest({ scripts: { start: 'node server.js', 'build:client': 'webpack --config client.config.js' } }), 'server.js': "require('./lib/app');\n" }))
+      .toMatchObject({ ids: ['node/emit'], unsupported: ['bundler or transpiler (webpack)'] });
+    // The bundle's own output holds the launched file: a tsc build next to it doesn't make Node run tsc's output.
+    expect(detect({ 'package.json': manifest({ scripts: { ...start, build: 'tsc --outDir build && esbuild src/main.ts --bundle --outfile=dist/main.js' } }) }))
+      .toMatchObject({ ids: [], unsupported: ['bundler or transpiler (esbuild)', 'Node on a bundle (esbuild)'] });
+  });
+
+  it('follows the other vite-plus commands: vp build bundles, vp test is a runner, a script wins over a task, other packages are skipped', () => {
+    const vite = (scripts: Record<string, string>, config = kaneoViteConfig) => detect({ 'package.json': manifest({ scripts }), 'vite.config.ts': config });
+    expect(vite({ build: 'vp build', start: 'node dist/main.js' })).toMatchObject({ ids: [], unsupported: ['bundler or transpiler (vp build)', 'Node on a bundle (vp build)'] });
+    expect(vite({ test: 'vp test', start: 'vpr serve', serve: 'node dist/main.js', compile: 'tsc' })).toMatchObject({ ids: ['node/emit'], unsupported: [] });
+    expect(vite({ build: 'vp run compile', compile: 'tsc', start: 'vp node dist/main.js' })).toMatchObject({ ids: ['node/emit'], unsupported: [] });
+    expect(vite({ build: 'vp run -r compile', start: 'node dist/main.js' })).toMatchObject({ ids: ['node/emit'], unsupported: [] });
+    expect(vite({ build: 'vp run compile', start: 'node dist/main.js' }, 'export default defineConfig(() => ({ run: { tasks: {} } }));\n'))
+      .toMatchObject({ ids: ['node/emit'], unsupported: ['vite-plus task in a vite.config that is not a literal'] });
+    expect(vite({ build: 'vp run compile', start: 'node dist/main.js' }, 'export default { run: { tasks: { compile: { command: ["tsc", "esbuild src/main.ts --bundle --outdir=dist"], cwd: "." } } } };\n'))
+      .toMatchObject({ ids: [], unsupported: ['bundler or transpiler (esbuild)', 'Node on a bundle (esbuild)'] });
+    expect(vite({ build: 'vp run compile', start: 'node dist/main.js' }, 'export default { run: { tasks: { compile: { command: "esbuild src/main.ts --bundle --outdir=dist", cwd: "../web" } } } };\n'))
+      .toMatchObject({ ids: ['node/emit'], unsupported: [] });
+  });
+
+  it("treats a bundled library's consumers and Nest's webpack builder the same way", () => {
+    expect(detect({ 'package.json': manifest({ main: 'dist/index.js', scripts: { build: 'tsup src/index.ts' } }) })).toMatchObject({ ids: [], unsupported: ['bundler or transpiler (tsup)', 'Node on a bundle (tsup)'] });
+    expect(detect({ 'package.json': manifest({ scripts: { build: 'nest build', start: 'nest start' } }), 'nest-cli.json': JSON.stringify({ compilerOptions: { webpack: true } }) }))
+      .toMatchObject({ ids: [], unsupported: ['Nest CLI webpack builder', 'Nest CLI webpack builder', 'Node on a bundle (Nest CLI webpack)'] });
   });
 
   it('models a library as plain Node on its emitted JavaScript, and notes subpath imports', () => {

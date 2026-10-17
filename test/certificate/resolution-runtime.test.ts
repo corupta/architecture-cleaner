@@ -52,6 +52,9 @@ const ghostfolio = path.join(targets, 'ghostfolio', 'node_modules');
 const tsNodeEnvironment = environmentWith({ 'ts-node': path.join(ghostfolio, 'ts-node'), typescript: path.join(ghostfolio, 'typescript'), 'tsconfig-paths': tsconfigPaths && path.join(pnpmStore, tsconfigPaths, 'node_modules', 'tsconfig-paths') });
 const immichServer = path.join(targets, 'immich', 'server', 'node_modules');
 const nestEnvironment = environmentWith({ '@nestjs': path.join(immichServer, '@nestjs'), typescript: path.join(immichServer, 'typescript') });
+// hoppscotch's backend: the Nest CLI with tsconfig-paths and ts-node installed next to it.
+const hoppscotchBackend = path.join(targets, 'hoppscotch', 'packages', 'hoppscotch-backend', 'node_modules');
+const nestHooksEnvironment = environmentWith(Object.fromEntries(['@nestjs', 'typescript', 'tsconfig-paths', 'ts-node'].map((name) => [name, path.join(hoppscotchBackend, name)])));
 
 const commonjsPackage = (scripts: Record<string, string>) => JSON.stringify({ name: 'target', version: '1.0.0', scripts });
 const esmPackage = (scripts: Record<string, string>) => JSON.stringify({ name: 'target', version: '1.0.0', type: 'module', scripts });
@@ -260,6 +263,65 @@ describe('K3c resolution identity under the runtime', () => {
       );
       expect(details(outcome)).toEqual(["src/main.ts: nest-cli/emit: dynamic-import 'src/app.module.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/app.module.ts; base src/main.ts './app.module.js'"]);
     });
+  });
+
+  describe.skipIf(!nestHooksEnvironment)("Nest build run with tsconfig-paths and ts-node preloaded (hoppscotch's layers)", () => {
+    const start = (layers: string) => commonjsPackage({ build: 'nest build', 'start:prod': `${layers} dist/main` });
+    const preloaded = start('node -r tsconfig-paths/register -r ts-node/register');
+    const nestCli = JSON.stringify({ sourceRoot: 'src' });
+    const main = (service: string) => `import { x } from '${service}';\nexport const main = x;\n`;
+
+    it('passes an alias-keeping move: the build rewrites the alias without the runtime\'s layers, and the runtime resolves in its own layout', async () => {
+      const files = { 'package.json': preloaded, 'nest-cli.json': nestCli, 'tsconfig.json': commonjs({ baseUrl: './' }) };
+      const outcome = await k3c(
+        { ...files, 'src/main.ts': main('src/services/x.service'), 'src/services/x.service.ts': 'export const x = 1;\n' },
+        { ...files, 'src/main.ts': main('src/modules/x/x.service'), 'src/modules/x/x.service.ts': 'export const x = 1;\n' },
+        nestHooksEnvironment,
+      );
+      expect(details(outcome)).toEqual([]);
+      expect(outcome.metrics).toMatchObject({ runtimes: 'nest-cli/emit+tsconfig-paths', comparedSites: 1, rewrittenByBuild: 1, disagreements: 0 });
+    });
+
+    it('fails a require alias that tsconfig-paths maps elsewhere at runtime than the build compiles it', async () => {
+      // Nest compiles with tsconfig.build.json (@lib/ -> src/lib/); the runtime's tsconfig-paths reads tsconfig.json (@lib/ -> legacy/).
+      const files = {
+        'package.json': preloaded, 'nest-cli.json': nestCli,
+        'tsconfig.json': JSON.stringify({ files: [], compilerOptions: { baseUrl: '.', paths: { '@lib/*': ['legacy/*'] } } }),
+        'tsconfig.build.json': commonjs({ baseUrl: '.', paths: { '@lib/*': ['src/lib/*'] } }),
+        'src/lib/y.ts': 'export const y = 1;\n', 'legacy/y.js': 'exports.y = 0;\n',
+      };
+      const outcome = await k3c({ ...files, 'src/main.ts': "export const y = require('./lib/y');\n" }, { ...files, 'src/main.ts': "export const y = require('@lib/y');\n" }, nestHooksEnvironment);
+      expect(details(outcome)).toEqual(["src/main.ts: nest-cli/emit+tsconfig-paths: require '@lib/y' resolves to legacy/y.js, expected src/lib/y.ts; base src/main.ts './lib/y'"]);
+    });
+
+    it("resolves NODE_PATH in the runtime's layout, where the emitted files are: a bare specifier it serves can't silently lose its file", async () => {
+      const files = { 'package.json': start('NODE_PATH=dist node'), 'nest-cli.json': nestCli, 'tsconfig.json': commonjs() };
+      const require = "export const x = require('lib/x');\n";
+      const outcome = await k3c(
+        { ...files, 'src/main.ts': require, 'src/lib/x.ts': 'export const x = 1;\n' },
+        { ...files, 'src/main.ts': require, 'src/util/x.ts': 'export const x = 1;\n' },
+        nestHooksEnvironment,
+      );
+      expect(details(outcome)).toEqual(["src/main.ts: nest-cli/emit{NODE_PATH=dist}: require 'lib/x' resolves to unresolved (MODULE_NOT_FOUND), expected src/util/x.ts; base src/main.ts 'lib/x'"]);
+    });
+  });
+
+  it("fails closed on Node running what a bundler built (kaneo's esbuild): one violation naming the launch, no model of Node on tsc's output", async () => {
+    const bundler = JSON.stringify({ compilerOptions: { module: 'esnext', moduleResolution: 'bundler', strict: true, outDir: 'dist', rootDir: 'src' }, include: ['src'] });
+    const trees = (build: string) => [
+      { 'package.json': esmPackage({ build, start: 'node dist/main.js' }), 'tsconfig.json': bundler, 'src/main.ts': "import { x } from './lib/x';\nexport const main = x;\n", 'src/lib/x.ts': 'export const x = 1;\n' },
+      { 'package.json': esmPackage({ build, start: 'node dist/main.js' }), 'tsconfig.json': bundler, 'src/main.ts': "import { x } from './util/x';\nexport const main = x;\n", 'src/util/x.ts': 'export const x = 1;\n' },
+    ] as const;
+    const esbuild = 'esbuild src/main.ts --bundle --platform=node --outdir=dist';
+    const bundled = await k3c(...trees(esbuild));
+    expect(bundled.status).toBe('fail');
+    expect(details(bundled)).toEqual([`: runtime not modeled: Node on a bundle (esbuild) (package.json scripts.start: node dist/main.js; built by package.json scripts.build: ${esbuild}): the bundler resolved its imports when it built, and K3c models Node on tsc's output and on the sources, not a bundler, so what this process loads is unchecked`]);
+    expect(bundled.summary).toBe('1 violations under Node on a bundle (esbuild) (not modeled)');
+    expect(bundled.metrics).toMatchObject({ runtimes: '', modeled: '', unmodeledLaunches: 'Node on a bundle (esbuild)', comparedSites: 0 });
+    // Never a pass, not even for the identity commit.
+    expect((await k3c(trees(esbuild)[0], trees(esbuild)[0])).status).toBe('fail');
+    // When tsc builds what Node runs, Node's view of the extensionless import is what K3c judges.
+    expect(details(await k3c(...trees('tsc')))).toEqual(["src/main.ts: node/emit: import './util/x' stays unresolved (unresolved (ERR_MODULE_NOT_FOUND)) but its text changed from './lib/x'; base src/main.ts './lib/x'"]);
   });
 
   it('reports a base site the runtime cannot resolve but TypeScript can as a finding, not a violation', async () => {

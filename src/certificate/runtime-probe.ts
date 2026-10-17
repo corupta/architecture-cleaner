@@ -2,7 +2,9 @@
 // Each tree becomes a skeleton in the work dir: an empty stub at the path the runtime loads for each tracked file
 // (emit layout: `.ts` -> `.js`, `.mts` -> `.mjs`, `.cts` -> `.cjs`, declarations dropped; source layout: the
 // paths as committed), package.json and tsconfig files verbatim, other JSON as `{}`, node_modules linked from the
-// environment. A probe script, generated here and run with the target's Node, resolves the sites in one process.
+// environment. A probe script, generated here and run with the target's Node, resolves the sites in one process: first
+// what the build rewrites (Nest's hook, reading the source skeleton as `nest build` does), then the runtime, from its
+// own directory with its preloads.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -162,6 +164,13 @@ export interface ProbeInput {
   /** Root of the skeleton the sites resolve in. */
   skeleton: string;
   environment: string;
+  /**
+   * Where the runtime runs (its package root in the resolution skeleton), when the probe starts elsewhere: Nest's build
+   * reads the sources from the source skeleton, then the probe moves here before the runtime's own layers load.
+   */
+  runtimeCwd?: string;
+  /** Modules the runtime preloads (`node -r <module>`), in order, resolved from where it runs. */
+  preload: string[];
   /** Run module-alias's init with the package root as its base. */
   moduleAlias: boolean;
   /** Apply Nest's tsconfig-paths hook, parsing this tsconfig (relative to the cwd) the way `nest build` does. */
@@ -200,7 +209,6 @@ const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
 const skeleton = fs.realpathSync(input.skeleton);
 const environment = fs.realpathSync(input.environment);
 const fromCwd = createRequire(path.join(process.cwd(), '__probe__.cjs'));
-if (input.moduleAlias) fromCwd('module-alias')({ base: process.cwd() });
 
 async function nestHook(tsconfig) {
   // As @nestjs/cli: TypeScript from the cwd, the tsconfig parsed with ts.sys, the hook built from its options.
@@ -232,6 +240,22 @@ async function nestHook(tsconfig) {
   };
 }
 const nest = input.nestTsconfig ? await nestHook(input.nestTsconfig) : undefined;
+// The build's rewrites first: nest build runs in a process of its own, without the runtime's preloads, which would
+// otherwise answer the hook's "installed packages first" lookup through their own aliases.
+const emitted = input.files.map((file) => {
+  const specifiers = file.sites.map((site) => site.s);
+  if (nest && file.source) {
+    const indices = file.sites.flatMap((site, index) => (site.r ? [index] : []));
+    const rewritten = nest.rewrite(file.source, indices.map((index) => specifiers[index]));
+    indices.forEach((index, position) => { specifiers[index] = rewritten[position]; });
+  }
+  return specifiers;
+});
+// Then the runtime: in its own directory, with its preloads and module-alias registered there.
+if (input.runtimeCwd) process.chdir(input.runtimeCwd);
+const fromRuntime = createRequire(path.join(process.cwd(), '__probe__.cjs'));
+for (const preload of input.preload) fromRuntime(preload);
+if (input.moduleAlias) fromRuntime('module-alias')({ base: process.cwd() });
 
 const inside = (root, file) => {
   const relative = path.relative(root, file);
@@ -271,15 +295,9 @@ function resolve(mode, specifier, importer) {
   }
 }
 const tsExtension = /\.(m|c)?tsx?$/;
-const results = input.files.map((file) => {
-  const emitted = file.sites.map((site) => site.s);
-  if (nest && file.source) {
-    const indices = file.sites.flatMap((site, index) => (site.r ? [index] : []));
-    const rewritten = nest.rewrite(file.source, indices.map((index) => emitted[index]));
-    indices.forEach((index, position) => { emitted[index] = rewritten[position]; });
-  }
+const results = input.files.map((file, fileIndex) => {
   return file.sites.map((site, index) => {
-    let specifier = emitted[index];
+    let specifier = emitted[fileIndex][index];
     if (site.t && /^\.\.?\//.test(specifier) && tsExtension.test(specifier) && !/\.d(\.[^./]+)?\.[cm]?ts$/.test(specifier)) {
       specifier = specifier.replace(tsExtension, (extension) => (extension === '.mts' ? '.mjs' : extension === '.cts' ? '.cjs' : extension === '.tsx' ? site.t : '.js'));
     }

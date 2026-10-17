@@ -2,8 +2,9 @@
 // mechanism", §3.4 K3c). Read from the committed tree only: package.json scripts, dependencies and `_moduleAliases`,
 // nest-cli.json, tsconfig.json's `ts-node` block, the register imports in the code, and the launch lines of shell
 // scripts, Dockerfiles and Procfiles under the package root, with the environment they set (`VAR=x cmd`, `export`,
-// Dockerfile `ENV`): NODE_OPTIONS carries node flags, NODE_PATH adds lookup roots for bare specifiers. Test runners
-// are K3b's consumers, not runtimes.
+// Dockerfile `ENV`): NODE_OPTIONS carries node flags, NODE_PATH adds lookup roots for bare specifiers. vite-plus tasks
+// (`vp run <task>`) are read from the package's vite.config. Test runners, also when node runs their CLI, are K3b's
+// consumers, not runtimes. Node running what a bundler built is a launch K3c doesn't model: it fails closed on it.
 import path from 'node:path';
 import ts from 'typescript';
 import { isSourceFile, stripBom } from '../analyzer/analyze.js';
@@ -49,6 +50,11 @@ export interface UnsupportedMechanism {
    * Node leaves unresolved (an absolute NODE_PATH, module-alias aliases registered from code).
    */
   reaches?: 'bare-specifiers';
+  /**
+   * A launch K3c can't model (Node on what a bundler built): the bundler resolved the sites when it built, so Node on
+   * tsc's output is no model of it, and what the process loads goes unchecked. Always a violation.
+   */
+  launch?: true;
 }
 
 export interface RuntimeDetection {
@@ -73,8 +79,17 @@ const assumedRuntime = (tsconfig: string, loads: 'emit' | 'source'): Runtime => 
 export const hasAliasLayer = (runtime: Runtime) => runtime.build === 'nest-cli' || runtime.loader === 'tsx' || runtime.hooks.length > 0;
 
 const testRunners = new Set(['mocha', 'jest', 'vitest', 'ava', 'tap', 'nyc', 'c8', 'playwright', 'cypress', 'karma', 'jasmine', 'uvu']);
+// The packages and bin names under node_modules whose CLI is one of those runners.
+const testRunnerEntries = new Set([...testRunners, 'jest-cli', '_mocha']);
 const bundlers = new Set(['webpack', 'esbuild', 'rollup', 'tsup', 'ncc', 'parcel', 'rspack', 'swc', 'babel', 'tsdown', 'unbuild', 'pkgroll']);
-const transparentPrograms = new Set(['cross-env', 'npx', 'exec', 'env', 'tini', 'nohup', 'time', 'dumb-init', 'su-exec', 'gosu']);
+// These emit one file per source, as tsc does (esbuild too without --bundle); the others inline what they resolve.
+const transpilers = new Set(['swc', 'babel']);
+// Where a bundler writes (esbuild --outdir/--outfile, tsup/swc -d, ncc/webpack/rollup -o, parcel --dist-dir, ...).
+const outputFlags = new Set(['--outdir', '--outfile', '--out-dir', '--outDir', '-d', '-o', '--dist-dir', '--output-path', '--dir', '--file']);
+// `vp run` flags that run the task in other packages of the workspace (or another directory).
+const otherPackageFlags = new Set(['-r', '--recursive', '-t', '--transitive', '--filter', '-F', '-w', '--workspace-root', '-C']);
+const viteConfigs = ['vite.config.ts', 'vite.config.mts', 'vite.config.cts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cjs'];
+const transparentPrograms = new Set(['cross-env', 'npx', 'vpx', 'exec', 'env', 'tini', 'nohup', 'time', 'dumb-init', 'su-exec', 'gosu']);
 const valueFlags = new Set(['-r', '--require', '--import', '--loader', '--experimental-loader', '--env-file', '--env-file-if-exists', '--inspect-port', '--title',
   '--stack-size', '--max-old-space-size', '-C', '--conditions', '-P', '--project', '-O', '--compiler-options', '--compiler']);
 
@@ -120,9 +135,108 @@ export function shellCommands(line: string): string[][] {
   return commands;
 }
 
+/** The script `node [options] <script>` runs (option values skipped), or undefined (`node -e`, `node --test`, the REPL). */
+function scriptOperand(commandLine: string[]): string | undefined {
+  for (let index = 0; index < commandLine.length; index++) {
+    const argument = commandLine[index]!;
+    const flag = argument.startsWith('--') && argument.includes('=') ? argument.slice(0, argument.indexOf('=')) : argument;
+    if (!flag.startsWith('-')) return argument;
+    if (['-e', '--eval', '-p', '--print', '--test'].includes(flag)) return undefined;
+    if (valueFlags.has(flag) && flag === argument) index++;
+  }
+  return undefined;
+}
+
+const normalizedPath = (file: string) => path.posix.normalize(file).replace(/^\.\//, '').replace(/\/$/, '');
+
+/** A test runner's CLI run as a script: `node --inspect-brk node_modules/.bin/jest`, `node node_modules/jest/bin/jest.js`. */
+function isTestRunnerScript(file: string): boolean {
+  const segments = normalizedPath(file).split('/');
+  const at = segments.lastIndexOf('node_modules');
+  if (at === -1) return false;
+  const [first, second] = segments.slice(at + 1);
+  const name = first === '.bin' ? second : first?.startsWith('@') && second ? `${first}/${second}` : first;
+  return name !== undefined && testRunnerEntries.has(name);
+}
+
+/** What a bundler's command line names as its output, directories or files (package-root-relative). */
+function outputsOf(args: string[]): string[] {
+  const outputs: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index]!;
+    const equals = argument.startsWith('--') ? argument.indexOf('=') : -1;
+    if (!outputFlags.has(equals === -1 ? argument : argument.slice(0, equals))) continue;
+    const value = equals === -1 ? args[++index] : argument.slice(equals + 1);
+    if (value && !value.startsWith('-')) outputs.push(normalizedPath(value));
+  }
+  return outputs;
+}
+
+const unwrapped = (node: ts.Expression): ts.Expression => (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) ? unwrapped(node.expression) : node);
+
+/** `{ …, name: value }`'s value (the last one); 'unreadable' when a spread, a computed key or a shorthand may set it. */
+function propertyOf(object: ts.ObjectLiteralExpression, name: string): ts.Expression | 'unreadable' | undefined {
+  let value: ts.Expression | undefined;
+  for (const property of object.properties) {
+    if (!ts.isPropertyAssignment(property) || !(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name) || ts.isNumericLiteral(property.name))) return 'unreadable';
+    if (property.name.text === name) value = unwrapped(property.initializer);
+  }
+  return value;
+}
+
+/** A command string or an array of them, as literals. */
+function commandsOf(node: ts.Expression): string[] | undefined {
+  if (ts.isStringLiteralLike(node)) return [node.text];
+  if (!ts.isArrayLiteralExpression(node)) return undefined;
+  const commands = node.elements.map((element) => (ts.isStringLiteralLike(element) ? element.text : undefined));
+  return commands.includes(undefined) ? undefined : (commands as string[]);
+}
+
+interface ViteTask {
+  file: string;
+  /** Run in order, as if joined with `&&`. */
+  commands: string[];
+  cwd?: string;
+}
+
+/**
+ * A vite-plus task, `run.tasks.<name>` in the package's vite.config (`export default defineConfig({ … })`): a command,
+ * an array of commands, or `{ command, cwd }`. Undefined when the config defines no such task; 'unreadable' when the
+ * config or the task isn't a literal.
+ */
+function viteTask(tree: CommitTree, prefix: string, name: string): ViteTask | 'unreadable' | undefined {
+  const file = viteConfigs.map((config) => `${prefix}${config}`).find((config) => tree.entries.has(config));
+  const text = file === undefined ? undefined : tree.text(file);
+  if (file === undefined || text === undefined) return undefined;
+  const sourceFile = ts.createSourceFile(file, stripBom(text), ts.ScriptTarget.Latest, true, /\.(c|m)?ts$/.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+  const exported = sourceFile.statements.flatMap((statement) => (ts.isExportAssignment(statement) ? [statement.expression]
+    : ts.isExpressionStatement(statement) && ts.isBinaryExpression(statement.expression) && statement.expression.left.getText(sourceFile) === 'module.exports' ? [statement.expression.right] : []));
+  if (exported.length !== 1) return 'unreadable';
+  let config = unwrapped(exported[0]!);
+  if (ts.isCallExpression(config) && config.expression.getText(sourceFile) === 'defineConfig' && config.arguments.length === 1) config = unwrapped(config.arguments[0]!);
+  let task: ts.Expression = config;
+  for (const key of ['run', 'tasks', name]) {
+    if (!ts.isObjectLiteralExpression(task)) return 'unreadable';
+    const value = propertyOf(task, key);
+    if (value === undefined || value === 'unreadable') return value;
+    task = value;
+  }
+  if (!ts.isObjectLiteralExpression(task)) {
+    const commands = commandsOf(task);
+    return commands ? { file, commands } : 'unreadable';
+  }
+  const command = propertyOf(task, 'command');
+  const cwd = propertyOf(task, 'cwd');
+  const commands = command === undefined || command === 'unreadable' ? undefined : commandsOf(command);
+  if (!commands || cwd === 'unreadable' || (cwd !== undefined && !ts.isStringLiteralLike(cwd))) return 'unreadable';
+  return { file, commands, ...(cwd ? { cwd: cwd.text } : {}) };
+}
+
 interface Collected {
-  launches: { loader: Loader; loads: 'emit' | 'source'; hooks: Hook[]; conditions: string[]; nodePath: string[]; nest: boolean; evidence: string }[];
+  launches: { loader: Loader; loads: 'emit' | 'source'; hooks: Hook[]; conditions: string[]; nodePath: string[]; nest: boolean; evidence: string; file?: string }[];
   builds: Set<'tsc' | 'nest-cli'>;
+  /** Bundling runs: the bundler and what its command line names as output (empty when it doesn't say). */
+  bundles: { bundler: string; outputs: string[]; evidence: string }[];
   nestTsconfig?: string;
   tscProject?: string;
   unsupported: UnsupportedMechanism[];
@@ -230,7 +344,7 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
   const manifest = readJson(`${prefix}package.json`) ?? {};
   const scripts = (manifest.scripts ?? {}) as Record<string, string>;
   const nestConfig = readJson(`${prefix}nest-cli.json`);
-  const collected: Collected = { launches: [], builds: new Set(), unsupported: [] };
+  const collected: Collected = { launches: [], builds: new Set(), bundles: [], unsupported: [] };
 
   const nestBuilder = () => {
     const options = (nestConfig?.compilerOptions ?? {}) as { builder?: string | { type?: string }; webpack?: boolean; tsConfigPath?: string };
@@ -272,6 +386,10 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
       classify(args.slice(1), evidence, visited, environment);
       return;
     }
+    if (program === 'vp' || program === 'vpr') {
+      vitePlus(program === 'vpr' ? ['run', ...args] : args, evidence, visited, environment);
+      return;
+    }
     if (['npm', 'pnpm', 'yarn', 'bun'].includes(program)) {
       const name = args[0] === 'run' || args[0] === 'run-script' ? args[1] : ['start', 'test'].includes(args[0] ?? '') ? args[0] : program === 'npm' ? undefined : args[0];
       if (name && scripts[name] !== undefined && !visited.has(name)) runScript(name, new Set([...visited, name]), environment);
@@ -282,6 +400,11 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
       const builder = nestBuilder();
       if (builder !== 'tsc') {
         collected.unsupported.push({ mechanism: `Nest CLI ${builder} builder`, evidence });
+        // swc emits one file per source; webpack and rspack bundle, and `nest start` then runs the bundle.
+        if (builder === 'webpack' || builder === 'rspack') {
+          collected.bundles.push({ bundler: `Nest CLI ${builder}`, outputs: [], evidence });
+          if (args[0] === 'start') collected.unsupported.push({ mechanism: `Node on a bundle (Nest CLI ${builder})`, evidence, launch: true });
+        }
         return;
       }
       const pathFlag = args.findIndex((argument) => argument === '-p' || argument === '--path');
@@ -302,7 +425,7 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
       return;
     }
     if (bundlers.has(program) || ((program === 'vite' || program === 'bun') && args[0] === 'build')) {
-      collected.unsupported.push({ mechanism: `bundler or transpiler (${program})`, evidence });
+      bundle(program, bundlers.has(program) ? args : args.slice(1), evidence);
       return;
     }
     if (program === 'tsx') {
@@ -338,6 +461,38 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
     if (program === 'node' || program === 'nodejs') launch('node', args, evidence, environment);
   };
 
+  /** A bundler or transpiler run, reported as not modeled; a bundling one is also where Node's input may come from. */
+  const bundle = (bundler: string, args: string[], evidence: string) => {
+    collected.unsupported.push({ mechanism: `bundler or transpiler (${bundler})`, evidence });
+    if (!transpilers.has(bundler) && (bundler !== 'esbuild' || args.includes('--bundle'))) collected.bundles.push({ bundler, outputs: outputsOf(args), evidence });
+  };
+
+  /**
+   * vite-plus: `vp run <name>` runs the package.json script, else the vite.config task of that name; `vp build` and
+   * `vp pack` bundle; `vp exec`/`vp dlx` and `vp node` run a binary and Node. `vp test` is Vitest, and the rest (dev,
+   * check, lint, fmt) don't launch the package.
+   */
+  const vitePlus = (args: string[], evidence: string, visited: Set<string>, environment: Environment) => {
+    const [command, ...rest] = args;
+    if (command === 'build' || command === 'pack') bundle(`vp ${command}`, rest, evidence);
+    else if (command === 'exec' || command === 'dlx') classify(rest, evidence, visited, environment);
+    else if (command === 'node') launch('node', rest, evidence, environment);
+    // In other packages (`-r`, `--filter`, `-C <dir>`), as after `cd`, whatever runs isn't this package's.
+    if (command !== 'run' || rest.some((argument) => otherPackageFlags.has(argument.split('=')[0]!))) return;
+    const name = rest.find((argument) => !argument.startsWith('-'));
+    if (name === undefined || visited.has(name)) return;
+    if (scripts[name] !== undefined) {
+      runScript(name, new Set([...visited, name]), environment);
+      return;
+    }
+    const task = viteTask(tree, prefix, name);
+    if (task === 'unreadable') collected.unsupported.push({ mechanism: 'vite-plus task in a vite.config that is not a literal', evidence });
+    else if (task && (task.cwd === undefined || normalizedPath(task.cwd) === '.')) {
+      const commands = task.commands.join(' && ');
+      runCommands(shellCommands(commands), `${evidence} -> ${task.file} run.tasks.${name}: ${commands}`, new Set([...visited, name]), environment);
+    }
+  };
+
   /** Commands run in sequence: an `export` reaches the commands after it. */
   const runCommands = (commands: string[][], evidence: string, visited: Set<string>, inherited: Environment) => {
     let environment = inherited;
@@ -353,6 +508,9 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
    * flags apply before the command line's; NODE_PATH adds lookup roots. `nest start` runs Nest's emitted entry.
    */
   const launch = (loader: Loader, commandLine: string[], evidence: string, inherited: Environment, nest = false) => {
+    // Its hooks load in the runner's own process; the runner loads the code under test with its own resolver (K3b's).
+    const script = scriptOperand(commandLine);
+    if (!nest && script !== undefined && isTestRunnerScript(script)) return;
     const hooks: Hook[] = [];
     const conditions: string[] = [];
     const nodePath: string[] = [];
@@ -399,7 +557,7 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
       break;
     }
     if (nest) collected.launches.push({ loader, loads: 'emit', hooks, conditions, nodePath, nest, evidence });
-    else if (file) collected.launches.push({ loader, loads: isTypeScriptPath(file) ? 'source' : 'emit', hooks, conditions, nodePath, nest, evidence });
+    else if (file) collected.launches.push({ loader, loads: isTypeScriptPath(file) ? 'source' : 'emit', hooks, conditions, nodePath, nest, evidence, file });
   };
 
   /** The variables of a tracked dotenv file (package-root-relative); an untracked one is the environment's (residual risk). */
@@ -512,17 +670,33 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
     if (existing) existing.evidence.push(...allEvidence.filter((line) => !existing.evidence.includes(line)));
     else runtimes.set(id, { ...runtime, hooks, conditions, id, evidence: [...new Set(allEvidence)], tsconfig: head === 'nest-cli' ? nestTsconfig : runtime.loads === 'emit' ? tscProject : 'tsconfig.json' });
   };
+  // What a bundler built, Node runs: the bundler's output holds the file, or no tsc or Nest build is seen at all and
+  // the file isn't one the tree tracks (a committed server.js runs as committed).
+  const bundleOf = (file: string | undefined) => {
+    const launched = file === undefined ? undefined : normalizedPath(file);
+    return collected.bundles.find((entry) => launched !== undefined && entry.outputs.some((output) => launched === output || launched.startsWith(`${output}/`)))
+      ?? (collected.builds.size === 0 && (launched === undefined || !tree.entries.has(`${prefix}${launched}`)) ? collected.bundles[0] : undefined);
+  };
+  const onBundle = (bundled: Collected['bundles'][number], evidence: string) => collected.unsupported.push({ mechanism: `Node on a bundle (${bundled.bundler})`, evidence: `${evidence}; built by ${bundled.evidence}`, launch: true });
   for (const launch of collected.launches) {
-    add({ loader: launch.loader, loads: launch.loads, hooks: launch.hooks, conditions: launch.conditions, nodePath: launch.nodePath, ...(launch.loads === 'emit' ? { build } : {}) }, [launch.evidence]);
+    const bundled = launch.loads === 'emit' && !launch.nest && launch.file !== undefined ? bundleOf(launch.file) : undefined;
+    if (bundled) onBundle(bundled, launch.evidence);
+    else add({ loader: launch.loader, loads: launch.loads, hooks: launch.hooks, conditions: launch.conditions, nodePath: launch.nodePath, ...(launch.loads === 'emit' ? { build } : {}) }, [launch.evidence]);
   }
   // A Nest build is the runtime even when only the Dockerfile's `node dist/main.js` shows how it starts.
   if (build === 'nest-cli' && ![...runtimes.values()].some((runtime) => runtime.build === 'nest-cli')) {
     add({ loader: 'node', loads: 'emit', hooks: [], conditions: [], nodePath: [], build }, ['package.json: nest build']);
   }
-  // Nothing launches a library: its consumers load the emitted JS through main/exports/bin.
+  const unmodeledLaunch = () => collected.unsupported.some((entry) => entry.launch);
+  // Nothing launches a library: its consumers load the emitted JS (or the bundle) through main/exports/bin.
   const entryFields = ['main', 'exports', 'bin'].filter((field) => manifest[field] !== undefined);
-  if (runtimes.size === 0 && entryFields.length) add({ loader: 'node', loads: 'emit', hooks: [], conditions: [], nodePath: [], build }, [`package.json ${entryFields.join('/')}: consumers load the emitted JavaScript`]);
-  if (runtimes.size === 0) {
+  if (runtimes.size === 0 && entryFields.length && !unmodeledLaunch()) {
+    const evidence = `package.json ${entryFields.join('/')}: consumers load the emitted JavaScript`;
+    const bundled = bundleOf(typeof manifest.main === 'string' ? manifest.main : undefined);
+    if (bundled) onBundle(bundled, evidence);
+    else add({ loader: 'node', loads: 'emit', hooks: [], conditions: [], nodePath: [], build }, [evidence]);
+  }
+  if (runtimes.size === 0 && !unmodeledLaunch()) {
     runtimes.set('assumed-emit', assumedRuntime(tscProject, 'emit'));
     if (!emits(tscProject)) runtimes.set('assumed-source', assumedRuntime(tscProject, 'source'));
   }

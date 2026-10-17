@@ -292,6 +292,8 @@ export async function checkRuntimeResolution(context: CertifyContext) {
     const sourceSkeleton = skeletons[side].source;
     const nest = runtime.build === 'nest-cli' && runtime.loads === 'emit';
     const cwd = cwdOf(side, runtime);
+    // The runtime runs in its own layout: its preloads, module-alias and NODE_PATH work from there.
+    const runtimeCwd = path.join(resolutionSkeleton.root, packageRoot);
     const files = probedFiles(side);
     const probeFiles: ProbeFile[] = files.map((file) => {
       const fileOptions = scopes[side](file).options;
@@ -314,15 +316,19 @@ export async function checkRuntimeResolution(context: CertifyContext) {
         directory: path.join(workDir, side, `probe-${runtime.id.replace(/[^\w.-]+/g, '_')}`),
         cwd,
         node: nodeVersion,
-        nodeArguments: [
-          ...runtime.conditions.map((condition) => `--conditions=${condition}`),
-          ...(runtime.loader === 'ts-node' ? ['--require', 'ts-node/register'] : []),
-          ...(runtime.hooks.includes('tsconfig-paths') ? ['--require', 'tsconfig-paths/register'] : []),
-        ],
+        nodeArguments: runtime.conditions.map((condition) => `--conditions=${condition}`),
         ...(runtime.loader === 'tsx' ? { tsx: true } : {}),
-        extraEnvironment: { ...options.profile?.env, ...(runtime.nodePath.length ? { NODE_PATH: runtime.nodePath.map((directory) => path.join(cwd, directory)).join(path.delimiter) } : {}) },
+        extraEnvironment: { ...options.profile?.env, ...(runtime.nodePath.length ? { NODE_PATH: runtime.nodePath.map((directory) => path.join(runtimeCwd, directory)).join(path.delimiter) } : {}) },
         offline: options.profile?.offline ?? true,
-        input: { skeleton: resolutionSkeleton.root, environment: context.environment.checkout, moduleAlias: runtime.hooks.includes('module-alias'), ...(nest ? { nestTsconfig: runtime.tsconfig } : {}), files: probeFiles },
+        input: {
+          skeleton: resolutionSkeleton.root,
+          environment: context.environment.checkout,
+          ...(runtimeCwd !== cwd ? { runtimeCwd } : {}),
+          preload: [...(runtime.loader === 'ts-node' ? ['ts-node/register'] : []), ...(runtime.hooks.includes('tsconfig-paths') ? ['tsconfig-paths/register'] : [])],
+          moduleAlias: runtime.hooks.includes('module-alias'),
+          ...(nest ? { nestTsconfig: runtime.tsconfig } : {}),
+          files: probeFiles,
+        },
         timeoutMs: 10 * 60_000,
       });
       probeOutputs.push(output);
@@ -505,6 +511,10 @@ export async function checkRuntimeResolution(context: CertifyContext) {
   for (const mechanism of new Set(detection.base.unsupported.map((entry) => entry.mechanism))) {
     const entries = detection.base.unsupported.filter((entry) => entry.mechanism === mechanism);
     const evidence = entries.map((entry) => entry.evidence);
+    if (entries.some((entry) => entry.launch)) {
+      violations.push({ detail: `runtime not modeled: ${mechanism} (${evidence.join('; ')}): the bundler resolved its imports when it built, and K3c models Node on tsc's output and on the sources, not a bundler, so what this process loads is unchecked` });
+      continue;
+    }
     const bare = entries.some((entry) => entry.reaches === 'bare-specifiers') ? unresolvedBare : 0;
     const exposed = [
       ...(aliasSites.base + aliasSites.head ? [`${aliasSites.base + aliasSites.head} sites resolve through tsconfig paths/baseUrl`] : []),
@@ -514,6 +524,7 @@ export async function checkRuntimeResolution(context: CertifyContext) {
     else findings.push({ kind: 'runtime-mechanism-not-modeled', detail: `${mechanism} (${evidence.join('; ')}); no site resolves through tsconfig paths/baseUrl${entries[0]!.reaches ? ' and every bare specifier resolves without it' : ''}` });
   }
 
+  const unmodeledLaunches = [...new Set(detection.base.unsupported.filter((entry) => entry.launch).map((entry) => entry.mechanism))];
   const total = violations.length;
   const reported = total > maxViolations ? [...violations.slice(0, maxViolations), { detail: `${total - maxViolations} more violations` }] : violations;
   const nestCli = probeOutputs.find((output) => output.nestCli)?.nestCli;
@@ -522,6 +533,7 @@ export async function checkRuntimeResolution(context: CertifyContext) {
     runtimeEvidence: runtimes.map((runtime) => `${runtime.id}: ${runtime.evidence.slice(0, 3).join('; ')}`).join(' || '),
     modeled: modeled.map((runtime) => runtime.id).join(', '),
     notModeled: [...new Set(detection.base.unsupported.map((entry) => entry.mechanism)), ...notInstalled].join(', '),
+    ...(unmodeledLaunches.length ? { unmodeledLaunches: unmodeledLaunches.join(', ') } : {}),
     subpathImports: detection.base.subpathImports,
     emitModel,
     node: probeOutputs[0]?.node ?? nodeVersion,
@@ -550,8 +562,9 @@ export const runtimeResolution: Check = {
       const reason = `no runtime could be modeled: ${notInstalled.join('; ')}`;
       return result('K3c', title, { status: 'skip', summary: `skipped: ${reason}`, skipReason: reason, metrics, findings, run });
     }
+    const launches = typeof metrics.unmodeledLaunches === 'string' ? [`${metrics.unmodeledLaunches} (not modeled)`] : [];
     const summary = violations.length
-      ? `${metrics.violations} violations under ${metrics.runtimes}`
+      ? `${metrics.violations} violations under ${[metrics.runtimes, ...launches].filter(Boolean).join(', ')}`
       : `${metrics.comparedSites} runtime sites resolve to map(base) under ${metrics.modeled}${metrics.rewrittenByBuild ? ` (${metrics.rewrittenByBuild} rewritten by the build)` : ''}`;
     return result('K3c', title, { summary, violations, findings, metrics, run });
   },
