@@ -35,7 +35,7 @@ const g1Names: Record<string, string> = {
   'name-token (anchored)': 'name-token (anchored)',
   'export-token (anchored)': 'export-token (anchored)',
   'seeds draft (export names)': 'seeds + LP (export names)',
-  'seeds draft': 'seeds + LP (file names)',
+  'seeds draft (file names)': 'seeds + LP (file names)',
 };
 
 for (const variant of ['default', 'H1'] as const) {

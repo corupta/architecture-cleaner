@@ -151,12 +151,13 @@ describe('ac bench on a fixture', async () => {
     });
     const byMethod = new Map(scrambled.methods.map((score) => [score.method, score]));
     expect([...byMethod.keys()]).toEqual([
-      'B0 type folders', 'name-token (full stem)', 'name-token (anchored)', 'export-token (anchored)', 'seeds draft (export names)', 'seeds draft',
+      'B0 type folders', 'name-token (full stem)', 'name-token (anchored)', 'export-token (anchored)', 'seeds draft (file names)', 'seeds draft (export names)',
       'Louvain r=1 (mean of seeds 1-5)', 'Louvain r=2 (mean of seeds 1-5)', 'Louvain r=4 (mean of seeds 1-5)', 'planner (Ultra)',
     ]);
     // Type folders cut across both features: no ground-truth module is recovered.
     expect(byMethod.get('B0 type folders')).toMatchObject({ kind: 'baseline', clusters: 4, c2cCvg: 0 });
-    expect(byMethod.get('seeds draft')!.kind).toBe('draft');
+    expect(byMethod.get('seeds draft (file names)')!.kind).toBe('draft');
+    expect(byMethod.get('seeds draft (export names)')!.kind).toBe('baseline');
     expect(byMethod.get('planner (Ultra)')).toMatchObject({ kind: 'planner' });
     expect(byMethod.get('Louvain r=4 (mean of seeds 1-5)')!.note).toBe('mean of seeds 1-5');
     expect(Object.keys(scrambled.louvainMojoFmByResolution!)).toEqual(['1', '2', '4']);

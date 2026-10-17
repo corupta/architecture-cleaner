@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { nameTokens, seedDraft, stemTokens } from '../../src/planner/seeds.js';
+import { nameTokens, plannerDraft, seedDraft, stemTokens } from '../../src/planner/seeds.js';
 import type { Edge, Facts, FileFact } from '../../src/planner/types.js';
 
 const allRulesOff = { audienceQualifiers: false, genericAnchors: false, registries: false, attestedSingulars: false };
@@ -263,5 +263,33 @@ describe.skipIf(!fs.existsSync(graphPath))('parity with the G1 spike on immich',
     expect(Object.fromEntries(draft.assignment)).toEqual(golden.assignment);
     expect(Object.fromEntries(draft.confidence)).toEqual(golden.confidence);
     expect(draft.contested).toEqual(golden.contested);
+  });
+});
+
+describe("the planner's seed source (G1's GT-free choice)", () => {
+  // Two features, album and user, each a service, a controller and a repository, named after their primary export.
+  const named: [string, string, string][] = [
+    ['src/services/album.service.ts', 'service', 'AlbumService'], ['src/controllers/album.controller.ts', 'controller', 'AlbumController'],
+    ['src/repositories/album.repository.ts', 'repository', 'AlbumRepository'], ['src/services/user.service.ts', 'service', 'UserService'],
+    ['src/controllers/user.controller.ts', 'controller', 'UserController'], ['src/repositories/user.repository.ts', 'repository', 'UserRepository'],
+  ];
+  const withExports = (files: [string, string, string][]) => {
+    const facts = factsOf(files.map(([filePath, role]) => [filePath, role]));
+    const exportOf = new Map(files.map(([filePath, , symbol]) => [filePath, symbol]));
+    return { ...facts, files: facts.files.map((file) => ({ ...file, exports: [exportOf.get(file.path)!], primaryExport: exportOf.get(file.path)! })) };
+  };
+
+  it('keeps the file names when they say as much as the exports', () => {
+    const { draft, source } = plannerDraft(withExports(named));
+    expect(source).toBe('file names');
+    expect(draft).toEqual(seedDraft(withExports(named)));
+  });
+
+  it('reads the exports when the file names are opaque (H1), keyed by the real paths', () => {
+    const opaque = named.map(([filePath, role, symbol], index): [string, string, string] => [`${filePath.slice(0, filePath.lastIndexOf('/'))}/x-${index}a7.${role}.ts`, role, symbol]);
+    const { draft, source } = plannerDraft(withExports(opaque));
+    expect(source).toBe('export names');
+    expect(Object.fromEntries(draft.assignment)).toEqual(Object.fromEntries(opaque.map(([filePath, , symbol]) => [filePath, symbol.startsWith('Album') ? 'album' : 'user'])));
+    expect(draft.contested.length).toBeLessThan(seedDraft(withExports(opaque)).contested.length);
   });
 });

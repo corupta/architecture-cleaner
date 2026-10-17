@@ -17,7 +17,7 @@
 //       `redis` and `status` stay as spelled instead of the spike's `redi` and `statu`.
 import path from 'node:path';
 import { attestedSingular, naiveSingular, repoWords } from './facts-words.js';
-import type { Confidence, Draft, Facts } from './types.js';
+import type { Confidence, Draft, Facts, FileFact } from './types.js';
 
 export interface SeedOptions {
   /** Label-propagation rounds. */
@@ -194,4 +194,51 @@ export function seedDraft(facts: Facts, options: SeedOptions = {}): Draft {
   const contested = nodes.map((node) => node.key)
     .filter((key) => ['contested', 'propagated-weak', 'isolated'].includes(levels.get(key)!)).sort(compare);
   return { assignment, confidence: levels, contested };
+}
+
+/**
+ * The facts with every file renamed for the name-based readings: each file is keyed `<path>/<name>`, so only `name`
+ * reaches the name tokens (they read a path's last segment) and the keys stay unique; edges follow their files.
+ */
+export function renamedFacts(facts: Facts, nameOf: (file: FileFact) => string): { facts: Facts; original: Map<string, string> } {
+  const keyOf = new Map(facts.files.map((file) => [file.path, `${file.path}/${nameOf(file)}`]));
+  return {
+    facts: {
+      ...facts,
+      files: facts.files.map((file) => ({ ...file, path: keyOf.get(file.path)! })),
+      edges: facts.edges.map((edge) => ({ ...edge, from: keyOf.get(edge.from) ?? edge.from, to: keyOf.get(edge.to) ?? edge.to })),
+    },
+    original: new Map([...keyOf].map(([path, key]) => [key, path])),
+  };
+}
+
+/** A file named after its primary exported symbol (`TeamCollectionService.ts`): survives opaque file names (H1). */
+export function exportName(file: FileFact): string {
+  const symbol = file.primaryExport ?? file.exports[0];
+  return `${symbol && symbol !== 'default' ? symbol : ''}.ts`;
+}
+
+/** The seeds draft read from the files' primary exports instead of their names, keyed by the real paths. */
+export function exportSeedDraft(facts: Facts): Draft {
+  const view = renamedFacts(facts, exportName);
+  const draft = seedDraft(view.facts);
+  const real = (key: string) => view.original.get(key)!;
+  return {
+    assignment: new Map([...draft.assignment].map(([key, label]) => [real(key), label])),
+    confidence: new Map([...draft.confidence].map(([key, level]) => [real(key), level])),
+    contested: draft.contested.map(real).sort(compare),
+  };
+}
+
+export type SeedSource = 'file names' | 'export names';
+
+/**
+ * The planner's draft, chosen without ground truth as G1 chose it: from the file names, unless the primary exports
+ * leave fewer files contested. Opaque file names (the H1 scramble) leave almost every file contested, so the exports
+ * decide there; where names are informative (immich, hoppscotch, kaneo) the file names stay.
+ */
+export function plannerDraft(facts: Facts): { draft: Draft; source: SeedSource } {
+  const byName = seedDraft(facts);
+  const byExport = exportSeedDraft(facts);
+  return byExport.contested.length < byName.contested.length ? { draft: byExport, source: 'export names' } : { draft: byName, source: 'file names' };
 }

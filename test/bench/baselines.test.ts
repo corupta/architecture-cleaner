@@ -6,7 +6,7 @@ import {
   baselinePartitions, exportName, louvainClusters, louvainPartitions, louvainResolutions, louvainSeeds, mulberry32, nameTokenAnchored,
   nameTokenFullStem, renamedFacts, typeFolders,
 } from '../../src/bench/baselines.js';
-import { seedDraft } from '../../src/planner/seeds.js';
+import { plannerDraft, seedDraft } from '../../src/planner/seeds.js';
 import type { Edge, Facts, FileFact } from '../../src/planner/types.js';
 
 type FileSpec = [path: string, role: string, primaryExport?: string];
@@ -92,13 +92,15 @@ describe('export names (H1: opaque file names)', () => {
     expect(new Set(partitions.get('name-token (anchored)')!.values()).has('team-collection')).toBe(false);
   });
 
-  it('lists every method once, the planner draft as kind `draft` equal to seedDraft', () => {
+  it('lists every method once; the draft the planner starts from is kind `draft`, the other source a baseline', () => {
     const partitions = baselinePartitions(opaque);
+    const fromExports = plannerDraft(opaque).source === 'export names';
     expect(partitions.map((partition) => `${partition.kind}: ${partition.method}`)).toEqual([
       'baseline: B0 type folders', 'baseline: name-token (full stem)', 'baseline: name-token (anchored)', 'baseline: export-token (anchored)',
-      'baseline: seeds draft (export names)', 'draft: seeds draft',
+      `${fromExports ? 'baseline' : 'draft'}: seeds draft (file names)`, `${fromExports ? 'draft' : 'baseline'}: seeds draft (export names)`,
     ]);
-    expect(partitions.at(-1)!.assignment).toEqual(seedDraft(opaque).assignment);
+    expect(partitions.at(-2)!.assignment).toEqual(seedDraft(opaque).assignment);
+    expect(partitions.find((partition) => partition.kind === 'draft')!.assignment).toEqual(plannerDraft(opaque).draft.assignment);
     for (const partition of partitions) expect([...partition.assignment.keys()]).toEqual(opaque.files.map((file) => file.path));
   });
 });

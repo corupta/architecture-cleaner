@@ -6,7 +6,7 @@ import type { Gateway } from '../gateway/types.js';
 import { applyCritiques, runCritic, type CriticRun, type CriticSettings, type Suggestion } from './critic.js';
 import { editPrompt, runEdit, type EditRun, type EditSettings } from './edit.js';
 import { buildFacts } from './facts.js';
-import { seedDraft } from './seeds.js';
+import { plannerDraft } from './seeds.js';
 import { runSummaries, type SummaryRun, type SummarySettings } from './summaries.js';
 import type { Draft, Facts, Issue, Plan, PlanEdit, Validation } from './types.js';
 import { applyEdit, checkEdit, rankCandidates, validatePlan } from './validate.js';
@@ -58,7 +58,8 @@ export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOpti
     const where = `${facts.packageRoot ? `${facts.packageRoot}/` : ''}${facts.moduleRoot || '.'}/`;
     throw new Error(`no movable files under ${where} (${facts.pins.length} pinned): check --root and --module-root, or the profile`);
   }
-  const draft = seedDraft(facts);
+  // File names seed the draft unless the exports leave fewer files contested (opaque names): G1's GT-free choice.
+  const { draft } = plannerDraft(facts);
   const summaryRun = options.summaries ? await runSummaries(gateway, repo, facts, draft, options.summaries) : null;
   const prompt = editPrompt(facts, draft, summaryRun?.purposes);
   const { groupIds } = prompt;

@@ -1,12 +1,14 @@
 // The bench's deterministic baselines (plan §7), over the product's Facts (built by `buildFacts` on the scrambled
 // tree, or on a real target): B0 type folders, name-token (full stem, and anchored with prefix merging), export-token
 // (anchored; survives opaque file names), the planner's own seeds draft from both seed sources (file names, export
-// names), and Louvain at resolutions 1, 2, 4 × seeds 1–5. Ported from the G1 spike (spike/g1/baselines.mjs on branch
+// names; the planner starts from the one plannerDraft picks), and Louvain at resolutions 1, 2, 4 × seeds 1–5. Ported from the G1 spike (spike/g1/baselines.mjs on branch
 // spike/gates); the name-token family reuses the planner's seeds code (src/planner/seeds.ts) with its propagation and
 // its four review rules off, which is the spike's algorithm.
 import graphologyModule from 'graphology';
 import louvainModule from 'graphology-communities-louvain';
-import { seedDraft, stemTokens } from '../planner/seeds.js';
+import { exportName, exportSeedDraft, plannerDraft, renamedFacts, seedDraft, stemTokens } from '../planner/seeds.js';
+
+export { exportName, renamedFacts };
 import type { Facts, FileFact } from '../planner/types.js';
 
 // TypeScript reads both packages' typings as CommonJS (neither declares "type": "module") and types the default import
@@ -60,32 +62,10 @@ export function nameTokenAnchored(facts: Facts): Assignment {
   return seedDraft(facts, { iterations: 0, audienceQualifiers: false, genericAnchors: false, registries: false, attestedSingulars: false }).assignment;
 }
 
-/**
- * The facts with every file renamed for the name-based methods: each file is keyed `<path>/<name>`, so only `name`
- * reaches the name tokens (they read a path's last segment) and the keys stay unique; edges follow their files.
- */
-export function renamedFacts(facts: Facts, nameOf: (file: FileFact) => string): { facts: Facts; original: Map<string, string> } {
-  const keyOf = new Map(facts.files.map((file) => [file.path, `${file.path}/${nameOf(file)}`]));
-  return {
-    facts: {
-      ...facts,
-      files: facts.files.map((file) => ({ ...file, path: keyOf.get(file.path)! })),
-      edges: facts.edges.map((edge) => ({ ...edge, from: keyOf.get(edge.from) ?? edge.from, to: keyOf.get(edge.to) ?? edge.to })),
-    },
-    original: new Map([...keyOf].map(([path, key]) => [key, path])),
-  };
-}
-
 /** A method run on renamed facts, its assignment keyed by the real paths again. */
 export function underNames(facts: Facts, nameOf: (file: FileFact) => string, method: (facts: Facts) => Assignment): Assignment {
   const view = renamedFacts(facts, nameOf);
   return new Map([...method(view.facts)].map(([key, label]) => [view.original.get(key)!, label]));
-}
-
-/** A file named after its primary exported symbol (`TeamCollectionService.ts`): survives opaque file names (H1). */
-export function exportName(file: FileFact): string {
-  const symbol = file.primaryExport ?? file.exports[0];
-  return `${symbol && symbol !== 'default' ? symbol : ''}.ts`;
 }
 
 /**
@@ -105,15 +85,19 @@ export function louvainClusters(facts: Facts, { seed, resolution }: { seed: numb
   return new Map(facts.files.map((file) => [file.path, `louvain-${communities[file.path]}`]));
 }
 
-/** Every baseline but Louvain, plus the planner's seeds draft (kind `draft`, file names, every rule on). */
+/**
+ * Every baseline but Louvain, plus the seeds draft from both seed sources (every rule on). The one the planner starts
+ * from (plannerDraft's GT-free choice) is kind `draft`, the other a baseline.
+ */
 export function baselinePartitions(facts: Facts): BaselinePartition[] {
+  const { source } = plannerDraft(facts);
   return [
     { method: 'B0 type folders', kind: 'baseline', assignment: typeFolders(facts) },
     { method: 'name-token (full stem)', kind: 'baseline', assignment: nameTokenFullStem(facts) },
     { method: 'name-token (anchored)', kind: 'baseline', assignment: nameTokenAnchored(facts) },
     { method: 'export-token (anchored)', kind: 'baseline', assignment: underNames(facts, exportName, nameTokenAnchored) },
-    { method: 'seeds draft (export names)', kind: 'baseline', assignment: underNames(facts, exportName, (named) => seedDraft(named).assignment) },
-    { method: 'seeds draft', kind: 'draft', assignment: seedDraft(facts).assignment },
+    { method: 'seeds draft (file names)', kind: source === 'file names' ? 'draft' : 'baseline', assignment: seedDraft(facts).assignment },
+    { method: 'seeds draft (export names)', kind: source === 'export names' ? 'draft' : 'baseline', assignment: exportSeedDraft(facts).assignment },
   ];
 }
 
