@@ -7,7 +7,9 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { analyzeRepo } from '../analyzer/analyze.js';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
+import { benchCommand, benchUsage } from '../bench/command.js';
 import { boundariesCommand } from '../boundaries/command.js';
+import { demoCommand, demoUsage } from '../demo/command.js';
 import { certify } from '../certificate/certify.js';
 import { loadProfile } from '../certificate/profile.js';
 import { summarize, trailers } from '../certificate/report.js';
@@ -17,10 +19,13 @@ import { packageDirectory } from '../certificate/toolchain.js';
 import { executeMove } from '../executor/execute.js';
 import { normalizeCommand } from '../filename-normalization/command.js';
 import { findingsCommand, findingsUsage } from '../findings/command.js';
+import { reportCommand, reportUsage } from '../report/command.js';
+import { siteCommand, siteUsage } from '../site/command.js';
 import { runFindings } from '../findings/index.js';
+import { scrambleCommand, scrambleUsage } from '../scramble/command.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode, Gateway } from '../gateway/types.js';
-import { defaultCriticSettings } from '../planner/critic.js';
+import { criticSettingsFor } from '../planner/critic.js';
 import { defaultEditSettings } from '../planner/edit.js';
 import { defaultSummarySettings } from '../planner/summaries.js';
 import { planRepo } from '../planner/plan.js';
@@ -50,7 +55,12 @@ const usage = `usage:
          (exit 0 completed or stopped, 1 failed, 2 usage, 3 declined by the preflight; the findings log is written at the
          end, its narration replayed from the cassette, recorded with --mode auto --run, off without a cassette)
   ac boundaries <repo> [--profile <name|file>] [--root <package-dir>] [--module-root src] [--env <checkout>] [--out <dir>] [--check]
-  ${findingsUsage}`;
+  ${findingsUsage}
+  ${scrambleUsage}
+  ${benchUsage}
+  ${demoUsage}
+  ${reportUsage}
+  ${siteUsage}`;
 
 function analyzeCommand(repoPath: string, json: boolean) {
   const analysis = analyzeRepo(gitRepoFs(repoPath));
@@ -120,7 +130,7 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const out = path.resolve(flags.out ?? 'ac-plan');
   const gateway = createGateway({ runId, mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${runId}.jsonl`)) });
   const edit = { ...defaultEditSettings, samples: Number(flags.samples ?? defaultEditSettings.samples) };
-  const critic = flags['no-critic'] ? null : defaultCriticSettings;
+  const critic = flags['no-critic'] ? null : criticSettingsFor(profile);
   const summaries = flags.summaries ? defaultSummarySettings : null;
   let run;
   try {
@@ -311,6 +321,11 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
 }
 
 async function main(argv: string[]): Promise<number> {
+  if (argv[0] === 'scramble') return scrambleCommand(argv.slice(1));
+  if (argv[0] === 'bench') return benchCommand(argv.slice(1));
+  if (argv[0] === 'demo') return demoCommand(argv.slice(1));
+  if (argv[0] === 'report') return reportCommand(argv.slice(1));
+  if (argv[0] === 'site') return siteCommand(argv.slice(1));
   const { positionals, values } = parseArgs({
     args: argv,
     allowPositionals: true,

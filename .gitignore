@@ -4,3 +4,5 @@ dist/
 .build/
 budget/ledger.jsonl.lock*
 ac-runs/
+ac-demo/
+ac-scrambles/
