@@ -224,28 +224,126 @@ const dirname = (values: PathValue[]) => values.map((value) => (value.complete ?
 
 export type Evaluate = (node: ts.Expression) => PathValue[];
 
-/** Declarations in the file that a name can stand for: `const x = …` and class properties with an initializer. */
-function constantInitializers(sourceFile: ts.SourceFile): { constants: Map<string, ts.Expression | null>; properties: Map<string, ts.Expression | null> } {
-  const constants = new Map<string, ts.Expression | null>();
-  const properties = new Map<string, ts.Expression | null>();
-  const record = (map: Map<string, ts.Expression | null>, name: string, initializer: ts.Expression | undefined) => {
-    map.set(name, map.has(name) || !initializer ? null : initializer);
+/**
+ * The expressions a name of the file can stand for: `const x = …`; `for (const x of [a, b])` (each element); a
+ * parameter of a function only this file calls (each call's argument, and the default); class properties with an
+ * initializer. A name declared twice is ambiguous (null), and so is a parameter some call can't name.
+ */
+function constantInitializers(sourceFile: ts.SourceFile): { constants: Map<string, ts.Expression[] | null>; properties: Map<string, ts.Expression[] | null> } {
+  const constants = new Map<string, ts.Expression[] | null>();
+  const properties = new Map<string, ts.Expression[] | null>();
+  const record = (map: Map<string, ts.Expression[] | null>, name: string, alternatives: ts.Expression[] | null) => {
+    map.set(name, map.has(name) || !alternatives ? null : alternatives);
   };
+  const callSites = locallyCalledFunctions(sourceFile);
   const visit = (node: ts.Node): void => {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
       const constant = ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) !== 0;
-      record(constants, node.name.text, constant ? node.initializer : undefined);
+      const loop = node.parent.parent;
+      const elements = constant && ts.isForOfStatement(loop) && loop.initializer === node.parent ? literalElements(loop.expression) : null;
+      record(constants, node.name.text, elements ?? (constant && node.initializer ? [node.initializer] : null));
     } else if (ts.isPropertyDeclaration(node) && ts.isIdentifier(node.name)) {
       const readonly = node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ReadonlyKeyword) ?? false;
-      record(properties, node.name.text, readonly ? node.initializer : undefined);
-    } else if ((ts.isParameter(node) || ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name && ts.isIdentifier(node.name)) {
-      // A parameter or function with the same name shadows a constant somewhere: the name is ambiguous.
-      record(constants, node.name.text, undefined);
+      record(properties, node.name.text, readonly && node.initializer ? [node.initializer] : null);
+    } else if (ts.isParameter(node) && ts.isIdentifier(node.name)) {
+      record(constants, node.name.text, parameterArguments(node, callSites));
+    } else if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name && ts.isIdentifier(node.name)) {
+      // A function or class with the same name shadows a constant somewhere: the name is ambiguous.
+      record(constants, node.name.text, null);
     }
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
   return { constants, properties };
+}
+
+/** The elements of `[a, b, c]` (no spread, no hole), or null. */
+function literalElements(expression: ts.Expression): ts.Expression[] | null {
+  const array = unwrap(expression);
+  if (!ts.isArrayLiteralExpression(array) || array.elements.some((element) => ts.isSpreadElement(element) || ts.isOmittedExpression(element))) return null;
+  return [...array.elements];
+}
+
+/**
+ * Functions declared in the file (not exported) whose name is used only as the callee of direct calls in the file:
+ * their calls are all known, so each parameter takes exactly the arguments given at those calls.
+ */
+function locallyCalledFunctions(sourceFile: ts.SourceFile): Map<ts.SignatureDeclaration, ts.CallExpression[]> {
+  const declarations = new Map<string, ts.SignatureDeclaration | null>();
+  const declare = (name: string, declaration: ts.SignatureDeclaration | null) => declarations.set(name, declarations.has(name) ? null : declaration);
+  const exported = (node: ts.Node) => ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword || modifier.kind === ts.SyntaxKind.DefaultKeyword);
+  const collect = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) declare(node.name.text, exported(node) ? null : node);
+    else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const) !== 0) {
+      const initializer = node.initializer && unwrap(node.initializer);
+      const statement = node.parent.parent;
+      const function_ = initializer && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) ? initializer : null;
+      declare(node.name.text, function_ && !(ts.isVariableStatement(statement) && exported(statement)) ? function_ : null);
+    } else if ((ts.isParameter(node) || ts.isClassDeclaration(node) || ts.isBindingElement(node) || ts.isImportSpecifier(node) || ts.isImportClause(node) || ts.isNamespaceImport(node))
+      && node.name && ts.isIdentifier(node.name)) declare(node.name.text, null);
+    ts.forEachChild(node, collect);
+  };
+  collect(sourceFile);
+  const calls = new Map<ts.SignatureDeclaration, ts.CallExpression[]>();
+  const disqualified = new Set<ts.SignatureDeclaration>();
+  const uses = (node: ts.Node): void => {
+    if (ts.isIdentifier(node)) {
+      const declaration = declarations.get(node.text);
+      if (declaration && node !== declaration.name && !isNameOnly(node) && !(ts.isVariableDeclaration(node.parent) && node.parent.name === node)) {
+        const call = node.parent;
+        if (ts.isCallExpression(call) && call.expression === node) calls.set(declaration, [...(calls.get(declaration) ?? []), call]);
+        else disqualified.add(declaration);
+      }
+    }
+    ts.forEachChild(node, uses);
+  };
+  uses(sourceFile);
+  for (const declaration of disqualified) calls.delete(declaration);
+  return calls;
+}
+
+/** The target of an assignment, `++` or `--`. */
+function isAssigned(identifier: ts.Identifier): boolean {
+  const parent = identifier.parent;
+  if (ts.isBinaryExpression(parent)) return parent.left === identifier && parent.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && parent.operatorToken.kind <= ts.SyntaxKind.LastAssignment;
+  return (ts.isPrefixUnaryExpression(parent) || ts.isPostfixUnaryExpression(parent)) && (parent.operator === ts.SyntaxKind.PlusPlusToken || parent.operator === ts.SyntaxKind.MinusMinusToken);
+}
+
+/** An identifier that names a property or a type, not a value of the scope. */
+function isNameOnly(identifier: ts.Identifier): boolean {
+  const parent = identifier.parent;
+  return (ts.isPropertyAccessExpression(parent) && parent.name === identifier) || ts.isQualifiedName(parent)
+    || ((ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) || ts.isPropertySignature(parent) || ts.isMethodDeclaration(parent)
+      || ts.isMethodSignature(parent) || ts.isGetAccessor(parent) || ts.isSetAccessor(parent) || ts.isEnumMember(parent)) && parent.name === identifier)
+    || ts.isTypeReferenceNode(parent) || ts.isTypeQueryNode(parent) || ts.isJsxAttribute(parent) || ts.isLabeledStatement(parent)
+    || ts.isBreakOrContinueStatement(parent);
+}
+
+/**
+ * A parameter's arguments at every call of its function, plus its default; null when a call doesn't name it, or the
+ * function assigns the parameter or reads `arguments` (which can alias it).
+ */
+function parameterArguments(parameter: ts.ParameterDeclaration, callSites: ReadonlyMap<ts.SignatureDeclaration, ts.CallExpression[]>): ts.Expression[] | null {
+  const signature = parameter.parent;
+  const calls = callSites.get(signature);
+  const position = signature.parameters.indexOf(parameter);
+  if (!calls || parameter.dotDotDotToken || signature.parameters.slice(0, position).some((earlier) => earlier.dotDotDotToken)) return null;
+  const name = (parameter.name as ts.Identifier).text;
+  let rebound = false;
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) && (node.text === 'arguments' || (node.text === name && isAssigned(node)))) rebound = true;
+    if (!rebound) ts.forEachChild(node, visit);
+  };
+  if ('body' in signature && signature.body) visit(signature.body);
+  if (rebound) return null;
+  const alternatives: ts.Expression[] = parameter.initializer ? [parameter.initializer] : [];
+  for (const call of calls) {
+    if (call.arguments.slice(0, position + 1).some((argument) => ts.isSpreadElement(argument))) return null;
+    const argument = call.arguments[position];
+    if (argument) alternatives.push(argument);
+    else if (!parameter.initializer) return null;
+  }
+  return alternatives.length ? alternatives : null;
 }
 
 /**
@@ -257,6 +355,16 @@ export function pathEvaluator(sourceFile: ts.SourceFile, file: string, bindings:
   const own = path.posix.join(virtualRoot, file);
   const located = (text: string): PathValue[] => [{ anchor: 'repo', text, complete: true }];
   const active = new Set<ts.Node>();
+  // A name with several alternatives (loop elements, call arguments) is opaque when any of them is.
+  const alternativesOf = (alternatives: ts.Expression[] | null | undefined): PathValue[] => {
+    const values: PathValue[] = [];
+    for (const alternative of alternatives ?? []) {
+      const value = evaluate(alternative);
+      if (value.length === 0) return [];
+      values.push(...value);
+    }
+    return dedupe(values);
+  };
 
   const evaluate = (input: ts.Expression): PathValue[] => {
     const node = unwrap(input);
@@ -302,8 +410,7 @@ export function pathEvaluator(sourceFile: ts.SourceFile, file: string, bindings:
     if (ts.isIdentifier(node)) {
       if (node.text === '__dirname') return located(path.posix.dirname(own));
       if (node.text === '__filename') return located(own);
-      const initializer = constants.get(node.text);
-      return initializer ? evaluate(initializer) : [];
+      return alternativesOf(constants.get(node.text));
     }
     if (ts.isPropertyAccessExpression(node)) {
       const object = unwrap(node.expression);
@@ -314,10 +421,7 @@ export function pathEvaluator(sourceFile: ts.SourceFile, file: string, bindings:
         return [];
       }
       if (name === 'pathname' || name === 'href') return evaluate(object);
-      if (object.kind === ts.SyntaxKind.ThisKeyword || ts.isIdentifier(object)) {
-        const initializer = properties.get(name);
-        return initializer ? evaluate(initializer) : [];
-      }
+      if (object.kind === ts.SyntaxKind.ThisKeyword || ts.isIdentifier(object)) return alternativesOf(properties.get(name));
       return [];
     }
     if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'URL' && node.arguments?.length) {

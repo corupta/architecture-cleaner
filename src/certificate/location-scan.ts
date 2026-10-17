@@ -11,7 +11,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import type { CommitTree } from './git-tree.js';
-import { emittedLayouts, type EmittedLayout, globOrderChange, globToRegExp, scanOldPaths } from './old-path-scan.js';
+import { cwdBases, emittedLayouts, type EmittedLayout, globOrderChange, globToRegExp, scanOldPaths } from './old-path-scan.js';
 import { type Binding, describeCallee, type Evaluate, familyOf, locate, type Located, moduleBindings, pathEvaluator, type PathValue, unwrapExpression } from './path-expressions.js';
 import { isScannedSource } from './spans.js';
 import { addedToolConfigs } from './tool-configs.js';
@@ -450,27 +450,14 @@ function checkLocated(location: Located, sink: Sink, file: string, index: DiffIn
   return null;
 }
 
-function cwdBases(context: CertifyContext, file: string): string[] {
-  const bases = new Set<string>(['', context.options.packageRoot]);
-  if (context.options.profile?.runner?.cwd !== undefined) bases.add(context.options.profile.runner.cwd);
-  for (let directory = path.posix.dirname(file); ; directory = path.posix.dirname(directory)) {
-    const relative = directory === '.' ? '' : directory;
-    if (context.base.entries.has(relative ? `${relative}/package.json` : 'package.json')) {
-      bases.add(relative);
-      break;
-    }
-    if (directory === '.') break;
-  }
-  return [...bases];
-}
-
 function basesFor(sink: Sink, value: PathValue, file: string, context: CertifyContext): string[] {
-  if (value.anchor !== 'string') return cwdBases(context, file);
+  if (value.anchor !== 'string') return cwdBases(context, file, context.base);
   if (sink.strings === 'module') return /^\.\.?(\/|$)/.test(value.text) ? [path.posix.dirname(file).replace(/^\.$/, '')] : [context.options.packageRoot, ''];
-  return cwdBases(context, file);
+  return cwdBases(context, file, context.base);
 }
 
-function checkSinks(scanned: ScannedFile, file: string, context: CertifyContext, index: DiffIndex): { violations: Violation[]; findings: Finding[] } {
+/** `roots` collects every complete path the file's path expressions and path-taking calls name: what a consumer may be rooted at. */
+function checkSinks(scanned: ScannedFile, file: string, context: CertifyContext, index: DiffIndex, roots: Set<string>): { violations: Violation[]; findings: Finding[] } {
   const violations: Violation[] = [];
   const findings: Finding[] = [];
   const { sourceFile, bindings } = scanned;
@@ -508,6 +495,7 @@ function checkSinks(scanned: ScannedFile, file: string, context: CertifyContext,
     const resolverRoot = sink.kind === 'construction' && enclosingKeys(sink.node).some((key) => resolverKeys.has(key));
     for (const value of evaluate(sink.node)) {
       if (sink.pathLikeOnly && value.anchor === 'string' && !pathLike(value.text)) continue;
+      if (value.complete) for (const location of locate(value, basesFor(sink, value, file, context))) roots.add(location.path);
       if (sink.kind === 'construction' && value.anchor === 'string') continue;
       // A directory given to a resolver (an alias target, a runner root) is judged by K3 and K6, which resolve through it.
       if (resolverRoot && value.complete && !/[*?[{]/.test(value.text)) continue;
@@ -600,7 +588,8 @@ interface MovedScan {
  * `copy`: `to` is an added file whose content is `from`'s (modulo specifiers); reported at `to`.
  * `added`: `to` is an added file with no base counterpart (from === to, read from head); its uses are reported as is.
  */
-function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 'move' | 'copy' | 'added' = 'move'): { violations: Violation[]; findings: Finding[]; moved?: MovedScan } {
+/** `roots`: where a moved file's location-derived paths point from its new place (what a consumer may be rooted at). */
+function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 'move' | 'copy' | 'added' = 'move', roots?: Set<string>): { violations: Violation[]; findings: Finding[]; moved?: MovedScan } {
   const copy = kind !== 'move';
   const text = kind === 'added' ? context.head.text(to) : context.base.text(from);
   const violations: Violation[] = [];
@@ -611,6 +600,11 @@ function scanMovedFile(context: CertifyContext, from: string, to: string, kind: 
   for (const hazard of scanned.hazards) {
     const line = lineOf(sourceFile, hazard.node);
     let detail = hazard.what;
+    if (hazard.token && roots) {
+      for (const value of pathEvaluator(sourceFile, to, scanned.bindings)(pathExpressionAround(hazard.node, scanned.bindings))) {
+        for (const location of locate(value, [])) if (location.complete) roots.add(location.path);
+      }
+    }
     if (hazard.token && kind !== 'added') {
       const located = locationDetail(scanned, hazard, from, to, context);
       // A directory-only rename keeps every location-derived value (only when the whole expression evaluates).
@@ -657,11 +651,13 @@ export function checkLocations(context: CertifyContext): { violations: Violation
     && (isScannedSource(entry.path, '') || !path.posix.basename(entry.path).includes('.'))).map((entry) => entry.path);
   base.prefetch(sources);
 
+  // Complete paths the repository's code computes: directories a consumer may be rooted at (old-path-scan.ts).
+  const computedPaths = new Set<string>();
   let movedScanned = 0;
   let movedHazards = 0;
   const movedScans: MovedScan[] = [];
   for (const [from, to] of pathMap.moves) {
-    const outcome = scanMovedFile(context, from, to);
+    const outcome = scanMovedFile(context, from, to, 'move', computedPaths);
     if (outcome.moved) movedScans.push(outcome.moved);
     movedScanned++;
     movedHazards += outcome.violations.length;
@@ -690,7 +686,7 @@ export function checkLocations(context: CertifyContext): { violations: Violation
       if (text === undefined || !isScannedSource(file, text)) continue;
       computedScanned++;
       const scanned = scanFile(file, text);
-      const outcome = checkSinks(scanned, file, context, index);
+      const outcome = checkSinks(scanned, file, context, index, computedPaths);
       computedViolations += outcome.violations.length;
       violations.push(...outcome.violations);
       findings.push(...outcome.findings);
@@ -710,7 +706,7 @@ export function checkLocations(context: CertifyContext): { violations: Violation
   }
 
   const inertAdditions = new Set([...addedToolConfigs(context)].filter(([, check]) => check.problem === null).map(([file]) => file));
-  const oldPaths = scanOldPaths(context, layouts, opaqueLoads, inertAdditions);
+  const oldPaths = scanOldPaths(context, layouts, opaqueLoads, inertAdditions, computedPaths);
   violations.push(...oldPaths.violations);
   findings.push(...oldPaths.findings);
   return {
