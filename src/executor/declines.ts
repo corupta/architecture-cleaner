@@ -17,7 +17,8 @@ export type DeclineCode =
   | 'unknown-source' | 'case-only-rename' | 'destination-exists' | 'ignored-destination' | 'location-sensitive'
   | 'dynamic-reference' | 'config-reference' | 'module-format-change' | 'compile-context-change' | 'alias-escape' | 'unsupported-literal'
   | 'unsupported-specifier' | 'extension-change' | 'ambient-declaration' | 'split-pair' | 'symlink' | 'package-resolution-change'
-  | 'test-runner-scope' | 'dirty-worktree' | 'unsupported-encoding' | 'unreadable-runner-config' | 'multi-program-file';
+  | 'test-runner-scope' | 'dirty-worktree' | 'unsupported-encoding' | 'unreadable-runner-config' | 'multi-program-file'
+  | 'alias-rewrite-hazard';
 
 export interface Decline {
   code: DeclineCode;
@@ -66,8 +67,9 @@ function inScope(file: string, scope: TestScope, defaults: { include: string[]; 
   if (!scope.roots.some((root) => root === '' || file.startsWith(`${root}/`))) return false;
   const include = scope.include.length ? scope.include : defaults.include;
   const exclude = [...scope.exclude, ...(scope.exclude.length ? [] : defaults.exclude)];
-  return include.some((glob) => globToRegExp(glob).test(file)) && !exclude.some((glob) => globToRegExp(glob).test(file))
-    && !scope.excludePatterns.some((pattern) => pattern.test(`/${file}`));
+  // Jest's testRegex replaces testMatch (and its default) as the include rule.
+  const included = scope.includePatterns.length ? scope.includePatterns.some((pattern) => pattern.test(`/${file}`)) : include.some((glob) => globToRegExp(glob).test(file));
+  return included && !exclude.some((glob) => globToRegExp(glob).test(file)) && !scope.excludePatterns.some((pattern) => pattern.test(`/${file}`));
 }
 
 function packageName(specifier: string): string {

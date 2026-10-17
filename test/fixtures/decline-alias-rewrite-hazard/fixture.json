@@ -1,0 +1,5 @@
+{
+  "description": "hoppscotch's scramble shape: src/auth/helper.ts imports the module file src/utils.ts as 'src/utils' through baseUrl and moves into src/utils/helper.ts (a new directory next to the file). TypeScript and Node's own resolution still pick the file, but build-time alias rewriters (Nest CLI's tsconfig-paths hook, tsc-alias) emit relative(src/utils, src/utils) = './', which Node loads as the directory src/utils/: the built app crashes. Declined with alias-rewrite-hazard, nothing is written.",
+  "rows": [],
+  "typecheck": true
+}

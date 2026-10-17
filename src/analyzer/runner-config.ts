@@ -19,11 +19,16 @@ export interface ViteAlias {
   replacement: string;
 }
 
-/** Which files a runner collects as tests (repo-relative): roots, include/exclude globs, exclude regexes. */
+/** Which files a runner collects as tests (repo-relative): roots, include/exclude globs, include/exclude regexes. */
 export interface TestScope {
   roots: string[];
   include: string[];
   exclude: string[];
+  /**
+   * Jest testRegex, matched against '/' + the repo-relative path (Jest matches the absolute path; patterns are
+   * suffixes of it in practice). When set, it replaces the include globs and the runner's default test match.
+   */
+  includePatterns: RegExp[];
   /** Jest testPathIgnorePatterns, matched against '/' + the repo-relative path. */
   excludePatterns: RegExp[];
 }
@@ -202,6 +207,39 @@ function staticStrings(expression: ts.Expression | undefined): string[] | null {
   return null;
 }
 
+/** A regex setting as `RegExp` arguments: strings, regex literals (`/\.spec\.ts$/`), or an array of them. */
+function staticRegexes(expression: ts.Expression | undefined): { source: string; flags: string }[] | null {
+  if (!expression) return [];
+  const one = (node: ts.Expression): { source: string; flags: string } | null => {
+    if (ts.isStringLiteralLike(node)) return { source: node.text, flags: '' };
+    if (node.kind !== ts.SyntaxKind.RegularExpressionLiteral) return null;
+    const text = (node as ts.RegularExpressionLiteral).text;
+    const close = text.lastIndexOf('/');
+    return { source: text.slice(1, close), flags: text.slice(close + 1) };
+  };
+  const nodes = ts.isArrayLiteralExpression(expression) ? [...expression.elements] : [expression];
+  const values = nodes.map(one);
+  return values.every((value) => value !== null) ? (values as { source: string; flags: string }[]) : null;
+}
+
+/**
+ * Jest's testRegex as regexes over '/' + the repo-relative path; a reason instead when they can't be evaluated there:
+ * an invalid pattern, or one anchored to a literal absolute path (it depends on where the repo is checked out).
+ */
+function testRegexPatterns(regexes: { source: string; flags: string }[]): RegExp[] | string {
+  const patterns: RegExp[] = [];
+  for (const { source, flags } of regexes) {
+    if (/^\^(\\\/|\/)/.test(source)) return `testRegex ${JSON.stringify(source)} is anchored to an absolute path`;
+    try {
+      // `g` and `y` make RegExp#test stateful; Jest builds each pattern afresh.
+      patterns.push(new RegExp(source, flags.replace(/[gy]/g, '')));
+    } catch {
+      return `invalid regex in testRegex (${JSON.stringify(source)})`;
+    }
+  }
+  return patterns;
+}
+
 /** Repo-relative test-scope patterns: `<rootDir>` and config-relative paths expanded. */
 function expandPatterns(patterns: string[], rootDir: string, configDirectory: string): string[] {
   return patterns.map((pattern) => {
@@ -217,20 +255,21 @@ interface JestFields {
   testMatch?: string[];
   testPathIgnorePatterns?: string[];
   moduleNameMapper?: [string, string][];
-  testRegex?: boolean;
+  testRegex?: { source: string; flags: string }[];
   pathPatterns?: [string, string][];
 }
 
 // Jest settings matched as regexes against a file's absolute path (testPathIgnorePatterns is the test scope's).
 const pathPatternKeys = ['coveragePathIgnorePatterns', 'modulePathIgnorePatterns', 'transformIgnorePatterns', 'unmockedModulePathPatterns'] as const;
 
-function jestScope(fields: JestFields, rootDir: string, configDirectory: string): TestScope {
+function jestScope(fields: JestFields, rootDir: string, configDirectory: string, includePatterns: RegExp[]): TestScope {
   const testMatch = fields.testMatch ?? [];
   const negated = testMatch.filter((pattern) => pattern.startsWith('!')).map((pattern) => pattern.slice(1));
   return {
     roots: fields.roots?.length ? expandPatterns(fields.roots, rootDir, configDirectory).map(normalizeDirectory) : [rootDir],
     include: expandPatterns(testMatch.filter((pattern) => !pattern.startsWith('!')), rootDir, configDirectory),
     exclude: expandPatterns(negated, rootDir, configDirectory),
+    includePatterns,
     excludePatterns: (fields.testPathIgnorePatterns ?? []).map((pattern) => new RegExp(pattern.replace(/<rootDir>/g, `/${rootDir}`.replace(/\/$/, '')))),
   };
 }
@@ -246,7 +285,7 @@ function readJestJson(text: string, isPackageJson: boolean): JestFields | null {
     testMatch: strings(jest.testMatch),
     testPathIgnorePatterns: strings(jest.testPathIgnorePatterns),
     moduleNameMapper: Object.entries(jest.moduleNameMapper ?? {}).map(([key, value]) => [key, Array.isArray(value) ? String(value[0]) : String(value)]),
-    testRegex: jest.testRegex !== undefined,
+    ...(jest.testRegex !== undefined ? { testRegex: (strings(jest.testRegex) ?? []).map((source) => ({ source, flags: '' })) } : {}),
     pathPatterns: [
       ...pathPatternKeys.flatMap((key) => (strings(jest[key]) ?? []).map((source): [string, string] => [key, source])),
       ...Object.keys(jest.transform ?? {}).map((source): [string, string] => ['transform', source]),
@@ -261,7 +300,9 @@ function readJestScript(config: string, text: string, configDirectory: string): 
   if (mutated) return 'config object mutated after its declaration';
   // A multi-project root (`projects: [...]`) delegates to the projects' own configs, which are read separately.
   if (getProperty(object, 'projects')) return null;
-  const fields: JestFields = { testRegex: Boolean(getProperty(object, 'testRegex')) };
+  const testRegex = staticRegexes(getProperty(object, 'testRegex'));
+  if (testRegex === null) return 'non-literal testRegex';
+  const fields: JestFields = testRegex.length ? { testRegex } : {};
   const rootDir = getProperty(object, 'rootDir');
   if (rootDir) {
     const resolved = staticPath(rootDir, { configDirectory, sourceFile, constants });
@@ -323,7 +364,11 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
       result.unreadable.push({ config, reason: fields });
       continue;
     }
-    if (fields.testRegex) result.unreadable.push({ config, reason: 'testRegex (regex test scope) is not modelled' });
+    // Jest refuses a config that sets both.
+    if (fields.testRegex?.length && fields.testMatch?.length) result.unreadable.push({ config, reason: 'testMatch and testRegex together' });
+    const testRegex = testRegexPatterns(fields.testRegex ?? []);
+    if (typeof testRegex === 'string') result.unreadable.push({ config, reason: testRegex });
+    const includePatterns = typeof testRegex === 'string' ? [] : testRegex;
     const rootDir = normalizeDirectory(fields.rootDir ? path.posix.join(configDirectory || '.', fields.rootDir) : configDirectory);
     let pathPatterns: JestPathPattern[];
     try {
@@ -336,7 +381,7 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
       config,
       directory: configDirectory,
       rootDir,
-      scope: jestScope(fields, rootDir, configDirectory),
+      scope: jestScope(fields, rootDir, configDirectory, includePatterns),
       mappers: (fields.moduleNameMapper ?? []).map(([source, replacement]) => ({
         pattern: new RegExp(source),
         source,
@@ -401,7 +446,7 @@ export function loadRunnerConfig(repo: RepoFs): RunnerConfig {
       config,
       directory: root,
       aliases,
-      scope: { roots: [root], include: expandPatterns(include ?? [], root, root), exclude: expandPatterns(exclude ?? [], root, root), excludePatterns: [] },
+      scope: { roots: [root], include: expandPatterns(include ?? [], root, root), exclude: expandPatterns(exclude ?? [], root, root), includePatterns: [], excludePatterns: [] },
     });
   }
   return result;

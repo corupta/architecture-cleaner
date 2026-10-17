@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "baseUrl": "./",
+    "strict": true,
+    "noEmit": true,
+    "types": [],
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src"]
+}

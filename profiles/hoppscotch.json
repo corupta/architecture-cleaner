@@ -1,0 +1,34 @@
+{
+  "name": "hoppscotch",
+  "packageRoot": "packages/hoppscotch-backend",
+  "node": "24.21.0",
+  "offline": true,
+  "env": {
+    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+    "CHECKPOINT_DISABLE": "1"
+  },
+  "runner": { "kind": "jest", "cwd": "packages/hoppscotch-backend" },
+  "plan": { "moduleRoot": "src" },
+  "oracles": [
+    {
+      "name": "tsc",
+      "kind": "exit-zero",
+      "setup": [{ "cwd": "packages/hoppscotch-backend", "command": ["node_modules/.bin/prisma", "generate"] }],
+      "cwd": "packages/hoppscotch-backend",
+      "command": ["node_modules/.bin/tsc", "--noEmit", "-p", "tsconfig.build.json", "--incremental", "false", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["packages/hoppscotch-backend/node_modules/.bin/tsc", "packages/hoppscotch-backend/node_modules/.bin/prisma"]
+    },
+    {
+      "name": "unit",
+      "kind": "tests",
+      "format": "jest",
+      "setup": [{ "cwd": "packages/hoppscotch-backend", "command": ["node_modules/.bin/prisma", "generate"] }],
+      "cwd": "packages/hoppscotch-backend",
+      "command": ["node_modules/.bin/jest", "--ci", "--coverage=false", "--json", "--outputFile={artifacts}/report.json"],
+      "report": "{artifacts}/report.json",
+      "requires": ["packages/hoppscotch-backend/node_modules/.bin/jest", "packages/hoppscotch-backend/node_modules/.bin/prisma"],
+      "timeoutSeconds": 1200
+    }
+  ]
+}

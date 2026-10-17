@@ -61,11 +61,12 @@ test/fixtures/<name>/
    - `split-pair`: a moved `<asset>.d.ts` declares a non-TS asset that never moves. (`x.d.ts` and `x.js` are co-moved instead.)
    - `symlink`: a moved file is a tracked symlink.
    - `package-resolution-change`: a moved file would load a bare package from a different `node_modules`.
-   - `test-runner-scope`: a moved file would enter or leave the Jest/Vitest test set (`roots`, `testMatch`, `include`, `exclude`).
+   - `test-runner-scope`: a moved file would enter or leave the Jest/Vitest test set (`roots`, `testMatch`, `testRegex`, `testPathIgnorePatterns`, `include`, `exclude`).
    - `dirty-worktree`: tracked files have uncommitted changes (the step must be all or nothing).
    - `unsupported-encoding`: a file that needs an edit isn't valid UTF-8.
    - `unreadable-runner-config`: a Jest/Vitest config that governs a moved file (or a mock aimed at one) can't be read statically (plan §2.5). Multi-project roots (`projects: …`) are skipped, since their projects' own configs govern. Jest `preset`s aren't read; the certifier's K6 uses the runner's own test list.
    - `multi-program-file`: a moved or affected file belongs to several tsconfig programs, and under one of them some site would no longer resolve to map(its target). A config that other configs extend (`tsconfig.base.json`) isn't a program of its own unless it is the directory's `tsconfig.json`.
+   - `alias-rewrite-hazard`: after the move, a `paths`/`baseUrl` specifier reaches a file whose extensionless path is the importer's own directory or an ancestor of it (`src/utils.ts` imported as `'src/utils'` from inside `src/utils/`). TypeScript and Node pick the file, but build-time alias rewriters (Nest CLI's tsconfig-paths hook, tsc-alias) emit `'./'` or `'..'`, which loads the directory. A shape the base already had is left as it was.
 9. **Co-moves also include declaration pairs:** `x.d.ts` ↔ `x.js`/`x.jsx`, `x.d.mts` ↔ `x.mjs`, `x.d.cts` ↔ `x.cjs`. TS resolves the declaration while Node loads the implementation, so they move together.
 10. **Also read:** extensionless scripts whose shebang runs node, tsx, ts-node, bun or deno.
 11. **Also extracted:** relative `/// <reference types="./x" />`, JSDoc `@import` and `import('…')` types (checkJs), and `declare module '<alias>'` augmentations in module files. `import.meta.resolve` in a moved file is location-sensitive.

@@ -1,0 +1,40 @@
+{
+  "name": "ghostfolio",
+  "packageRoot": "apps/api",
+  "node": "system",
+  "offline": true,
+  "env": { "DOTENV_CONFIG_PATH": ".env.example", "DOTENV_CONFIG_QUIET": "true", "CHECKPOINT_DISABLE": "1" },
+  "runner": { "kind": "jest", "cwd": "", "config": "apps/api/jest.config.ts" },
+  "plan": { "moduleRoot": "src/app" },
+  "oracles": [
+    {
+      "name": "tsc",
+      "kind": "exit-zero",
+      "setup": [{ "cwd": "", "command": ["node_modules/.bin/prisma", "generate", "--generator", "workspaceClient"] }],
+      "cwd": "",
+      "command": ["node_modules/.bin/tsc", "-p", "apps/api/tsconfig.app.json", "--noEmit", "--incremental", "false", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["node_modules/.bin/tsc", "node_modules/.bin/prisma"]
+    },
+    {
+      "name": "tsc-spec",
+      "kind": "exit-zero",
+      "setup": [{ "cwd": "", "command": ["node_modules/.bin/prisma", "generate", "--generator", "workspaceClient"] }],
+      "cwd": "",
+      "command": ["node_modules/.bin/tsc", "-p", "apps/api/tsconfig.spec.json", "--noEmit", "--incremental", "false", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["node_modules/.bin/tsc", "node_modules/.bin/prisma"]
+    },
+    {
+      "name": "unit",
+      "kind": "tests",
+      "format": "jest",
+      "setup": [{ "cwd": "", "command": ["node_modules/.bin/prisma", "generate", "--generator", "workspaceClient"] }],
+      "cwd": "",
+      "command": ["node", "-r", "dotenv-expand/config", "node_modules/jest/bin/jest.js", "-c", "apps/api/jest.config.ts", "--ci", "--cacheDirectory", "{scratch}/jest-cache", "--json", "--outputFile={artifacts}/report.json"],
+      "report": "{artifacts}/report.json",
+      "requires": ["node_modules/jest/bin/jest.js", "node_modules/.bin/prisma", "node_modules/dotenv-expand/config.js"],
+      "timeoutSeconds": 1200
+    }
+  ]
+}

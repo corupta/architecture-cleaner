@@ -2,9 +2,10 @@
 // Either the whole step is applied, or it is declined with reasons and nothing on disk changes.
 import fs from 'node:fs';
 import { analyzeRepo } from '../analyzer/analyze.js';
-import { type RepoFs, toAbsolute } from '../analyzer/repo-fs.js';
+import { overlayRepoFs, type RepoFs, toAbsolute } from '../analyzer/repo-fs.js';
 import { loadRunnerConfig } from '../analyzer/runner-config.js';
 import type { Analysis } from '../analyzer/types.js';
+import { aliasRewriteHazards } from './alias-rewrites.js';
 import { applyMove, isWorktreeClean } from './apply.js';
 import { findDeclines, type Decline, type MoveFinding } from './declines.js';
 import { applyEditsToText, planEdits, type SpecifierEdit } from './edits.js';
@@ -50,6 +51,8 @@ export function executeMove(repo: RepoFs, requested: ReadonlyMap<string, string>
   // be rewritten one way for all of them, so that is a decline, not a verification failure.
   const mismatches = crossProgramMismatches(repo, before, after, moves, newContentsByNewPath, runner);
   if (mismatches.length) return { outcome: 'declined', moves, declines: mismatches.map((mismatch) => ({ code: 'multi-program-file', file: mismatch.file, detail: mismatch.detail })) };
+  const hazards = aliasRewriteHazards(repo, overlayRepoFs(repo, moves, newContentsByNewPath), before, after, moves);
+  if (hazards.length) return { outcome: 'declined', moves, declines: hazards };
   if (dryRun) return { outcome: 'verified', moves, edits: planned.edits, findings, before, after };
   applyMove(repo, moves, newContentsByOldPath);
   return { outcome: 'applied', moves, edits: planned.edits, findings, before, after };

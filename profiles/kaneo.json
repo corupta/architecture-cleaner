@@ -1,0 +1,28 @@
+{
+  "name": "kaneo",
+  "packageRoot": "apps/api",
+  "node": "24.21.0",
+  "offline": true,
+  "runner": { "kind": "vitest", "cwd": "apps/api", "config": "apps/api/vitest.config.ts" },
+  "plan": { "moduleRoot": "src" },
+  "oracles": [
+    {
+      "name": "tsc",
+      "kind": "exit-zero",
+      "cwd": "apps/api",
+      "command": ["node_modules/.bin/tsc", "--noEmit", "-p", "tsconfig.json", "--pretty", "false"],
+      "diagnostics": "tsc",
+      "requires": ["apps/api/node_modules/.bin/tsc", "apps/api/node_modules/@kaneo/email/dist/index.js", "apps/api/node_modules/@kaneo/permissions/dist/index.js", "apps/api/node_modules/@kaneo/mcp/dist"]
+    },
+    {
+      "name": "unit",
+      "kind": "tests",
+      "format": "vitest",
+      "cwd": "apps/api",
+      "command": ["node_modules/.bin/vp", "test", "run", "--config", "vitest.config.ts", "--reporter=dot", "--reporter=json", "--outputFile.json={artifacts}/report.json"],
+      "report": "{artifacts}/report.json",
+      "requires": ["apps/api/node_modules/.bin/vp", "apps/api/node_modules/@kaneo/email/dist/index.js", "apps/api/node_modules/@kaneo/permissions/dist/index.js", "apps/api/node_modules/@kaneo/mcp/dist"],
+      "timeoutSeconds": 1200
+    }
+  ]
+}

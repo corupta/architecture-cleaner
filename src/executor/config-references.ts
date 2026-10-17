@@ -18,9 +18,11 @@ import type { Analysis } from '../analyzer/types.js';
 import type { Decline, MoveFinding } from './declines.js';
 import { globToRegExp } from './glob.js';
 
+// Besides the runner, compiler and lint configs, every tool config script (`drizzle.config.ts` names its schema file,
+// `webpack.config.js` its entry) and `.xrc.js`: the files the certifier's K4 reads as config rather than code.
 export const configFilePattern = new RegExp('(^|/)(package\\.json|[tj]sconfig[^/]*\\.json|nest-cli\\.json'
   + '|jest([.-][^/]*)?\\.config([.-][^/]*)?\\.[cm]?[jt]s|jest([.-][^/]*)?\\.json'
-  + '|(vitest|vite)([.-][^/]*)?\\.config([.-][^/]*)?\\.[cm]?[jt]s'
+  + '|(vitest|vite)([.-][^/]*)?\\.config([.-][^/]*)?\\.[cm]?[jt]s|[^/]*\\.config\\.[cm]?[jt]s|\\.[^/]*rc\\.[cm]?js'
   + '|\\.nycrc(\\.(json|ya?ml))?|\\.c8rc(\\.json)?|eslint\\.config\\.[cm]?[jt]s|\\.eslintrc(\\.(json|[cm]?js))?)$');
 // Values under these keys are substitution patterns (`*` spans directories) the resolver models, not globs.
 const substitutionKeys = new Set(['paths', 'exports', 'imports', 'moduleNameMapper', 'alias', 'aliases']);
