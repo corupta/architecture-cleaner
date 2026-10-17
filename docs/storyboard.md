@@ -10,7 +10,7 @@
 | tsc (base: 0) | **0** | 1,680 | 768 |
 | Unit suite (base: 105 files, 2,337 cases) | **105/105 files, 2,337/2,337** | 2,337/2,337 cases pass, **but 66 of 171 spec files never load** | 5/105 files, 52 cases |
 | OpenAPI spec (947,932 bytes) | **byte-identical** | byte-identical (the copies are dead code) | not produced |
-| `ac certify` | **PASS**, every check (K0–K4, K6, K8) | **FAIL**: K1 (211 files added), K3a, K4, K6 (66 of 171 spec files don't load), K8 (tsc 1,680) | **FAIL** on every check K1–K8: 614 added, 2,168 TypeScript resolutions changed, 2,802 imports dangling under vitest, `import.meta.dirname` in the moved repositories, 100 of 105 spec files don't load |
+| `ac certify` | **PASS**, every check (K0–K4, K6, K8) | **FAIL**: K1 (211 files added), K3a, K4, K6 (66 of 171 spec files don't load), K8 (tsc 1,680) | **FAIL** on K1, K3a, K3b, K3c, K4, K6 and K8 (K0 and K2 pass: its edits land in added files, which K1 counts): 614 added, 2,168 TypeScript resolutions changed, 2,802 imports dangling under vitest, `import.meta.dirname` in the moved repositories, 100 of 105 spec files don't load |
 | Cost and time | executor 14 s; certificate: static checks 139 s (vitest collection 91 s of it), oracles 146 s; $0 | $0.30, 169 s | $4.63, 33 min, stopped by the budget cap |
 
 [R1: docs/sessions/s3.md; G3: docs/gates.md; certificates: ~/ac-work/s4/]
