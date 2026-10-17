@@ -1,0 +1,1233 @@
+{
+ "format": "ac-findings/1",
+ "run": {
+  "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+  "head": "c4be040b5739351507750669c3a179dd752f4a72",
+  "branch": "ac/s6-ladder",
+  "status": "completed",
+  "packageRoot": "server",
+  "profile": "immich"
+ },
+ "sources": [
+  {
+   "name": "target",
+   "detail": "facts at 02063972e8: 269 movable files, 1759 edges, 269 placed by the plan"
+  },
+  {
+   "name": "boundaries",
+   "detail": "boundaries/report.json: 2 strongly connected sets, 8 back-edges"
+  },
+  {
+   "name": "facts",
+   "detail": "3 tables with writers in several groups, 1 god-injection base classes"
+  },
+  {
+   "name": "analyzer",
+   "detail": "458 production files analyzed, 0 import test code"
+  },
+  {
+   "name": "validator",
+   "detail": "10 warnings on the run's plan"
+  },
+  {
+   "name": "certificate",
+   "detail": "67 certificates read (steps, rungs, whole PR)"
+  },
+  {
+   "name": "run",
+   "detail": "107 run.json findings"
+  }
+ ],
+ "narration": {
+  "model": "nvidia/Nemotron-3_5-Lightning",
+  "label": "Nemotron 3.5 Lightning (thinking off)",
+  "calls": 2,
+  "costUsd": 0.000977,
+  "replayed": false,
+  "narrated": 35,
+  "dropped": [
+   {
+    "id": "F-68921a0c7282",
+    "reason": "names \"server/src/repositories/database.repository.ts\", which the evidence doesn't contain"
+   },
+   {
+    "id": "F-70d9e19108a1",
+    "reason": "no narration returned"
+   },
+   {
+    "id": "F-a1ef2439353b",
+    "reason": "names \"relocated\", which the evidence doesn't contain"
+   },
+   {
+    "id": "F-ab4403001c97",
+    "reason": "names \"relocated\", which the evidence doesn't contain"
+   },
+   {
+    "id": "F-ab71273b30ce",
+    "reason": "names \"relocated\", which the evidence doesn't contain"
+   }
+  ]
+ },
+ "findings": [
+  {
+   "kind": "module-cycle",
+   "title": "42 folders form one import cycle",
+   "files": [
+    "server/src/modules/album/album-user.repository.ts",
+    "server/src/modules/album/album.controller.ts",
+    "server/src/modules/asset/asset-ids.response.dto.ts",
+    "server/src/modules/asset/asset-media.dto.ts",
+    "server/src/modules/asset/asset-response.dto.ts",
+    "server/src/modules/asset/asset.dto.ts",
+    "server/src/modules/asset/editing.dto.ts",
+    "server/src/modules/auth/auth.controller.ts",
+    "server/src/modules/person/person.controller.ts",
+    "server/src/modules/person/person.dto.ts",
+    "server/src/modules/search/search.controller.ts",
+    "server/src/modules/server/server.controller.ts",
+    "server/src/modules/shared-link/shared-link.controller.ts",
+    "server/src/modules/shared-link/shared-link.repository.ts",
+    "server/src/modules/tag/tag.controller.ts",
+    "server/src/modules/user/license.dto.ts",
+    "server/src/modules/user/user-admin.controller.ts",
+    "server/src/modules/user/user.dto.ts",
+    "server/src/platform/access/access.repository.ts",
+    "server/src/platform/database/database.ts",
+    "server/src/platform/file/file-upload.interceptor.ts",
+    "server/src/platform/media/media.repository.ts",
+    "server/src/schema/functions.ts",
+    "server/src/schema/tables/album-asset.table.ts",
+    "server/src/schema/tables/album-user.table.ts",
+    "server/src/schema/tables/album.table.ts",
+    "server/src/schema/tables/asset-exif.table.ts"
+   ],
+   "evidence": "42 of 73 folders are strongly connected (from R4's boundary report (boundaries/report.json)): each reaches every other through imports.\nMembers: module/album, module/asset, module/auth, module/config, module/database-backup, module/job, module/library, module/machine-learning, module/maintenance, module/map, module/ocr, module/partner, module/person, module/plugin, module/queue, module/search, module/server, module/session, module/shared-link, module/system-metadata, module/tag, module/user, module/version, module/workflow, other:src, other:src/maintenance, other:src/repositories, other:src/schema, other:src/schema/tables, other:src/services, other:src/utils, platform/access, platform/cron, platform/database, platform/event, platform/file, platform/http-response, platform/logging, platform/media, platform/move, platform/storage, shared.\nInside the set: 328 edges between them over 1025 files. These 91 edges (174 files) close every cycle (R4's back-edges first); without them the set is acyclic:\n- other:src/schema/tables → other:src/schema (21 files, e.g. server/src/schema/tables/album-asset.table.ts → server/src/schema/functions.ts)\n- module/person → module/asset (6 files, e.g. server/src/modules/person/person.controller.ts → server/src/modules/asset/asset-ids.response.dto.ts)\n- module/album → module/asset (5 files, e.g. server/src/modules/album/album.controller.ts → server/src/modules/asset/asset-ids.response.dto.ts)\n- module/search → module/asset (5 files, e.g. server/src/modules/search/search.controller.ts → server/src/modules/asset/asset-response.dto.ts)\n- module/shared-link → module/asset (5 files, e.g. server/src/modules/shared-link/shared-link.controller.ts → server/src/modules/asset/asset-ids.response.dto.ts)\n- platform/database → other:src/schema/tables (5 files, e.g. server/src/platform/database/database.ts → server/src/schema/tables/album.table.ts)\n- module/auth → module/user (4 files, e.g. server/src/modules/auth/auth.controller.ts → server/src/modules/user/user.dto.ts)\n- module/user → module/asset (4 files, e.g. server/src/modules/user/user-admin.controller.ts → server/src/modules/asset/asset.dto.ts)\n- platform/access → module/person (4 files, e.g. server/src/platform/access/access.repository.ts → server/src/modules/person/person.dto.ts)\n- platform/media → module/asset (4 files, e.g. server/src/platform/media/media.repository.ts → server/src/modules/asset/editing.dto.ts)\n- module/album → other:src/schema/tables (3 files, e.g. server/src/modules/album/album-user.repository.ts → server/src/schema/tables/album-user.table.ts)\n- module/server → module/user (3 files, e.g. server/src/modules/server/server.controller.ts → server/src/modules/user/license.dto.ts)\n- module/shared-link → other:src/schema/tables (3 files, e.g. server/src/modules/shared-link/shared-link.repository.ts → server/src/schema/tables/asset-exif.table.ts)\n- module/tag → module/asset (3 files, e.g. server/src/modules/tag/tag.controller.ts → server/src/modules/asset/asset-ids.response.dto.ts)\n- platform/file → module/asset (3 files, e.g. server/src/platform/file/file-upload.interceptor.ts → server/src/modules/asset/asset-media.dto.ts)\n- … 76 more edges (96 files)",
+   "source": "boundaries",
+   "weight": 42,
+   "id": "F-f375142329cd",
+   "steps": [],
+   "certificates": [],
+   "narration": "The R4 report shows that 42 out of 73 folders are strongly connected through imports, each reaching every other. With 328 edges over 1025 files inside the set, these 91 edges spanning 174 files are the only back-edges that close the cycles; removing them leaves the collection acyclic."
+  },
+  {
+   "kind": "module-cycle",
+   "title": "module/notification and other:src/emails import each other",
+   "files": [
+    "server/src/emails/album-invite.email.tsx",
+    "server/src/modules/notification/email.repository.ts"
+   ],
+   "evidence": "2 of 73 folders are strongly connected (from R4's boundary report (boundaries/report.json)): each reaches every other through imports.\nMembers: module/notification, other:src/emails.\nInside the set: 2 edges between them over 8 files. These 1 edges (4 files) close every cycle (R4's back-edges first); without them the set is acyclic:\n- other:src/emails → module/notification (4 files, e.g. server/src/emails/album-invite.email.tsx → server/src/modules/notification/email.repository.ts)",
+   "source": "boundaries",
+   "weight": 2,
+   "id": "F-848cb161117b",
+   "steps": [],
+   "certificates": [],
+   "narration": "Module notification and other:src/emails are strongly connected, each reaching the other through imports; one edge over four files closes the cycle, and removing it makes the set acyclic."
+  },
+  {
+   "kind": "god-injection",
+   "title": "BaseService injects 56 members into 51 classes",
+   "files": [
+    "server/src/services/activity.service.ts",
+    "server/src/services/album.service.ts",
+    "server/src/services/api-key.service.ts",
+    "server/src/services/asset-file.service.ts",
+    "server/src/services/asset-media.service.ts",
+    "server/src/services/asset.service.ts",
+    "server/src/services/auth-admin.service.ts",
+    "server/src/services/auth.service.ts",
+    "server/src/services/base.service.ts",
+    "server/src/services/cli.service.ts",
+    "server/src/services/cluster-group.service.ts",
+    "server/src/services/database.service.ts",
+    "server/src/services/download.service.ts",
+    "server/src/services/duplicate.service.ts",
+    "server/src/services/hls.service.ts",
+    "server/src/services/integrity.service.ts",
+    "server/src/services/job.service.ts",
+    "server/src/services/library.service.ts",
+    "server/src/services/maintenance.service.ts",
+    "server/src/services/map.service.ts",
+    "server/src/services/media.service.ts",
+    "server/src/services/memory.service.ts",
+    "server/src/services/metadata.service.ts",
+    "server/src/services/notification-admin.service.ts",
+    "server/src/services/notification.service.ts",
+    "server/src/services/ocr.service.ts",
+    "server/src/services/partner.service.ts",
+    "server/src/services/person.service.ts",
+    "server/src/services/plugin.service.ts",
+    "server/src/services/queue.service.ts",
+    "server/src/services/search.service.ts",
+    "server/src/services/server.service.ts",
+    "server/src/services/session.service.ts",
+    "server/src/services/shared-link.service.ts",
+    "server/src/services/smart-info.service.ts",
+    "server/src/services/stack.service.ts",
+    "server/src/services/storage-template.service.ts",
+    "server/src/services/storage.service.ts",
+    "server/src/services/sync.service.ts",
+    "server/src/services/system-config.service.ts",
+    "server/src/services/system-metadata.service.ts",
+    "server/src/services/tag.service.ts",
+    "server/src/services/telemetry.service.ts",
+    "server/src/services/timeline.service.ts",
+    "server/src/services/transcoding.service.ts",
+    "server/src/services/trash.service.ts",
+    "server/src/services/user-admin.service.ts",
+    "server/src/services/user.service.ts",
+    "server/src/services/version.service.ts",
+    "server/src/services/view.service.ts",
+    "server/src/services/workflow-execution.service.ts",
+    "server/src/services/workflow.service.ts"
+   ],
+   "evidence": "BaseService (server/src/services/base.service.ts) takes 56 constructor-injected members (56 of them repositories), and 51 classes extend it, so each receives all 56.\nEach subclass reads 5.7 of them on average through this.<member> (median 5, min 1, max 15 in MetadataService); every member has a reader.\nMost read: logger (33 classes), jobRepository (23 classes), assetRepository (21 classes), eventRepository (18 classes), userRepository (18 classes).\nPer class (members read of 56):\n- MetadataService (server/src/services/metadata.service.ts): 15 (albumRepository, assetJobRepository, assetRepository, cryptoRepository, databaseRepository, eventRepository, jobRepository, logger, … 7 more)\n- PersonService (server/src/services/person.service.ts): 15 (assetJobRepository, assetRepository, clusterGroupRepository, cryptoRepository, databaseRepository, jobRepository, logger, machineLearningRepository, … 7 more)\n- AssetService (server/src/services/asset.service.ts): 13 (albumRepository, assetEditRepository, assetJobRepository, assetRepository, eventRepository, jobRepository, logger, ocrRepository, … 5 more)\n- AuthService (server/src/services/auth.service.ts): 10 (apiKeyRepository, cryptoRepository, eventRepository, jobRepository, logger, mediaRepository, oauthRepository, sessionRepository, … 2 more)\n- LibraryService (server/src/services/library.service.ts): 10 (assetJobRepository, assetRepository, cronRepository, cryptoRepository, databaseRepository, eventRepository, jobRepository, libraryRepository, … 2 more)\n- UserService (server/src/services/user.service.ts): 10 (albumRepository, assetRepository, configRepository, cryptoRepository, eventRepository, jobRepository, logger, mediaRepository, … 2 more)\n- CliService (server/src/services/cli.service.ts): 9 (appRepository, assetRepository, cryptoRepository, databaseRepository, personRepository, sessionRepository, storageRepository, systemMetadataRepository, … 1 more)\n- DuplicateService (server/src/services/duplicate.service.ts): 9 (albumRepository, assetJobRepository, assetRepository, cryptoRepository, duplicateRepository, eventRepository, jobRepository, logger, … 1 more)\n- IntegrityService (server/src/services/integrity.service.ts): 9 (assetRepository, cronRepository, databaseRepository, eventRepository, integrityRepository, jobRepository, logger, storageRepository, … 1 more)\n- NotificationService (server/src/services/notification.service.ts): 9 (albumRepository, assetJobRepository, assetRepository, emailRepository, jobRepository, logger, notificationRepository, userRepository, … 1 more)\n- VersionService (server/src/services/version.service.ts): 9 (configRepository, cronRepository, databaseRepository, jobRepository, logger, serverInfoRepository, systemMetadataRepository, versionRepository, … 1 more)\n- MediaService (server/src/services/media.service.ts): 8 (assetJobRepository, assetRepository, jobRepository, logger, mediaRepository, ocrRepository, personRepository, storageRepository)\n- MemoryService (server/src/services/memory.service.ts): 8 (accessRepository, assetRepository, databaseRepository, logger, memoryRepository, personRepository, systemMetadataRepository, userRepository)\n- StorageTemplateService (server/src/services/storage-template.service.ts): 8 (albumRepository, assetJobRepository, databaseRepository, jobRepository, logger, moveRepository, storageRepository, userRepository)\n- UserAdminService (server/src/services/user-admin.service.ts): 8 (albumRepository, assetRepository, cryptoRepository, eventRepository, jobRepository, logger, sessionRepository, userRepository)\n- WorkflowExecutionService (server/src/services/workflow-execution.service.ts): 8 (configRepository, cryptoRepository, databaseRepository, jobRepository, logger, pluginRepository, storageRepository, workflowRepository)\n- AlbumService (server/src/services/album.service.ts): 7 (accessRepository, albumRepository, albumUserRepository, eventRepository, logger, mapRepository, userRepository)\n- AssetMediaService (server/src/services/asset-media.service.ts): 7 (albumRepository, assetRepository, eventRepository, jobRepository, logger, sharedLinkRepository, storageRepository)\n- ServerService (server/src/services/server.service.ts): 7 (configRepository, cryptoRepository, logger, serverInfoRepository, storageRepository, systemMetadataRepository, userRepository)\n- JobService (server/src/services/job.service.ts): 6 (assetEditRepository, assetRepository, eventRepository, jobRepository, logger, websocketRepository)\n- OcrService (server/src/services/ocr.service.ts): 6 (assetJobRepository, assetRepository, jobRepository, logger, machineLearningRepository, ocrRepository)\n- SmartInfoService (server/src/services/smart-info.service.ts): 6 (assetJobRepository, databaseRepository, jobRepository, logger, machineLearningRepository, searchRepository)\n- StorageService (server/src/services/storage.service.ts): 6 (assetRepository, configRepository, databaseRepository, logger, storageRepository, systemMetadataRepository)\n- TranscodingService (server/src/services/transcoding.service.ts): 6 (databaseRepository, logger, processRepository, storageRepository, videoStreamRepository, websocketRepository)\n- ClusterGroupService (server/src/services/cluster-group.service.ts): 5 (clusterGroupRepository, eventRepository, jobRepository, personRepository, userRepository)\n- DownloadService (server/src/services/download.service.ts): 5 (assetRepository, downloadRepository, logger, storageRepository, userRepository)\n- MaintenanceService (server/src/services/maintenance.service.ts): 5 (appRepository, eventRepository, logger, storageRepository, systemMetadataRepository)\n- QueueService (server/src/services/queue.service.ts): 5 (cronRepository, databaseRepository, eventRepository, jobRepository, logger)\n- SearchService (server/src/services/search.service.ts): 5 (assetRepository, machineLearningRepository, partnerRepository, personRepository, searchRepository)\n- TagService (server/src/services/tag.service.ts): 5 (accessRepository, assetRepository, eventRepository, jobRepository, tagRepository)\n- HlsService (server/src/services/hls.service.ts): 4 (cryptoRepository, storageRepository, videoStreamRepository, websocketRepository)\n- SharedLinkService (server/src/services/shared-link.service.ts): 4 (cryptoRepository, logger, sharedLinkAssetRepository, sharedLinkRepository)\n- SyncService (server/src/services/sync.service.ts): 4 (logger, sessionRepository, syncCheckpointRepository, syncRepository)\n- SystemConfigService (server/src/services/system-config.service.ts): 4 (configRepository, eventRepository, logger, machineLearningRepository)\n- TrashService (server/src/services/trash.service.ts): 4 (eventRepository, jobRepository, logger, trashRepository)\n- DatabaseService (server/src/services/database.service.ts): 3 (configRepository, databaseRepository, logger)\n- MapService (server/src/services/map.service.ts): 3 (albumRepository, mapRepository, partnerRepository)\n- NotificationAdminService (server/src/services/notification-admin.service.ts): 3 (emailRepository, notificationRepository, userRepository)\n- PartnerService (server/src/services/partner.service.ts): 3 (logger, partnerRepository, userRepository)\n- SessionService (server/src/services/session.service.ts): 3 (cryptoRepository, logger, sessionRepository)\n- StackService (server/src/services/stack.service.ts): 3 (assetRepository, eventRepository, stackRepository)\n- ApiKeyService (server/src/services/api-key.service.ts): 2 (apiKeyRepository, cryptoRepository)\n- AssetFileService (server/src/services/asset-file.service.ts): 2 (assetFileRepository, jobRepository)\n- TelemetryService (server/src/services/telemetry.service.ts): 2 (telemetryRepository, userRepository)\n- TimelineService (server/src/services/timeline.service.ts): 2 (assetRepository, partnerRepository)\n- WorkflowService (server/src/services/workflow.service.ts): 2 (pluginRepository, workflowRepository)\n- ActivityService (server/src/services/activity.service.ts): 1 (activityRepository)\n- AuthAdminService (server/src/services/auth-admin.service.ts): 1 (userRepository)\n- PluginService (server/src/services/plugin.service.ts): 1 (pluginRepository)\n- SystemMetadataService (server/src/services/system-metadata.service.ts): 1 (systemMetadataRepository)\n- ViewService (server/src/services/view.service.ts): 1 (viewRepository)",
+   "source": "facts",
+   "weight": 2856,
+   "id": "F-190847636c3d",
+   "steps": [],
+   "certificates": [],
+   "narration": "BaseService receives 56 constructor-injected members, and 51 classes extend it so each inherits all 56; on average a subclass reads 5.7 of them, and the most-read members such as logger and repositories are accessed by many classes."
+  },
+  {
+   "kind": "multi-writer-table",
+   "title": "Table asset is written by 4 groups",
+   "files": [
+    "server/src/repositories/asset.repository.ts",
+    "server/src/repositories/duplicate.repository.ts",
+    "server/src/repositories/stack.repository.ts",
+    "server/src/repositories/trash.repository.ts"
+   ],
+   "evidence": "Table asset is written by 4 files in 4 plan groups (and read by 23 files in 22 groups):\n- module/asset: server/src/repositories/asset.repository.ts\n- module/duplicate: server/src/repositories/duplicate.repository.ts\n- module/stack: server/src/repositories/stack.repository.ts\n- module/trash: server/src/repositories/trash.repository.ts",
+   "source": "facts",
+   "weight": 4,
+   "id": "F-471f7dbe2fc2",
+   "steps": [],
+   "certificates": [],
+   "narration": "The table asset is written by four files located in four separate plan groups: module/asset, module/duplicate, module/stack, and module/trash."
+  },
+  {
+   "kind": "multi-writer-table",
+   "title": "Table cluster_group is written by 2 groups",
+   "files": [
+    "server/src/repositories/cluster-group.repository.ts",
+    "server/src/repositories/person.repository.ts"
+   ],
+   "evidence": "Table cluster_group is written by 2 files in 2 plan groups:\n- module/cluster-group: server/src/repositories/cluster-group.repository.ts\n- module/person: server/src/repositories/person.repository.ts",
+   "source": "facts",
+   "weight": 2,
+   "id": "F-bdcfcf0f1886",
+   "steps": [],
+   "certificates": [],
+   "narration": "Table cluster_group is written by two files in two plan groups: module/cluster-group and module/person."
+  },
+  {
+   "kind": "multi-writer-table",
+   "title": "Table session_sync_checkpoint is written by 2 groups",
+   "files": [
+    "server/src/repositories/session.repository.ts",
+    "server/src/repositories/sync-checkpoint.repository.ts"
+   ],
+   "evidence": "Table session_sync_checkpoint is written by 2 files in 2 plan groups (and read by 1 file in 1 group):\n- module/session: server/src/repositories/session.repository.ts\n- module/sync: server/src/repositories/sync-checkpoint.repository.ts",
+   "source": "facts",
+   "weight": 2,
+   "id": "F-e7b889cd5d1e",
+   "steps": [],
+   "certificates": [],
+   "narration": "Table session_sync_checkpoint is written by two files in two plan groups (module/session and module/sync) and read by one file in one group."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/auth → module/user",
+   "files": [
+    "server/src/modules/auth/auth.controller.ts",
+    "server/src/modules/auth/auth.service.ts",
+    "server/src/modules/user/profile-image.ts",
+    "server/src/modules/user/user.dto.ts"
+   ],
+   "evidence": "module/auth imports module/user in 4 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/auth/auth.controller.ts → server/src/modules/user/user.dto.ts\n- server/src/modules/auth/auth.service.ts → server/src/modules/user/profile-image.ts\n- server/src/modules/auth/auth.service.ts → server/src/modules/user/user.dto.ts",
+   "source": "boundaries",
+   "weight": 4,
+   "id": "F-0f4709d1dd31",
+   "steps": [],
+   "certificates": [],
+   "narration": "Module auth imports module user in four files, which violates the allow-list encoded in R4's module order; R4's baseline records this as a known violation."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/user → module/asset",
+   "files": [
+    "server/src/modules/asset/asset.dto.ts",
+    "server/src/modules/asset/asset.repository.ts",
+    "server/src/modules/user/user-admin.controller.ts",
+    "server/src/modules/user/user-admin.service.ts",
+    "server/src/modules/user/user-methods.ts"
+   ],
+   "evidence": "module/user imports module/asset in 4 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/user/user-admin.controller.ts → server/src/modules/asset/asset.dto.ts\n- server/src/modules/user/user-admin.service.ts → server/src/modules/asset/asset.dto.ts\n- server/src/modules/user/user-methods.ts → server/src/modules/asset/asset.repository.ts",
+   "source": "boundaries",
+   "weight": 4,
+   "id": "F-d23785863ced",
+   "steps": [],
+   "certificates": [],
+   "narration": "Module user imports module asset in four files, which violates the allow-list encoded in R4's module order; R4's baseline records this as a known violation."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/tag → module/asset",
+   "files": [
+    "server/src/modules/asset/asset-ids.response.dto.ts",
+    "server/src/modules/asset/asset.util.ts",
+    "server/src/modules/tag/tag.controller.ts",
+    "server/src/modules/tag/tag.service.ts"
+   ],
+   "evidence": "module/tag imports module/asset in 3 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/tag/tag.controller.ts → server/src/modules/asset/asset-ids.response.dto.ts\n- server/src/modules/tag/tag.service.ts → server/src/modules/asset/asset-ids.response.dto.ts\n- server/src/modules/tag/tag.service.ts → server/src/modules/asset/asset.util.ts",
+   "source": "boundaries",
+   "weight": 3,
+   "id": "F-8dbbbf14f9f3",
+   "steps": [],
+   "certificates": [],
+   "narration": "Three files under module/tag import module/asset, but R4's allow-list does not permit this dependency. R4's baseline marks these as known violations that remain unchanged."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/plugin → module/workflow",
+   "files": [
+    "server/src/modules/plugin/plugin.dto.ts",
+    "server/src/modules/plugin/plugin.service.ts",
+    "server/src/modules/workflow/workflow.ts"
+   ],
+   "evidence": "module/plugin imports module/workflow in 2 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/plugin/plugin.dto.ts → server/src/modules/workflow/workflow.ts\n- server/src/modules/plugin/plugin.service.ts → server/src/modules/workflow/workflow.ts",
+   "source": "boundaries",
+   "weight": 2,
+   "id": "F-834724fcbf9e",
+   "steps": [],
+   "certificates": [],
+   "narration": "Two files under module/plugin import module/workflow, but R4's allow-list does not allow this. R4's baseline records these as known violations."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/database-backup → module/maintenance",
+   "files": [
+    "server/src/modules/database-backup/database-backup.controller.ts",
+    "server/src/modules/maintenance/maintenance.service.ts"
+   ],
+   "evidence": "module/database-backup imports module/maintenance in 1 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/database-backup/database-backup.controller.ts → server/src/modules/maintenance/maintenance.service.ts",
+   "source": "boundaries",
+   "weight": 1,
+   "id": "F-6a82ccadb707",
+   "steps": [],
+   "certificates": [],
+   "narration": "One file under module/database-backup imports module/maintenance, which R4's allow-list forbids. R4's baseline records this as a known violation."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/version → module/server",
+   "files": [
+    "server/src/modules/server/server.dto.ts",
+    "server/src/modules/version/version.service.ts"
+   ],
+   "evidence": "module/version imports module/server in 1 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/version/version.service.ts → server/src/modules/server/server.dto.ts",
+   "source": "boundaries",
+   "weight": 1,
+   "id": "F-86474a013374",
+   "steps": [],
+   "certificates": [],
+   "narration": "One file under module/version imports module/server, which R4's allow-list disallows. R4's baseline records this as a known violation."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/asset → module/person",
+   "files": [
+    "server/src/modules/asset/asset-response.dto.ts",
+    "server/src/modules/person/person.dto.ts"
+   ],
+   "evidence": "module/asset imports module/person in 1 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/asset/asset-response.dto.ts → server/src/modules/person/person.dto.ts",
+   "source": "boundaries",
+   "weight": 1,
+   "id": "F-bdf320395cbd",
+   "steps": [],
+   "certificates": [],
+   "narration": "One file under module/asset imports module/person, which R4's allow-list forbids. R4's baseline records this as a known violation."
+  },
+  {
+   "kind": "back-edge",
+   "title": "Back-edge module/auth → module/config",
+   "files": [
+    "server/src/modules/auth/auth.service.ts",
+    "server/src/modules/config/config.dto.ts"
+   ],
+   "evidence": "module/auth imports module/config in 1 files, against the module order R4's allow-list encodes; R4's baseline freezes it as a known violation.\n- server/src/modules/auth/auth.service.ts → server/src/modules/config/config.dto.ts",
+   "source": "boundaries",
+   "weight": 1,
+   "id": "F-ddff071a1b0b",
+   "steps": [],
+   "certificates": [],
+   "narration": "One file under module/auth imports module/config, which R4's allow-list disallows. R4's baseline records this as a known violation."
+  },
+  {
+   "kind": "ungated-coverage-glob",
+   "title": "Coverage globs match other files, with no gate: server/test/vitest.config.mjs",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "evidence": "The run recorded 6 distinct findings in server/test/vitest.config.mjs, 107 times (steps 1–13, 15–39, 44–51, 54–57, 59):\n- server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/services/**' (server/src/services/**) matches differently for server/src/services/activity.service.ts (moving to server/src/modules/activity/activity.service.ts), server/src/services/activity.service.spec.ts (moving t… (steps 1–13, 15–38, 44, 50–51, 54–57, 59)\n- server/test/vitest.config.mjs line 21 [test.coverage.exclude]: coverage glob 'src/services/*.spec.ts' (server/src/services/*.spec.ts) matches differently for server/src/services/activity.service.spec.ts (moving to server/src/modules/activity/activity.service.spec.ts); nothing in server/test/vitest.… (steps 1–5, 7–12, 15–21, 23–37, 44, 50–51, 55, 57, 59)\n- server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/utils/**' (server/src/utils/**) matches differently for server/src/utils/asset.util.ts (moving to server/src/modules/asset/asset.util.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check… (steps 4, 7–8, 10, 15, 24, 29, 31, 34, 38–39, 44–51, 59)\n- server/test/vitest.config.mjs line 24 [test.coverage.exclude]: coverage glob 'src/services/index.ts' matches differently for server/src/services/index.ts (moving to server/src/platform/registry/services/index.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-covera… (step 54)\n- server/test/vitest.config.mjs line 19 [test.coverage.include]: coverage glob 'src/cores/**' (server/src/cores/**) matches differently for server/src/cores/storage.core.ts (moving to server/src/platform/storage/storage.core.ts), server/src/cores/storage.core.spec.ts (moving to server/src/platform/st… (step 55)\n- server/test/vitest.config.mjs line 22 [test.coverage.exclude]: coverage glob 'src/services/api.service.ts' matches differently for server/src/services/api.service.ts (moving to server/src/shared/api.service.ts); nothing in server/test/vitest.config.mjs gates coverage (no threshold or check-coverage… (step 59)",
+   "source": "run",
+   "steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    54,
+    55,
+    56,
+    57,
+    59
+   ],
+   "weight": 6,
+   "id": "F-89500b32bdee",
+   "certificates": [],
+   "narration": "The vitest config contains six distinct coverage-glob findings that match 107 steps, but no threshold or check gates the coverage, so the globs match differently for moved service and utility files without enforcing any rule."
+  },
+  {
+   "kind": "coverage-scope",
+   "title": "Coverage globs match other files (K4): server/test/vitest.config.mjs",
+   "files": [
+    "server/test/vitest.config.mjs"
+   ],
+   "evidence": "K4 reported 6 distinct findings in server/test/vitest.config.mjs, 122 times (steps 1–13, 15–39, 44–51, 54–57, 59, certificate.json, rungs/R1.json, rungs/R2.json):\n- line 19: 'src/services/**' is the glob server/src/services/** whose matches change (2 moved files, e.g. server/src/services/activity.service.spec.ts -> server/src/modules/activity/activity.service.spec.ts) of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activit… (steps 1–13, 15–38, 44, 50–51, 54–57, 59, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 21: 'src/services/*.spec.ts' is the glob server/src/services/*.spec.ts whose matches change (1 moved files, e.g. server/src/services/activity.service.spec.ts -> server/src/modules/activity/activity.service.spec.ts) of server/src/services/activity.service.spec.ts (moved to server/src/modules/ac… (steps 1–5, 7–12, 15–21, 23–37, 44, 50–51, 55, 57, 59, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 19: 'src/utils/**' is the glob server/src/utils/** whose matches change (1 moved files, e.g. server/src/utils/asset.util.ts -> server/src/modules/asset/asset.util.ts) of server/src/utils/asset.util.ts (moved to server/src/modules/asset/asset.util.ts) [config at test.coverage.include]; coverage… (steps 4, 7–8, 10, 15, 24, 29, 31, 34, 38–39, 44–51, 59, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 24: 'src/services/index.ts' is the old path of server/src/services/index.ts (moved to server/src/platform/registry/services/index.ts) [config at test.coverage.exclude]; coverage now measures a different file set (no coverage threshold in this file, so no gate changes) (step 54, certificate.json, rungs/R2.json)\n- line 19: 'src/cores/**' is the glob server/src/cores/** whose matches change (2 moved files, e.g. server/src/cores/storage.core.spec.ts -> server/src/platform/storage/storage.core.spec.ts) of server/src/cores/storage.core.spec.ts (moved to server/src/platform/storage/storage.core.spec.ts) [config a… (step 55, certificate.json, rungs/R2.json)\n- line 22: 'src/services/api.service.ts' is the old path of server/src/services/api.service.ts (moved to server/src/shared/api.service.ts) [config at test.coverage.exclude]; coverage now measures a different file set (no coverage threshold in this file, so no gate changes) (step 59, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    54,
+    55,
+    56,
+    57,
+    59
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json",
+    "rungs/R2.json"
+   ],
+   "weight": 6,
+   "id": "F-800da5f4439a",
+   "narration": "K4 reported six distinct coverage-glob findings in the vitest config that match 122 steps across certificate.json and rung JSON files, where globs such as 'src/services/**' change matches when files move to module folders."
+  },
+  {
+   "kind": "default-root-dir",
+   "title": "Emit without a rootDir (K7): e2e/tsconfig.json",
+   "files": [
+    "e2e/tsconfig.json"
+   ],
+   "evidence": "K7 reported one finding in e2e/tsconfig.json, 67 times (steps 1–62, certificate.json, rungs/R1.json, rungs/R2.json, rungs/R3.json, rungs/R4.json):\n- emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e (steps 1–62, certificate.json, rungs/R1.json, rungs/R2.json, rungs/R3.json, rungs/R4.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json",
+    "rungs/R2.json",
+    "rungs/R3.json",
+    "rungs/R4.json"
+   ],
+   "weight": 1,
+   "id": "F-966da7d59056",
+   "narration": "The e2e tsconfig emits into e2e/dist without specifying a rootDir, so TypeScript uses its default of e2e for both the input and output, a situation recorded 67 times across steps and rung files."
+  },
+  {
+   "kind": "old-path-in-docs",
+   "title": "Docs name old paths (K4): docs/docs/developer/architecture.mdx",
+   "files": [
+    "docs/docs/developer/architecture.mdx"
+   ],
+   "evidence": "K4 reported 3 distinct findings in docs/docs/developer/architecture.mdx, 138 times (steps 1–40, 42–45, 49–59, certificate.json, rungs/R1.json, rungs/R2.json):\n- line 60: 'src/repositories' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/activity.repository.ts (moved to server/src/modules/activity/activity.repository.ts) (steps 1–6, 9–22, 24–31, 33–39, 42–43, 45, 49–56, 58, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 60: 'src/services' is the directory server/src/services, whose contents change with the move of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activity.service.spec.ts) (steps 1–13, 15–38, 44, 50–51, 54–57, 59, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 64: 'src/controllers' is the directory server/src/controllers, whose contents change with the move of server/src/controllers/activity.controller.spec.ts (moved to server/src/modules/activity/activity.controller.spec.ts) (steps 1–13, 15–18, 20–34, 36–38, 40, 54, certificate.json, rungs/R1.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    42,
+    43,
+    44,
+    45,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json",
+    "rungs/R2.json"
+   ],
+   "weight": 3,
+   "id": "F-68921a0c7282",
+   "narration": null
+  },
+  {
+   "kind": "old-path-in-docs",
+   "title": "Docs name old paths (K4): .github/pull_request_template.md",
+   "files": [
+    ".github/pull_request_template.md"
+   ],
+   "evidence": "K4 reported 3 distinct findings in .github/pull_request_template.md, 146 times (steps 1–39, 42–45, 49–59, certificate.json, rungs/R1.json, rungs/R2.json):\n- line 36: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activity.service.spec.ts) (steps 1–13, 15–38, 44, 50–51, 54–57, 59, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 37: 'src/repositories/' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/activity.repository.ts (moved to server/src/modules/activity/activity.repository.ts) (steps 1–6, 9–22, 24–31, 33–39, 42–43, 45, 49–56, 58, certificate.json, rungs/R1.json, rungs/R2.json)\n- line 37: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/activity.service.spec.ts (moved to server/src/modules/activity/activity.service.spec.ts) (steps 1–13, 15–38, 44, 50–51, 54–57, 59, certificate.json, rungs/R1.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    42,
+    43,
+    44,
+    45,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json",
+    "rungs/R2.json"
+   ],
+   "weight": 3,
+   "id": "F-8759fa26d236",
+   "narration": "The pull request template references three directories (src/services, src/repositories, and again src/services) whose contents change as files move to module folders, recorded 146 times across steps and rung JSON files."
+  },
+  {
+   "kind": "old-path-in-docs",
+   "title": "Docs name old paths (K4): docs/docs/features/supported-formats.md",
+   "files": [
+    "docs/docs/features/supported-formats.md"
+   ],
+   "evidence": "K4 reported one finding in docs/docs/features/supported-formats.md, 3 times (step 59, certificate.json, rungs/R2.json):\n- line 6: '//github.com/immich-app/immich/blob/main/server/src/utils/mime-types.ts' is the old path of server/src/utils/mime-types.ts (moved to server/src/shared/mime-types.ts) (step 59, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    59
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R2.json"
+   ],
+   "weight": 1,
+   "id": "F-b033494c9d5b",
+   "narration": "Docs reference the old path for mime-types.ts in three locations; the refactoring left the outdated path intact in documentation."
+  },
+  {
+   "kind": "opaque-dynamic-load",
+   "title": "A module loaded by a computed path (K4): server/src/repositories/database.repository.ts",
+   "files": [
+    "server/src/repositories/database.repository.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/repositories/database.repository.ts, 66 times (steps 1–62, certificate.json, rungs/R1.json, rungs/R2.json, rungs/R3.json):\n- line 510: import(filePath) loads a module by a path K4 can't evaluate (steps 1–62, certificate.json, rungs/R1.json, rungs/R2.json, rungs/R3.json)",
+   "source": "certificate",
+   "steps": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json",
+    "rungs/R2.json",
+    "rungs/R3.json"
+   ],
+   "weight": 1,
+   "id": "F-70d9e19108a1",
+   "narration": null
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/metadata.service.ts",
+   "files": [
+    "server/src/services/metadata.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/metadata.service.ts, 3 times (step 51, certificate.json, rungs/R2.json):\n- moved to server/src/platform/metadata/metadata.service.ts; 2 stack-trace reads passed along as text (line 170); their frames now name the new path (step 51, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    51
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R2.json"
+   ],
+   "weight": 1,
+   "id": "F-49561c40d405",
+   "narration": "In server/src/services/metadata.service.ts a stack-trace text at line 170 now names the new path after the file was moved to server/src/platform/metadata/metadata.service.ts; two stack-trace reads passed along as text recorded three times."
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/workflow-execution.service.ts",
+   "files": [
+    "server/src/services/workflow-execution.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/workflow-execution.service.ts, 3 times (step 38, certificate.json, rungs/R1.json):\n- moved to server/src/modules/workflow/workflow-execution.service.ts; 1 stack-trace reads passed along as text (line 197); their frames now name the new path (step 38, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    38
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-6ab2e0a4c68b",
+   "narration": "In server/src/services/workflow-execution.service.ts line 197, a stack-trace text now names the new path after the file moved to server/src/modules/workflow/workflow-execution.service.ts; one stack-trace read passed along as text recorded three times."
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/auth.service.ts",
+   "files": [
+    "server/src/services/auth.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/auth.service.ts, 3 times (step 5, certificate.json, rungs/R1.json):\n- moved to server/src/modules/auth/auth.service.ts; 1 stack-trace reads passed along as text (line 403); their frames now name the new path (step 5, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    5
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-991694f69a68",
+   "narration": "Stack-trace text in one file still references the old path of auth.service.ts after its move; the frames now use the new module location."
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/repositories/websocket.repository.ts",
+   "files": [
+    "server/src/repositories/websocket.repository.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/repositories/websocket.repository.ts, 3 times (step 58, certificate.json, rungs/R2.json):\n- moved to server/src/platform/websocket/websocket.repository.ts; 1 stack-trace reads passed along as text (line 95); their frames now name the new path (step 58, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    58
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R2.json"
+   ],
+   "weight": 1,
+   "id": "F-a1ef2439353b",
+   "narration": null
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/person.service.ts",
+   "files": [
+    "server/src/services/person.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/person.service.ts, 3 times (step 21, certificate.json, rungs/R1.json):\n- moved to server/src/modules/person/person.service.ts; 2 stack-trace reads passed along as text (line 321); their frames now name the new path (step 21, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    21
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-a3f6cf654776",
+   "narration": "Two stack-trace reads in person.service.ts reference the moved path after the module relocation."
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/notification.service.ts",
+   "files": [
+    "server/src/services/notification.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/notification.service.ts, 3 times (step 18, certificate.json, rungs/R1.json):\n- moved to server/src/modules/notification/notification.service.ts; 2 stack-trace reads passed along as text (line 88); their frames now name the new path (step 18, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    18
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-a9fafedd2e0c",
+   "narration": "Two stack-trace reads in notification.service.ts now name the moved service path after the module relocation."
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/duplicate.service.ts",
+   "files": [
+    "server/src/services/duplicate.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/duplicate.service.ts, 3 times (step 10, certificate.json, rungs/R1.json):\n- moved to server/src/modules/duplicate/duplicate.service.ts; 1 stack-trace reads passed along as text (line 104); their frames now name the new path (step 10, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    10
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-ab4403001c97",
+   "narration": null
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/storage-template.service.ts",
+   "files": [
+    "server/src/services/storage-template.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/storage-template.service.ts, 3 times (step 55, certificate.json, rungs/R2.json):\n- moved to server/src/platform/storage/storage-template.service.ts; 1 stack-trace reads passed along as text (line 263); their frames now name the new path (step 55, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    55
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R2.json"
+   ],
+   "weight": 1,
+   "id": "F-ab71273b30ce",
+   "narration": null
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/utils/logger.ts",
+   "files": [
+    "server/src/utils/logger.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/utils/logger.ts, 3 times (step 49, certificate.json, rungs/R2.json):\n- moved to server/src/platform/logging/logger.ts; 1 stack-trace reads passed along as text (line 24); their frames now name the new path (step 49, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    49
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R2.json"
+   ],
+   "weight": 1,
+   "id": "F-b5d99548eaf9",
+   "narration": "One stack-trace in logger.ts reads passed-along text that now names the relocated utility path."
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/repositories/metadata.repository.ts",
+   "files": [
+    "server/src/repositories/metadata.repository.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/repositories/metadata.repository.ts, 3 times (step 51, certificate.json, rungs/R2.json):\n- moved to server/src/platform/metadata/metadata.repository.ts; 1 stack-trace reads passed along as text (line 133); their frames now name the new path (step 51, certificate.json, rungs/R2.json)",
+   "source": "certificate",
+   "steps": [
+    51
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R2.json"
+   ],
+   "weight": 1,
+   "id": "F-cd5da954f0ed",
+   "narration": null
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/asset-media.service.ts",
+   "files": [
+    "server/src/services/asset-media.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/asset-media.service.ts, 3 times (step 4, certificate.json, rungs/R1.json):\n- moved to server/src/modules/asset/asset-media.service.ts; 1 stack-trace reads passed along as text (line 224); their frames now name the new path (step 4, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    4
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-d7f70626dd55",
+   "narration": null
+  },
+  {
+   "kind": "stack-text",
+   "title": "Stack-trace text names moved paths (K4): server/src/services/version.service.ts",
+   "files": [
+    "server/src/services/version.service.ts"
+   ],
+   "evidence": "K4 reported one finding in server/src/services/version.service.ts, 3 times (step 35, certificate.json, rungs/R1.json):\n- moved to server/src/modules/version/version.service.ts; 1 stack-trace reads passed along as text (line 140); their frames now name the new path (step 35, certificate.json, rungs/R1.json)",
+   "source": "certificate",
+   "steps": [
+    35
+   ],
+   "certificates": [
+    "certificate.json",
+    "rungs/R1.json"
+   ],
+   "weight": 1,
+   "id": "F-dad88f8446e6",
+   "narration": null
+  },
+  {
+   "kind": "tool-config-added",
+   "title": "Inert tool config added (K1): server/.dependency-cruiser.json",
+   "files": [
+    "server/.dependency-cruiser.json"
+   ],
+   "evidence": "K1 reported one finding in server/.dependency-cruiser.json, 2 times (certificate.json, rungs/R4.json):\n- added at the package root and proven inert: in no tsconfig program, loaded by no reference, packed by no published package, named or globbed by no other file, and the tool runs nowhere; CI path filters match it, so it triggers their jobs: 'server/**' in .github/workflows/docker.yml (line 45), 'serv… (certificate.json, rungs/R4.json)",
+   "source": "certificate",
+   "steps": [],
+   "certificates": [
+    "certificate.json",
+    "rungs/R4.json"
+   ],
+   "weight": 1,
+   "id": "F-06567c18470b",
+   "narration": "K1 added a dependency-cruiser config at the package root that proves inert: no tsconfig program loads it, no reference references it, no published package packs it, and no other file names or globs it; CI path filters still trigger its jobs."
+  },
+  {
+   "kind": "tool-config-added",
+   "title": "Inert tool config added (K1): server/.dependency-cruiser-known-violations.json",
+   "files": [
+    "server/.dependency-cruiser-known-violations.json"
+   ],
+   "evidence": "K1 reported one finding in server/.dependency-cruiser-known-violations.json, 2 times (certificate.json, rungs/R4.json):\n- added at the package root and proven inert: in no tsconfig program, loaded by no reference, packed by no published package, named or globbed by no other file, and the tool runs nowhere; CI path filters match it, so it triggers their jobs: 'server/**' in .github/workflows/docker.yml (line 45), 'serv… (certificate.json, rungs/R4.json)",
+   "source": "certificate",
+   "steps": [],
+   "certificates": [
+    "certificate.json",
+    "rungs/R4.json"
+   ],
+   "weight": 1,
+   "id": "F-d75862632092",
+   "narration": "K1 added a dependency-cruiser-known-violations config at the package root that proves inert: no tsconfig program loads it, no reference references it, no published package packs it, and no other file names or globs it; CI path filters still trigger its jobs."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/http-client",
+   "files": [
+    "server/src/utils/fetch.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/http-client): platform/http-client holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-14d96dec2313",
+   "steps": [],
+   "certificates": [],
+   "narration": "The platform/http-client group in plan.yaml contains only one file and no other planned group uses it, so the one-file-platform rule flags it for possible folding."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/check",
+   "files": [
+    "server/src/commands/schema-check.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/check): platform/check holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-175fe3a4820a",
+   "steps": [],
+   "certificates": [],
+   "narration": "The platform/check group in plan.yaml contains only one file and no other planned group uses it, so the one-file-platform rule flags it for possible folding."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (singleton-group): module/machine-learning",
+   "files": [
+    "server/src/repositories/machine-learning.repository.ts"
+   ],
+   "evidence": "The plan validator's rule singleton-group, on the run's plan.yaml (group module/machine-learning): module/machine-learning holds one file",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-545a4b88a62f",
+   "steps": [],
+   "certificates": [],
+   "narration": "Rule singleton-group flags module/machine-learning because the plan holds only one file in that group."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (unsupported-merge): module/auth",
+   "files": [],
+   "evidence": "The plan validator's rule unsupported-merge, on the run's plan.yaml (group module/auth): module/auth takes draft group \"grant\" (src/commands/grant-admin.ts): no shared word, edge, table or route",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-692ad4017c11",
+   "steps": [],
+   "certificates": [],
+   "narration": "Plan rule unsupported-merge reports that module/auth has a draft group \"grant\" with no shared word, edge, table or route."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (platform-feature): platform/move",
+   "files": [
+    "server/src/repositories/move.repository.ts"
+   ],
+   "evidence": "The plan validator's rule platform-feature, on the run's plan.yaml (group platform/move): src/repositories/move.repository.ts writes tables (move_history): a feature, not plumbing",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-6dc722024105",
+   "steps": [],
+   "certificates": [],
+   "narration": "Rule platform-feature on group platform/move notes that move.repository.ts writes to table move_history, classifying it as a feature rather than plumbing."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/move",
+   "files": [
+    "server/src/repositories/move.repository.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/move): platform/move holds one file, and only platform/storage uses it: consider folding it there",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-af06f12438b8",
+   "steps": [],
+   "certificates": [],
+   "narration": "Rule one-file-platform on group platform/move flags that the group holds a single file used only by platform/storage, suggesting a potential fold."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (platform-feature): platform/bootstrap",
+   "files": [
+    "server/src/controllers/app.controller.ts"
+   ],
+   "evidence": "The plan validator's rule platform-feature, on the run's plan.yaml (group platform/bootstrap): src/controllers/app.controller.ts serves routes: a feature, not plumbing",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-e1c975dc8064",
+   "steps": [],
+   "certificates": [],
+   "narration": "Rule platform-feature on group platform/bootstrap notes that app.controller.ts serves routes, classifying it as a feature rather than plumbing."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (impure-shared): shared/shared",
+   "files": [
+    "server/src/services/api.service.ts"
+   ],
+   "evidence": "The plan validator's rule impure-shared, on the run's plan.yaml (group shared/shared): src/services/api.service.ts is a service; shared/ holds pure code only",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-e3b63d08f742",
+   "steps": [],
+   "certificates": [],
+   "narration": "Rule impure-shared on group shared/shared flags that src/services/api.service.ts is a service, while shared/ should hold only pure code."
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (one-file-platform): platform/transcoding",
+   "files": [
+    "server/src/services/transcoding.service.ts"
+   ],
+   "evidence": "The plan validator's rule one-file-platform, on the run's plan.yaml (group platform/transcoding): platform/transcoding holds one file, and no other planned group uses it: consider folding it into the concern or feature it serves",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-fa4aa2cae116",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  },
+  {
+   "kind": "plan-warning",
+   "title": "Plan warning (unsupported-merge): module/auth",
+   "files": [],
+   "evidence": "The plan validator's rule unsupported-merge, on the run's plan.yaml (group module/auth): module/auth takes draft group \"password-login\" (src/commands/password-login.ts): no shared word, edge, table or route",
+   "source": "validator",
+   "weight": 1,
+   "id": "F-ff0edb54f50f",
+   "steps": [],
+   "certificates": [],
+   "narration": null
+  }
+ ]
+}

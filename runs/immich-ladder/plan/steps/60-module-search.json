@@ -1,0 +1,9 @@
+{
+ "step": 60,
+ "rung": "R3",
+ "group": "module/search",
+ "moves": {
+  "server/src/modules/search/search-filter.spec.ts": "server/src/modules/search/search.filter.spec.ts",
+  "server/src/modules/search/search-filter.ts": "server/src/modules/search/search.filter.ts"
+ }
+}

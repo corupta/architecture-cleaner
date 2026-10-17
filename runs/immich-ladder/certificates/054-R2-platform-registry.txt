@@ -1,0 +1,21 @@
+ac certify 54998b5d84..07006eb4d4 (package root server/), profile immich
+trees: 5d6acf1db8..dd149b5cdd
+pathMap: 7 moves, 69 edited in place, 3388 unchanged, 0 added, 0 deleted
+
+PASS  K0  Envelope: inside the envelope: 678 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 7 moved files (5.2 s)
+PASS  K1  Move-set integrity: 7 moves, 69 files edited in place, nothing added or deleted (2.2 s)
+PASS  K2  Byte-span confinement: 74 specifier spans changed in 71 files; every other byte identical (0.8 s)
+PASS  K3a Resolution identity under TypeScript: 6647 sites in 1100 files resolve to map(base) under every program (458 files in several); 74 rewritten specifiers keep their form (1.8 s)
+PASS  K3b Resolution identity under the test runner: vitest 4.1.11: 4837 sites in 672 files resolve to map(base) (8.2 s)
+PASS  K3c Resolution identity under the runtime: 6192 runtime sites resolve to map(base) under nest-cli/emit (3442 rewritten by the build) (6.8 s)
+PASS  K4  Location scan: 7 moved files expose no location; no computed path reaches a change; no old path in code, config or CI (8 findings in docs, comments or ungated coverage settings) (5.3 s)
+        finding (opaque-dynamic-load) server/src/repositories/database.repository.ts: line 510: import(filePath) loads a module by a path K4 can't evaluate
+        finding (old-path-in-docs) .github/pull_request_template.md: line 36: 'src/services/' is the old directory of an index file of server/src/services/index.ts (moved to server/src/platform/registry/services/index.ts)
+        finding (old-path-in-docs) .github/pull_request_template.md: line 37: 'src/repositories/' is the old directory of an index file of server/src/repositories/index.ts (moved to server/src/platform/registry/repositories/index.ts)
+        … 6 more findings
+PASS  K6  Test inventory: vitest 4.1.11: 105 test files, 2337 tests, per-file load status and case names equal (49.5 s)
+PASS  K7  Emit layout: 7 emitting programs keep their outDir and rootDir (1 by TypeScript's default) (0.5 s)
+        finding (default-root-dir) e2e/tsconfig.json: emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e
+
+verdict: PASS (static checks only)
+digest: sha256:821b5e167a89d81d2e0b9e9aaac4b8aef45aef55388d9ac2f8864c07da076791

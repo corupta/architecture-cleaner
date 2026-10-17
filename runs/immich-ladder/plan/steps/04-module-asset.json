@@ -1,0 +1,31 @@
+{
+ "step": 4,
+ "rung": "R1",
+ "group": "module/asset",
+ "moves": {
+  "server/src/controllers/asset-file.controller.ts": "server/src/modules/asset/asset-file.controller.ts",
+  "server/src/controllers/asset-media.controller.ts": "server/src/modules/asset/asset-media.controller.ts",
+  "server/src/controllers/asset-media.controller.spec.ts": "server/src/modules/asset/asset-media.controller.spec.ts",
+  "server/src/controllers/asset.controller.ts": "server/src/modules/asset/asset.controller.ts",
+  "server/src/controllers/asset.controller.spec.ts": "server/src/modules/asset/asset.controller.spec.ts",
+  "server/src/dtos/asset-file.dto.ts": "server/src/modules/asset/asset-file.dto.ts",
+  "server/src/dtos/asset-ids.response.dto.ts": "server/src/modules/asset/asset-ids.response.dto.ts",
+  "server/src/dtos/asset-media-response.dto.ts": "server/src/modules/asset/asset-media-response.dto.ts",
+  "server/src/dtos/asset-media.dto.ts": "server/src/modules/asset/asset-media.dto.ts",
+  "server/src/dtos/asset-response.dto.ts": "server/src/modules/asset/asset-response.dto.ts",
+  "server/src/dtos/asset.dto.ts": "server/src/modules/asset/asset.dto.ts",
+  "server/src/dtos/editing.dto.ts": "server/src/modules/asset/editing.dto.ts",
+  "server/src/dtos/exif.dto.ts": "server/src/modules/asset/exif.dto.ts",
+  "server/src/middleware/asset-upload.interceptor.ts": "server/src/modules/asset/asset-upload.interceptor.ts",
+  "server/src/repositories/asset-edit.repository.ts": "server/src/modules/asset/asset-edit.repository.ts",
+  "server/src/repositories/asset-file.repository.ts": "server/src/modules/asset/asset-file.repository.ts",
+  "server/src/repositories/asset-job.repository.ts": "server/src/modules/asset/asset-job.repository.ts",
+  "server/src/repositories/asset.repository.ts": "server/src/modules/asset/asset.repository.ts",
+  "server/src/services/asset-file.service.ts": "server/src/modules/asset/asset-file.service.ts",
+  "server/src/services/asset-media.service.ts": "server/src/modules/asset/asset-media.service.ts",
+  "server/src/services/asset-media.service.spec.ts": "server/src/modules/asset/asset-media.service.spec.ts",
+  "server/src/services/asset.service.ts": "server/src/modules/asset/asset.service.ts",
+  "server/src/services/asset.service.spec.ts": "server/src/modules/asset/asset.service.spec.ts",
+  "server/src/utils/asset.util.ts": "server/src/modules/asset/asset.util.ts"
+ }
+}

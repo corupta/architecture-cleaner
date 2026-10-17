@@ -1,0 +1,8 @@
+{
+ "step": 61,
+ "rung": "R3",
+ "group": "module/view",
+ "moves": {
+  "server/src/modules/view/view-repository.ts": "server/src/modules/view/view.repository.ts"
+ }
+}

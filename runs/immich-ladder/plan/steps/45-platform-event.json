@@ -1,0 +1,9 @@
+{
+ "step": 45,
+ "rung": "R2",
+ "group": "platform/event",
+ "moves": {
+  "server/src/repositories/event.repository.ts": "server/src/platform/event/event.repository.ts",
+  "server/src/utils/event.ts": "server/src/platform/event/event.ts"
+ }
+}

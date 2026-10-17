@@ -1,0 +1,94 @@
+[certify] K0 Envelope
+[certify] K1 Move-set integrity
+[certify] K2 Byte-span confinement
+[certify] K3a Resolution identity under TypeScript
+[certify] K3b Resolution identity under the test runner
+[certify] K3c Resolution identity under the runtime
+[certify] K4 Location scan
+[certify] K6 Test inventory
+[certify] K8 Oracles on the commit
+[certify] K8 tsc on head
+[certify] K8 tsc on base: from cache /home/paseo/ac-work/s4/oracle-cache/mcphub-70cf036c90f8-tsc-f75b593617590c97
+[certify] K8 unit on head
+[certify] K8 unit on base: from cache /home/paseo/ac-work/s4/oracle-cache/mcphub-70cf036c90f8-unit-7840c52c5958cd0e
+ac certify 70cf036c90..17a703d797
+pathMap: 0 moves, 0 edited in place, 819 unchanged, 299 added, 0 deleted
+
+PASS  K0  Envelope: inside the envelope: 897 TypeScript vs 17 JavaScript sources under the repo root; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 0 moved files (5.3 s)
+FAIL  K1  Move-set integrity: 299 violations (299 added, 0 deleted, 214 copies) (0.3 s)
+        create-shims.cjs: added: no file in base has its content (modulo specifiers)
+        fix-better-auth.cjs: added: no file in base has its content (modulo specifiers)
+        fix-imports.cjs: added: no file in base has its content (modulo specifiers)
+        restructure.cjs: added: no file in base has its content (modulo specifiers)
+        restructure2.cjs: added: no file in base has its content (modulo specifiers)
+        src/dao/BaseDao.ts: added: no file in base has its content (modulo specifiers)
+        src/dao/JsonFileBaseDao.ts: added: no file in base has its content (modulo specifiers)
+        src/db/VectorEmbeddingSubscriber.ts: added: no file in base has its content (modulo specifiers)
+        … 291 more
+PASS  K2  Byte-span confinement: 0 specifier spans changed in 0 files; every other byte identical (0.0 s)
+FAIL  K3a Resolution identity under TypeScript: 299 violations (299 added source files) (1.7 s)
+        create-shims.cjs: added: its 2 reference sites have no counterpart in base
+        fix-better-auth.cjs: added: its 2 reference sites have no counterpart in base
+        fix-imports.cjs: added: its 2 reference sites have no counterpart in base
+        restructure.cjs: added: its 2 reference sites have no counterpart in base
+        restructure2.cjs: added: its 2 reference sites have no counterpart in base
+        src/dao/BaseDao.ts: added: its 1 reference sites have no counterpart in base
+        src/dao/JsonFileBaseDao.ts: added: its 1 reference sites have no counterpart in base
+        src/db/VectorEmbeddingSubscriber.ts: added: its 1 reference sites have no counterpart in base
+        … 291 more
+FAIL  K3b Resolution identity under the test runner: jest 30.3.0: 939 violations (939 dangling in added files) (6.0 s)
+        src/features/abortisolatingfetch.test/utils/__tests__/abortIsolatingFetch.test.ts: site 0 '../abortIsolatingFetch.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../abortIsolatingFetch.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resol)
+        src/features/activity/controllers/activityController.ts: site 1 '../dao/DaoFactory.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../dao/DaoFactory.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver":)
+        src/features/activity/controllers/activityController.ts: site 2 '../types/index.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver": un)
+        src/features/activity/controllers/activityController.ts: site 3 '../utils/logger.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../utils/logger.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver": u)
+        src/features/activity/controllers/activityController.ts: site 4 '../utils/requireAdmin.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../utils/requireAdmin.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolv)
+        src/features/activity/dao/ActivityDao.ts: site 0 '../types/index.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver": un)
+        src/features/activity/dao/ActivityDao.ts: site 1 './index.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ./index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver": undefined)
+        src/features/activity/db/repositories/ActivityRepository.ts: site 2 '../connection.js' (import) in a file added in head does not resolve: unresolved (Configuration error: Could not locate module ../connection.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver": und)
+        … 931 more
+PASS  K3c Resolution identity under the runtime: 4590 runtime sites resolve to map(base) under node/emit, tsx/source (6.6 s)
+        finding (added-file-unresolved) src/dao/BaseDao.ts: node/emit: export './../features/base/dao/BaseDao.ts' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart
+        finding (added-file-unresolved) src/dao/JsonFileBaseDao.ts: node/emit: export './../features/jsonfilebase/dao/JsonFileBaseDao.ts' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart
+        finding (added-file-unresolved) src/db/VectorEmbeddingSubscriber.ts: node/emit: export './../features/vectorembeddingsubscriber/db/VectorEmbeddingSubscriber.ts' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart
+        … 18 more findings
+FAIL  K4  Location scan: 0 path-exposing uses in moved files (and 52 in added files), 0 computed paths into changed directories, 0 old paths in code/config (0 in coverage settings) (0.9 s)
+        create-shims.cjs: added with no base counterpart; line 4: __dirname
+        fix-better-auth.cjs: added with no base counterpart; line 4: __dirname
+        fix-imports.cjs: added with no base counterpart; line 4: __dirname
+        restructure.cjs: added with no base counterpart; line 4: __dirname
+        restructure.cjs: added with no base counterpart; line 106: __dirname
+        restructure.cjs: added with no base counterpart; line 145: __dirname
+        restructure2.cjs: added with no base counterpart; line 4: __dirname
+        src/features/dao-demo/scripts/dao-demo.ts: a copy of src/scripts/dao-demo.ts; line 259: require.main
+        … 44 more
+        finding (stack-text) src/features/main/cli/main.ts: added with no base counterpart; 2 stack-trace reads passed along as text (line 78); their frames now name the new path
+        finding (stack-text) src/features/oauthcallback/controllers/oauthCallbackController.ts: a copy of src/controllers/oauthCallbackController.ts; 2 stack-trace reads passed along as text (line 474); their frames now name the new path
+FAIL  K6  Test inventory: jest 30.3.0: 76 violations (35 of 264 test files fail to load (base: 0), 38 new test files, 38 files in other jest projects) (25.7 s)
+        src/features/sseservice.test/services/sseService.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run Configuration error: Could not locate module ./mcpService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/)
+        src/features/cacheutils.test/utils/cacheUtils.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run src/features/cacheutils.test/utils/cacheUtils.test.ts:8:11 - error TS1005: '=' expected. 8 import fs undefined ~~~~~~~~~ src/features/cacheutils.test/utils/cacheUtils.test.t)
+        src/features/openapi-oauth2.test/clients/__tests__/openapi-oauth2.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run Configuration error: Could not locate module ../openapi.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/":)
+        src/features/auth.test/middlewares/auth.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run src/features/auth.test/middlewares/auth.test.ts:1:16 - error TS1005: '=' expected. 1 import express undefined ~~~~~~~~~ src/features/auth.test/middlewares/auth.test.ts:2:16 )
+        src/features/openapi-spec-auth.test/clients/__tests__/openapi-spec-auth.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run src/features/openapi-spec-auth.test/clients/__tests__/openapi-spec-auth.test.ts:1:14 - error TS1005: '=' expected. 1 import axios undefined ~~~~~~~~~)
+        src/features/openapi-cookie.test/clients/__tests__/openapi-cookie.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run Configuration error: Could not locate module ../openapi.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/":)
+        src/features/openapi-request-body-content-types.test/clients/__tests__/openapi-request-body-content-types.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run src/features/openapi-request-body-content-types.test/clients/__tests__/openapi-request-body-content-types.test.ts:3:22 - error TS1005: 'from' expected. 3 import { OpenAPIV3 )
+        src/features/ssrf.test/utils/__tests__/ssrf.test.ts: new in the jest test list (added in head; fails to load: ● Test suite failed to run src/features/ssrf.test/utils/__tests__/ssrf.test.ts:1:39 - error TS1005: 'from' expected. 1 import { describe, expect, it, jest } undefined ~~~~~~~~~)
+        … 68 more
+FAIL  K8  Oracles on the commit: tsc exited 2 on head (101 diagnostics), 0 on base; unit 219/257 files and 1,934/1,952 cases equal to base (head: 222/257 files load, 1,952 passed, 0 failed, 0 skipped) (35.8 s)
+        tsc: `node_modules/.bin/tsc --outDir {scratch}/dist --incremental false --pretty false` exited 2 on head (101 diagnostics), exit 0 on base (log /tmp/ac-s4-certify/g3-mcphub-opencode-super-persistent.full/oracles/head/tsc/step-1.log)
+        src/features/activityrepository/db/repositories/ActivityRepository.ts: tsc: TS1005 'from' expected.
+        src/features/auth/middlewares/auth.ts: tsc: TS1005 'from' expected.
+        src/features/auth/middlewares/auth.ts: tsc: TS1005 '=' expected.
+        src/features/baserepository/db/repositories/BaseRepository.ts: tsc: TS1005 'from' expected.
+        src/features/bearerauth/utils/bearerAuth.ts: tsc: TS1005 'from' expected.
+        src/features/bearerkeyrepository/db/repositories/BearerKeyRepository.ts: tsc: TS1005 'from' expected.
+        src/features/builtinpromptrepository/db/repositories/BuiltinPromptRepository.ts: tsc: TS1005 'from' expected.
+        … 43 more
+        finding (network-attempt) unit on head: 5 network attempts refused (log /tmp/ac-s4-certify/g3-mcphub-opencode-super-persistent.full/oracles/head/unit/network.jsonl)
+        finding (network-attempt) unit on base: 5 network attempts refused (log /home/paseo/ac-work/s4/oracle-cache/mcphub-70cf036c90f8-unit-7840c52c5958cd0e/network.jsonl)
+
+verdict: FAIL (static checks and oracles)
+digest: sha256:468c1acbeedfdae859428e2b0a029c236e3e6757c0fd93e2ab6797d815cd4fe6
+
+Ac-Certificate: fail (full) K0=pass K1=fail K2=pass K3=fail K4=fail K6=fail K8=fail
+Ac-Certificate-Base: 70cf036c90f8239c2a11a57f137b588fce7d1b0c
+Ac-Certificate-Digest: sha256:468c1acbeedfdae859428e2b0a029c236e3e6757c0fd93e2ab6797d815cd4fe6

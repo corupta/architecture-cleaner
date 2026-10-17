@@ -1,0 +1,327 @@
+{
+ "format": "ac-certificate/2",
+ "tool": {
+  "name": "architecture-cleaner",
+  "version": "0.1.0"
+ },
+ "repo": "/home/paseo/ac-work/s6/final-immich",
+ "base": "775d52db5e82037e73aa66cde6f8a0fd3fdc720d",
+ "head": "91a57545b7898352df944e09cc0f38eaadbbd89d",
+ "baseTree": "7dfa3b6c72a2f7b096f6d7b6821b51bc3df1c8db",
+ "headTree": "6a8a901cbb01c97f5d421020421828f493922ba5",
+ "packageRoot": "server",
+ "profile": "immich",
+ "environment": {
+  "checkout": "/home/paseo/ac-targets/immich",
+  "node": "v22.23.3",
+  "linkedNodeModules": [
+   "",
+   "packages/plugin-core",
+   "packages/plugin-sdk",
+   "packages/sdk",
+   "server"
+  ]
+ },
+ "workDir": "/home/paseo/ac-work/s6/final/work/rung-R3",
+ "pathMap": {
+  "moves": 5,
+  "unchanged": 3443,
+  "editedInPlace": 16,
+  "deleted": [],
+  "added": [],
+  "ambiguousGroups": 0,
+  "entries": {
+   "server/src/modules/search/search-filter.spec.ts": "server/src/modules/search/search.filter.spec.ts",
+   "server/src/modules/search/search-filter.ts": "server/src/modules/search/search.filter.ts",
+   "server/src/modules/view/view-repository.ts": "server/src/modules/view/view.repository.ts",
+   "server/src/shared/mime-types.spec.ts": "server/src/shared/mime.types.spec.ts",
+   "server/src/shared/mime-types.ts": "server/src/shared/mime.types.ts"
+  }
+ },
+ "checks": [
+  {
+   "id": "K0",
+   "title": "Envelope",
+   "status": "pass",
+   "summary": "inside the envelope: 678 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 5 moved files",
+   "metrics": {
+    "moves": 5,
+    "baseTypeScriptFiles": 678,
+    "baseJavaScriptFiles": 3,
+    "headTypeScriptFiles": 678,
+    "headJavaScriptFiles": 3
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 351
+  },
+  {
+   "id": "K1",
+   "title": "Move-set integrity",
+   "status": "pass",
+   "summary": "5 moves, 16 files edited in place, nothing added or deleted",
+   "metrics": {
+    "moves": 5,
+    "unchanged": 3443,
+    "editedInPlace": 16,
+    "deleted": 0,
+    "added": 0,
+    "copies": 0,
+    "inertAdditions": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 2373
+  },
+  {
+   "id": "K2",
+   "title": "Byte-span confinement",
+   "status": "pass",
+   "summary": "18 specifier spans changed in 18 files; every other byte identical",
+   "metrics": {
+    "comparedFiles": 18,
+    "editedFiles": 18,
+    "changedSpans": 18
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 730
+  },
+  {
+   "id": "K3a",
+   "title": "Resolution identity under TypeScript",
+   "status": "pass",
+   "summary": "6647 sites in 1100 files resolve to map(base) under every program (458 files in several); 18 rewritten specifiers keep their form",
+   "metrics": {
+    "files": 1100,
+    "sites": 6647,
+    "resolutions": 9636,
+    "multiProgramFiles": 458,
+    "rewrittenSpecifiers": 18,
+    "typeDirectives": 13,
+    "implicitImports": 0,
+    "unextractedSites": 0,
+    "addedFiles": 0,
+    "deletedFiles": 0,
+    "resolutionMismatches": 0,
+    "formChanges": 0,
+    "contextChanges": 0,
+    "typeDirectiveMismatches": 0,
+    "workspaceLinks": 0,
+    "virtualModuleSplits": 0,
+    "unresolvedMoves": 0,
+    "unmodeledResolutions": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 1814
+  },
+  {
+   "id": "K3b",
+   "title": "Resolution identity under the test runner",
+   "status": "pass",
+   "summary": "vitest 4.1.11: 4837 sites in 672 files resolve to map(base)",
+   "metrics": {
+    "runner": "vitest",
+    "runnerVersion": "4.1.11",
+    "projects": "server:unit",
+    "sites": 4837,
+    "files": 672,
+    "dangling": 0,
+    "retargeted": 0,
+    "newlyResolved": 0,
+    "unresolvedTextChanged": 0,
+    "mockChanged": 0,
+    "addedDangling": 0,
+    "outsideRoots": 0,
+    "outsideProjectRoot": 0,
+    "addedFiles": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 8098
+  },
+  {
+   "id": "K3c",
+   "title": "Resolution identity under the runtime",
+   "status": "pass",
+   "summary": "6192 runtime sites resolve to map(base) under nest-cli/emit (3442 rewritten by the build)",
+   "metrics": {
+    "runtimes": "nest-cli/emit",
+    "runtimeEvidence": "nest-cli/emit: package.json scripts.start:dev: nest start --watch --; package.json scripts.start:debug: nest start --debug 0.0.0.0:9230 --watch --; server/bin/start.sh: exec node --no-warnings \"${SERVER_HOME}/dist/main.js\" \"$@\"",
+    "modeled": "nest-cli/emit",
+    "notModeled": "",
+    "subpathImports": false,
+    "emitModel": "in place: each source at its own path with the runtime extension (.ts->.js, .mts->.mjs, .cts->.cjs), as with a fixed rootDir; outDir links to rootDir",
+    "node": "v24.21.0",
+    "nestCli": "12.0.6",
+    "files": 1099,
+    "addedFiles": 0,
+    "unresolvedInAdded": 0,
+    "comparedSites": 6192,
+    "rewrittenByBuild": 3442,
+    "unresolvedInBase": 1453,
+    "deferredSites": 0,
+    "aliasSitesBase": 1920,
+    "aliasSitesHead": 1920,
+    "disagreements": 0,
+    "violations": 0
+   },
+   "violations": [],
+   "findings": [],
+   "run": {
+    "skeletonMs": 1759,
+    "probeMs": 4392
+   },
+   "durationMs": 7110
+  },
+  {
+   "id": "K4",
+   "title": "Location scan",
+   "status": "pass",
+   "summary": "5 moved files expose no location; no computed path reaches a change; no old path in code, config or CI (0 findings in docs, comments or ungated coverage settings)",
+   "metrics": {
+    "movedFilesScanned": 5,
+    "movedFileHazards": 0,
+    "copiedFileHazards": 0,
+    "filesScannedForComputedPaths": 1095,
+    "computedPathViolations": 0,
+    "textFilesScanned": 3128,
+    "oldPathViolations": 0,
+    "coverageViolations": 0,
+    "coverageFindings": 0,
+    "oldPathFindings": 0,
+    "globsChecked": 2919,
+    "pluginSuffixViolations": 0
+   },
+   "violations": [],
+   "findings": [
+    {
+     "kind": "opaque-dynamic-load",
+     "file": "server/src/repositories/database.repository.ts",
+     "detail": "line 510: import(filePath) loads a module by a path K4 can't evaluate"
+    }
+   ],
+   "durationMs": 5587
+  },
+  {
+   "id": "K6",
+   "title": "Test inventory",
+   "status": "pass",
+   "summary": "vitest 4.1.11: 105 test files, 2337 tests, per-file load status and case names equal",
+   "metrics": {
+    "runner": "vitest",
+    "runnerVersion": "4.1.11",
+    "baseFiles": 105,
+    "headFiles": 105,
+    "baseTests": 2337,
+    "headTests": 2337,
+    "baseUnloadable": 0,
+    "headUnloadable": 0,
+    "loadRegressions": 0,
+    "droppedFiles": 0,
+    "newFiles": 0,
+    "caseChanges": 0,
+    "lostTests": 0,
+    "uncollected": 0,
+    "snapshotFileChanges": 0,
+    "snapshots": "snapshot files co-move with their tests (K1); snapshot.added == 0 under --ci needs a real run (K8)"
+   },
+   "violations": [],
+   "findings": [],
+   "run": {
+    "base.ms": 5,
+    "base.cached": true,
+    "head.ms": 4,
+    "head.cached": true
+   },
+   "durationMs": 34
+  },
+  {
+   "id": "K7",
+   "title": "Emit layout",
+   "status": "pass",
+   "summary": "7 emitting programs keep their outDir and rootDir (1 by TypeScript's default)",
+   "metrics": {
+    "emittingPrograms": 7,
+    "defaultRootDirs": 1
+   },
+   "violations": [],
+   "findings": [
+    {
+     "kind": "default-root-dir",
+     "file": "e2e/tsconfig.json",
+     "detail": "emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e"
+    }
+   ],
+   "durationMs": 491
+  },
+  {
+   "id": "K8",
+   "title": "Oracles on the commit",
+   "status": "pass",
+   "summary": "tsc exit 0; unit 105/105 files and 2,337/2,337 cases equal to base (head: 105/105 files load, 2,337 passed, 0 failed, 0 skipped); openapi byte-identical to the base's open-api/immich-openapi-specs.json (947,932 bytes)",
+   "metrics": {
+    "node": "v24.21.0",
+    "offline": true,
+    "hooksBypassed": "core.hooksPath=/dev/null (worktree add and resets); HUSKY=0",
+    "prerequisitesReachable": "server/node_modules/.bin/tsc, server/node_modules/.bin/vitest, server/node_modules/@immich/plugin-sdk/dist/index.js, packages/plugin-sdk/node_modules/@immich/sdk/build/index.js, server/node_modules/.bin/nest",
+    "tsc.head.exit": 0,
+    "tsc.head.networkAttempts": 0,
+    "tsc.head.diagnostics": 0,
+    "unit.head.exit": 0,
+    "unit.head.networkAttempts": 0,
+    "unit.base.exit": 0,
+    "unit.base.networkAttempts": 0,
+    "unit.head.files": 105,
+    "unit.head.loaded": 105,
+    "unit.head.cases": 2337,
+    "unit.head.passed": 2337,
+    "unit.head.failed": 0,
+    "unit.head.skipped": 0,
+    "unit.base.files": 105,
+    "unit.base.loaded": 105,
+    "unit.base.cases": 2337,
+    "unit.base.passed": 2337,
+    "unit.base.failed": 0,
+    "unit.base.skipped": 0,
+    "unit.flaky": 0,
+    "unit.filesEqual": 105,
+    "unit.casesEqual": 2337,
+    "openapi.head.exit": 0,
+    "openapi.head.networkAttempts": 0,
+    "openapi.head.bytes": 947932,
+    "openapi.head.sha256": "d4f4d34b9b8ac57a8e26aac8b479155842430ea40c731ac1351f30fde4cdbbfa",
+    "openapi.comparedWith": "base tree blob open-api/immich-openapi-specs.json"
+   },
+   "violations": [],
+   "findings": [],
+   "run": {
+    "worktree": "/home/paseo/ac-work/s6/final/work/rung-R3/worktree-head",
+    "logs": "/home/paseo/ac-work/s6/final/work/rung-R3/oracles",
+    "cache": "/home/paseo/ac-work/s4/oracle-cache",
+    "leftoversRemoved": 1,
+    "tsc.head.seconds": 9,
+    "tsc.head.logs": "/home/paseo/ac-work/s6/final/work/rung-R3/oracles/head/tsc",
+    "unit.head.seconds": 56,
+    "unit.head.logs": "/home/paseo/ac-work/s6/final/work/rung-R3/oracles/head/unit",
+    "unit.base.seconds": 56,
+    "unit.base.logs": "/home/paseo/ac-work/s4/oracle-cache/final-immich-775d52db5e82-unit-1eb8571cb9d7113f",
+    "unit.base.cached": false,
+    "openapi.head.seconds": 47,
+    "openapi.head.logs": "/home/paseo/ac-work/s6/final/work/rung-R3/oracles/head/openapi"
+   },
+   "durationMs": 169469
+  }
+ ],
+ "verdict": "pass",
+ "scope": "full",
+ "residualRisk": [
+  "consumers outside the repository (deep imports, handler strings in infrastructure, other services)",
+  "runtime file-system contents (assets, templates, SQL read at runtime)",
+  "environment-dependent resolution (NODE_PATH, untracked or generated files)",
+  "stack-trace and source-map text",
+  "CI triggers and review routing keyed by path (workflow `paths`, CODEOWNERS)"
+ ],
+ "digest": "sha256:043030173380b8fd7aaae467c0a67bcc72ed19d66f9d8eb89933e809a849350d"
+}

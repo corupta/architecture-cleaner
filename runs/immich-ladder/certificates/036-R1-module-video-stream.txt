@@ -1,0 +1,21 @@
+ac certify e6dcb6a202..e72c63b1ad (package root server/), profile immich
+trees: 2b7c2760ac..d074d73150
+pathMap: 5 moves, 5 edited in place, 3454 unchanged, 0 added, 0 deleted
+
+PASS  K0  Envelope: inside the envelope: 678 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 5 moved files (5.3 s)
+PASS  K1  Move-set integrity: 5 moves, 5 files edited in place, nothing added or deleted (2.3 s)
+PASS  K2  Byte-span confinement: 8 specifier spans changed in 7 files; every other byte identical (0.7 s)
+PASS  K3a Resolution identity under TypeScript: 6647 sites in 1100 files resolve to map(base) under every program (458 files in several); 8 rewritten specifiers keep their form (1.7 s)
+PASS  K3b Resolution identity under the test runner: vitest 4.1.11: 4837 sites in 672 files resolve to map(base) (8.9 s)
+PASS  K3c Resolution identity under the runtime: 6192 runtime sites resolve to map(base) under nest-cli/emit (3442 rewritten by the build) (6.8 s)
+PASS  K4  Location scan: 5 moved files expose no location; no computed path reaches a change; no old path in code, config or CI (8 findings in docs, comments or ungated coverage settings) (5.3 s)
+        finding (opaque-dynamic-load) server/src/repositories/database.repository.ts: line 510: import(filePath) loads a module by a path K4 can't evaluate
+        finding (old-path-in-docs) .github/pull_request_template.md: line 36: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/hls.service.spec.ts (moved to server/src/modules/video-stream/hls.service.spec.ts)
+        finding (old-path-in-docs) .github/pull_request_template.md: line 37: 'src/repositories/' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/video-stream.repository.ts (moved to server/src/modules/video-stream/video-stream.repository.ts)
+        … 6 more findings
+PASS  K6  Test inventory: vitest 4.1.11: 105 test files, 2337 tests, per-file load status and case names equal (49.0 s)
+PASS  K7  Emit layout: 7 emitting programs keep their outDir and rootDir (1 by TypeScript's default) (0.5 s)
+        finding (default-root-dir) e2e/tsconfig.json: emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e
+
+verdict: PASS (static checks only)
+digest: sha256:06e897d20ce18650a2e886cb584e97f6023f85aa54a406bd1e8909855ed62c8e

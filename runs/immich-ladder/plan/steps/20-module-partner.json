@@ -1,0 +1,13 @@
+{
+ "step": 20,
+ "rung": "R1",
+ "group": "module/partner",
+ "moves": {
+  "server/src/controllers/partner.controller.ts": "server/src/modules/partner/partner.controller.ts",
+  "server/src/controllers/partner.controller.spec.ts": "server/src/modules/partner/partner.controller.spec.ts",
+  "server/src/dtos/partner.dto.ts": "server/src/modules/partner/partner.dto.ts",
+  "server/src/repositories/partner.repository.ts": "server/src/modules/partner/partner.repository.ts",
+  "server/src/services/partner.service.ts": "server/src/modules/partner/partner.service.ts",
+  "server/src/services/partner.service.spec.ts": "server/src/modules/partner/partner.service.spec.ts"
+ }
+}

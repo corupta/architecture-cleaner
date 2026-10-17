@@ -1,0 +1,9 @@
+{
+ "step": 62,
+ "rung": "R3",
+ "group": "shared/shared",
+ "moves": {
+  "server/src/shared/mime-types.spec.ts": "server/src/shared/mime.types.spec.ts",
+  "server/src/shared/mime-types.ts": "server/src/shared/mime.types.ts"
+ }
+}

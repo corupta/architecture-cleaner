@@ -1,0 +1,13 @@
+{
+ "step": 32,
+ "rung": "R1",
+ "group": "module/timeline",
+ "moves": {
+  "server/src/controllers/timeline.controller.ts": "server/src/modules/timeline/timeline.controller.ts",
+  "server/src/controllers/timeline.controller.spec.ts": "server/src/modules/timeline/timeline.controller.spec.ts",
+  "server/src/dtos/bbox.dto.ts": "server/src/modules/timeline/bbox.dto.ts",
+  "server/src/dtos/time-bucket.dto.ts": "server/src/modules/timeline/time-bucket.dto.ts",
+  "server/src/services/timeline.service.ts": "server/src/modules/timeline/timeline.service.ts",
+  "server/src/services/timeline.service.spec.ts": "server/src/modules/timeline/timeline.service.spec.ts"
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "step": 11,
+ "rung": "R1",
+ "group": "module/integrity",
+ "moves": {
+  "server/src/controllers/integrity-admin.controller.ts": "server/src/modules/integrity/integrity-admin.controller.ts",
+  "server/src/dtos/integrity.dto.ts": "server/src/modules/integrity/integrity.dto.ts",
+  "server/src/repositories/integrity.repository.ts": "server/src/modules/integrity/integrity.repository.ts",
+  "server/src/services/integrity.service.ts": "server/src/modules/integrity/integrity.service.ts",
+  "server/src/services/integrity.service.spec.ts": "server/src/modules/integrity/integrity.service.spec.ts"
+ }
+}

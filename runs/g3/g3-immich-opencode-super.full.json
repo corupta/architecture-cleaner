@@ -1,0 +1,3280 @@
+{
+ "format": "ac-certificate/1",
+ "tool": {
+  "name": "architecture-cleaner",
+  "version": "0.1.0"
+ },
+ "repo": "/home/paseo/ac-targets/g3/immich",
+ "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+ "head": "03e76f3faa5cdb8a12e6551830369070390a37b7",
+ "packageRoot": "server",
+ "environment": {
+  "checkout": "/home/paseo/ac-targets/g3/immich",
+  "node": "v22.23.3",
+  "linkedNodeModules": [
+   "",
+   "packages/plugin-core",
+   "packages/plugin-sdk",
+   "packages/sdk",
+   "server"
+  ]
+ },
+ "pathMap": {
+  "moves": 0,
+  "unchanged": 3464,
+  "editedInPlace": 0,
+  "deleted": [],
+  "added": [
+   {
+    "path": "server/src/features/activity/activity.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/activity/activity.controller.ts"
+   },
+   {
+    "path": "server/src/features/activity/activity.dto.ts"
+   },
+   {
+    "path": "server/src/features/activity/activity.repository.ts",
+    "copyOf": "server/src/repositories/activity.repository.ts"
+   },
+   {
+    "path": "server/src/features/activity/activity.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/activity/activity.service.ts"
+   },
+   {
+    "path": "server/src/features/album/album.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/album/album.controller.ts"
+   },
+   {
+    "path": "server/src/features/album/album.dto.ts"
+   },
+   {
+    "path": "server/src/features/album/album.repository.ts"
+   },
+   {
+    "path": "server/src/features/album/album.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/album/album.service.ts"
+   },
+   {
+    "path": "server/src/features/api-key/api-key.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/api-key/api-key.controller.ts"
+   },
+   {
+    "path": "server/src/features/api-key/api-key.dto.ts",
+    "copyOf": "server/src/dtos/api-key.dto.ts"
+   },
+   {
+    "path": "server/src/features/api-key/api-key.repository.ts",
+    "copyOf": "server/src/repositories/api-key.repository.ts"
+   },
+   {
+    "path": "server/src/features/api-key/api-key.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/api-key/api-key.service.ts"
+   },
+   {
+    "path": "server/src/features/app/app.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/app/app.controller.ts"
+   },
+   {
+    "path": "server/src/features/app/app.repository.ts"
+   },
+   {
+    "path": "server/src/features/asset-file/asset-file.controller.ts"
+   },
+   {
+    "path": "server/src/features/asset-file/asset-file.dto.ts",
+    "copyOf": "server/src/dtos/asset-file.dto.ts"
+   },
+   {
+    "path": "server/src/features/asset-file/asset-file.repository.ts"
+   },
+   {
+    "path": "server/src/features/asset-file/asset-file.service.ts"
+   },
+   {
+    "path": "server/src/features/asset-media/asset-media.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/asset-media/asset-media.controller.ts"
+   },
+   {
+    "path": "server/src/features/asset-media/asset-media.dto.ts"
+   },
+   {
+    "path": "server/src/features/asset-media/asset-media.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/asset-media/asset-media.service.ts"
+   },
+   {
+    "path": "server/src/features/asset/asset.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/asset/asset.controller.ts"
+   },
+   {
+    "path": "server/src/features/asset/asset.dto.ts"
+   },
+   {
+    "path": "server/src/features/asset/asset.repository.ts"
+   },
+   {
+    "path": "server/src/features/asset/asset.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/asset/asset.service.ts"
+   },
+   {
+    "path": "server/src/features/auth-admin/auth-admin.controller.ts"
+   },
+   {
+    "path": "server/src/features/auth-admin/auth-admin.service.ts"
+   },
+   {
+    "path": "server/src/features/auth/auth.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/auth/auth.controller.ts"
+   },
+   {
+    "path": "server/src/features/auth/auth.dto.ts",
+    "copyOf": "server/src/dtos/auth.dto.ts"
+   },
+   {
+    "path": "server/src/features/auth/auth.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/auth/auth.service.ts"
+   },
+   {
+    "path": "server/src/features/cluster-group/cluster-group.controller.ts"
+   },
+   {
+    "path": "server/src/features/cluster-group/cluster-group.dto.ts",
+    "copyOf": "server/src/dtos/cluster-group.dto.ts"
+   },
+   {
+    "path": "server/src/features/cluster-group/cluster-group.repository.ts",
+    "copyOf": "server/src/repositories/cluster-group.repository.ts"
+   },
+   {
+    "path": "server/src/features/cluster-group/cluster-group.service.ts"
+   },
+   {
+    "path": "server/src/features/config-admin/config-admin.controller.ts"
+   },
+   {
+    "path": "server/src/features/config-public/config-public.controller.ts"
+   },
+   {
+    "path": "server/src/features/config-user/config-user.controller.ts"
+   },
+   {
+    "path": "server/src/features/database-backup/database-backup.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/database-backup/database-backup.controller.ts"
+   },
+   {
+    "path": "server/src/features/database-backup/database-backup.dto.ts",
+    "copyOf": "server/src/dtos/database-backup.dto.ts"
+   },
+   {
+    "path": "server/src/features/database-backup/database-backup.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/database-backup/database-backup.service.ts"
+   },
+   {
+    "path": "server/src/features/download/download.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/download/download.controller.ts"
+   },
+   {
+    "path": "server/src/features/download/download.dto.ts",
+    "copyOf": "server/src/dtos/download.dto.ts"
+   },
+   {
+    "path": "server/src/features/download/download.repository.ts",
+    "copyOf": "server/src/repositories/download.repository.ts"
+   },
+   {
+    "path": "server/src/features/download/download.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/download/download.service.ts"
+   },
+   {
+    "path": "server/src/features/duplicate/duplicate.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/duplicate/duplicate.controller.ts"
+   },
+   {
+    "path": "server/src/features/duplicate/duplicate.dto.ts"
+   },
+   {
+    "path": "server/src/features/duplicate/duplicate.repository.ts"
+   },
+   {
+    "path": "server/src/features/duplicate/duplicate.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/duplicate/duplicate.service.ts"
+   },
+   {
+    "path": "server/src/features/face/face.controller.ts"
+   },
+   {
+    "path": "server/src/features/integrity-admin/integrity-admin.controller.ts"
+   },
+   {
+    "path": "server/src/features/job/job.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/job/job.controller.ts"
+   },
+   {
+    "path": "server/src/features/job/job.dto.ts",
+    "copyOf": "server/src/dtos/job.dto.ts"
+   },
+   {
+    "path": "server/src/features/job/job.repository.ts"
+   },
+   {
+    "path": "server/src/features/job/job.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/job/job.service.ts"
+   },
+   {
+    "path": "server/src/features/library/library.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/library/library.controller.ts"
+   },
+   {
+    "path": "server/src/features/library/library.dto.ts",
+    "copyOf": "server/src/dtos/library.dto.ts"
+   },
+   {
+    "path": "server/src/features/library/library.repository.ts"
+   },
+   {
+    "path": "server/src/features/library/library.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/library/library.service.ts"
+   },
+   {
+    "path": "server/src/features/maintenance/maintenance.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/maintenance/maintenance.controller.ts"
+   },
+   {
+    "path": "server/src/features/maintenance/maintenance.dto.ts",
+    "copyOf": "server/src/dtos/maintenance.dto.ts"
+   },
+   {
+    "path": "server/src/features/maintenance/maintenance.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/maintenance/maintenance.service.ts"
+   },
+   {
+    "path": "server/src/features/map/map.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/map/map.controller.ts"
+   },
+   {
+    "path": "server/src/features/map/map.dto.ts",
+    "copyOf": "server/src/dtos/map.dto.ts"
+   },
+   {
+    "path": "server/src/features/map/map.repository.ts"
+   },
+   {
+    "path": "server/src/features/map/map.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/map/map.service.ts"
+   },
+   {
+    "path": "server/src/features/memory/memory.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/memory/memory.controller.ts"
+   },
+   {
+    "path": "server/src/features/memory/memory.dto.ts"
+   },
+   {
+    "path": "server/src/features/memory/memory.repository.ts"
+   },
+   {
+    "path": "server/src/features/memory/memory.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/memory/memory.service.ts"
+   },
+   {
+    "path": "server/src/features/notification-admin/notification-admin.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/notification-admin/notification-admin.controller.ts"
+   },
+   {
+    "path": "server/src/features/notification-admin/notification-admin.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/notification-admin/notification-admin.service.ts"
+   },
+   {
+    "path": "server/src/features/notification/notification.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/notification/notification.controller.ts"
+   },
+   {
+    "path": "server/src/features/notification/notification.dto.ts",
+    "copyOf": "server/src/dtos/notification.dto.ts"
+   },
+   {
+    "path": "server/src/features/notification/notification.repository.ts"
+   },
+   {
+    "path": "server/src/features/notification/notification.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/notification/notification.service.ts"
+   },
+   {
+    "path": "server/src/features/oauth/oauth.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/oauth/oauth.controller.ts"
+   },
+   {
+    "path": "server/src/features/oauth/oauth.repository.ts"
+   },
+   {
+    "path": "server/src/features/partner/partner.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/partner/partner.controller.ts"
+   },
+   {
+    "path": "server/src/features/partner/partner.dto.ts"
+   },
+   {
+    "path": "server/src/features/partner/partner.repository.ts",
+    "copyOf": "server/src/repositories/partner.repository.ts"
+   },
+   {
+    "path": "server/src/features/partner/partner.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/partner/partner.service.ts"
+   },
+   {
+    "path": "server/src/features/person/person.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/person/person.controller.ts"
+   },
+   {
+    "path": "server/src/features/person/person.dto.ts"
+   },
+   {
+    "path": "server/src/features/person/person.repository.ts"
+   },
+   {
+    "path": "server/src/features/person/person.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/person/person.service.ts"
+   },
+   {
+    "path": "server/src/features/plugin/plugin.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/plugin/plugin.controller.ts"
+   },
+   {
+    "path": "server/src/features/plugin/plugin.dto.ts"
+   },
+   {
+    "path": "server/src/features/plugin/plugin.repository.ts"
+   },
+   {
+    "path": "server/src/features/plugin/plugin.service.ts"
+   },
+   {
+    "path": "server/src/features/queue/queue.controller.ts"
+   },
+   {
+    "path": "server/src/features/queue/queue.dto.ts",
+    "copyOf": "server/src/dtos/queue.dto.ts"
+   },
+   {
+    "path": "server/src/features/queue/queue.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/queue/queue.service.ts"
+   },
+   {
+    "path": "server/src/features/search/search.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/search/search.controller.ts"
+   },
+   {
+    "path": "server/src/features/search/search.dto.ts"
+   },
+   {
+    "path": "server/src/features/search/search.repository.ts"
+   },
+   {
+    "path": "server/src/features/search/search.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/search/search.service.ts"
+   },
+   {
+    "path": "server/src/features/server/server.controller.ts"
+   },
+   {
+    "path": "server/src/features/server/server.dto.ts",
+    "copyOf": "server/src/dtos/server.dto.ts"
+   },
+   {
+    "path": "server/src/features/server/server.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/server/server.service.ts"
+   },
+   {
+    "path": "server/src/features/session/session.controller.ts"
+   },
+   {
+    "path": "server/src/features/session/session.dto.ts",
+    "copyOf": "server/src/dtos/session.dto.ts"
+   },
+   {
+    "path": "server/src/features/session/session.repository.ts",
+    "copyOf": "server/src/repositories/session.repository.ts"
+   },
+   {
+    "path": "server/src/features/session/session.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/session/session.service.ts"
+   },
+   {
+    "path": "server/src/features/shared-link/shared-link.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/shared-link/shared-link.controller.ts"
+   },
+   {
+    "path": "server/src/features/shared-link/shared-link.dto.ts"
+   },
+   {
+    "path": "server/src/features/shared-link/shared-link.repository.ts",
+    "copyOf": "server/src/repositories/shared-link.repository.ts"
+   },
+   {
+    "path": "server/src/features/shared-link/shared-link.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/shared-link/shared-link.service.ts"
+   },
+   {
+    "path": "server/src/features/stack/stack.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/stack/stack.controller.ts"
+   },
+   {
+    "path": "server/src/features/stack/stack.dto.ts"
+   },
+   {
+    "path": "server/src/features/stack/stack.repository.ts",
+    "copyOf": "server/src/repositories/stack.repository.ts"
+   },
+   {
+    "path": "server/src/features/stack/stack.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/stack/stack.service.ts"
+   },
+   {
+    "path": "server/src/features/sync/sync.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/sync/sync.controller.ts"
+   },
+   {
+    "path": "server/src/features/sync/sync.dto.ts"
+   },
+   {
+    "path": "server/src/features/sync/sync.repository.ts",
+    "copyOf": "server/src/repositories/sync.repository.ts"
+   },
+   {
+    "path": "server/src/features/sync/sync.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/sync/sync.service.ts"
+   },
+   {
+    "path": "server/src/features/system-config/system-config.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/system-config/system-config.controller.ts"
+   },
+   {
+    "path": "server/src/features/system-config/system-config.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/system-config/system-config.service.ts"
+   },
+   {
+    "path": "server/src/features/system-metadata/system-metadata.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/system-metadata/system-metadata.controller.ts"
+   },
+   {
+    "path": "server/src/features/system-metadata/system-metadata.dto.ts",
+    "copyOf": "server/src/dtos/system-metadata.dto.ts"
+   },
+   {
+    "path": "server/src/features/system-metadata/system-metadata.repository.ts",
+    "copyOf": "server/src/repositories/system-metadata.repository.ts"
+   },
+   {
+    "path": "server/src/features/system-metadata/system-metadata.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/system-metadata/system-metadata.service.ts"
+   },
+   {
+    "path": "server/src/features/tag/tag.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/tag/tag.controller.ts"
+   },
+   {
+    "path": "server/src/features/tag/tag.dto.ts",
+    "copyOf": "server/src/dtos/tag.dto.ts"
+   },
+   {
+    "path": "server/src/features/tag/tag.repository.ts"
+   },
+   {
+    "path": "server/src/features/tag/tag.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/tag/tag.service.ts"
+   },
+   {
+    "path": "server/src/features/timeline/timeline.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/timeline/timeline.controller.ts"
+   },
+   {
+    "path": "server/src/features/timeline/timeline.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/timeline/timeline.service.ts"
+   },
+   {
+    "path": "server/src/features/trash/trash.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/trash/trash.controller.ts"
+   },
+   {
+    "path": "server/src/features/trash/trash.dto.ts",
+    "copyOf": "server/src/dtos/trash.dto.ts"
+   },
+   {
+    "path": "server/src/features/trash/trash.repository.ts",
+    "copyOf": "server/src/repositories/trash.repository.ts"
+   },
+   {
+    "path": "server/src/features/trash/trash.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/trash/trash.service.ts"
+   },
+   {
+    "path": "server/src/features/user-admin/user-admin.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/user-admin/user-admin.controller.ts"
+   },
+   {
+    "path": "server/src/features/user-admin/user-admin.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/user-admin/user-admin.service.ts"
+   },
+   {
+    "path": "server/src/features/user/user.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/user/user.controller.ts"
+   },
+   {
+    "path": "server/src/features/user/user.dto.ts"
+   },
+   {
+    "path": "server/src/features/user/user.repository.ts",
+    "copyOf": "server/src/repositories/user.repository.ts"
+   },
+   {
+    "path": "server/src/features/user/user.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/user/user.service.ts"
+   },
+   {
+    "path": "server/src/features/video-stream/video-stream.controller.ts"
+   },
+   {
+    "path": "server/src/features/video-stream/video-stream.repository.ts",
+    "copyOf": "server/src/repositories/video-stream.repository.ts"
+   },
+   {
+    "path": "server/src/features/view/view.controller.ts"
+   },
+   {
+    "path": "server/src/features/view/view.service.spec.ts"
+   },
+   {
+    "path": "server/src/features/view/view.service.ts"
+   },
+   {
+    "path": "server/src/features/workflow/workflow.controller.spec.ts"
+   },
+   {
+    "path": "server/src/features/workflow/workflow.controller.ts"
+   },
+   {
+    "path": "server/src/features/workflow/workflow.dto.ts",
+    "copyOf": "server/src/dtos/workflow.dto.ts"
+   },
+   {
+    "path": "server/src/features/workflow/workflow.repository.ts"
+   },
+   {
+    "path": "server/src/features/workflow/workflow.service.ts"
+   }
+  ],
+  "ambiguousGroups": 0,
+  "entries": {}
+ },
+ "checks": [
+  {
+   "id": "K0",
+   "title": "Envelope",
+   "status": "pass",
+   "summary": "inside the envelope: 889 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 0 moved files",
+   "metrics": {
+    "moves": 0,
+    "baseTypeScriptFiles": 678,
+    "baseJavaScriptFiles": 3,
+    "headTypeScriptFiles": 889,
+    "headJavaScriptFiles": 3
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 9083
+  },
+  {
+   "id": "K1",
+   "title": "Move-set integrity",
+   "status": "fail",
+   "summary": "211 violations (211 added, 0 deleted, 31 copies)",
+   "metrics": {
+    "moves": 0,
+    "unchanged": 3464,
+    "editedInPlace": 0,
+    "deleted": 0,
+    "added": 211,
+    "copies": 31
+   },
+   "violations": [
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/activity/activity.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/activity/activity.repository.ts",
+     "detail": "added: a copy of server/src/repositories/activity.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/activity/activity.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/activity/activity.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/album/album.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/album/album.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/album/album.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/album/album.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/album/album.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/album/album.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.dto.ts",
+     "detail": "added: a copy of server/src/dtos/api-key.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.repository.ts",
+     "detail": "added: a copy of server/src/repositories/api-key.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/app/app.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/app/app.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/app/app.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.dto.ts",
+     "detail": "added: a copy of server/src/dtos/asset-file.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset/asset.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset/asset.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset/asset.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset/asset.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset/asset.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/asset/asset.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/auth-admin/auth-admin.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/auth-admin/auth-admin.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/auth/auth.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/auth/auth.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/auth/auth.dto.ts",
+     "detail": "added: a copy of server/src/dtos/auth.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/auth/auth.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/auth/auth.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.dto.ts",
+     "detail": "added: a copy of server/src/dtos/cluster-group.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.repository.ts",
+     "detail": "added: a copy of server/src/repositories/cluster-group.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/config-admin/config-admin.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/config-public/config-public.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/config-user/config-user.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.dto.ts",
+     "detail": "added: a copy of server/src/dtos/database-backup.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/download/download.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/download/download.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/download/download.dto.ts",
+     "detail": "added: a copy of server/src/dtos/download.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/download/download.repository.ts",
+     "detail": "added: a copy of server/src/repositories/download.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/download/download.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/download/download.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/face/face.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/integrity-admin/integrity-admin.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/job/job.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/job/job.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/job/job.dto.ts",
+     "detail": "added: a copy of server/src/dtos/job.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/job/job.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/job/job.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/job/job.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/library/library.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/library/library.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/library/library.dto.ts",
+     "detail": "added: a copy of server/src/dtos/library.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/library/library.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/library/library.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.dto.ts",
+     "detail": "added: a copy of server/src/dtos/maintenance.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/map/map.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/map/map.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/map/map.dto.ts",
+     "detail": "added: a copy of server/src/dtos/map.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/map/map.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/map/map.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/map/map.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/memory/memory.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/memory/memory.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/memory/memory.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/memory/memory.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/memory/memory.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/memory/memory.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification/notification.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification/notification.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification/notification.dto.ts",
+     "detail": "added: a copy of server/src/dtos/notification.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/notification/notification.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification/notification.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/notification/notification.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/partner/partner.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/partner/partner.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/partner/partner.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/partner/partner.repository.ts",
+     "detail": "added: a copy of server/src/repositories/partner.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/partner/partner.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/partner/partner.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/person/person.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/person/person.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/person/person.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/person/person.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/person/person.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/person/person.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/queue/queue.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/queue/queue.dto.ts",
+     "detail": "added: a copy of server/src/dtos/queue.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/queue/queue.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/queue/queue.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/search/search.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/search/search.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/search/search.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/search/search.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/search/search.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/search/search.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/server/server.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/server/server.dto.ts",
+     "detail": "added: a copy of server/src/dtos/server.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/server/server.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/server/server.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/session/session.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/session/session.dto.ts",
+     "detail": "added: a copy of server/src/dtos/session.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/session/session.repository.ts",
+     "detail": "added: a copy of server/src/repositories/session.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/session/session.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/session/session.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.repository.ts",
+     "detail": "added: a copy of server/src/repositories/shared-link.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/stack/stack.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/stack/stack.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/stack/stack.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/stack/stack.repository.ts",
+     "detail": "added: a copy of server/src/repositories/stack.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/stack/stack.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/stack/stack.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/sync/sync.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/sync/sync.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/sync/sync.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/sync/sync.repository.ts",
+     "detail": "added: a copy of server/src/repositories/sync.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/sync/sync.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/sync/sync.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.dto.ts",
+     "detail": "added: a copy of server/src/dtos/system-metadata.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.repository.ts",
+     "detail": "added: a copy of server/src/repositories/system-metadata.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/tag/tag.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/tag/tag.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/tag/tag.dto.ts",
+     "detail": "added: a copy of server/src/dtos/tag.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/tag/tag.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/tag/tag.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/tag/tag.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/trash/trash.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/trash/trash.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/trash/trash.dto.ts",
+     "detail": "added: a copy of server/src/dtos/trash.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/trash/trash.repository.ts",
+     "detail": "added: a copy of server/src/repositories/trash.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/trash/trash.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/trash/trash.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user/user.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user/user.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user/user.dto.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user/user.repository.ts",
+     "detail": "added: a copy of server/src/repositories/user.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/user/user.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/user/user.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/video-stream/video-stream.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/video-stream/video-stream.repository.ts",
+     "detail": "added: a copy of server/src/repositories/video-stream.repository.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/view/view.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/view/view.service.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/view/view.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.controller.spec.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.controller.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.dto.ts",
+     "detail": "added: a copy of server/src/dtos/workflow.dto.ts, which still exists"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.repository.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.service.ts",
+     "detail": "added: no file in base has its content (modulo specifiers)"
+    }
+   ],
+   "findings": [],
+   "durationMs": 1172
+  },
+  {
+   "id": "K2",
+   "title": "Byte-span confinement",
+   "status": "pass",
+   "summary": "0 specifier spans changed in 0 files; every other byte identical",
+   "metrics": {
+    "comparedFiles": 0,
+    "editedFiles": 0,
+    "changedSpans": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 8
+  },
+  {
+   "id": "K3a",
+   "title": "Resolution identity under TypeScript",
+   "status": "fail",
+   "summary": "211 violations (211 added source files)",
+   "metrics": {
+    "files": 1100,
+    "sites": 6647,
+    "resolutions": 9636,
+    "multiProgramFiles": 458,
+    "rewrittenSpecifiers": 0,
+    "typeDirectives": 13,
+    "implicitImports": 0,
+    "unextractedSites": 0,
+    "addedFiles": 211,
+    "deletedFiles": 0,
+    "resolutionMismatches": 0,
+    "formChanges": 0,
+    "contextChanges": 0,
+    "typeDirectiveMismatches": 0,
+    "workspaceLinks": 0,
+    "virtualModuleSplits": 0,
+    "unresolvedMoves": 0,
+    "unmodeledResolutions": 0
+   },
+   "violations": [
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/activity/activity.dto.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/activity/activity.repository.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/activity/activity.service.spec.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/activity/activity.service.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/album/album.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/album/album.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/album/album.dto.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/album/album.repository.ts",
+     "detail": "added: its 11 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/album/album.service.spec.ts",
+     "detail": "added: its 11 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/album/album.service.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.repository.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.service.spec.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.service.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/app/app.controller.spec.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/app/app.controller.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/app/app.repository.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.controller.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.dto.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.repository.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-file/asset-file.service.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.controller.ts",
+     "detail": "added: its 11 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.service.spec.ts",
+     "detail": "added: its 15 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.service.ts",
+     "detail": "added: its 13 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset/asset.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset/asset.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset/asset.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset/asset.repository.ts",
+     "detail": "added: its 17 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset/asset.service.spec.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/asset/asset.service.ts",
+     "detail": "added: its 13 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth-admin/auth-admin.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth-admin/auth-admin.service.ts",
+     "detail": "added: its 1 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth/auth.controller.spec.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth/auth.controller.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth/auth.dto.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth/auth.service.spec.ts",
+     "detail": "added: its 16 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/auth/auth.service.ts",
+     "detail": "added: its 12 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.controller.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.repository.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/cluster-group/cluster-group.service.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/config-admin/config-admin.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/config-public/config-public.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/config-user/config-user.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.controller.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.dto.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.service.spec.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.service.ts",
+     "detail": "added: its 16 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/download/download.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/download/download.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/download/download.dto.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/download/download.repository.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/download/download.service.spec.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/download/download.service.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.dto.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.repository.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.service.spec.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.service.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/face/face.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/integrity-admin/integrity-admin.controller.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/job/job.controller.spec.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/job/job.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/job/job.dto.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/job/job.repository.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/job/job.service.spec.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/job/job.service.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/library/library.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/library/library.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/library/library.dto.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/library/library.repository.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "added: its 12 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/library/library.service.ts",
+     "detail": "added: its 14 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.controller.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.dto.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.service.spec.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.service.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/map/map.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/map/map.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/map/map.dto.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/map/map.repository.ts",
+     "detail": "added: its 12 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/map/map.service.spec.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/map/map.service.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/memory/memory.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/memory/memory.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/memory/memory.dto.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/memory/memory.repository.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/memory/memory.service.spec.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/memory/memory.service.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.service.spec.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.service.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification/notification.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification/notification.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification/notification.dto.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification/notification.repository.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification/notification.service.spec.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/notification/notification.service.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.controller.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.repository.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/partner/partner.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/partner/partner.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/partner/partner.dto.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/partner/partner.repository.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/partner/partner.service.spec.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/partner/partner.service.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/person/person.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/person/person.controller.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/person/person.dto.ts",
+     "detail": "added: its 12 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/person/person.repository.ts",
+     "detail": "added: its 15 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/person/person.service.spec.ts",
+     "detail": "added: its 15 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/person/person.service.ts",
+     "detail": "added: its 16 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.repository.ts",
+     "detail": "added: its 12 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.service.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/queue/queue.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/queue/queue.dto.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/queue/queue.service.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/queue/queue.service.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/search/search.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/search/search.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/search/search.dto.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/search/search.repository.ts",
+     "detail": "added: its 11 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/search/search.service.spec.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/search/search.service.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/server/server.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/server/server.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/server/server.service.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/server/server.service.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/session/session.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/session/session.dto.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/session/session.repository.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/session/session.service.spec.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/session/session.service.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.controller.spec.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.controller.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.dto.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.repository.ts",
+     "detail": "added: its 13 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.service.spec.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.service.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/stack/stack.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/stack/stack.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/stack/stack.dto.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/stack/stack.repository.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/stack/stack.service.spec.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/stack/stack.service.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/sync/sync.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/sync/sync.controller.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/sync/sync.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/sync/sync.repository.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/sync/sync.service.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/sync/sync.service.ts",
+     "detail": "added: its 11 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.service.spec.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.service.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.controller.spec.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.dto.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.repository.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.service.spec.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.service.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/tag/tag.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/tag/tag.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/tag/tag.dto.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/tag/tag.repository.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/tag/tag.service.spec.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/tag/tag.service.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.service.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.service.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/trash/trash.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/trash/trash.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/trash/trash.dto.ts",
+     "detail": "added: its 2 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/trash/trash.repository.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/trash/trash.service.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/trash/trash.service.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.service.spec.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.service.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user/user.controller.spec.ts",
+     "detail": "added: its 3 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user/user.controller.ts",
+     "detail": "added: its 9 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user/user.dto.ts",
+     "detail": "added: its 8 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user/user.repository.ts",
+     "detail": "added: its 12 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user/user.service.spec.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/user/user.service.ts",
+     "detail": "added: its 14 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/video-stream/video-stream.controller.ts",
+     "detail": "added: its 10 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/video-stream/video-stream.repository.ts",
+     "detail": "added: its 7 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/view/view.controller.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/view/view.service.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/view/view.service.ts",
+     "detail": "added: its 1 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.controller.spec.ts",
+     "detail": "added: its 4 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.controller.ts",
+     "detail": "added: its 6 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.dto.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.repository.ts",
+     "detail": "added: its 11 reference sites have no counterpart in base"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.service.ts",
+     "detail": "added: its 5 reference sites have no counterpart in base"
+    }
+   ],
+   "findings": [],
+   "durationMs": 1310
+  },
+  {
+   "id": "K3b",
+   "title": "Resolution identity under the test runner",
+   "status": "pass",
+   "summary": "vitest 4.1.11: 4837 sites in 672 files resolve to map(base)",
+   "metrics": {
+    "runner": "vitest",
+    "runnerVersion": "4.1.11",
+    "projects": "server:unit",
+    "sites": 4837,
+    "files": 672,
+    "dangling": 0,
+    "retargeted": 0,
+    "newlyResolved": 0,
+    "unresolvedTextChanged": 0,
+    "mockChanged": 0,
+    "addedDangling": 0,
+    "outsideRoots": 0,
+    "addedFiles": 211
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 6612
+  },
+  {
+   "id": "K3c",
+   "title": "Resolution identity under the runtime",
+   "status": "pass",
+   "summary": "6192 runtime sites resolve to map(base) under nest-cli/emit (3442 rewritten by the build)",
+   "metrics": {
+    "runtimes": "nest-cli/emit",
+    "runtimeEvidence": "nest-cli/emit: package.json scripts.start:dev: nest start --watch --; package.json scripts.start:debug: nest start --debug 0.0.0.0:9230 --watch --; server/bin/start.sh: exec node --no-warnings \"${SERVER_HOME}/dist/main.js\" \"$@\"",
+    "modeled": "nest-cli/emit",
+    "notModeled": "",
+    "subpathImports": false,
+    "emitModel": "in place: each source at its own path with the runtime extension (.ts->.js, .mts->.mjs, .cts->.cjs), as with a fixed rootDir; outDir links to rootDir",
+    "node": "v24.21.0",
+    "nestCli": "12.0.6",
+    "files": 1099,
+    "addedFiles": 211,
+    "unresolvedInAdded": 3,
+    "comparedSites": 6192,
+    "rewrittenByBuild": 3442,
+    "unresolvedInBase": 1453,
+    "deferredSites": 0,
+    "aliasSitesBase": 1920,
+    "aliasSitesHead": 1920,
+    "disagreements": 0,
+    "violations": 0,
+    "skeletonMs": 1151,
+    "probeMs": 5219
+   },
+   "violations": [],
+   "findings": [
+    {
+     "kind": "added-file-unresolved",
+     "file": "server/src/features/plugin/plugin.dto.ts",
+     "detail": "nest-cli/emit: import '@immich/plugin-sdk' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart"
+    },
+    {
+     "kind": "added-file-unresolved",
+     "file": "server/src/features/workflow/workflow.controller.spec.ts",
+     "detail": "nest-cli/emit: import '@immich/plugin-sdk' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart"
+    },
+    {
+     "kind": "added-file-unresolved",
+     "file": "server/src/features/workflow/workflow.service.ts",
+     "detail": "nest-cli/emit: import '@immich/plugin-sdk' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart"
+    }
+   ],
+   "durationMs": 7570
+  },
+  {
+   "id": "K4",
+   "title": "Location scan",
+   "status": "fail",
+   "summary": "0 path-exposing uses in moved files (and 3 in added files), 0 computed paths into changed directories, 0 old paths in code/config (0 in coverage settings)",
+   "metrics": {
+    "movedFilesScanned": 0,
+    "movedFileHazards": 0,
+    "copiedFileHazards": 3,
+    "filesScannedForComputedPaths": 0,
+    "computedPathViolations": 0,
+    "textFilesScanned": 0,
+    "oldPathViolations": 0,
+    "coverageViolations": 0,
+    "coverageFindings": 0,
+    "oldPathFindings": 0,
+    "globsChecked": 0
+   },
+   "violations": [
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "added with no base counterpart; line 888: process.cwd()"
+    },
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "added with no base counterpart; line 1284: process.cwd()"
+    },
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "added with no base counterpart; line 1298: process.cwd()"
+    }
+   ],
+   "findings": [
+    {
+     "kind": "stack-text",
+     "file": "server/src/features/asset-media/asset-media.service.ts",
+     "detail": "added with no base counterpart; 1 stack-trace reads passed along as text (line 224); their frames now name the new path"
+    },
+    {
+     "kind": "stack-text",
+     "file": "server/src/features/auth/auth.service.ts",
+     "detail": "added with no base counterpart; 1 stack-trace reads passed along as text (line 403); their frames now name the new path"
+    },
+    {
+     "kind": "stack-text",
+     "file": "server/src/features/duplicate/duplicate.service.ts",
+     "detail": "added with no base counterpart; 1 stack-trace reads passed along as text (line 104); their frames now name the new path"
+    },
+    {
+     "kind": "stack-text",
+     "file": "server/src/features/notification/notification.service.ts",
+     "detail": "added with no base counterpart; 2 stack-trace reads passed along as text (line 88); their frames now name the new path"
+    },
+    {
+     "kind": "stack-text",
+     "file": "server/src/features/person/person.service.ts",
+     "detail": "added with no base counterpart; 2 stack-trace reads passed along as text (line 321); their frames now name the new path"
+    }
+   ],
+   "durationMs": 887
+  },
+  {
+   "id": "K6",
+   "title": "Test inventory",
+   "status": "fail",
+   "summary": "vitest 4.1.11: 66 violations (66 of 171 test files fail to load (base: 0), 66 new test files)",
+   "metrics": {
+    "runner": "vitest",
+    "runnerVersion": "4.1.11",
+    "baseFiles": 105,
+    "headFiles": 171,
+    "baseTests": 2337,
+    "headTests": 2337,
+    "baseUnloadable": 0,
+    "headUnloadable": 66,
+    "loadRegressions": 0,
+    "droppedFiles": 0,
+    "newFiles": 66,
+    "caseChanges": 0,
+    "lostTests": 0,
+    "uncollected": 0,
+    "snapshotFileChanges": 0,
+    "snapshots": "snapshot files co-move with their tests (K1); snapshot.added == 0 under --ci needs a real run (K8)"
+   },
+   "violations": [
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/activity/activity.controller.spec.ts:2:1] 1 | import request fro)"
+    },
+    {
+     "file": "server/src/features/activity/activity.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/activity/activity.service.spec.ts:2:1] 1 | import { BadRequestEx)"
+    },
+    {
+     "file": "server/src/features/album/album.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/album/album.controller.spec.ts:2:1] 1 | import request from 'sup)"
+    },
+    {
+     "file": "server/src/features/album/album.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/album/album.service.spec.ts:2:1] 1 | import { BadRequestExceptio)"
+    },
+    {
+     "file": "server/src/features/app/app.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/app/app.controller.spec.ts:2:1] 1 | import request from 'superte)"
+    },
+    {
+     "file": "server/src/features/asset/asset.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/asset/asset.controller.spec.ts:2:1] 1 | import request from 'sup)"
+    },
+    {
+     "file": "server/src/features/asset/asset.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/asset/asset.service.spec.ts:3:1] 1 | import { BadRequestExceptio)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/asset-media/asset-media.controller.spec.ts:2:1] 1 | import reque)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/asset-media/asset-media.service.spec.ts:9:1] 6 | } from '@nestjs)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/api-key/api-key.controller.spec.ts:2:1] 1 | import request from )"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/api-key/api-key.service.spec.ts:3:1] 1 | import { BadRequestExce)"
+    },
+    {
+     "file": "server/src/features/auth/auth.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/auth/auth.controller.spec.ts:3:1] 1 | import { BadRequestExcepti)"
+    },
+    {
+     "file": "server/src/features/auth/auth.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/auth/auth.service.spec.ts:6:1] 3 | import type { UserMetadataIte)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/database-backup/database-backup.controller.spec.ts:3:1] 1 | impo)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/database-backup/database-backup.service.spec.ts:5:1] 2 | import )"
+    },
+    {
+     "file": "server/src/features/download/download.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/download/download.controller.spec.ts:3:1] 1 | import { Readable )"
+    },
+    {
+     "file": "server/src/features/download/download.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/download/download.service.spec.ts:4:1] 1 | import { BadRequestEx)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/duplicate/duplicate.controller.spec.ts:2:1] 1 | import request f)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/duplicate/duplicate.service.spec.ts:3:1] 1 | import { BadRequest)"
+    },
+    {
+     "file": "server/src/features/job/job.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/job/job.controller.spec.ts:2:1] 1 | import request from 'superte)"
+    },
+    {
+     "file": "server/src/features/job/job.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/job/job.service.spec.ts:3:1] 1 | import type { JobItem } from 's)"
+    },
+    {
+     "file": "server/src/features/library/library.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/library/library.controller.spec.ts:2:1] 1 | import request from )"
+    },
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/library/library.service.spec.ts:6:1] 3 | import { vitest } from )"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/maintenance/maintenance.controller.spec.ts:2:1] 1 | import reque)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/maintenance/maintenance.service.spec.ts:2:1] 1 | import { Mainte)"
+    },
+    {
+     "file": "server/src/features/map/map.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/map/map.controller.spec.ts:2:1] 1 | import request from 'superte)"
+    },
+    {
+     "file": "server/src/features/map/map.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/map/map.service.spec.ts:1:1] 1 | import { MapService } from [\"'])"
+    },
+    {
+     "file": "server/src/features/memory/memory.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/memory/memory.controller.spec.ts:2:1] 1 | import request from 's)"
+    },
+    {
+     "file": "server/src/features/memory/memory.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/memory/memory.service.spec.ts:3:1] 1 | import { BadRequestExcept)"
+    },
+    {
+     "file": "server/src/features/notification/notification.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/notification/notification.controller.spec.ts:2:1] 1 | import req)"
+    },
+    {
+     "file": "server/src/features/notification/notification.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/notification/notification.service.spec.ts:1:1] 1 | import { Admi)"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/oauth/oauth.controller.spec.ts:2:1] 1 | import request from 'sup)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/notification-admin/notification-admin.controller.spec.ts:2:1] 1 )"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/notification-admin/notification-admin.service.spec.ts:1:1] 1 | i)"
+    },
+    {
+     "file": "server/src/features/partner/partner.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/partner/partner.controller.spec.ts:2:1] 1 | import request from )"
+    },
+    {
+     "file": "server/src/features/partner/partner.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/partner/partner.service.spec.ts:3:1] 1 | import { BadRequestExce)"
+    },
+    {
+     "file": "server/src/features/person/person.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/person/person.controller.spec.ts:2:1] 1 | import request from 's)"
+    },
+    {
+     "file": "server/src/features/person/person.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/person/person.service.spec.ts:2:1] 1 | import { BadRequestExcept)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/plugin/plugin.controller.spec.ts:2:1] 1 | import request from 's)"
+    },
+    {
+     "file": "server/src/features/queue/queue.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/queue/queue.service.spec.ts:2:1] 1 | import { BadRequestExceptio)"
+    },
+    {
+     "file": "server/src/features/search/search.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/search/search.controller.spec.ts:2:1] 1 | import request from 's)"
+    },
+    {
+     "file": "server/src/features/search/search.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/search/search.service.spec.ts:3:1] 1 | import { BadRequestExcept)"
+    },
+    {
+     "file": "server/src/features/server/server.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/server/server.service.spec.ts:2:1] 1 | import { SystemMetadataKe)"
+    },
+    {
+     "file": "server/src/features/session/session.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/session/session.service.spec.ts:2:1] 1 | import { JobStatus } fr)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/shared-link/shared-link.controller.spec.ts:2:1] 1 | import reque)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/shared-link/shared-link.service.spec.ts:2:1] 1 | import { BadReq)"
+    },
+    {
+     "file": "server/src/features/stack/stack.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/stack/stack.controller.spec.ts:2:1] 1 | import request from 'sup)"
+    },
+    {
+     "file": "server/src/features/stack/stack.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/stack/stack.service.spec.ts:2:1] 1 | import { BadRequestExceptio)"
+    },
+    {
+     "file": "server/src/features/sync/sync.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/sync/sync.controller.spec.ts:2:1] 1 | import request from 'super)"
+    },
+    {
+     "file": "server/src/features/sync/sync.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/sync/sync.service.spec.ts:3:1] 1 | import { Writable } from 'nod)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/system-config/system-config.controller.spec.ts:3:1] 1 | import {)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/system-config/system-config.service.spec.ts:3:1] 1 | import { Ba)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/system-metadata/system-metadata.controller.spec.ts:2:1] 1 | impo)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/system-metadata/system-metadata.service.spec.ts:2:1] 1 | import )"
+    },
+    {
+     "file": "server/src/features/tag/tag.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/tag/tag.controller.spec.ts:2:1] 1 | import request from 'superte)"
+    },
+    {
+     "file": "server/src/features/tag/tag.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/tag/tag.service.spec.ts:2:1] 1 | import { BadRequestException } )"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/timeline/timeline.controller.spec.ts:2:1] 1 | import request fro)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/timeline/timeline.service.spec.ts:3:1] 1 | import { BadRequestEx)"
+    },
+    {
+     "file": "server/src/features/trash/trash.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/trash/trash.controller.spec.ts:2:1] 1 | import request from 'sup)"
+    },
+    {
+     "file": "server/src/features/trash/trash.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/trash/trash.service.spec.ts:3:1] 1 | import { BadRequestExceptio)"
+    },
+    {
+     "file": "server/src/features/user/user.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/user/user.controller.spec.ts:2:1] 1 | import request from 'super)"
+    },
+    {
+     "file": "server/src/features/user/user.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/user/user.service.spec.ts:4:1] 1 | import { BadRequestException,)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/user-admin/user-admin.controller.spec.ts:2:1] 1 | import request)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/user-admin/user-admin.service.spec.ts:3:1] 1 | import { BadReque)"
+    },
+    {
+     "file": "server/src/features/view/view.service.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/view/view.service.spec.ts:1:1] 1 | import { mapAsset } from [\"'])"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.controller.spec.ts",
+     "detail": "new in the vitest test list (added in head; fails to load: x Unexpected token `[`. Expected a string literal ,-[/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head/server/src/features/workflow/workflow.controller.spec.ts:3:1] 1 | import { WorkflowT)"
+    }
+   ],
+   "findings": [],
+   "durationMs": 94573
+  },
+  {
+   "id": "K8",
+   "title": "Oracles on the commit",
+   "status": "fail",
+   "summary": "tsc exited 1 on head (1,680 diagnostics), 0 on base; unit 105/171 files and 2,337/2,337 cases equal to base (head: 105/171 files load, 2,337 passed, 0 failed, 0 skipped); openapi byte-identical to the base's open-api/immich-openapi-specs.json (947,932 bytes), but 1 step failed on head",
+   "metrics": {
+    "node": "v24.21.0",
+    "offline": true,
+    "hooksBypassed": "core.hooksPath=/dev/null (worktree add and resets); HUSKY=0",
+    "worktree": "/tmp/ac-s4-certify/g3-immich-opencode-super.full/worktree-head",
+    "logs": "/tmp/ac-s4-certify/g3-immich-opencode-super.full/oracles",
+    "cache": "/home/paseo/ac-work/s4/oracle-cache",
+    "prerequisitesReachable": "server/node_modules/.bin/tsc, server/node_modules/.bin/vitest, server/node_modules/@immich/plugin-sdk/dist/index.js, packages/plugin-sdk/node_modules/@immich/sdk/build/index.js, server/node_modules/.bin/nest",
+    "leftoversRemoved": 1,
+    "tsc.head.exit": 1,
+    "tsc.head.seconds": 6,
+    "tsc.head.logs": "/tmp/ac-s4-certify/g3-immich-opencode-super.full/oracles/head/tsc",
+    "tsc.head.networkAttempts": 0,
+    "tsc.head.diagnostics": 1680,
+    "tsc.base.exit": 0,
+    "tsc.base.seconds": 9,
+    "tsc.base.logs": "/home/paseo/ac-work/s4/oracle-cache/immich-02063972e82b-tsc-5e1a9a6fbb17290b",
+    "tsc.base.networkAttempts": 0,
+    "tsc.base.cached": true,
+    "unit.head.exit": 1,
+    "unit.head.seconds": 55,
+    "unit.head.logs": "/tmp/ac-s4-certify/g3-immich-opencode-super.full/oracles/head/unit",
+    "unit.head.networkAttempts": 0,
+    "unit.base.exit": 0,
+    "unit.base.seconds": 114,
+    "unit.base.logs": "/home/paseo/ac-work/s4/oracle-cache/immich-02063972e82b-unit-33c37f33d84a5da4",
+    "unit.base.networkAttempts": 0,
+    "unit.base.cached": true,
+    "unit.head.files": 171,
+    "unit.head.loaded": 105,
+    "unit.head.cases": 2337,
+    "unit.head.passed": 2337,
+    "unit.head.failed": 0,
+    "unit.head.skipped": 0,
+    "unit.base.files": 105,
+    "unit.base.loaded": 105,
+    "unit.base.cases": 2337,
+    "unit.base.passed": 2337,
+    "unit.base.failed": 0,
+    "unit.base.skipped": 0,
+    "unit.filesEqual": 105,
+    "unit.casesEqual": 2337,
+    "openapi.head.exit": 0,
+    "openapi.head.seconds": 57,
+    "openapi.head.logs": "/tmp/ac-s4-certify/g3-immich-opencode-super.full/oracles/head/openapi",
+    "openapi.head.networkAttempts": 0,
+    "openapi.base.exit": 0,
+    "openapi.base.seconds": 74,
+    "openapi.base.logs": "/home/paseo/ac-work/s4/oracle-cache/immich-02063972e82b-openapi-8ab75a3fb9cfe465",
+    "openapi.base.networkAttempts": 0,
+    "openapi.base.cached": true,
+    "openapi.head.bytes": 947932,
+    "openapi.head.sha256": "d4f4d34b9b8ac57a8e26aac8b479155842430ea40c731ac1351f30fde4cdbbfa",
+    "openapi.comparedWith": "base tree blob open-api/immich-openapi-specs.json"
+   },
+   "violations": [
+    {
+     "detail": "tsc: `node_modules/.bin/tsc --noEmit --incremental false --pretty false` exited 1 on head (1,680 diagnostics), exit 0 on base (log /tmp/ac-s4-certify/g3-immich-opencode-super.full/oracles/head/tsc/step-1.log)"
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "tsc: TS1002 Unterminated string literal."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "tsc: TS1002 Unterminated string literal."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.ts",
+     "detail": "tsc: TS1002 Unterminated string literal."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.ts",
+     "detail": "tsc: TS1005 ',' expected."
+    },
+    {
+     "detail": "unit: the runner exited 1 on head, 0 on base"
+    },
+    {
+     "file": "server/src/features/activity/activity.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/activity/activity.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/album/album.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/album/album.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/api-key/api-key.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/app/app.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/asset-media/asset-media.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/asset/asset.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/asset/asset.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/auth/auth.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/auth/auth.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/database-backup/database-backup.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/download/download.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/download/download.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/duplicate/duplicate.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/job/job.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/job/job.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/library/library.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/library/library.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/maintenance/maintenance.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/map/map.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/map/map.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/memory/memory.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/memory/memory.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/notification-admin/notification-admin.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/notification/notification.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/notification/notification.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/oauth/oauth.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/partner/partner.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/partner/partner.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/person/person.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/person/person.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/plugin/plugin.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/queue/queue.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/search/search.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/search/search.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/server/server.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/session/session.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/shared-link/shared-link.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/stack/stack.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/stack/stack.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/sync/sync.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/sync/sync.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/system-config/system-config.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/system-metadata/system-metadata.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/tag/tag.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/tag/tag.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/timeline/timeline.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/trash/trash.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/trash/trash.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/user-admin/user-admin.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/user/user.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/user/user.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/view/view.service.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "file": "server/src/features/workflow/workflow.controller.spec.ts",
+     "detail": "unit: test file ran on head only (failed to load)"
+    },
+    {
+     "detail": "unit: run success is false on head, true on base"
+    },
+    {
+     "detail": "openapi: `node_modules/.bin/nest build` exited 1 on head, exit 0 on base (log /tmp/ac-s4-certify/g3-immich-opencode-super.full/oracles/head/openapi/step-2.log)"
+    }
+   ],
+   "findings": [],
+   "durationMs": 118878
+  }
+ ],
+ "verdict": "fail",
+ "scope": "full",
+ "residualRisk": [
+  "consumers outside the repository (deep imports, handler strings in infrastructure, other services)",
+  "runtime file-system contents (assets, templates, SQL read at runtime)",
+  "environment-dependent resolution (NODE_PATH, untracked or generated files)",
+  "stack-trace and source-map text",
+  "CI triggers and review routing keyed by path (workflow `paths`, CODEOWNERS)"
+ ],
+ "digest": "sha256:8cbe6c92987fbc9132d2af720c36a32a3e5f5598021c85169e7d39de6b6d2beb"
+}

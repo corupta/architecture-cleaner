@@ -1,0 +1,107 @@
+[certify] K0 Envelope
+[certify] K1 Move-set integrity
+[certify] K2 Byte-span confinement
+[certify] K3a Resolution identity under TypeScript
+[certify] K3b Resolution identity under the test runner
+[certify] K3c Resolution identity under the runtime
+[certify] K4 Location scan
+[certify] K6 Test inventory
+[certify] K8 Oracles on the commit
+[certify] K8 tsc on head
+[certify] K8 tsc on base: from cache /home/paseo/ac-work/s4/oracle-cache/immich-02063972e82b-tsc-5e1a9a6fbb17290b
+[certify] K8 unit on head
+[certify] K8 unit on base: from cache /home/paseo/ac-work/s4/oracle-cache/immich-02063972e82b-unit-33c37f33d84a5da4
+[certify] K8 openapi on head
+[certify] K8 openapi on base: from cache /home/paseo/ac-work/s4/oracle-cache/immich-02063972e82b-openapi-8ab75a3fb9cfe465
+[certify] K8 removed 1 untracked or ignored entries the openapi oracle left in the head worktree: server/dist/
+ac certify 02063972e8..1da2348b7c (package root server/)
+pathMap: 365 moves, 0 edited in place, 3099 unchanged, 614 added, 0 deleted
+
+PASS  K0  Envelope: inside the envelope: 1242 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 365 moved files (23.1 s)
+FAIL  K1  Move-set integrity: 979 violations (614 added, 0 deleted, 291 copies) (1.2 s)
+        server/fix_app_files.py: added: no file in base has its content (modulo specifiers)
+        server/fix_features_only.py: added: no file in base has its content (modulo specifiers)
+        server/fix_indexes.py: added: no file in base has its content (modulo specifiers)
+        server/fix_quotes.py: added: no file in base has its content (modulo specifiers)
+        server/fix_quotes2.py: added: no file in base has its content (modulo specifiers)
+        server/fix_restructure.py: added: no file in base has its content (modulo specifiers)
+        server/rebuild_indexes.py: added: no file in base has its content (modulo specifiers)
+        server/regenerate_indexes.py: added: no file in base has its content (modulo specifiers)
+        … 971 more
+        finding (ambiguous-match) 30 groups of identical files were paired by where their directories' other files went, then by name and path similarity
+PASS  K2  Byte-span confinement: 0 specifier spans changed in 0 files; every other byte identical (4.2 s)
+FAIL  K3a Resolution identity under TypeScript: 3097 violations (2168 resolution mismatches, 365 program or format changes, 564 added source files) (2.6 s)
+        server/src/app.common.ts: line 9: import 'src/maintenance/maintenance-worker.service.js': expected file server/src.backup/maintenance/maintenance-worker.service.ts (typescript), got file server/src/maintenance/maintenance-worker.service.ts (typescript) under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 10: import 'src/middleware/websocket.adapter.js': expected file server/src.backup/middleware/websocket.adapter.ts (typescript), got file server/src/middleware/websocket.adapter.ts (typescript) under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 11: import 'src/repositories/config.repository.js': expected file server/src.backup/repositories/config.repository.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 12: import 'src/repositories/logging.repository.js': expected file server/src.backup/repositories/logging.repository.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 13: import 'src/repositories/telemetry.repository.js': expected file server/src.backup/repositories/telemetry.repository.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 14: import 'src/services/api.service.js': expected file server/src.backup/services/api.service.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 15: import 'src/utils/misc.js': expected file server/src.backup/utils/misc.ts (typescript), got file server/src/utils/misc.ts (typescript) under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.module.ts: line 11: import 'src/controllers/index.js': expected file server/src.backup/controllers/index.ts (typescript), got file server/src/controllers/index.ts (typescript) under server/tsconfig.build.json, server/tsconfig.json
+        … 3089 more
+FAIL  K3b Resolution identity under the test runner: vitest 4.1.11: 4548 violations (2802 dangling, 131 retargeted, 1615 dangling in added files) (7.5 s)
+        server/src/app.common.ts: site 8 'src/maintenance/maintenance-worker.service.js' (import): base server/src.backup/maintenance/maintenance-worker.service.ts, head server/src/maintenance/maintenance-worker.service.ts
+        server/src/app.common.ts: site 9 'src/middleware/websocket.adapter.js' (import): base server/src.backup/middleware/websocket.adapter.ts, head server/src/middleware/websocket.adapter.ts
+        server/src/app.common.ts: site 10 'src/repositories/config.repository.js' (import): base server/src.backup/repositories/config.repository.ts, head unresolved
+        server/src/app.common.ts: site 11 'src/repositories/logging.repository.js' (import): base server/src.backup/repositories/logging.repository.ts, head unresolved
+        server/src/app.common.ts: site 12 'src/repositories/telemetry.repository.js' (import): base server/src.backup/repositories/telemetry.repository.ts, head unresolved
+        server/src/app.common.ts: site 13 'src/services/api.service.js' (import): base server/src.backup/services/api.service.ts, head unresolved
+        server/src/app.common.ts: site 14 'src/utils/misc.js' (import): base server/src.backup/utils/misc.ts, head server/src/utils/misc.ts
+        server/src/app.module.ts: site 10 'src/controllers/index.js' (import): base server/src.backup/controllers/index.ts, head server/src/controllers/index.ts
+        … 4540 more
+FAIL  K3c Resolution identity under the runtime: 2287 violations under nest-cli/emit (10.0 s)
+        server/src/app.common.ts: nest-cli/emit: import 'src/maintenance/maintenance-worker.service.js' (emitted as './maintenance/maintenance-worker.service.js') resolves to server/src/maintenance/maintenance-worker.service.ts, expected server/src.backup/maintenance/maintenance-worker.service.ts; base server/src/app.common.ts 'src/maintenance/maintenance-worker.service.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/middleware/websocket.adapter.js' (emitted as './middleware/websocket.adapter.js') resolves to server/src/middleware/websocket.adapter.ts, expected server/src.backup/middleware/websocket.adapter.ts; base server/src/app.common.ts 'src/middleware/websocket.adapter.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/repositories/config.repository.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src.backup/repositories/config.repository.ts; base server/src/app.common.ts 'src/repositories/config.repository.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/repositories/logging.repository.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src.backup/repositories/logging.repository.ts; base server/src/app.common.ts 'src/repositories/logging.repository.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/repositories/telemetry.repository.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src.backup/repositories/telemetry.repository.ts; base server/src/app.common.ts 'src/repositories/telemetry.repository.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/services/api.service.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src.backup/services/api.service.ts; base server/src/app.common.ts 'src/services/api.service.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/utils/misc.js' (emitted as './utils/misc.js') resolves to server/src/utils/misc.ts, expected server/src.backup/utils/misc.ts; base server/src/app.common.ts 'src/utils/misc.js'
+        server/src/app.module.ts: nest-cli/emit: import 'src/controllers/index.js' (emitted as './controllers/index.js') resolves to server/src/controllers/index.ts, expected server/src.backup/controllers/index.ts; base server/src/app.module.ts 'src/controllers/index.js'
+        … 293 more
+        finding (added-file-unresolved) server/src.backup/app.common.ts: nest-cli/emit: import 'src/repositories/config.repository.js' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart
+        finding (added-file-unresolved) server/src.backup/app.common.ts: nest-cli/emit: import 'src/repositories/logging.repository.js' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart
+        finding (added-file-unresolved) server/src.backup/app.common.ts: nest-cli/emit: import 'src/repositories/telemetry.repository.js' doesn't resolve (ERR_MODULE_NOT_FOUND) in a file with no base counterpart
+        … 18 more findings
+FAIL  K4  Location scan: 12 path-exposing uses in moved files (and 15 in added files), 2 computed paths into changed directories, 52 old paths in code/config (0 in coverage settings) (7.5 s)
+        server/src/main.ts: moved to server/src.backup/main.ts; line 101: import.meta.filename: dirname(import.meta.filename) pointed at server/src (exists in base), now at server/src.backup (exists in head)
+        server/src/main.ts: moved to server/src.backup/main.ts; line 116: new Worker(workerFile) (worker_threads)
+        server/src/repositories/database.repository.ts: moved to server/src.backup/repositories/database.repository.ts; line 510: import(filePath) with a computed specifier (resolved relative to this file)
+        server/src/repositories/database.repository.ts: moved to server/src.backup/repositories/database.repository.ts; line 511: import.meta.dirname: join(import.meta.dirname, '..', 'schema/migrations') pointed at server/src/schema/migrations (exists in base), now at server/src.backup/schema/migrations (exists in head)
+        server/src/repositories/storage.repository.spec.ts: moved to server/src.backup/repositories/storage.repository.spec.ts; line 38: process.cwd()
+        server/src/services/cli.service.ts: moved to server/src.backup/services/cli.service.ts; line 25: import.meta.dirname: join(import.meta.dirname, '../schema/migrations') pointed at server/src/schema/migrations (exists in base), now at server/src.backup/schema/migrations (exists in head)
+        server/src/services/library.service.spec.ts: moved to server/src.backup/services/library.service.spec.ts; line 888: process.cwd()
+        server/src/services/library.service.spec.ts: moved to server/src.backup/services/library.service.spec.ts; line 1284: process.cwd()
+        … 73 more
+        finding (stack-text) server/src/main.ts: moved to server/src.backup/main.ts; 1 stack-trace reads passed along as text (line 129); their frames now name the new path
+        finding (stack-text) server/src/repositories/metadata.repository.ts: moved to server/src.backup/repositories/metadata.repository.ts; 1 stack-trace reads passed along as text (line 133); their frames now name the new path
+        finding (stack-text) server/src/repositories/websocket.repository.ts: moved to server/src.backup/repositories/websocket.repository.ts; 1 stack-trace reads passed along as text (line 95); their frames now name the new path
+        … 54 more findings
+FAIL  K6  Test inventory: vitest 4.1.11: 189 violations (100 of 105 test files fail to load (base: 0), 4 files that no longer load, 96 dropped test files, 89 new test files, 2285 lost tests) (53.7 s)
+        server/src/controllers/activity.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/activity.controller.spec.ts)
+        server/src/controllers/album.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/album.controller.spec.ts)
+        server/src/controllers/api-key.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/api-key.controller.spec.ts)
+        server/src/controllers/app.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/app.controller.spec.ts)
+        server/src/controllers/asset-media.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/asset-media.controller.spec.ts)
+        server/src/controllers/asset.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/asset.controller.spec.ts)
+        server/src/controllers/auth.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/auth.controller.spec.ts)
+        server/src/controllers/config.controller.spec.ts: no longer in the vitest test list (now at server/src.backup/controllers/config.controller.spec.ts)
+        … 181 more
+FAIL  K8  Oracles on the commit: tsc exited 1 on head (768 diagnostics), 0 on base; unit 5/105 files and 52/2,337 cases equal to base (head: 5/105 files load, 52 passed, 0 failed, 0 skipped); openapi produced nothing (39.3 s)
+        tsc: `node_modules/.bin/tsc --noEmit --incremental false --pretty false` exited 1 on head (768 diagnostics), exit 0 on base (log /tmp/ac-s4-certify/g3-immich-opencode-super-persistent.full/oracles/head/tsc/step-1.log)
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        server/src/bin/sync-sql.ts: tsc: TS1002 Unterminated string literal.
+        … 206 more
+
+verdict: FAIL (static checks and oracles)
+digest: sha256:90d2d44bbd647b5f1b99d61590fbaa9f993572e244c7a8e91fd60c1b0161651e
+
+Ac-Certificate: fail (full) K0=pass K1=fail K2=pass K3=fail K4=fail K6=fail K8=fail
+Ac-Certificate-Base: 02063972e82b1bfd17b6fc2e3b3ff39936229ea5
+Ac-Certificate-Digest: sha256:90d2d44bbd647b5f1b99d61590fbaa9f993572e244c7a8e91fd60c1b0161651e

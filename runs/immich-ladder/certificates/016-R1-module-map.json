@@ -1,0 +1,311 @@
+{
+ "format": "ac-certificate/2",
+ "tool": {
+  "name": "architecture-cleaner",
+  "version": "0.1.0"
+ },
+ "repo": "/home/paseo/ac-work/s6/final-immich",
+ "base": "e896acc97857f42d0ef4a79fec48218014395189",
+ "head": "e7a134f18a744d37410815f83d822c2aea346253",
+ "baseTree": "c84fd64f006957fe709395b5da10492e88bb9c90",
+ "headTree": "fdcdfa4860055afde9e286504dc25f8be7eeef21",
+ "packageRoot": "server",
+ "profile": "immich",
+ "environment": {
+  "checkout": "/home/paseo/ac-targets/immich",
+  "node": "v22.23.3",
+  "linkedNodeModules": [
+   "",
+   "packages/plugin-core",
+   "packages/plugin-sdk",
+   "packages/sdk",
+   "server"
+  ]
+ },
+ "workDir": "/home/paseo/ac-work/s6/final/work/step-016-1",
+ "pathMap": {
+  "moves": 6,
+  "unchanged": 3449,
+  "editedInPlace": 9,
+  "deleted": [],
+  "added": [],
+  "ambiguousGroups": 0,
+  "entries": {
+   "server/src/controllers/map.controller.spec.ts": "server/src/modules/map/map.controller.spec.ts",
+   "server/src/controllers/map.controller.ts": "server/src/modules/map/map.controller.ts",
+   "server/src/dtos/map.dto.ts": "server/src/modules/map/map.dto.ts",
+   "server/src/repositories/map.repository.ts": "server/src/modules/map/map.repository.ts",
+   "server/src/services/map.service.spec.ts": "server/src/modules/map/map.service.spec.ts",
+   "server/src/services/map.service.ts": "server/src/modules/map/map.service.ts"
+  }
+ },
+ "checks": [
+  {
+   "id": "K0",
+   "title": "Envelope",
+   "status": "pass",
+   "summary": "inside the envelope: 678 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 6 moved files",
+   "metrics": {
+    "moves": 6,
+    "baseTypeScriptFiles": 678,
+    "baseJavaScriptFiles": 3,
+    "headTypeScriptFiles": 678,
+    "headJavaScriptFiles": 3
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 5067
+  },
+  {
+   "id": "K1",
+   "title": "Move-set integrity",
+   "status": "pass",
+   "summary": "6 moves, 9 files edited in place, nothing added or deleted",
+   "metrics": {
+    "moves": 6,
+    "unchanged": 3449,
+    "editedInPlace": 9,
+    "deleted": 0,
+    "added": 0,
+    "copies": 0,
+    "inertAdditions": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 2032
+  },
+  {
+   "id": "K2",
+   "title": "Byte-span confinement",
+   "status": "pass",
+   "summary": "15 specifier spans changed in 13 files; every other byte identical",
+   "metrics": {
+    "comparedFiles": 13,
+    "editedFiles": 13,
+    "changedSpans": 15
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 718
+  },
+  {
+   "id": "K3a",
+   "title": "Resolution identity under TypeScript",
+   "status": "pass",
+   "summary": "6647 sites in 1100 files resolve to map(base) under every program (458 files in several); 15 rewritten specifiers keep their form",
+   "metrics": {
+    "files": 1100,
+    "sites": 6647,
+    "resolutions": 9636,
+    "multiProgramFiles": 458,
+    "rewrittenSpecifiers": 15,
+    "typeDirectives": 13,
+    "implicitImports": 0,
+    "unextractedSites": 0,
+    "addedFiles": 0,
+    "deletedFiles": 0,
+    "resolutionMismatches": 0,
+    "formChanges": 0,
+    "contextChanges": 0,
+    "typeDirectiveMismatches": 0,
+    "workspaceLinks": 0,
+    "virtualModuleSplits": 0,
+    "unresolvedMoves": 0,
+    "unmodeledResolutions": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 1585
+  },
+  {
+   "id": "K3b",
+   "title": "Resolution identity under the test runner",
+   "status": "pass",
+   "summary": "vitest 4.1.11: 4837 sites in 672 files resolve to map(base)",
+   "metrics": {
+    "runner": "vitest",
+    "runnerVersion": "4.1.11",
+    "projects": "server:unit",
+    "sites": 4837,
+    "files": 672,
+    "dangling": 0,
+    "retargeted": 0,
+    "newlyResolved": 0,
+    "unresolvedTextChanged": 0,
+    "mockChanged": 0,
+    "addedDangling": 0,
+    "outsideRoots": 0,
+    "outsideProjectRoot": 0,
+    "addedFiles": 0
+   },
+   "violations": [],
+   "findings": [],
+   "durationMs": 7423
+  },
+  {
+   "id": "K3c",
+   "title": "Resolution identity under the runtime",
+   "status": "pass",
+   "summary": "6192 runtime sites resolve to map(base) under nest-cli/emit (3442 rewritten by the build)",
+   "metrics": {
+    "runtimes": "nest-cli/emit",
+    "runtimeEvidence": "nest-cli/emit: package.json scripts.start:dev: nest start --watch --; package.json scripts.start:debug: nest start --debug 0.0.0.0:9230 --watch --; server/bin/start.sh: exec node --no-warnings \"${SERVER_HOME}/dist/main.js\" \"$@\"",
+    "modeled": "nest-cli/emit",
+    "notModeled": "",
+    "subpathImports": false,
+    "emitModel": "in place: each source at its own path with the runtime extension (.ts->.js, .mts->.mjs, .cts->.cjs), as with a fixed rootDir; outDir links to rootDir",
+    "node": "v24.21.0",
+    "nestCli": "12.0.6",
+    "files": 1099,
+    "addedFiles": 0,
+    "unresolvedInAdded": 0,
+    "comparedSites": 6192,
+    "rewrittenByBuild": 3442,
+    "unresolvedInBase": 1453,
+    "deferredSites": 0,
+    "aliasSitesBase": 1920,
+    "aliasSitesHead": 1920,
+    "disagreements": 0,
+    "violations": 0
+   },
+   "violations": [],
+   "findings": [],
+   "run": {
+    "skeletonMs": 1575,
+    "probeMs": 4196
+   },
+   "durationMs": 6604
+  },
+  {
+   "id": "K4",
+   "title": "Location scan",
+   "status": "pass",
+   "summary": "6 moved files expose no location; no computed path reaches a change; no old path in code, config or CI (8 findings in docs, comments or ungated coverage settings)",
+   "metrics": {
+    "movedFilesScanned": 6,
+    "movedFileHazards": 0,
+    "copiedFileHazards": 0,
+    "filesScannedForComputedPaths": 1094,
+    "computedPathViolations": 0,
+    "textFilesScanned": 3128,
+    "oldPathViolations": 0,
+    "coverageViolations": 0,
+    "coverageFindings": 2,
+    "oldPathFindings": 8,
+    "globsChecked": 2853,
+    "pluginSuffixViolations": 0
+   },
+   "violations": [],
+   "findings": [
+    {
+     "kind": "opaque-dynamic-load",
+     "file": "server/src/repositories/database.repository.ts",
+     "detail": "line 510: import(filePath) loads a module by a path K4 can't evaluate"
+    },
+    {
+     "kind": "old-path-in-docs",
+     "file": ".github/pull_request_template.md",
+     "detail": "line 36: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/map.service.spec.ts (moved to server/src/modules/map/map.service.spec.ts)"
+    },
+    {
+     "kind": "old-path-in-docs",
+     "file": ".github/pull_request_template.md",
+     "detail": "line 37: 'src/repositories/' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/map.repository.ts (moved to server/src/modules/map/map.repository.ts)"
+    },
+    {
+     "kind": "old-path-in-docs",
+     "file": ".github/pull_request_template.md",
+     "detail": "line 37: 'src/services/' is the directory server/src/services, whose contents change with the move of server/src/services/map.service.spec.ts (moved to server/src/modules/map/map.service.spec.ts)"
+    },
+    {
+     "kind": "old-path-in-docs",
+     "file": "docs/docs/developer/architecture.mdx",
+     "detail": "line 60: 'src/repositories' is the directory server/src/repositories, whose contents change with the move of server/src/repositories/map.repository.ts (moved to server/src/modules/map/map.repository.ts)"
+    },
+    {
+     "kind": "old-path-in-docs",
+     "file": "docs/docs/developer/architecture.mdx",
+     "detail": "line 60: 'src/services' is the directory server/src/services, whose contents change with the move of server/src/services/map.service.spec.ts (moved to server/src/modules/map/map.service.spec.ts)"
+    },
+    {
+     "kind": "old-path-in-docs",
+     "file": "docs/docs/developer/architecture.mdx",
+     "detail": "line 64: 'src/controllers' is the directory server/src/controllers, whose contents change with the move of server/src/controllers/map.controller.spec.ts (moved to server/src/modules/map/map.controller.spec.ts)"
+    },
+    {
+     "kind": "coverage-scope",
+     "file": "server/test/vitest.config.mjs",
+     "detail": "line 19: 'src/services/**' is the glob server/src/services/** whose matches change (2 moved files, e.g. server/src/services/map.service.spec.ts -> server/src/modules/map/map.service.spec.ts) of server/src/services/map.service.spec.ts (moved to server/src/modules/map/map.service.spec.ts) [config at test.coverage.include]; coverage now measures a different file set (no coverage threshold in this file, so no gate changes)"
+    },
+    {
+     "kind": "coverage-scope",
+     "file": "server/test/vitest.config.mjs",
+     "detail": "line 21: 'src/services/*.spec.ts' is the glob server/src/services/*.spec.ts whose matches change (1 moved files, e.g. server/src/services/map.service.spec.ts -> server/src/modules/map/map.service.spec.ts) of server/src/services/map.service.spec.ts (moved to server/src/modules/map/map.service.spec.ts) [config at test.coverage.exclude]; coverage now measures a different file set (no coverage threshold in this file, so no gate changes)"
+    }
+   ],
+   "durationMs": 5277
+  },
+  {
+   "id": "K6",
+   "title": "Test inventory",
+   "status": "pass",
+   "summary": "vitest 4.1.11: 105 test files, 2337 tests, per-file load status and case names equal",
+   "metrics": {
+    "runner": "vitest",
+    "runnerVersion": "4.1.11",
+    "baseFiles": 105,
+    "headFiles": 105,
+    "baseTests": 2337,
+    "headTests": 2337,
+    "baseUnloadable": 0,
+    "headUnloadable": 0,
+    "loadRegressions": 0,
+    "droppedFiles": 0,
+    "newFiles": 0,
+    "caseChanges": 0,
+    "lostTests": 0,
+    "uncollected": 0,
+    "snapshotFileChanges": 0,
+    "snapshots": "snapshot files co-move with their tests (K1); snapshot.added == 0 under --ci needs a real run (K8)"
+   },
+   "violations": [],
+   "findings": [],
+   "run": {
+    "base.ms": 4,
+    "base.cached": true,
+    "head.ms": 48399,
+    "head.cached": false
+   },
+   "durationMs": 48462
+  },
+  {
+   "id": "K7",
+   "title": "Emit layout",
+   "status": "pass",
+   "summary": "7 emitting programs keep their outDir and rootDir (1 by TypeScript's default)",
+   "metrics": {
+    "emittingPrograms": 7,
+    "defaultRootDirs": 1
+   },
+   "violations": [],
+   "findings": [
+    {
+     "kind": "default-root-dir",
+     "file": "e2e/tsconfig.json",
+     "detail": "emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e"
+    }
+   ],
+   "durationMs": 542
+  }
+ ],
+ "verdict": "pass",
+ "scope": "static",
+ "residualRisk": [
+  "consumers outside the repository (deep imports, handler strings in infrastructure, other services)",
+  "runtime file-system contents (assets, templates, SQL read at runtime)",
+  "environment-dependent resolution (NODE_PATH, untracked or generated files)",
+  "stack-trace and source-map text",
+  "CI triggers and review routing keyed by path (workflow `paths`, CODEOWNERS)"
+ ],
+ "digest": "sha256:c7010d48a6087c57c6957d620d7fbcf20fe586bb1227e0574b71752ee67bc120"
+}

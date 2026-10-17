@@ -1,0 +1,14 @@
+{
+ "step": 55,
+ "rung": "R2",
+ "group": "platform/storage",
+ "moves": {
+  "server/src/cores/storage.core.ts": "server/src/platform/storage/storage.core.ts",
+  "server/src/cores/storage.core.spec.ts": "server/src/platform/storage/storage.core.spec.ts",
+  "server/src/repositories/storage.repository.ts": "server/src/platform/storage/storage.repository.ts",
+  "server/src/services/storage-template.service.ts": "server/src/platform/storage/storage-template.service.ts",
+  "server/src/services/storage-template.service.spec.ts": "server/src/platform/storage/storage-template.service.spec.ts",
+  "server/src/services/storage.service.ts": "server/src/platform/storage/storage.service.ts",
+  "server/src/services/storage.service.spec.ts": "server/src/platform/storage/storage.service.spec.ts"
+ }
+}

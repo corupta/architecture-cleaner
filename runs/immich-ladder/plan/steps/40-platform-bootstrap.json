@@ -1,0 +1,10 @@
+{
+ "step": 40,
+ "rung": "R2",
+ "group": "platform/bootstrap",
+ "moves": {
+  "server/src/app.common.ts": "server/src/platform/bootstrap/app.common.ts",
+  "server/src/controllers/app.controller.ts": "server/src/platform/bootstrap/app.controller.ts",
+  "server/src/controllers/app.controller.spec.ts": "server/src/platform/bootstrap/app.controller.spec.ts"
+ }
+}

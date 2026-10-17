@@ -1,0 +1,15 @@
+{
+ "step": 38,
+ "rung": "R1",
+ "group": "module/workflow",
+ "moves": {
+  "server/src/controllers/workflow.controller.ts": "server/src/modules/workflow/workflow.controller.ts",
+  "server/src/controllers/workflow.controller.spec.ts": "server/src/modules/workflow/workflow.controller.spec.ts",
+  "server/src/dtos/workflow.dto.ts": "server/src/modules/workflow/workflow.dto.ts",
+  "server/src/repositories/workflow.repository.ts": "server/src/modules/workflow/workflow.repository.ts",
+  "server/src/services/workflow-execution.service.ts": "server/src/modules/workflow/workflow-execution.service.ts",
+  "server/src/services/workflow.service.ts": "server/src/modules/workflow/workflow.service.ts",
+  "server/src/utils/workflow.ts": "server/src/modules/workflow/workflow.ts",
+  "server/src/utils/workflow.spec.ts": "server/src/modules/workflow/workflow.spec.ts"
+ }
+}

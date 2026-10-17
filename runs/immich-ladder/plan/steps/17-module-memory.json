@@ -1,0 +1,13 @@
+{
+ "step": 17,
+ "rung": "R1",
+ "group": "module/memory",
+ "moves": {
+  "server/src/controllers/memory.controller.ts": "server/src/modules/memory/memory.controller.ts",
+  "server/src/controllers/memory.controller.spec.ts": "server/src/modules/memory/memory.controller.spec.ts",
+  "server/src/dtos/memory.dto.ts": "server/src/modules/memory/memory.dto.ts",
+  "server/src/repositories/memory.repository.ts": "server/src/modules/memory/memory.repository.ts",
+  "server/src/services/memory.service.ts": "server/src/modules/memory/memory.service.ts",
+  "server/src/services/memory.service.spec.ts": "server/src/modules/memory/memory.service.spec.ts"
+ }
+}

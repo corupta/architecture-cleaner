@@ -1,0 +1,27 @@
+{
+ "step": 59,
+ "rung": "R2",
+ "group": "shared/shared",
+ "moves": {
+  "server/src/decorators.ts": "server/src/shared/decorators.ts",
+  "server/src/dtos/env.dto.ts": "server/src/shared/env.dto.ts",
+  "server/src/enum.ts": "server/src/shared/enum.ts",
+  "server/src/services/api.service.ts": "server/src/shared/api.service.ts",
+  "server/src/services/api.service.spec.ts": "server/src/shared/api.service.spec.ts",
+  "server/src/types.ts": "server/src/shared/types.ts",
+  "server/src/utils/bytes.ts": "server/src/shared/bytes.ts",
+  "server/src/utils/date.ts": "server/src/shared/date.ts",
+  "server/src/utils/date.spec.ts": "server/src/shared/date.spec.ts",
+  "server/src/utils/mime-types.ts": "server/src/shared/mime-types.ts",
+  "server/src/utils/mime-types.spec.ts": "server/src/shared/mime-types.spec.ts",
+  "server/src/utils/object.ts": "server/src/shared/object.ts",
+  "server/src/utils/pagination.ts": "server/src/shared/pagination.ts",
+  "server/src/utils/preferences.ts": "server/src/shared/preferences.ts",
+  "server/src/utils/request.ts": "server/src/shared/request.ts",
+  "server/src/utils/request.spec.ts": "server/src/shared/request.spec.ts",
+  "server/src/utils/transform.ts": "server/src/shared/transform.ts",
+  "server/src/utils/transform.spec.ts": "server/src/shared/transform.spec.ts",
+  "server/src/validation.ts": "server/src/shared/validation.ts",
+  "server/src/validation.spec.ts": "server/src/shared/validation.spec.ts"
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "step": 23,
+ "rung": "R1",
+ "group": "module/queue",
+ "moves": {
+  "server/src/controllers/queue.controller.ts": "server/src/modules/queue/queue.controller.ts",
+  "server/src/dtos/queue-legacy.dto.ts": "server/src/modules/queue/queue-legacy.dto.ts",
+  "server/src/dtos/queue.dto.ts": "server/src/modules/queue/queue.dto.ts",
+  "server/src/services/queue.service.ts": "server/src/modules/queue/queue.service.ts",
+  "server/src/services/queue.service.spec.ts": "server/src/modules/queue/queue.service.spec.ts"
+ }
+}

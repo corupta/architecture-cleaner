@@ -1,0 +1,17 @@
+{
+ "step": 7,
+ "rung": "R1",
+ "group": "module/config",
+ "moves": {
+  "server/src/controllers/config-admin.controller.ts": "server/src/modules/config/config-admin.controller.ts",
+  "server/src/controllers/config-public.controller.ts": "server/src/modules/config/config-public.controller.ts",
+  "server/src/controllers/config-user.controller.ts": "server/src/modules/config/config-user.controller.ts",
+  "server/src/controllers/system-config.controller.ts": "server/src/modules/config/system-config.controller.ts",
+  "server/src/controllers/system-config.controller.spec.ts": "server/src/modules/config/system-config.controller.spec.ts",
+  "server/src/dtos/config.dto.ts": "server/src/modules/config/config.dto.ts",
+  "server/src/dtos/config.dto.spec.ts": "server/src/modules/config/config.dto.spec.ts",
+  "server/src/services/system-config.service.ts": "server/src/modules/config/system-config.service.ts",
+  "server/src/services/system-config.service.spec.ts": "server/src/modules/config/system-config.service.spec.ts",
+  "server/src/utils/config.ts": "server/src/modules/config/config.ts"
+ }
+}

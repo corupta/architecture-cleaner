@@ -1,0 +1,14 @@
+{
+ "step": 22,
+ "rung": "R1",
+ "group": "module/plugin",
+ "moves": {
+  "server/src/controllers/plugin.controller.ts": "server/src/modules/plugin/plugin.controller.ts",
+  "server/src/controllers/plugin.controller.spec.ts": "server/src/modules/plugin/plugin.controller.spec.ts",
+  "server/src/dtos/json-schema.dto.ts": "server/src/modules/plugin/json-schema.dto.ts",
+  "server/src/dtos/plugin-manifest.dto.ts": "server/src/modules/plugin/plugin-manifest.dto.ts",
+  "server/src/dtos/plugin.dto.ts": "server/src/modules/plugin/plugin.dto.ts",
+  "server/src/repositories/plugin.repository.ts": "server/src/modules/plugin/plugin.repository.ts",
+  "server/src/services/plugin.service.ts": "server/src/modules/plugin/plugin.service.ts"
+ }
+}

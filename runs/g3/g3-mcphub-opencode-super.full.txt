@@ -1,0 +1,94 @@
+[certify] K0 Envelope
+[certify] K1 Move-set integrity
+[certify] K2 Byte-span confinement
+[certify] K3a Resolution identity under TypeScript
+[certify] K3b Resolution identity under the test runner
+[certify] K3c Resolution identity under the runtime
+[certify] K4 Location scan
+[certify] K6 Test inventory
+[certify] K8 Oracles on the commit
+[certify] K8 tsc on head
+[certify] K8 tsc on base: from cache /home/paseo/ac-work/s4/oracle-cache/mcphub-70cf036c90f8-tsc-f75b593617590c97
+[certify] K8 unit on head
+[certify] K8 unit on base: from cache /home/paseo/ac-work/s4/oracle-cache/mcphub-70cf036c90f8-unit-7840c52c5958cd0e
+ac certify 70cf036c90..f50276187f
+pathMap: 89 moves, 0 edited in place, 729 unchanged, 1 added, 1 deleted
+
+PASS  K0  Envelope: inside the envelope: 604 TypeScript vs 12 JavaScript sources under the repo root; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 89 moved files (4.2 s)
+FAIL  K1  Move-set integrity: 2 violations (1 added, 1 deleted, 0 copies) (0.3 s)
+        src/services/dataService.ts: deleted: no file in head has its content (modulo specifiers)
+        restructure.sh: added: no file in base has its content (modulo specifiers)
+PASS  K2  Byte-span confinement: 0 specifier spans changed in 0 files; every other byte identical (1.4 s)
+FAIL  K3a Resolution identity under TypeScript: 1102 violations (1101 resolution mismatches, 1 deleted source files) (1.8 s)
+        src/cli/commands/groups.ts: line 6: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved under tsconfig.json, tsconfig.test.json
+        src/cli/commands/keys.ts: line 6: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved under tsconfig.json, tsconfig.test.json
+        src/cli/commands/servers.ts: line 7: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved under tsconfig.json, tsconfig.test.json
+        src/cli/commands/tools.ts: line 6: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved under tsconfig.json, tsconfig.test.json
+        src/clients/__tests__/openapi-cookie.test.ts: line 2: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved
+        src/clients/__tests__/openapi-error-handling.test.ts: line 2: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved
+        src/clients/__tests__/openapi-external-ref.test.ts: line 2: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved
+        src/clients/__tests__/openapi-input-schema.test.ts: line 2: import '../../types/index.js': expected file src/features/index.ts/types/index.ts (typescript), got unresolved
+        … 1094 more
+FAIL  K3b Resolution identity under the test runner: jest 30.3.0: 1100 violations (1100 dangling) (5.3 s)
+        frontend/src/utils/bearerKeyScopeFilter.ts: site 0 '@/types' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module @/types mapped as: /tmp/ac-s4-certify/g3-mcphub-opencode-super.full/worktree-head/src/$1. Please check your configuration for these entries: { "moduleNameM); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        frontend/src/utils/serverFilters.ts: site 0 '@/types' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module @/types mapped as: /tmp/ac-s4-certify/g3-mcphub-opencode-super.full/worktree-head/src/$1. Please check your configuration for these entries: { "moduleNameM); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        frontend/src/utils/serverListState.ts: site 0 '@/types' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module @/types mapped as: /tmp/ac-s4-certify/g3-mcphub-opencode-super.full/worktree-head/src/$1. Please check your configuration for these entries: { "moduleNameM); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        src/cli/commands/groups.ts: site 5 '../../types/index.js' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module ../../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver":); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        src/cli/commands/keys.ts: site 5 '../../types/index.js' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module ../../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver":); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        src/cli/commands/servers.ts: site 6 '../../types/index.js' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module ../../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver":); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        src/cli/commands/tools.ts: site 5 '../../types/index.js' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module ../../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver":); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        src/clients/__tests__/openapi-cookie.test.ts: site 1 '../../types/index.js' (import): base src/features/index.ts/types/index.ts, head unresolved (Configuration error: Could not locate module ../../types/index.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/": "$1" }, "resolver":); moduleNameMapper stub base src/features/index.ts/types/index.ts, head unresolved
+        … 1092 more
+FAIL  K3c Resolution identity under the runtime: 1347 violations under node/emit, tsx/source (4.0 s)
+        src/clients/__tests__/openapi-input-schema.test.ts: node/emit: import '../../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/clients/__tests__/openapi-input-schema.test.ts '../../types/index.js'
+        src/clients/__tests__/openapi-operation-name.test.ts: node/emit: import '../../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/clients/__tests__/openapi-operation-name.test.ts '../../types/index.js'
+        src/clients/__tests__/openapi-request-body-content-types.test.ts: node/emit: import '../../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/clients/__tests__/openapi-request-body-content-types.test.ts '../../types/index.js'
+        src/clients/__tests__/openapi-server-template.test.ts: node/emit: import '../../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/clients/__tests__/openapi-server-template.test.ts '../../types/index.js'
+        src/clients/openapi.ts: node/emit: import '../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/clients/openapi.ts '../types/index.js'
+        src/config/configManager.ts: node/emit: import '../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/config/configManager.ts '../types/index.js'
+        src/config/configManager.ts: node/emit: import '../services/dataService.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/services/dataService.ts; base src/config/configManager.ts '../services/dataService.js'
+        src/config/DaoConfigService.ts: node/emit: import '../types/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected src/features/index.ts/types/index.ts; base src/config/DaoConfigService.ts '../types/index.js'
+        … 293 more
+FAIL  K4  Location scan: 8 path-exposing uses in moved files, 4 computed paths into changed directories, 8 old paths in code/config (0 in coverage settings) (3.0 s)
+        src/controllers/mcpbController.ts: moved to src/features/mcpb/mcpbController.ts; line 14: cwd-relative path path.join(process.cwd(), 'data/uploads/mcpb')
+        src/controllers/mcpbController.ts: moved to src/features/mcpb/mcpbController.ts; line 14: process.cwd()
+        src/controllers/mcpbController.ts: moved to src/features/mcpb/mcpbController.ts; line 47: cwd-relative path path.join('data', 'uploads', 'mcpb')
+        src/controllers/mcpbController.ts: moved to src/features/mcpb/mcpbController.ts; line 49: cwd-relative path path.join(process.cwd(), MCPB_UPLOAD_DIR)
+        src/controllers/mcpbController.ts: moved to src/features/mcpb/mcpbController.ts; line 49: process.cwd()
+        src/controllers/mcpbController.ts: moved to src/features/mcpb/mcpbController.ts; line 64: cwd-relative path path.resolve(resolvedBaseDir, `server-${serverName}`)
+        src/services/mcpService.ts: moved to src/features/mcp/mcpService.ts; line 1704: process.cwd()
+        scripts/dev-backend.js: line 13: path.resolve(projectRoot, value) computes a path inside ., whose tracked contents changed (src)
+        … 12 more
+        finding (stack-text) src/controllers/oauthCallbackController.ts: moved to src/features/oauthCallback/oauthCallbackController.ts; 2 stack-trace reads passed along as text (line 474); their frames now name the new path
+        finding (opaque-dynamic-load) bin/cli.js: line 86: import(cliEntryUrl) loads a module by a path K4 can't evaluate
+        finding (opaque-dynamic-load) bin/cli.js: line 108: import(entryUrl) loads a module by a path K4 can't evaluate
+        … 45 more findings
+FAIL  K6  Test inventory: jest 30.3.0: 126 violations (126 of 226 test files fail to load (base: 0), 126 files that no longer load, 1186 lost tests) (21.4 s)
+        tests/controllers/serverController.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ../../src/dao/DaoFactory.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2
+        src/services/sseService.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ./mcpService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$/
+        tests/integration/personal-credentials.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ../../src/services/oauthService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^
+        tests/services/vectorSearchService.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ../../src/services/logService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\
+        tests/integration/sse-service-real-client.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ./dataService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2}\/.*)\.js$
+        tests/utils/smartRouting.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ../../src/dao/DaoFactory.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\.{1,2
+        tests/services/mcpService-apps.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ../../src/services/oauthService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^
+        tests/controllers/smartRoutingController.test.ts: loads in base, fails to load in head: ● Test suite failed to run Configuration error: Could not locate module ../../src/services/mcpService.js mapped as: $1. Please check your configuration for these entries: { "moduleNameMapper": { "/^(\
+        … 118 more
+FAIL  K8  Oracles on the commit: tsc exited 2 on head (908 diagnostics), 0 on base; unit 96/219 files and 779/1,934 cases equal to base (head: 99/219 files load, 779 passed, 8 failed, 0 skipped) (19.8 s)
+        tsc: `node_modules/.bin/tsc --outDir {scratch}/dist --incremental false --pretty false` exited 2 on head (908 diagnostics), exit 0 on base (log /tmp/ac-s4-certify/g3-mcphub-opencode-super.full/oracles/head/tsc/step-1.log)
+        src/cli/commands/groups.ts: tsc: TS2307 Cannot find module '../../types/index.js' or its corresponding type declarations.
+        src/cli/commands/keys.ts: tsc: TS2307 Cannot find module '../../types/index.js' or its corresponding type declarations.
+        src/cli/commands/servers.ts: tsc: TS2307 Cannot find module '../../types/index.js' or its corresponding type declarations.
+        src/cli/commands/tools.ts: tsc: TS2307 Cannot find module '../../types/index.js' or its corresponding type declarations.
+        src/clients/openapi.ts: tsc: TS2307 Cannot find module '../types/index.js' or its corresponding type declarations.
+        src/clients/openapi.ts: tsc: TS2305 Module '"../dao/index.js"' has no exported member 'getUserDao'.
+        src/clients/openapi.ts: tsc: TS2366 Function lacks ending return statement and return type does not include 'undefined'.
+        … 128 more
+        finding (network-attempt) unit on head: 5 network attempts refused (log /tmp/ac-s4-certify/g3-mcphub-opencode-super.full/oracles/head/unit/network.jsonl)
+        finding (network-attempt) unit on base: 5 network attempts refused (log /home/paseo/ac-work/s4/oracle-cache/mcphub-70cf036c90f8-unit-7840c52c5958cd0e/network.jsonl)
+
+verdict: FAIL (static checks and oracles)
+digest: sha256:0e250c4745c1f84045cac9fa2879648bfcfa559829cd36d6c7b0fb7407e3c175
+
+Ac-Certificate: fail (full) K0=pass K1=fail K2=pass K3=fail K4=fail K6=fail K8=fail
+Ac-Certificate-Base: 70cf036c90f8239c2a11a57f137b588fce7d1b0c
+Ac-Certificate-Digest: sha256:0e250c4745c1f84045cac9fa2879648bfcfa559829cd36d6c7b0fb7407e3c175
