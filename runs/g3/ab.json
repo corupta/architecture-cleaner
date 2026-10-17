@@ -1,0 +1,265 @@
+{
+ "format": "ac-ab/1",
+ "about": "The same restructuring task on the same pinned commits: a generic coding agent (G3: opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, a fixed prompt, no human input) and architecture-cleaner. Every number is measured offline and names its source. The certificate rows are read from the certificate files in this directory and in runs/immich-ladder/.",
+ "tables": [
+  {
+   "id": "immich",
+   "title": "immich server/ @ 02063972e8",
+   "target": {
+    "name": "immich",
+    "origin": "https://github.com/immich-app/immich",
+    "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+    "packageRoot": "server",
+    "profile": "immich"
+   },
+   "baseline": "Base: tsc 0 errors; vitest 105 test files, 2,337 cases; the OpenAPI spec is 947,932 bytes (docs/gates.md, G2).",
+   "arms": [
+    {
+     "id": "ac-ladder",
+     "label": "ac, the full ladder",
+     "who": "architecture-cleaner: Nemotron 3 Ultra plans, the executor moves, the certifier checks every commit",
+     "branch": "ac/s6-ladder",
+     "session": "S6",
+     "ours": true,
+     "certificate": "runs/immich-ladder/certificate.json",
+     "run": "immich-ladder"
+    },
+    {
+     "id": "ac-r1",
+     "label": "ac, one R1-style step",
+     "who": "architecture-cleaner's executor, one move of every controller, service, repository and DTO",
+     "branch": "ac/s3-r1",
+     "session": "S3",
+     "ours": true,
+     "certificate": "runs/g3/immich-r1.full.json"
+    },
+    {
+     "id": "g3-single",
+     "label": "opencode + Nemotron 3 Super, single-shot",
+     "who": "opencode 1.18.34, NVIDIA Nemotron 3 Super on Nebius Token Factory, one `opencode run` with the fixed prompt",
+     "branch": "g3/opencode-super",
+     "session": "G3 (S2)",
+     "ours": false,
+     "certificate": "runs/g3/g3-immich-opencode-super.full.json"
+    },
+    {
+     "id": "g3-persistent",
+     "label": "opencode + Nemotron 3 Super, persistent",
+     "who": "the same agent; whenever it stopped, an automated reply reported typecheck and test results and asked it to continue",
+     "branch": "g3/opencode-super-persistent",
+     "session": "G3 (S2)",
+     "ours": false,
+     "certificate": "runs/g3/g3-immich-opencode-super-persistent.full.json"
+    }
+   ],
+   "rows": [
+    {
+     "metric": "Outcome",
+     "values": {
+      "ac-ladder": "Completed unattended: 63 commits, each certified on its first attempt; every rung and the whole PR PASS with the oracles",
+      "ac-r1": "One certified commit",
+      "g3-single": "Stopped after 169 s and asked the user to run its sed commands",
+      "g3-persistent": "Stopped by the $5 budget cap during turn 5, after 33 min"
+     },
+     "source": "docs/sessions/s6.md; docs/sessions/s3.md; docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "What the diff is",
+     "values": {
+      "ac-ladder": "367 files moved into 38 modules, 20 platform folders and shared/; 2,474 specifier edits in 515 files; 2 boundary-rule files added and proven inert; every other byte identical",
+      "ac-r1": "292 files moved into 100 modules; 1,445 specifier edits in 386 files; every other byte identical",
+      "g3-single": "211 files copied into src/features/, originals kept; every rewritten import corrupted",
+      "g3-persistent": "297 moved, 562 copied (a src.backup/ tree), 68 edited, 12 Python scripts left behind"
+     },
+     "source": "docs/storyboard.md (lead table); runs/immich-ladder/certificate.txt (K1, K2)"
+    },
+    {
+     "metric": "tsc errors (base: 0)",
+     "values": {
+      "ac-ladder": "0",
+      "ac-r1": "0",
+      "g3-single": "1,680",
+      "g3-persistent": "768 (nest build: 4,675)"
+     },
+     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K8)"
+    },
+    {
+     "metric": "Unit suite (base: 105 files, 2,337 cases)",
+     "values": {
+      "ac-ladder": "105/105 files, 2,337/2,337 cases",
+      "ac-r1": "105/105 files, 2,337/2,337 cases",
+      "g3-single": "2,337/2,337 cases pass, but 66 of 171 spec files never load",
+      "g3-persistent": "5/105 files, 52 cases"
+     },
+     "source": "docs/storyboard.md (lead table); runs/immich-ladder/certificate.txt (K6, K8)"
+    },
+    {
+     "metric": "OpenAPI spec (base: 947,932 bytes)",
+     "values": {
+      "ac-ladder": "byte-identical",
+      "ac-r1": "byte-identical",
+      "g3-single": "byte-identical: the copies are dead code",
+      "g3-persistent": "not produced: sync-open-api crashes"
+     },
+     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K8)"
+    },
+    {
+     "metric": "Non-specifier lines changed in moved or copied files",
+     "values": {
+      "ac-ladder": "0 (K2)",
+      "ac-r1": "0 (K2)",
+      "g3-single": "1,104 (2.4%)",
+      "g3-persistent": "0, plus 926 in modified files"
+     },
+     "source": "docs/gates.md (G3 table); the certificates' K2"
+    },
+    {
+     "metric": "New dangling specifiers",
+     "values": {
+      "ac-ladder": "0 (K3a, K3b, K3c: every site resolves to its base target)",
+      "ac-r1": "0 (K3a, K3b, K3c)",
+      "g3-single": "0: the copies still import the originals",
+      "g3-persistent": "2,923"
+     },
+     "source": "docs/gates.md (G3 table); the certificates' K3a–K3c"
+    },
+    {
+     "metric": "Behavior changes no unit test catches",
+     "values": {
+      "ac-ladder": "None found: K4 finds no moved file that exposes its location",
+      "ac-r1": "None found (K4)",
+      "g3-single": "0 claims survived review: the copies are dead code",
+      "g3-persistent": "2 survived review: database.repository.ts and config.repository.ts moved but kept their import.meta.dirname paths (migrations, helmet.json)"
+     },
+     "source": "docs/gates.md (Addendum: G3 review); the certificates' K4"
+    },
+    {
+     "metric": "LLM cost",
+     "values": {
+      "ac-ladder": "$0.1998 for the plan when recorded (Nemotron 3 Ultra) and $0.0010 for the findings narration (Nemotron 3.5 Lightning); a replay costs $0",
+      "ac-r1": "$0",
+      "g3-single": "$0.30 (0.98M input tokens, 51 calls)",
+      "g3-persistent": "$4.63 (15.3M input tokens, 200 calls)"
+     },
+     "source": "runs/immich-ladder/run.json (cost); docs/sessions/s6.md; docs/storyboard.md (lead table); docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "Time",
+     "values": {
+      "ac-ladder": "1 h 55 m wall time on a quiet machine, certificates included",
+      "ac-r1": "executor 14 s; certificate: static checks 139 s, oracles 146 s",
+      "g3-single": "169 s",
+      "g3-persistent": "33 min"
+     },
+     "source": "docs/sessions/s6.md; docs/storyboard.md (lead table)"
+    }
+   ],
+   "notes": [
+    {
+     "text": "A green test count is not proof. The single-shot branch passes 2,337/2,337 cases while its restructure is a dead copy tree with 1,680 type errors; the certificate names why (K1: 211 files added; K6: 66 of 171 spec files don't load).",
+     "source": "docs/storyboard.md"
+    },
+    {
+     "text": "The persistent run is the reference baseline, because single-shot runs quit within 3 minutes.",
+     "source": "docs/gates.md (Plan corrections, item 3)"
+    }
+   ]
+  },
+  {
+   "id": "mcphub",
+   "title": "mcphub @ 70cf036c90",
+   "target": {
+    "name": "mcphub",
+    "origin": "https://github.com/samanhappy/mcphub",
+    "base": "70cf036c90f8239c2a11a57f137b588fce7d1b0c",
+    "packageRoot": "",
+    "profile": null
+   },
+   "baseline": "Base: tsc 0 errors; jest 218/226 files, 1,952/1,986 cases offline (docs/gates.md, G2). ac did not run on mcphub: there is no ac arm.",
+   "arms": [
+    {
+     "id": "g3-single",
+     "label": "opencode + Nemotron 3 Super, single-shot",
+     "who": "opencode 1.18.34, NVIDIA Nemotron 3 Super on Nebius Token Factory, one `opencode run` with the fixed prompt",
+     "branch": "g3/opencode-super",
+     "session": "G3 (S2)",
+     "ours": false,
+     "certificate": "runs/g3/g3-mcphub-opencode-super.full.json"
+    },
+    {
+     "id": "g3-persistent",
+     "label": "opencode + Nemotron 3 Super, persistent",
+     "who": "the same agent with automated continue replies",
+     "branch": "g3/opencode-super-persistent",
+     "session": "G3 (S2)",
+     "ours": false,
+     "certificate": "runs/g3/g3-mcphub-opencode-super-persistent.full.json"
+    }
+   ],
+   "rows": [
+    {
+     "metric": "Outcome",
+     "values": {
+      "g3-single": "Stopped after 48 s and asked the user which approach to take",
+      "g3-persistent": "25 turns, 24 min; tool calls in only 3 of 25 turns, and the same refusal text 16 times (Super decodes greedily)"
+     },
+     "source": "docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "File operations",
+     "values": {
+      "g3-single": "87 source files moved, 1 deleted, 0 importers rewritten",
+      "g3-persistent": "287 copied, 5 new re-export facades"
+     },
+     "source": "docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "Non-specifier lines changed in moved or copied files",
+     "values": {
+      "g3-single": "0",
+      "g3-persistent": "256 (0.4%)"
+     },
+     "source": "docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "New dangling specifiers",
+     "values": {
+      "g3-single": "1,102 (720 imports, 367 jest.mock, 15 dynamic or typeof)",
+      "g3-persistent": "891"
+     },
+     "source": "docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "tsc errors (base: 0)",
+     "values": {
+      "g3-single": "908",
+      "g3-persistent": "101"
+     },
+     "source": "docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "Unit tests, offline (base: 218/226 files, 1,952/1,986 cases)",
+     "values": {
+      "g3-single": "96/226 files, 790/800 cases",
+      "g3-persistent": "222/264 files (+38 duplicates), 1,971/2,004 cases; the extra failures are all in the duplicated copies"
+     },
+     "source": "docs/gates.md (G3 table)"
+    },
+    {
+     "metric": "LLM cost",
+     "values": {
+      "g3-single": "$0.04",
+      "g3-persistent": "$0.82 (2.7M input tokens)"
+     },
+     "source": "docs/gates.md (G3 table)"
+    }
+   ],
+   "notes": [
+    {
+     "text": "The persistent run reset its work twice with git reset --hard, which turned the restructure into a copy; the originals are intact.",
+     "source": "docs/gates.md (Addendum: G3 review)"
+    }
+   ]
+  }
+ ]
+}

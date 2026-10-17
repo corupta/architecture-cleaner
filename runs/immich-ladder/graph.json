@@ -1,0 +1,5680 @@
+{
+ "format": "ac-graph/1",
+ "origin": "https://github.com/immich-app/immich",
+ "packageRoot": "server",
+ "moduleRoot": "src",
+ "base": {
+  "commit": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+  "tree": "424df72c3407dd1e7df5ee4e81a1d5fcd85cc01c",
+  "folders": [
+   {
+    "key": "src/bin/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/commands/",
+    "kind": "folder",
+    "files": 10,
+    "productionFiles": 10,
+    "internalPairs": 9
+   },
+   {
+    "key": "src/controllers/",
+    "kind": "folder",
+    "files": 82,
+    "productionFiles": 47,
+    "internalPairs": 46
+   },
+   {
+    "key": "src/cores/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/dtos/",
+    "kind": "folder",
+    "files": 55,
+    "productionFiles": 52,
+    "internalPairs": 33
+   },
+   {
+    "key": "src/emails/",
+    "kind": "folder",
+    "files": 9,
+    "productionFiles": 9,
+    "internalPairs": 11
+   },
+   {
+    "key": "src/maintenance/",
+    "kind": "folder",
+    "files": 6,
+    "productionFiles": 5,
+    "internalPairs": 5
+   },
+   {
+    "key": "src/middleware/",
+    "kind": "folder",
+    "files": 8,
+    "productionFiles": 7,
+    "internalPairs": 2
+   },
+   {
+    "key": "src/repositories/",
+    "kind": "folder",
+    "files": 63,
+    "productionFiles": 57,
+    "internalPairs": 89
+   },
+   {
+    "key": "src/schema/",
+    "kind": "folder",
+    "files": 168,
+    "productionFiles": 168,
+    "internalPairs": 152
+   },
+   {
+    "key": "src/services/",
+    "kind": "folder",
+    "files": 102,
+    "productionFiles": 56,
+    "internalPairs": 111
+   },
+   {
+    "key": "src/utils/",
+    "kind": "folder",
+    "files": 43,
+    "productionFiles": 32,
+    "internalPairs": 9
+   },
+   {
+    "key": "src/workers/",
+    "kind": "folder",
+    "files": 3,
+    "productionFiles": 3,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/",
+    "kind": "root",
+    "files": 10,
+    "productionFiles": 9,
+    "internalPairs": 12
+   }
+  ],
+  "edges": [
+   {
+    "from": "src/",
+    "to": "src/commands/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/controllers/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/dtos/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/maintenance/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/middleware/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/repositories/",
+    "pairs": 18,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/schema/",
+    "pairs": 6,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/",
+    "to": "src/services/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/dtos/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/commands/",
+    "to": "src/services/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/",
+    "pairs": 117,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/dtos/",
+    "pairs": 112,
+    "typeOnlyPairs": 34
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/middleware/",
+    "pairs": 50,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/repositories/",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/services/",
+    "pairs": 54,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "src/controllers/",
+    "to": "src/utils/",
+    "pairs": 13,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/repositories/",
+    "pairs": 8,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/cores/",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/",
+    "pairs": 90,
+    "typeOnlyPairs": 9
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/dtos/",
+    "to": "src/utils/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "src/repositories/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/",
+    "pairs": 7,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/controllers/",
+    "pairs": 2,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/cores/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/dtos/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/repositories/",
+    "pairs": 12,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/services/",
+    "pairs": 7,
+    "typeOnlyPairs": 5
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/utils/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/",
+    "pairs": 5,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/dtos/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/repositories/",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/services/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/middleware/",
+    "to": "src/utils/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/",
+    "pairs": 111,
+    "typeOnlyPairs": 10
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/dtos/",
+    "pairs": 28,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/emails/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/schema/",
+    "pairs": 85,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/utils/",
+    "pairs": 30,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/",
+    "pairs": 72,
+    "typeOnlyPairs": 4
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/dtos/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/repositories/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/",
+    "pairs": 129,
+    "typeOnlyPairs": 25
+   },
+   {
+    "from": "src/services/",
+    "to": "src/cores/",
+    "pairs": 14,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/dtos/",
+    "pairs": 124,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/services/",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/repositories/",
+    "pairs": 109,
+    "typeOnlyPairs": 18
+   },
+   {
+    "from": "src/services/",
+    "to": "src/schema/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/utils/",
+    "pairs": 119,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/",
+    "pairs": 34,
+    "typeOnlyPairs": 8
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/cores/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/dtos/",
+    "pairs": 21,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/repositories/",
+    "pairs": 20,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/middleware/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   }
+  ],
+  "internalPairs": 479,
+  "crossPairs": 1572,
+  "cycles": [
+   [
+    "src/",
+    "src/commands/",
+    "src/controllers/",
+    "src/cores/",
+    "src/dtos/",
+    "src/emails/",
+    "src/maintenance/",
+    "src/middleware/",
+    "src/repositories/",
+    "src/schema/",
+    "src/services/",
+    "src/utils/"
+   ]
+  ]
+ },
+ "head": {
+  "commit": "c4be040b5739351507750669c3a179dd752f4a72",
+  "tree": "4e457bb4e806f1bc0a63b83141345e20edab0f57",
+  "folders": [
+   {
+    "key": "src/bin/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/controllers/",
+    "kind": "folder",
+    "files": 1,
+    "productionFiles": 0,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/dtos/",
+    "kind": "folder",
+    "files": 1,
+    "productionFiles": 0,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/emails/",
+    "kind": "folder",
+    "files": 9,
+    "productionFiles": 9,
+    "internalPairs": 11
+   },
+   {
+    "key": "src/maintenance/",
+    "kind": "folder",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/repositories/",
+    "kind": "folder",
+    "files": 4,
+    "productionFiles": 2,
+    "internalPairs": 1
+   },
+   {
+    "key": "src/schema/",
+    "kind": "folder",
+    "files": 168,
+    "productionFiles": 168,
+    "internalPairs": 152
+   },
+   {
+    "key": "src/services/",
+    "kind": "folder",
+    "files": 3,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/utils/",
+    "kind": "folder",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/workers/",
+    "kind": "folder",
+    "files": 3,
+    "productionFiles": 3,
+    "internalPairs": 0
+   },
+   {
+    "key": "src/",
+    "kind": "root",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "module/activity",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/album",
+    "kind": "module",
+    "files": 7,
+    "productionFiles": 5,
+    "internalPairs": 5
+   },
+   {
+    "key": "module/api-key",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/asset",
+    "kind": "module",
+    "files": 24,
+    "productionFiles": 20,
+    "internalPairs": 32
+   },
+   {
+    "key": "module/auth",
+    "kind": "module",
+    "files": 15,
+    "productionFiles": 11,
+    "internalPairs": 14
+   },
+   {
+    "key": "module/cluster-group",
+    "kind": "module",
+    "files": 4,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/config",
+    "kind": "module",
+    "files": 10,
+    "productionFiles": 7,
+    "internalPairs": 11
+   },
+   {
+    "key": "module/database-backup",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 4
+   },
+   {
+    "key": "module/download",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/duplicate",
+    "kind": "module",
+    "files": 8,
+    "productionFiles": 5,
+    "internalPairs": 4
+   },
+   {
+    "key": "module/integrity",
+    "kind": "module",
+    "files": 5,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/job",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/library",
+    "kind": "module",
+    "files": 5,
+    "productionFiles": 4,
+    "internalPairs": 5
+   },
+   {
+    "key": "module/machine-learning",
+    "kind": "module",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "module/maintenance",
+    "kind": "module",
+    "files": 13,
+    "productionFiles": 10,
+    "internalPairs": 16
+   },
+   {
+    "key": "module/map",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/memory",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 4
+   },
+   {
+    "key": "module/notification",
+    "kind": "module",
+    "files": 12,
+    "productionFiles": 7,
+    "internalPairs": 10
+   },
+   {
+    "key": "module/ocr",
+    "kind": "module",
+    "files": 4,
+    "productionFiles": 3,
+    "internalPairs": 1
+   },
+   {
+    "key": "module/partner",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 4
+   },
+   {
+    "key": "module/person",
+    "kind": "module",
+    "files": 8,
+    "productionFiles": 6,
+    "internalPairs": 8
+   },
+   {
+    "key": "module/plugin",
+    "kind": "module",
+    "files": 7,
+    "productionFiles": 6,
+    "internalPairs": 6
+   },
+   {
+    "key": "module/queue",
+    "kind": "module",
+    "files": 5,
+    "productionFiles": 4,
+    "internalPairs": 5
+   },
+   {
+    "key": "module/search",
+    "kind": "module",
+    "files": 12,
+    "productionFiles": 7,
+    "internalPairs": 8
+   },
+   {
+    "key": "module/server",
+    "kind": "module",
+    "files": 5,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/session",
+    "kind": "module",
+    "files": 5,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/shared-link",
+    "kind": "module",
+    "files": 7,
+    "productionFiles": 5,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/stack",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/sync",
+    "kind": "module",
+    "files": 8,
+    "productionFiles": 6,
+    "internalPairs": 6
+   },
+   {
+    "key": "module/system-metadata",
+    "kind": "module",
+    "files": 7,
+    "productionFiles": 5,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/tag",
+    "kind": "module",
+    "files": 8,
+    "productionFiles": 6,
+    "internalPairs": 5
+   },
+   {
+    "key": "module/timeline",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 4
+   },
+   {
+    "key": "module/trash",
+    "kind": "module",
+    "files": 6,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "module/user",
+    "kind": "module",
+    "files": 19,
+    "productionFiles": 14,
+    "internalPairs": 26
+   },
+   {
+    "key": "module/version",
+    "kind": "module",
+    "files": 4,
+    "productionFiles": 3,
+    "internalPairs": 1
+   },
+   {
+    "key": "module/video-stream",
+    "kind": "module",
+    "files": 5,
+    "productionFiles": 4,
+    "internalPairs": 2
+   },
+   {
+    "key": "module/view",
+    "kind": "module",
+    "files": 4,
+    "productionFiles": 3,
+    "internalPairs": 1
+   },
+   {
+    "key": "module/workflow",
+    "kind": "module",
+    "files": 8,
+    "productionFiles": 6,
+    "internalPairs": 5
+   },
+   {
+    "key": "platform/access",
+    "kind": "platform",
+    "files": 3,
+    "productionFiles": 3,
+    "internalPairs": 2
+   },
+   {
+    "key": "platform/bootstrap",
+    "kind": "platform",
+    "files": 3,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/check",
+    "kind": "platform",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/cron",
+    "kind": "platform",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/crypto",
+    "kind": "platform",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/database",
+    "kind": "platform",
+    "files": 4,
+    "productionFiles": 3,
+    "internalPairs": 1
+   },
+   {
+    "key": "platform/event",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 1
+   },
+   {
+    "key": "platform/file",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/http-client",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/http-response",
+    "kind": "platform",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/logging",
+    "kind": "platform",
+    "files": 6,
+    "productionFiles": 5,
+    "internalPairs": 6
+   },
+   {
+    "key": "platform/media",
+    "kind": "platform",
+    "files": 8,
+    "productionFiles": 5,
+    "internalPairs": 2
+   },
+   {
+    "key": "platform/metadata",
+    "kind": "platform",
+    "files": 4,
+    "productionFiles": 3,
+    "internalPairs": 2
+   },
+   {
+    "key": "platform/move",
+    "kind": "platform",
+    "files": 1,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/process",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/registry",
+    "kind": "platform",
+    "files": 7,
+    "productionFiles": 6,
+    "internalPairs": 4
+   },
+   {
+    "key": "platform/storage",
+    "kind": "platform",
+    "files": 7,
+    "productionFiles": 4,
+    "internalPairs": 3
+   },
+   {
+    "key": "platform/telemetry",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/transcoding",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 1,
+    "internalPairs": 0
+   },
+   {
+    "key": "platform/websocket",
+    "kind": "platform",
+    "files": 2,
+    "productionFiles": 2,
+    "internalPairs": 0
+   },
+   {
+    "key": "shared",
+    "kind": "shared",
+    "files": 20,
+    "productionFiles": 14,
+    "internalPairs": 10
+   }
+  ],
+  "edges": [
+   {
+    "from": "module/activity",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/activity",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "platform/database",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "shared",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/activity",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "module/asset",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/album",
+    "to": "module/map",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "shared",
+    "pairs": 15,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/album",
+    "to": "src/schema/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/album",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/api-key",
+    "to": "platform/access",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "shared",
+    "pairs": 8,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/api-key",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "module/auth",
+    "pairs": 15,
+    "typeOnlyPairs": 5
+   },
+   {
+    "from": "module/asset",
+    "to": "module/ocr",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "module/partner",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "module/person",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "module/tag",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/access",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/database",
+    "pairs": 12,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/file",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/logging",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/registry",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "platform/storage",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "shared",
+    "pairs": 47,
+    "typeOnlyPairs": 6
+   },
+   {
+    "from": "module/asset",
+    "to": "src/schema/",
+    "pairs": 11,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/asset",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "module/user",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "platform/access",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "platform/http-response",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "platform/logging",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "shared",
+    "pairs": 15,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/auth",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/auth",
+    "to": "src/services/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "module/activity",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "module/user",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/cluster-group",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "module/auth",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "module/system-metadata",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/config",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "shared",
+    "pairs": 15,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/config",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/config",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "module/auth",
+    "pairs": 2,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/database-backup",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "module/job",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "module/maintenance",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "module/system-metadata",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/cron",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/file",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/http-response",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/logging",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/process",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "platform/storage",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "shared",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "src/repositories/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/database-backup",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/download",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/download",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/download",
+    "to": "platform/file",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/download",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/download",
+    "to": "platform/storage",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/download",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/download",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "module/asset",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/duplicate",
+    "to": "module/search",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "shared",
+    "pairs": 8,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/duplicate",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/duplicate",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "module/auth",
+    "pairs": 2,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/integrity",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/integrity",
+    "to": "platform/file",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "shared",
+    "pairs": 9,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/integrity",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/integrity",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "module/auth",
+    "pairs": 2,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/job",
+    "to": "module/queue",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "platform/event",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "shared",
+    "pairs": 10,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/job",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/job",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/library",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "shared",
+    "pairs": 10,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/library",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/library",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/machine-learning",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/machine-learning",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "module/auth",
+    "pairs": 5,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "module/maintenance",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "module/database-backup",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/maintenance",
+    "to": "module/server",
+    "pairs": 4,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/maintenance",
+    "to": "module/system-metadata",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "module/version",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/event",
+    "pairs": 3,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/file",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/http-response",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/logging",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/process",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/maintenance",
+    "to": "platform/storage",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "shared",
+    "pairs": 14,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "module/maintenance",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "src/repositories/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/maintenance",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/map",
+    "to": "module/system-metadata",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "shared",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/map",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/memory",
+    "to": "module/asset",
+    "pairs": 6,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/memory",
+    "to": "module/auth",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/memory",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/memory",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/memory",
+    "to": "shared",
+    "pairs": 11,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/memory",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/memory",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "module/album",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "module/auth",
+    "pairs": 6,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/notification",
+    "to": "module/config",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/notification",
+    "to": "platform/file",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "shared",
+    "pairs": 15,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/notification",
+    "to": "src/emails/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/notification",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/ocr",
+    "to": "module/machine-learning",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/ocr",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/ocr",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/ocr",
+    "to": "shared",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/ocr",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/ocr",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/partner",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/partner",
+    "to": "module/user",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/partner",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/partner",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/partner",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/partner",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "module/asset",
+    "pairs": 6,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/person",
+    "to": "module/auth",
+    "pairs": 5,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/person",
+    "to": "module/machine-learning",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "platform/database",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "platform/file",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "platform/logging",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "shared",
+    "pairs": 23,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/person",
+    "to": "src/schema/",
+    "pairs": 12,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/person",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "module/workflow",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "shared",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/plugin",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/queue",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/queue",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/queue",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/queue",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/queue",
+    "to": "shared",
+    "pairs": 8,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/queue",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "module/album",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "module/asset",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "module/auth",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/search",
+    "to": "module/config",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "module/person",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "platform/access",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/search",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "shared",
+    "pairs": 13,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/search",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/search",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "module/system-metadata",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "module/user",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "module/version",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "shared",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/server",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/session",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/session",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/session",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/session",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/session",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/session",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "module/album",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "module/asset",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "module/auth",
+    "pairs": 4,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/shared-link",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "platform/http-response",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "shared",
+    "pairs": 10,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "src/schema/",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/shared-link",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/stack",
+    "to": "module/asset",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/stack",
+    "to": "module/auth",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/stack",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/stack",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/stack",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/stack",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/stack",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/sync",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/sync",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/sync",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/sync",
+    "to": "platform/http-response",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/sync",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/sync",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/sync",
+    "to": "shared",
+    "pairs": 15,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "module/sync",
+    "to": "src/schema/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/system-metadata",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/system-metadata",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/system-metadata",
+    "to": "shared",
+    "pairs": 5,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/system-metadata",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/tag",
+    "to": "module/asset",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/tag",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/tag",
+    "to": "platform/database",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/tag",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/tag",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/tag",
+    "to": "shared",
+    "pairs": 9,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/tag",
+    "to": "src/schema/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/tag",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/timeline",
+    "to": "module/asset",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/timeline",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/timeline",
+    "to": "platform/access",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/timeline",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/timeline",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/trash",
+    "to": "module/asset",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/trash",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/trash",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/trash",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/trash",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/trash",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "module/asset",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "module/auth",
+    "pairs": 7,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "module/user",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "module/session",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "module/system-metadata",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/crypto",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/user",
+    "to": "platform/file",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/media",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "platform/storage",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "shared",
+    "pairs": 29,
+    "typeOnlyPairs": 4
+   },
+   {
+    "from": "module/user",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "src/schema/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "src/services/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/user",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/version",
+    "to": "module/server",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/version",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/version",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/version",
+    "to": "shared",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/version",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/version",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/version",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/video-stream",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/event",
+    "pairs": 2,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/file",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/media",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "shared",
+    "pairs": 8,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/video-stream",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/video-stream",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/view",
+    "to": "module/asset",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/view",
+    "to": "module/auth",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/view",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/view",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/view",
+    "to": "shared",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/view",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "module/album",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "module/asset",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "module/auth",
+    "pairs": 4,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/workflow",
+    "to": "module/plugin",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "module/tag",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/workflow",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "shared",
+    "pairs": 11,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "module/workflow",
+    "to": "src/schema/",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "module/workflow",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/access",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/access",
+    "to": "module/person",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/access",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/access",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/access",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "module/maintenance",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "platform/telemetry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "platform/websocket",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "shared",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/bootstrap",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/check",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/check",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/cron",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/database",
+    "to": "module/asset",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/database",
+    "to": "module/person",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/database",
+    "to": "module/search",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/database",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/database",
+    "to": "shared",
+    "pairs": 9,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "platform/database",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/database",
+    "to": "src/schema/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/event",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/event",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/event",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/event",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/event",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/event",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/file",
+    "to": "module/asset",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/file",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/file",
+    "to": "platform/logging",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/file",
+    "to": "platform/storage",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/file",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/http-client",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/http-response",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/http-response",
+    "to": "shared",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/logging",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/logging",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/logging",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "module/asset",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "module/config",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "module/machine-learning",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "module/ocr",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "shared",
+    "pairs": 11,
+    "typeOnlyPairs": 4
+   },
+   {
+    "from": "platform/media",
+    "to": "src/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "src/services/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/media",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "module/map",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "module/tag",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "platform/database",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/metadata",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "shared",
+    "pairs": 6,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/metadata",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/metadata",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/move",
+    "to": "shared",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/move",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/activity",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/album",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/api-key",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/asset",
+    "pairs": 14,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/auth",
+    "pairs": 12,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/cluster-group",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/config",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/database-backup",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/download",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/duplicate",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/integrity",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/job",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/library",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/machine-learning",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/maintenance",
+    "pairs": 10,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/map",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/memory",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/notification",
+    "pairs": 8,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/ocr",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/partner",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/person",
+    "pairs": 7,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/plugin",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/queue",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/search",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/server",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/session",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/shared-link",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/stack",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/sync",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/system-metadata",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/tag",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/timeline",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/trash",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/user",
+    "pairs": 9,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/version",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/video-stream",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/view",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "module/workflow",
+    "pairs": 5,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/access",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/bootstrap",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/check",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/cron",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/crypto",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/database",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/event",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/file",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/http-client",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/logging",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/media",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/metadata",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/move",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/process",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/storage",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/telemetry",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/transcoding",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "platform/websocket",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/registry",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "src/maintenance/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "src/repositories/",
+    "pairs": 6,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/registry",
+    "to": "src/services/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "module/asset",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "module/config",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "module/library",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "module/person",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "module/system-metadata",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/crypto",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/file",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/logging",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/move",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "shared",
+    "pairs": 9,
+    "typeOnlyPairs": 3
+   },
+   {
+    "from": "platform/storage",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/storage",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/telemetry",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/telemetry",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/telemetry",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/telemetry",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/telemetry",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/telemetry",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "platform/media",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "platform/storage",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "shared",
+    "pairs": 3,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "platform/transcoding",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "module/notification",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "module/server",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "module/sync",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "platform/websocket",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/asset",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/auth",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/maintenance",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/ocr",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/shared-link",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "platform/access",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "platform/event",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "platform/file",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "shared",
+    "to": "src/utils/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "module/system-metadata",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "shared",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/",
+    "to": "src/schema/",
+    "pairs": 1,
+    "typeOnlyPairs": 1
+   },
+   {
+    "from": "src/bin/",
+    "to": "module/auth",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "module/machine-learning",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "module/sync",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "platform/access",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "platform/registry",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "shared",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/bin/",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "module/notification",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/emails/",
+    "to": "module/tag",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/maintenance/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "platform/access",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "platform/database",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "shared",
+    "pairs": 7,
+    "typeOnlyPairs": 2
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/repositories/",
+    "to": "src/schema/",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "module/asset",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "module/person",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "module/plugin",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "platform/database",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "platform/logging",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "shared",
+    "pairs": 70,
+    "typeOnlyPairs": 4
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/schema/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "module/maintenance",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "module/user",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "platform/registry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "shared",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/services/",
+    "to": "src/utils/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "module/config",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "shared",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/utils/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "module/maintenance",
+    "pairs": 4,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "platform/bootstrap",
+    "pairs": 2,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "platform/logging",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "platform/registry",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "platform/telemetry",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "platform/websocket",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "shared",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/repositories/",
+    "pairs": 1,
+    "typeOnlyPairs": 0
+   },
+   {
+    "from": "src/workers/",
+    "to": "src/utils/",
+    "pairs": 3,
+    "typeOnlyPairs": 0
+   }
+  ],
+  "internalPairs": 421,
+  "crossPairs": 1630,
+  "cycles": [
+   [
+    "module/album",
+    "module/asset",
+    "module/auth",
+    "module/config",
+    "module/database-backup",
+    "module/job",
+    "module/library",
+    "module/machine-learning",
+    "module/maintenance",
+    "module/map",
+    "module/ocr",
+    "module/partner",
+    "module/person",
+    "module/plugin",
+    "module/queue",
+    "module/search",
+    "module/server",
+    "module/session",
+    "module/shared-link",
+    "module/system-metadata",
+    "module/tag",
+    "module/user",
+    "module/version",
+    "module/workflow",
+    "platform/access",
+    "platform/cron",
+    "platform/database",
+    "platform/event",
+    "platform/file",
+    "platform/http-response",
+    "platform/logging",
+    "platform/media",
+    "platform/move",
+    "platform/storage",
+    "shared",
+    "src/",
+    "src/maintenance/",
+    "src/repositories/",
+    "src/schema/",
+    "src/services/",
+    "src/utils/"
+   ],
+   [
+    "module/notification",
+    "src/emails/"
+   ]
+  ]
+ },
+ "flow": [
+  {
+   "from": "src/",
+   "to": "platform/bootstrap",
+   "files": 1
+  },
+  {
+   "from": "src/",
+   "to": "platform/database",
+   "files": 1
+  },
+  {
+   "from": "src/",
+   "to": "platform/registry",
+   "files": 1
+  },
+  {
+   "from": "src/",
+   "to": "shared",
+   "files": 5
+  },
+  {
+   "from": "src/",
+   "to": "src/",
+   "files": 2
+  },
+  {
+   "from": "src/bin/",
+   "to": "src/bin/",
+   "files": 2
+  },
+  {
+   "from": "src/commands/",
+   "to": "module/auth",
+   "files": 3
+  },
+  {
+   "from": "src/commands/",
+   "to": "module/maintenance",
+   "files": 1
+  },
+  {
+   "from": "src/commands/",
+   "to": "module/user",
+   "files": 2
+  },
+  {
+   "from": "src/commands/",
+   "to": "module/version",
+   "files": 1
+  },
+  {
+   "from": "src/commands/",
+   "to": "platform/check",
+   "files": 1
+  },
+  {
+   "from": "src/commands/",
+   "to": "platform/media",
+   "files": 1
+  },
+  {
+   "from": "src/commands/",
+   "to": "platform/registry",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/activity",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/album",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/api-key",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/asset",
+   "files": 5
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/auth",
+   "files": 5
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/cluster-group",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/config",
+   "files": 5
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/database-backup",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/download",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/duplicate",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/integrity",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/job",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/library",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/maintenance",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/map",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/memory",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/notification",
+   "files": 4
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/partner",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/person",
+   "files": 3
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/plugin",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/queue",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/search",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/server",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/session",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/shared-link",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/stack",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/sync",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/system-metadata",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/tag",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/timeline",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/trash",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/user",
+   "files": 4
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/video-stream",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/view",
+   "files": 1
+  },
+  {
+   "from": "src/controllers/",
+   "to": "module/workflow",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "platform/bootstrap",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "platform/registry",
+   "files": 2
+  },
+  {
+   "from": "src/controllers/",
+   "to": "src/controllers/",
+   "files": 1
+  },
+  {
+   "from": "src/cores/",
+   "to": "platform/storage",
+   "files": 2
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/activity",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/album",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/api-key",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/asset",
+   "files": 8
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/auth",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/cluster-group",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/config",
+   "files": 2
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/database-backup",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/download",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/duplicate",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/integrity",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/job",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/library",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/maintenance",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/map",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/memory",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/notification",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/ocr",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/partner",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/person",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/plugin",
+   "files": 3
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/queue",
+   "files": 2
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/search",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/server",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/session",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/shared-link",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/stack",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/sync",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/system-metadata",
+   "files": 2
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/tag",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/timeline",
+   "files": 2
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/trash",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/user",
+   "files": 6
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/video-stream",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "module/workflow",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "shared",
+   "files": 1
+  },
+  {
+   "from": "src/dtos/",
+   "to": "src/dtos/",
+   "files": 1
+  },
+  {
+   "from": "src/emails/",
+   "to": "src/emails/",
+   "files": 9
+  },
+  {
+   "from": "src/maintenance/",
+   "to": "module/maintenance",
+   "files": 5
+  },
+  {
+   "from": "src/maintenance/",
+   "to": "src/maintenance/",
+   "files": 1
+  },
+  {
+   "from": "src/middleware/",
+   "to": "module/asset",
+   "files": 1
+  },
+  {
+   "from": "src/middleware/",
+   "to": "module/auth",
+   "files": 2
+  },
+  {
+   "from": "src/middleware/",
+   "to": "platform/file",
+   "files": 1
+  },
+  {
+   "from": "src/middleware/",
+   "to": "platform/logging",
+   "files": 3
+  },
+  {
+   "from": "src/middleware/",
+   "to": "platform/websocket",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/activity",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/album",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/api-key",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/asset",
+   "files": 4
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/auth",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/cluster-group",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/download",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/duplicate",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/integrity",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/job",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/library",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/machine-learning",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/maintenance",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/map",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/memory",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/notification",
+   "files": 3
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/ocr",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/partner",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/person",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/plugin",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/search",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/server",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/session",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/shared-link",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/stack",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/sync",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/system-metadata",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/tag",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/trash",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/user",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/version",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/video-stream",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/view",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "module/workflow",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/access",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/cron",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/crypto",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/event",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/logging",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/media",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/metadata",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/move",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/process",
+   "files": 2
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/registry",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/storage",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/telemetry",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "platform/websocket",
+   "files": 1
+  },
+  {
+   "from": "src/repositories/",
+   "to": "src/repositories/",
+   "files": 4
+  },
+  {
+   "from": "src/schema/",
+   "to": "src/schema/",
+   "files": 168
+  },
+  {
+   "from": "src/services/",
+   "to": "module/activity",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/album",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/api-key",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/asset",
+   "files": 5
+  },
+  {
+   "from": "src/services/",
+   "to": "module/auth",
+   "files": 3
+  },
+  {
+   "from": "src/services/",
+   "to": "module/cluster-group",
+   "files": 1
+  },
+  {
+   "from": "src/services/",
+   "to": "module/config",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/database-backup",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/download",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/duplicate",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/integrity",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/job",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/library",
+   "files": 1
+  },
+  {
+   "from": "src/services/",
+   "to": "module/maintenance",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/map",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/memory",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/notification",
+   "files": 4
+  },
+  {
+   "from": "src/services/",
+   "to": "module/ocr",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/partner",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/person",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/plugin",
+   "files": 1
+  },
+  {
+   "from": "src/services/",
+   "to": "module/queue",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/search",
+   "files": 4
+  },
+  {
+   "from": "src/services/",
+   "to": "module/server",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/session",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/shared-link",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/stack",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/sync",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/system-metadata",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/tag",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/timeline",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/trash",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/user",
+   "files": 5
+  },
+  {
+   "from": "src/services/",
+   "to": "module/version",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/video-stream",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/view",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "module/workflow",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/database",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/media",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/metadata",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/registry",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/storage",
+   "files": 4
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/telemetry",
+   "files": 1
+  },
+  {
+   "from": "src/services/",
+   "to": "platform/transcoding",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "shared",
+   "files": 2
+  },
+  {
+   "from": "src/services/",
+   "to": "src/services/",
+   "files": 3
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/asset",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/config",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/database-backup",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/duplicate",
+   "files": 2
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/maintenance",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/search",
+   "files": 4
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/sync",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/tag",
+   "files": 2
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/user",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "module/workflow",
+   "files": 2
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/access",
+   "files": 2
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/database",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/event",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/file",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/http-client",
+   "files": 2
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/http-response",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/logging",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/media",
+   "files": 3
+  },
+  {
+   "from": "src/utils/",
+   "to": "platform/metadata",
+   "files": 1
+  },
+  {
+   "from": "src/utils/",
+   "to": "shared",
+   "files": 12
+  },
+  {
+   "from": "src/utils/",
+   "to": "src/utils/",
+   "files": 2
+  },
+  {
+   "from": "src/workers/",
+   "to": "src/workers/",
+   "files": 3
+  }
+ ],
+ "unmatched": [],
+ "source": {
+  "analyzer": "architecture-cleaner analyzer (TypeScript module resolution), production importers under the module root",
+  "typescript": "6.0.3"
+ }
+}

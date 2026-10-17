@@ -1,0 +1,44 @@
+# The replay site on GitHub Pages: built from the committed run artifacts only (no key, no LLM call, no network
+# beyond npm ci), deterministic, deployed with actions/deploy-pages. Settings > Pages > Source must be "GitHub Actions".
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # dist/ is what `npx ac` runs; build it explicitly in case npm ci's prepare step doesn't.
+      - run: npm run build
+      - run: npx ac site --out _site --source-url "${{ github.server_url }}/${{ github.repository }}"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
