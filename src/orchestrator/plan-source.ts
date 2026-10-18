@@ -46,7 +46,7 @@ export async function planInProcess(options: PlannerOptions): Promise<PlannedRun
   const gateway = options.gateway ?? createGateway({ runId, mode: options.mode, cassettePath: path.resolve(options.cassette) });
   const spentBefore = gateway.spent().run;
   const packageRoot = options.profile.packageRoot.replace(/^\.\/?/, '').replace(/\/$/, '');
-  const critic = criticSettingsFor(options.profile);
+  const critic = criticSettingsFor(options.profile, options.mode);
   const run = await planRepo(gitRepoFs(options.repo), gateway, {
     packageRoot, moduleRoot: options.profile.plan?.moduleRoot ?? 'src', pins: options.profile.plan?.pins ?? [], edit: defaultEditSettings, critic,
   });

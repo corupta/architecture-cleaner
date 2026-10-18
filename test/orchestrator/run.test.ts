@@ -472,7 +472,7 @@ describe('ac run: certificates without a verdict', () => {
     expect(stopped.exitCode).toBe(1);
     let state = run.state();
     expect(state).toMatchObject({ status: 'failed', failure: 'crash', pins: [] });
-    expect(state.error).toContain("rung R1's certificate has no verdict: K8 errored and no check failed");
+    expect(state.error).toContain("rung R1's certificate has no verdict: K8 errored and none lists a violation");
     expect(state.rungs[1]).toMatchObject({ id: 'R1', status: 'running', certificate: { file: 'rungs/R1.json', verdict: 'fail', failing: ['K8'] } });
     expect(state.rungs[1]!.bisect).toBeUndefined();
     expect(state.steps.map((step) => step.status)).toEqual(['certified', 'certified', 'pending']);
@@ -499,6 +499,47 @@ describe('ac run: certificates without a verdict', () => {
     expect(outcome.exitCode).toBe(1);
     expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', rungs: expect.arrayContaining([expect.objectContaining({ id: 'R1', status: 'failed' })]) });
     await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames)).rejects.toThrow('failed on a verdict');
+  });
+
+  it('makes a rung certificate whose errored K3b lists a violation another runner found a verdict that --resume refuses', async () => {
+    const run = setup();
+    const errorAndViolation = async (options: CertifyOptions) => {
+      const certificate = await certify(options);
+      if (path.basename(options.workDir) !== 'rung-R1') return certificate;
+      // K3b's shape when one runner errors and another finds a retargeted import: the error first, unmarked, then the violation.
+      Object.assign(certificate.checks.find((check) => check.id === 'K3b')!, {
+        status: 'error', summary: 'vitest-1 could not resolve in base: killed',
+        violations: [{ detail: 'vitest-1 could not resolve in base: killed' }, { file: 'server/src/modules/user/user.service.ts', detail: "site 0 './user.repository' resolves elsewhere" }],
+      });
+      return { ...certificate, verdict: 'fail' as const };
+    };
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1'] }), { ...noRenames, certify: errorAndViolation });
+    expect(outcome.exitCode).toBe(1);
+    expect(run.state()).toMatchObject({ status: 'failed', failure: 'verdict', rungs: expect.arrayContaining([expect.objectContaining({ id: 'R1', status: 'failed' })]) });
+    expect(run.state().error).toContain("rung R1's certificate FAILs (K3b)");
+    await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames)).rejects.toThrow('failed on a verdict');
+  });
+
+  it('replans a step whose errored K6 lists a violation, as on a fail, instead of stopping as a crash', async () => {
+    const run = setup();
+    let calls = 0;
+    const errorAndViolation = async (options: CertifyOptions) => {
+      const certificate = await certify(options);
+      if (options.oracles || ++calls !== 2) return certificate;
+      const moved = certificate.pathMap.entries['server/src/repositories/user.repository.ts']!;
+      Object.assign(certificate.checks.find((check) => check.id === 'K6')!, {
+        status: 'error', summary: 'vitest-0 could not list or load the tests of base',
+        violations: [{ detail: 'vitest-0 could not list or load the tests of base: killed' }, { file: moved, detail: 'listed by vitest-1 in base and head, but collected only in base' }],
+      });
+      return { ...certificate, verdict: 'fail' as const };
+    };
+    const outcome = await startRun(run.options({ rungs: ['R0', 'R1'] }), { ...noRenames, certify: errorAndViolation });
+    expect(outcome.exitCode).toBe(0);
+    const state = run.state();
+    expect(state.failure).toBeUndefined();
+    expect(state.steps[1]).toMatchObject({ group: 'module/user', status: 'certified' });
+    expect(state.steps[1]!.attempts.map((attempt) => attempt.state)).toEqual(['failed', 'passed']);
+    expect(state.pins.map((pin) => pin.file)).toEqual(['server/src/repositories/user.repository.ts']);
   });
 
   it('rolls back R4 when its certificate only errored, and --resume commits the rules again as the same step\'s next attempt', async () => {

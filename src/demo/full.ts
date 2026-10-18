@@ -12,7 +12,7 @@ import { rungIds, type StepRecord } from '../orchestrator/types.js';
 import { startRun } from '../orchestrator/run.js';
 import { prepareCheckout } from './checkout.js';
 import type { CertifiedEntry, DemoReport, ModelCall, StepEntry } from './report.js';
-import { countingGateway, notRerun, openWorkDir, replayGateway, type DemoOptions, type DemoResult } from './replay.js';
+import { countingGateway, nodeModulesAbove, notRerun, openWorkDir, replayGateway, type DemoOptions, type DemoResult } from './replay.js';
 import { compareChecks, readCertificate } from './sample.js';
 
 export const fullBranch = 'ac-demo/full';
@@ -68,7 +68,7 @@ export async function fullDemo(options: DemoOptions & { environment: string }): 
   }
   const report: DemoReport = {
     mode: 'full',
-    target: { name: target.name, sha: target.sha, packageRoot: state.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: fullBranch },
+    target: { name: target.name, sha: target.sha, packageRoot: state.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: fullBranch, nodeModulesAbove: nodeModulesAbove(workDir) },
     recorded: { directory: target.recordedRun, branch: recordedState.branch, steps: recordedState.steps.length, head: recordedState.head, wholePrDigest: recordedState.certificate?.digest ?? null },
     plan: {
       outcome: state.plan.sha256 === recordedState.plan.sha256 ? 'match' : 'mismatch', sha256: state.plan.sha256, recordedSha256: recordedState.plan.sha256,
@@ -84,7 +84,7 @@ export async function fullDemo(options: DemoOptions & { environment: string }): 
     findings: { outcome: 'skipped', findings: 0, narrated: 0, calls: findingsCalls, files: [], detail: `in ${path.join(runDirectory, 'findings')} (they name this run's commits, so they aren't compared byte for byte)` },
     run: { status: state.status, ...(state.error ? { error: state.error } : {}) },
     spentUsd: 0,
-    notRerun: notRerun(profile, recordedState, { environment, oracles: true }).filter((line) => !line.startsWith('**The run loop**')),
+    notRerun: notRerun(profile, recordedState, { certified, environment, oraclesAsked: true }).filter((line) => !line.startsWith('**The run loop**')),
     workDir,
     durationMs: Math.round(performance.now() - started),
   };

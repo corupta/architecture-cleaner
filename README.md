@@ -41,7 +41,7 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 | Model (Token Factory id) | What it does here | On immich |
 |---|---|---|
 | **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate keeps only evidenced changes. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
-| **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 35 of 45 findings narrated, 5 dropped by the guard |
+| **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
@@ -76,12 +76,15 @@ What the replay does, and what it proves:
 3. **It generates R4's boundary rules again.** This works without immich's node_modules. The rules commit's tree must
    equal the recorded one.
 4. **It certifies a sample again** with `ac certify`: the first step, the largest step and an R3 rename (`--sample k`
-   for more). Without node_modules, K0, K1, K2, K3a, K4 and K7 run, and K3b, K3c and K6 skip.
+   for more). Without node_modules, K0, K1, K2, K3a, K4 and K7 run, and each must give the recorded certificate's
+   status. K3b, K3c and K6 skip, and the demo reports them as not compared. So are the checks' content and the
+   digests: those are compared only in the recorded environment (`--env`, below).
 5. **It replays the findings narration** from the cassette and compares the findings log with the committed one.
    There is one allowed difference, and the demo says so: the committed log records that its narration was live, and
    the replay records that it was replayed.
 
-The command exits 0 when everything that ran matches the recorded run, and 1 otherwise, listing each difference.
+The command exits 0 when everything it compared matches the recorded run, and 1 otherwise, listing each difference.
+Its summary also lists what it did not compare.
 Each step takes about 10 s (measured on our machine); `--steps <n>` stops early.
 
 What the replay does **not** re-run:
@@ -116,14 +119,16 @@ corepack pnpm --filter @immich/sdk --filter @immich/plugin-sdk build
 cd -
 ```
 
-Then, from this repository:
+Then, from this repository, with a work dir outside it. TypeScript's `@types` lookup and Node's module resolution
+walk up from the checkout, so under this clone's own `node_modules` K3a, K3c and K7 see more than the recording did.
+The demo checks for that: below a `node_modules` it compares only the statuses, and says so.
 
 | Command | What it adds | Cost |
 |---|---|---|
-| `npx ac demo --replay --env ~/immich` | K3b, K3c and K6 on the sample: every check runs, so each certificate's digest must equal the recorded one | $0 |
-| `npx ac demo --replay --env ~/immich --oracles` | the whole PR certified with the oracles (tsc, the unit suite, the OpenAPI spec on base and head), its digest compared with `runs/immich-ladder/certificate.json` | $0 |
-| `npx ac demo --full --env ~/immich` | `ac run` end to end on the replayed plan: baseline, 63 certified commits, rung and whole-PR certificates, findings. 1 h 55 m on a quiet machine (S6). | $0 |
-| `NEBIUS_API_KEY=… npx ac demo --live` | a new plan from Nemotron (Ultra edit and critic) on **your** Token Factory key, then its steps executed and a sample certified. It refuses to run without a key. The demo keeps its own ledger and cassette in `ac-demo/`, capped at $1. | about $0.20 on your key |
+| `npx ac demo --replay --env ~/immich --work /tmp/ac-demo` | K3b, K3c and K6 on the sample: every check runs, so each certificate's digest must equal the recorded one. A check that still skips (an environment without node_modules) is a difference. | $0 |
+| `npx ac demo --replay --env ~/immich --oracles --work /tmp/ac-demo` | the whole PR certified with the oracles (tsc, the unit suite, the OpenAPI spec on base and head), its digest compared with `runs/immich-ladder/certificate.json`. K8 skipping (a missing SDK build) is a difference. | $0 |
+| `npx ac demo --full --env ~/immich --work /tmp/ac-demo` | `ac run` end to end on the replayed plan: baseline, 63 certified commits, rung and whole-PR certificates, findings. 1 h 55 m on a quiet machine (S6). | $0 |
+| `NEBIUS_API_KEY=… npx ac demo --live` | a new plan from Nemotron (Ultra edit and critic) on **your** Token Factory key, then its steps executed and a sample certified. The key is read from the environment only, never from a `.env` file, so setting it is the opt-in, and the demo refuses to run without it. It keeps its own ledger and cassette in `ac-demo/`, capped at $1. | about $0.20 on your key |
 
 On 2026-10-17 we ran `--env --oracles` on our machine. All 62 trees and the R4 tree matched. The three sample
 certificates (steps 1, 4 and 60) and the whole-PR certificate came out with **the recorded digests, byte for byte**:

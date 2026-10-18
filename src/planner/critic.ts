@@ -1,7 +1,7 @@
 // The critic (plan §3.5 item 5): Ultra reviews the winning plan like a staff engineer, K reviews from one n=K call. Every
 // suggestion of every review goes back through the validator one by one; only the ones that pass change the plan.
 import { z } from 'zod';
-import type { Gateway, ModelKey, TemplateKwargs } from '../gateway/types.js';
+import type { CassetteMode, Gateway, ModelKey, TemplateKwargs } from '../gateway/types.js';
 import { factsText, layoutText, placementRules } from './edit.js';
 import { displayPath, fileNamed } from './facts.js';
 import { canonicalGroup, mergeEvidence, moveEvidence, registryGroup, validatePlan } from './validate.js';
@@ -25,8 +25,8 @@ Keep the changes small and certain: at most one file in ten, and none where the 
 
 /**
  * The critic's system prompt by version. Version 1 (S6) states the gate loosely: the committed immich plan was recorded
- * with it, and a request's hash covers its prompt, so profiles/immich.json pins it for the replay. Version 2 states the
- * gate's rules as applyCritiques applies them (S7), for new recordings.
+ * with it, and a request's hash covers its prompt, so profiles/immich.json pins it for replays of that recording.
+ * Version 2 states the gate's rules as applyCritiques applies them (S7): every new recording uses it.
  */
 export const criticPrompts = {
   1: `${reviewText}
@@ -95,14 +95,17 @@ export interface CriticSettings {
 export const defaultCriticSettings: CriticSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, maxTokens: 32_000, samples: 1, prompt: 2 };
 
 /**
- * The critic settings for a target: the defaults, with the prompt version its profile pins (`plan.criticPrompt`), so a
- * plan recorded with an older prompt replays from its cassette (profiles/immich.json pins 1).
+ * The critic settings for a target and the cassette mode its calls go through. A replay uses the prompt version the
+ * profile pins (`plan.criticPrompt`), so a plan recorded with an older prompt replays from its cassette
+ * (profiles/immich.json pins 1, the S6 recording's). Anything that may record (record, and auto, which records what the
+ * cassette misses) uses the current prompt: the pin belongs to the recording, not to the target, so a re-recorded plan
+ * never keeps a stale prompt.
  */
-export function criticSettingsFor(profile: { plan?: { criticPrompt?: number } } | null | undefined): CriticSettings {
+export function criticSettingsFor(profile: { plan?: { criticPrompt?: number } } | null | undefined, mode: CassetteMode): CriticSettings {
   const pinned = profile?.plan?.criticPrompt;
   if (pinned === undefined) return defaultCriticSettings;
   if (!Object.hasOwn(criticPrompts, pinned)) throw new Error(`no critic prompt version ${pinned} (versions: ${Object.keys(criticPrompts).join(', ')})`);
-  return { ...defaultCriticSettings, prompt: pinned as CriticPromptVersion };
+  return mode === 'replay' ? { ...defaultCriticSettings, prompt: pinned as CriticPromptVersion } : defaultCriticSettings;
 }
 
 export interface Suggestion {

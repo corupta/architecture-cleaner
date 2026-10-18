@@ -27,12 +27,20 @@ describe('critic prompt versions', () => {
     expect(criticPrompts[1]).toBe(recordedCriticPrompt());
   });
 
-  it('defaults to version 2; profiles/immich.json pins 1, other profiles take the default, an unknown version is refused', () => {
+  it('defaults to version 2; profiles/immich.json pins 1 for replays, other profiles take the default, an unknown version is refused', () => {
     expect(defaultCriticSettings.prompt).toBe(2);
-    expect(criticSettingsFor(null)).toBe(defaultCriticSettings);
-    expect(criticSettingsFor({ plan: {} })).toBe(defaultCriticSettings);
-    expect(criticSettingsFor(loadProfile('immich'))).toEqual({ ...defaultCriticSettings, prompt: 1 });
-    expect(() => criticSettingsFor({ plan: { criticPrompt: 9 } })).toThrow('no critic prompt version 9');
+    expect(criticSettingsFor(null, 'replay')).toBe(defaultCriticSettings);
+    expect(criticSettingsFor({ plan: {} }, 'replay')).toBe(defaultCriticSettings);
+    expect(criticSettingsFor(loadProfile('immich'), 'replay')).toEqual({ ...defaultCriticSettings, prompt: 1 });
+    expect(() => criticSettingsFor({ plan: { criticPrompt: 9 } }, 'replay')).toThrow('no critic prompt version 9');
+  });
+
+  it('records with the current prompt: the pin is the recording\'s, so a re-recorded immich plan asks with version 2', () => {
+    for (const mode of ['record', 'auto'] as const) {
+      expect(criticSettingsFor(loadProfile('immich'), mode)).toEqual(defaultCriticSettings);
+      expect(criticSettingsFor(loadProfile('immich'), mode).prompt).toBe(2);
+    }
+    expect(() => criticSettingsFor({ plan: { criticPrompt: 9 } }, 'record')).toThrow('no critic prompt version 9');
   });
 
   it('sends the version the settings name', async () => {

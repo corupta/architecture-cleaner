@@ -100,6 +100,26 @@ describe('normalizationSteps', () => {
     expect(Object.values(reasons(normalizationSteps(gitRepoFs(unreadable), options).declined))).toEqual(['name-from-file-loader', 'name-from-file-loader', 'name-from-file-loader']);
   });
 
+  it('reads loaders in code named like a tool config (*.config.ts, .xrc.js), and leaves runner config globs to the suffix check', () => {
+    const files = {
+      'tsconfig.json': cjs({ outDir: 'dist', rootDir: 'src' }, ['src']),
+      'src/globals.d.ts': "declare const __dirname: string;\ndeclare function join(...parts: string[]): string;\ndeclare const fs: { readdirSync(path: string): string[] };\ndeclare const container: { loadModules(patterns: unknown): void };\n",
+      'src/modules/user/userService.ts': 'export const a = 1;\n',
+      'src/modules/order/orderService.ts': 'export const b = 1;\n',
+      'src/modules/tag/tagService.ts': 'export const c = 1;\n',
+    };
+    const declinedIn = (extra: Record<string, string>) => reasons(normalizationSteps(gitRepoFs(repoFrom({ ...files, ...extra })), options).declined);
+    expect(declinedIn({ 'src/container.config.ts': "container.loadModules(['src/modules/user/*.ts']);\nexport const entities = ['dist/modules/order/*.js'];\n" })).toEqual({
+      'src/modules/order/orderService.ts': 'name-from-file-loader',
+      'src/modules/user/userService.ts': 'name-from-file-loader',
+    });
+    expect(declinedIn({ 'src/container.config.ts': "export const names = fs.readdirSync(join(__dirname, 'modules/tag'));\n" })).toEqual({ 'src/modules/tag/tagService.ts': 'name-from-file-loader' });
+    expect(Object.values(declinedIn({ 'src/container.config.ts': "const patterns = ['src/**/*.ts'];\ncontainer.loadModules(patterns);\n" }))).toEqual(['name-from-file-loader', 'name-from-file-loader', 'name-from-file-loader']);
+    expect(declinedIn({ 'src/.loaderrc.js': "container.loadModules(['src/modules/tag/*.ts']);\n" })).toEqual({ 'src/modules/tag/tagService.ts': 'name-from-file-loader' });
+    // The same glob in a runner config chooses test files by suffix: a rename it matches before and after changes nothing.
+    expect(declinedIn({ 'vitest.config.ts': "export default { test: { include: ['src/modules/user/*.ts'] } };\n" })).toEqual({});
+  });
+
   it('refuses a spec paired with a snapshot, and its subject with it', () => {
     const root = repoFrom({
       'tsconfig.json': tsconfig,

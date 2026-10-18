@@ -14,7 +14,7 @@ import type { RunnerConfig } from '../analyzer/runner-config.js';
 import { loadScopes, type ScopeLookup } from '../analyzer/tsconfig-scopes.js';
 import type { Analysis } from '../analyzer/types.js';
 import type { Profile } from '../certificate/profile.js';
-import { configFilePattern, configHits, emittedPaths, hitLocation, textSyntax } from '../executor/config-references.js';
+import { configHits, emittedPaths, hitLocation, textSyntax } from '../executor/config-references.js';
 import { testScopeChanges } from '../executor/declines.js';
 import { globToRegExp } from '../executor/glob.js';
 
@@ -42,6 +42,10 @@ const lockfiles = /(^|\/)(pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.jso
 const loaderCall = /(^|\.)(readdirSync|readdir|opendirSync|opendir)$/;
 const globCharacters = /[*?[{]/;
 const codeLoaderHint = /__dirname|import\.meta|process\.cwd\(\)|['"`](\.{1,2}\/)?(src|dist|lib|build)\//;
+// Runner, compiler and lint config scripts: their globs choose files by suffix, and the suffix-tooling check reads
+// them (a rename they match before and after changes nothing). Only these, not every config the executor and K4 read:
+// a `*.config.ts` or `.xrc.js` (a Nest registerAs, a typeorm or awilix container config) is code that may load by name.
+const suffixToolConfig = /(^|\/)((jest|vitest|vite)([.-][^/]*)?\.config([.-][^/]*)?|eslint\.config)\.[cm]?[jt]s$|(^|\/)\.eslintrc\.[cm]?js$/;
 
 const ancestorsOf = (directory: string): string[] => {
   const result: string[] = [];
@@ -99,8 +103,7 @@ function nameFromFileLoaders(context: GuardContext, renames: ReadonlyMap<string,
   const everyRename = (detail: string) => {
     for (const from of renames.keys()) add({ file: from, reason: 'name-from-file-loader', detail });
   };
-  // Runner, compiler and lint configs key on globs too, but their match sets are the suffix-tooling check's.
-  for (const file of [...context.analysis.files.keys()].filter((candidate) => !configFilePattern.test(candidate))) {
+  for (const file of [...context.analysis.files.keys()].filter((candidate) => !suffixToolConfig.test(candidate))) {
     const text = repo.read(file) ?? '';
     if (!/loadModules|readdir|opendir|require\.context|['"`][^'"`\n]*[*?{[][^'"`\n]*['"`]/.test(text)) continue;
     const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKindOf(file));

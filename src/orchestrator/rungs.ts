@@ -11,7 +11,7 @@ import { scopeOf, stepMessage } from './commit-message.js';
 import { amendMessage, commitStaged, git, resetHard, treeOf } from './git.js';
 import { runPipelined, runSequential, writePendingTrailers } from './pipeline.js';
 import type { RunDirectory } from './run-directory.js';
-import { addFinding, certifyRange, elapsed, failingChecks, failRun, padded, type Runner, storeCertificate } from './runner.js';
+import { addFinding, certifyRange, elapsed, failingChecks, failRun, padded, type Runner, storeCertificate, withoutVerdict } from './runner.js';
 import { renameSteps } from './steps.js';
 import type { AttemptRecord, CertificateRecord, RungId, RungRecord, RunState, StepRecord } from './types.js';
 
@@ -84,13 +84,6 @@ function moveCertificate(runner: Runner, from: string, to: string): string {
 type RungCertification = 'certified' | 'bisected' | 'failed' | 'empty' | 'no-evidence';
 
 /**
- * A FAIL in which no check failed: every check that didn't pass errored (a check crashed, an oracle couldn't run on
- * base). It says nothing about the change either way, like a step certificate that only errored: a crash that
- * --resume certifies again, never a verdict. A check that failed next to one that errored is a verdict.
- */
-export const withoutVerdict = (certificate: Certificate) => certificate.verdict === 'fail' && !certificate.checks.some((check) => check.status === 'fail');
-
-/**
  * The rung's cumulative full certificate (rung start..its last commit, oracles included); one K8 bisect on failure
  * (again when the last one stopped without evidence).
  */
@@ -111,7 +104,7 @@ async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): 
   if (certificate.verdict === 'pass') return 'certified';
   const failing = failingChecks(certificate);
   if (withoutVerdict(certificate)) {
-    failRun(runner, 'crash', `rung ${rung.id}'s certificate has no verdict: ${failing.join(', ')} errored and no check failed; --resume certifies the rung again: ${certificateOffenders(certificate).detail}`);
+    failRun(runner, 'crash', `rung ${rung.id}'s certificate has no verdict: ${failing.join(', ')} errored and none lists a violation; --resume certifies the rung again: ${certificateOffenders(certificate).detail}`);
     return 'no-evidence';
   }
   const k8 = certificate.checks.find((check) => check.id === 'K8')?.status;
@@ -249,7 +242,7 @@ export async function runBoundaryRung(runner: Runner, rung: RungRecord): Promise
       // No evidence either way: the commit is rolled back and R4 starts over on --resume, as this step's next attempt.
       attempt.state = 'interrupted';
       rung.status = 'pending';
-      failRun(runner, 'crash', `R4's certificate has no verdict: ${failingChecks(certificate).join(', ')} errored and no check failed; --resume generates and certifies the rules again: ${certificateOffenders(certificate).detail}`);
+      failRun(runner, 'crash', `R4's certificate has no verdict: ${failingChecks(certificate).join(', ')} errored and none lists a violation; --resume generates and certifies the rules again: ${certificateOffenders(certificate).detail}`);
       runner.save();
       resetHard(state.repo, rung.start);
     } else {
@@ -289,7 +282,7 @@ export async function certifyRun(runner: Runner): Promise<void> {
   }
   state.certificate = record;
   state.timeline.runCertificationMs += elapsed(started);
-  if (noVerdict) failRun(runner, 'crash', `the whole-PR certificate has no verdict: ${record.failing.join(', ')} errored and no check failed; --resume certifies the PR again: see ${record.file}`);
+  if (noVerdict) failRun(runner, 'crash', `the whole-PR certificate has no verdict: ${record.failing.join(', ')} errored and none lists a violation; --resume certifies the PR again: see ${record.file}`);
   else if (record.verdict === 'fail') failRun(runner, 'verdict', `the whole-PR certificate FAILs (${record.failing.join(', ')}): see ${record.file}`);
   runner.event({ event: 'run-certify', durationMs: elapsed(started), verdict: record.verdict, failing: record.failing, reused: same?.id ?? null });
 }

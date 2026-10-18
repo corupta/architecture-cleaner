@@ -34,8 +34,8 @@ describe.skipIf(!atBase())('the committed immich plan', () => {
   it('replays from cassettes/s6-immich.jsonl to docs/plans/immich/ byte for byte, spending nothing', async () => {
     const ledgerPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ac-immich-replay-')), 'ledger.jsonl');
     const gateway = createGateway({ runId: 'replay', mode: 'replay', cassettePath: path.join(repoRoot, 'cassettes/s6-immich.jsonl'), ledgerPath });
-    // profiles/immich.json pins the critic prompt the plan was recorded with.
-    const settings = { edit: defaultEditSettings, critic: criticSettingsFor(loadProfile('immich')) };
+    // profiles/immich.json pins the critic prompt the plan was recorded with, for replays.
+    const settings = { edit: defaultEditSettings, critic: criticSettingsFor(loadProfile('immich'), 'replay') };
     const run = await planRepo(gitRepoFs(immich), gateway, { packageRoot: 'server', moduleRoot: 'src', pins: [], ...settings });
     const outputs = planOutputs(run, { name: 'immich' }, settings);
     const files = ['plan.md', 'plan.yaml', ...filesUnder('candidates'), ...filesUnder('steps')];

@@ -25,7 +25,7 @@ import { runFindings } from '../findings/index.js';
 import { scrambleCommand, scrambleUsage } from '../scramble/command.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode, Gateway } from '../gateway/types.js';
-import { criticSettingsFor } from '../planner/critic.js';
+import { criticSettingsFor, defaultCriticSettings } from '../planner/critic.js';
 import { defaultEditSettings } from '../planner/edit.js';
 import { defaultSummarySettings } from '../planner/summaries.js';
 import { planRepo } from '../planner/plan.js';
@@ -130,7 +130,7 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const out = path.resolve(flags.out ?? 'ac-plan');
   const gateway = createGateway({ runId, mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${runId}.jsonl`)) });
   const edit = { ...defaultEditSettings, samples: Number(flags.samples ?? defaultEditSettings.samples) };
-  const critic = flags['no-critic'] ? null : criticSettingsFor(profile);
+  const critic = flags['no-critic'] ? null : criticSettingsFor(profile, mode);
   const summaries = flags.summaries ? defaultSummarySettings : null;
   let run;
   try {
@@ -149,6 +149,7 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const steps = [...outputs.keys()].filter((file) => file.startsWith('steps/'));
   const spent = gateway.spent();
   console.log(`plan: ${run.validation.metrics.groups} groups, ${run.facts.files.length} files, ${run.facts.pins.length} pinned, ${steps.length} steps → ${out}`);
+  if (critic) console.log(`critic prompt: version ${critic.prompt}${critic.prompt === defaultCriticSettings.prompt ? '' : ` (pinned by the profile for the replay of its recording; a recording uses version ${defaultCriticSettings.prompt})`}`);
   const cost = `cost of this plan: $${(run.editRun.costUsd + (run.criticRun?.costUsd ?? 0)).toFixed(4)}`;
   console.log(mode === 'replay' ? `${cost} when recorded; this replay spent $0` : `${cost}; ledger: run ${runId} $${spent.run.toFixed(4)}, global $${spent.global.toFixed(4)}`);
   if (run.validation.valid) return 0;

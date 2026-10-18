@@ -11,7 +11,7 @@ import type { MoveResult } from '../executor/execute.js';
 import { type MessageInput, scopeOf, stepMessage } from './commit-message.js';
 import { buildFault } from './fault.js';
 import { amendMessage, commitStaged, headCommit, resetHard } from './git.js';
-import { addFinding, certificateName, certifyRange, elapsed, failingChecks, failRun, padded, type Runner, staticCheckIds, storeCertificate } from './runner.js';
+import { addFinding, certificateName, certifyRange, elapsed, failingChecks, failRun, padded, type Runner, staticCheckIds, storeCertificate, withoutVerdict } from './runner.js';
 import { attributeOffenders, effectiveMoves, type Offender } from './steps.js';
 import type { AttemptRecord, StepRecord } from './types.js';
 
@@ -265,7 +265,8 @@ export function concludeAttempt(runner: Runner, committed: Committed, certificat
   const { offenders, detail } = certificateOffenders(certificate);
   attempt.detail = `certificate FAIL (${failingChecks(certificate).join(', ')}): ${detail}`;
   // A check that crashed gives no evidence about the step: stop (--resume retries it) rather than pin what may be fine.
-  if (!certificate.checks.some((check) => check.status === 'fail')) {
+  // An errored check that lists a violation does: the step is replanned as on a fail.
+  if (withoutVerdict(certificate)) {
     finishAttempt(attempt, committed.attemptStarted, 'interrupted');
     failRun(runner, 'crash', `the certifier crashed on step ${step.index} (${failingChecks(certificate).join(', ')}): ${detail}`);
     return 'done';

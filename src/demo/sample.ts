@@ -3,10 +3,10 @@
 // set next to the recorded run's certificate of the same step: check by check, and digest against digest.
 import fs from 'node:fs';
 import path from 'node:path';
-import { certify } from '../certificate/certify.js';
+import { canonicalForm, certify } from '../certificate/certify.js';
 import type { Profile } from '../certificate/profile.js';
 import { summarize } from '../certificate/report.js';
-import type { Certificate, CheckId } from '../certificate/types.js';
+import type { Certificate, CheckId, CheckResult } from '../certificate/types.js';
 import type { CertifiedEntry, StepEntry } from './report.js';
 
 /** Which committed steps to certify again: the first, the largest, an R3 rename, then spread evenly over the rest. */
@@ -27,12 +27,23 @@ export function sampleSteps(steps: StepEntry[], size: number | 'all'): { index: 
   return picks.slice(0, Math.max(0, size)).sort((a, b) => a.index - b.index);
 }
 
-/** The certificate's checks next to the recorded certificate's statuses. */
+/** A check as the certificate's digest reads it: no timings or run facts, the certificate's own paths anonymized. */
+const canonicalCheck = (certificate: Certificate, check: CheckResult): string => JSON.stringify((JSON.parse(canonicalForm({ ...certificate, checks: [check] })) as Certificate).checks[0]);
+
+/**
+ * The certificate's checks next to the recorded certificate's: its status, and whether the check's content is the
+ * recorded one's byte for byte. A check skipped on either side is not compared.
+ */
 export function compareChecks(certificate: Certificate, recorded: Certificate | null): CertifiedEntry['checks'] {
-  return certificate.checks.map((check) => ({
-    id: check.id, status: check.status, recorded: recorded?.checks.find((candidate) => candidate.id === check.id)?.status ?? null,
-    ...(check.skipReason ? { skipReason: check.skipReason } : {}),
-  }));
+  return certificate.checks.map((check) => {
+    const recordedCheck = recorded?.checks.find((candidate) => candidate.id === check.id);
+    const compared = recordedCheck !== undefined && check.status !== 'skip' && recordedCheck.status !== 'skip';
+    return {
+      id: check.id, status: check.status, recorded: recordedCheck?.status ?? null,
+      identical: compared ? canonicalCheck(certificate, check) === canonicalCheck(recorded!, recordedCheck) : null,
+      ...(check.skipReason ? { skipReason: check.skipReason } : {}),
+    };
+  });
 }
 
 export const readCertificate = (file: string): Certificate | null => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) as Certificate : null);

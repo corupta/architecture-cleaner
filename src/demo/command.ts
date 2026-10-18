@@ -14,7 +14,8 @@ export const demoUsage = `ac demo [--replay | --live | --full] [--work <dir>] [-
           [--steps <n>|all] [--sample <k>|all] [--oracles]
           (--replay, the default: no key, $0: the recorded immich plan replayed from cassettes/s6-immich.jsonl, every step
           executed again and its tree compared with runs/immich-ladder, a sample certified again, the findings replayed;
-          --live: a new plan from Nemotron on your NEBIUS_API_KEY (about $0.20); --full: \`ac run\` end to end, about 2 h)`;
+          --live: a new plan from Nemotron on the NEBIUS_API_KEY in your environment, about $0.20 (no .env is read);
+          --full: \`ac run\` end to end, about 2 h)`;
 
 /** --steps and --sample: a whole number, or `all`. */
 function count(value: string | undefined, flag: string): number | 'all' | undefined {
@@ -85,11 +86,11 @@ export async function demoCommand(argv: string[]): Promise<number> {
   };
   try {
     if (values.live) {
-      // Refuse before anything is fetched: live mode spends the caller's money, never ours.
+      // Refuse before anything is fetched: live mode spends only a key the caller put in the environment for it.
       const key = liveKey();
       if (!key) {
-        console.error('ac demo --live needs your own Token Factory key: set NEBIUS_API_KEY=<your key> in the environment or in a .env file here. '
-          + 'Without a key, `ac demo --replay` reproduces the recorded run for $0.');
+        console.error('ac demo --live needs your own Token Factory key in the environment: `NEBIUS_API_KEY=<your key> npx ac demo --live`. '
+          + 'It reads no .env file. Without a key, `ac demo --replay` reproduces the recorded run for $0.');
         return 2;
       }
       return finish((await liveDemo({ ...common, key })).report);

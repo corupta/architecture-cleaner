@@ -48,6 +48,8 @@ export interface CheckComparison {
   status: CheckStatus;
   /** The recorded certificate's status for the check (null: not in it, or no recorded certificate). */
   recorded: CheckStatus | null;
+  /** The check's content as the digest reads it equals the recorded check's; null: not compared (skipped on either side, or not recorded). */
+  identical: boolean | null;
   skipReason?: string;
 }
 
@@ -87,7 +89,11 @@ export interface FindingsPhase {
 
 export interface DemoReport {
   mode: 'replay' | 'live' | 'full';
-  target: { name: string; sha: string; packageRoot: string; checkout: string; source: string; environment: string | null; branch: string };
+  target: {
+    name: string; sha: string; packageRoot: string; checkout: string; source: string; environment: string | null; branch: string;
+    /** node_modules directories above the work dir (nodeModulesAbove). */
+    nodeModulesAbove: string[];
+  };
   /** The recorded run compared with (replay and full). */
   recorded: { directory: string; branch: string; steps: number; head: string; wholePrDigest: string | null } | null;
   plan: PlanPhase;
@@ -123,8 +129,78 @@ export function describeCalls(calls: ModelCall[]): string {
 
 const moveSteps = (report: DemoReport) => report.steps.filter((step) => step.rung !== 'R4');
 const treeMatches = (step: StepEntry) => step.outcome === 'committed' && step.recordedTree !== undefined && step.tree === step.recordedTree;
+const subjectOf = (entry: CertifiedEntry) => (entry.subject === 'whole PR' ? 'the whole PR' : `step ${entry.subject}`);
+const idList = (checks: CheckComparison[]) => checks.map((check) => check.id).join(', ');
 
-/** Every way the demo's results differ from the recorded run, or failed; empty when everything that ran matched. */
+/** The checks that run the target's own tools from its node_modules: without --env they skip, and that is no difference. */
+export const environmentChecks: readonly CheckId[] = ['K3b', 'K3c', 'K6', 'K8'];
+
+/** Skipped here although the recorded certificate ran it, and no missing environment explains it. */
+const unexplainedSkip = (report: DemoReport, check: CheckComparison) => check.status === 'skip' && check.recorded !== null && check.recorded !== 'skip'
+  && (report.target.environment !== null || !environmentChecks.includes(check.id));
+
+/**
+ * The demo certified in an environment like the recording's: --env (the target's node_modules) and no node_modules above
+ * the work dir. Only then can a check's content and the digest be compared. TypeScript's @types lookup and Node's
+ * resolution walk up from the checkout, so K3a, K3c and K7 read whatever node_modules sit above it (on the judges'
+ * path, this tool's own: other @types, another TypeScript); otherwise only the statuses are compared.
+ */
+const comparableEnvironment = (report: DemoReport) => report.target.environment !== null && report.target.nodeModulesAbove.length === 0;
+
+/** Why the content and digests weren't compared, for the summary. */
+const incomparableEnvironment = (report: DemoReport) => (report.target.environment === null
+  ? 'without --env (the recording had the target\'s node_modules)'
+  : `because ${report.target.nodeModulesAbove.join(', ')} above the work dir reach${report.target.nodeModulesAbove.length === 1 ? 'es' : ''} TypeScript's and Node's lookups (give a --work outside ${report.target.nodeModulesAbove.length === 1 ? 'it' : 'them'})`);
+
+/** The same checks ran on both sides (and the same ones skipped): the digests must then be equal. */
+export const digestComparable = (entry: CertifiedEntry) => entry.recordedDigest !== null
+  && entry.checks.every((check) => check.recorded !== null && (check.status === 'skip') === (check.recorded === 'skip'));
+
+/** How a certificate differs from the recorded one; empty when everything compared is equal. */
+function certificateDifferences(report: DemoReport, entry: CertifiedEntry): string[] {
+  const found: string[] = [];
+  const subject = subjectOf(entry);
+  if (entry.verdict !== 'pass') found.push(`${subject}: certificate FAIL (${idList(entry.checks.filter((check) => check.status === 'fail' || check.status === 'error'))})`);
+  if (!report.recorded) return found;
+  if (entry.recordedDigest === null) return [...found, `${subject}: no recorded certificate to compare with`];
+  const disagree = entry.checks.filter((check) => check.recorded !== null && check.status !== 'skip' && check.recorded !== 'skip' && check.status !== check.recorded);
+  if (disagree.length) found.push(`${subject}: ${disagree.map((check) => `${check.id} ${check.status}, recorded ${check.recorded}`).join('; ')}`);
+  const changed = entry.checks.filter((check) => check.identical === false && check.status === check.recorded);
+  if (comparableEnvironment(report) && changed.length) found.push(`${subject}: ${changed.map((check) => `${check.id} ${check.status} as recorded, but its content differs from the recorded check's`).join('; ')}`);
+  const skips = entry.checks.filter((check) => unexplainedSkip(report, check));
+  if (skips.length) found.push(`${subject}: ${skips.map((check) => `${check.id} skipped here (${check.skipReason ?? 'no reason given'}), recorded ${check.recorded}`).join('; ')}`);
+  // A check that differs changes the digest too; a digest that differs while every check is equal is its own difference.
+  if (!found.length && comparableEnvironment(report) && digestComparable(entry) && entry.digest !== entry.recordedDigest) {
+    found.push(`${subject}: digest ${entry.digest.slice(0, 19)}… differs from the recorded ${entry.recordedDigest.slice(0, 19)}… with the same checks run`);
+  }
+  return found;
+}
+
+/** What the comparison with the recorded run left out: checks skipped on either side, and content and digests it couldn't compare. */
+export function notCompared(report: DemoReport): string[] {
+  if (!report.recorded) return [];
+  const groups = new Map<string, { checks: string; where: string; certificates: number }>();
+  const count = (checks: string, where: string) => {
+    if (!checks) return;
+    const group = groups.get(`${checks} ${where}`) ?? { checks, where, certificates: 0 };
+    group.certificates++;
+    groups.set(`${checks} ${where}`, group);
+  };
+  for (const entry of report.certified) {
+    count(idList(entry.checks.filter((check) => check.status === 'skip' && check.recorded !== null && check.recorded !== 'skip')), 'skipped here');
+    count(idList(entry.checks.filter((check) => check.status !== 'skip' && check.recorded === 'skip')), 'skipped in the recorded certificate');
+  }
+  const recorded = report.certified.filter((entry) => entry.recordedDigest !== null);
+  const digests = recorded.filter((entry) => !digestComparable(entry)).length;
+  return [
+    ...[...groups.values()].map((group) => `${group.checks} on ${plural(group.certificates, 'certificate')} (${group.where})`),
+    ...(!comparableEnvironment(report) && recorded.length
+      ? [`the checks' content and the digest of ${plural(recorded.length, 'certificate')}, ${incomparableEnvironment(report)}`]
+      : digests ? [`the digest of ${plural(digests, 'certificate')}, which needs the same checks run on both sides`] : []),
+  ];
+}
+
+/** Every way the demo's results differ from the recorded run, or failed; empty when everything compared matched. */
 export function differences(report: DemoReport): string[] {
   const found: string[] = [];
   if (report.run && report.run.status !== 'completed' && report.run.status !== 'stopped') {
@@ -140,11 +216,7 @@ export function differences(report: DemoReport): string[] {
   if (report.renames && (report.renames.outcome === 'mismatch' || report.renames.outcome === 'failed')) found.push(`R3: ${report.renames.detail ?? report.renames.outcome}`);
   const vacuity = report.boundaries?.antiVacuity;
   if (vacuity && vacuity.fired < vacuity.rules) found.push(`R4: ${vacuity.rules - vacuity.fired} of ${vacuity.rules} rules never fired on their synthetic violation (\`ac run\` fails R4 on that)`);
-  for (const entry of report.certified) {
-    if (entry.verdict !== 'pass') found.push(`${entry.subject === 'whole PR' ? 'the whole PR' : `step ${entry.subject}`}: certificate FAIL (${entry.checks.filter((check) => check.status === 'fail' || check.status === 'error').map((check) => check.id).join(', ')})`);
-    const disagree = entry.checks.filter((check) => check.recorded !== null && check.status !== 'skip' && check.recorded !== 'skip' && check.status !== check.recorded);
-    if (disagree.length) found.push(`${entry.subject === 'whole PR' ? 'the whole PR' : `step ${entry.subject}`}: ${disagree.map((check) => `${check.id} ${check.status}, recorded ${check.recorded}`).join('; ')}`);
-  }
+  for (const entry of report.certified) found.push(...certificateDifferences(report, entry));
   if (report.findings && (report.findings.outcome === 'mismatch' || report.findings.outcome === 'failed')) {
     found.push(`findings: ${report.findings.detail ?? report.findings.files.filter((file) => !file.identical).map((file) => `${file.file} differs`).join(', ')}`);
   }
@@ -156,11 +228,28 @@ function certifiedLines(report: DemoReport): string[] {
     const ran = entry.checks.filter((check) => check.status !== 'skip');
     const skipped = entry.checks.filter((check) => check.status === 'skip');
     const subject = entry.subject === 'whole PR' ? `the whole PR (${short(report.target.sha)}..${short(report.steps.at(-1)?.commit)})` : `step ${entry.subject} (${entry.rung} ${entry.group}, ${entry.reason})`;
-    const digest = entry.recordedDigest === null ? '' : entry.digest === entry.recordedDigest
-      ? `; digest ${entry.digest.slice(0, 19)}… identical to the recorded certificate's`
-      : `; digest differs from the recorded certificate's (${entry.recordedDigest.slice(0, 19)}…)${skipped.length ? ', as it must when checks are skipped' : ''}`;
-    return `- ${subject}: **${entry.verdict.toUpperCase()}** (${entry.scope}); ran ${ran.map((check) => `${check.id} ${check.status}`).join(', ')}`
-      + `${skipped.length ? `; skipped ${skipped.map((check) => check.id).join(', ')}` : ''}${digest}. \`${entry.file}\``;
+    const parts = [`ran ${ran.map((check) => `${check.id} ${check.status}`).join(', ')}`];
+    if (skipped.length) parts.push(`skipped ${idList(skipped)}`);
+    const recordedDigest = entry.recordedDigest;
+    if (report.recorded && recordedDigest === null) parts.push('no recorded certificate');
+    else if (report.recorded && recordedDigest !== null) {
+      const compared = ran.filter((check) => check.recorded !== null && check.recorded !== 'skip');
+      const sameStatus = compared.filter((check) => check.status === check.recorded);
+      const notCompared = [...skipped, ...ran.filter((check) => !compared.includes(check))];
+      if (sameStatus.length) parts.push(`status as recorded: ${idList(sameStatus)}`);
+      if (comparableEnvironment(report)) {
+        const identical = entry.checks.filter((check) => check.identical === true);
+        const different = entry.checks.filter((check) => check.identical === false);
+        if (identical.length) parts.push(`content as recorded, byte for byte: ${idList(identical)}`);
+        if (different.length) parts.push(`content different from the recorded: ${idList(different)}`);
+      }
+      if (notCompared.length) parts.push(`not compared: ${idList(notCompared)}`);
+      parts.push(!comparableEnvironment(report) ? `content and digest not compared ${report.target.environment === null ? 'without --env' : '(node_modules above the work dir)'}`
+        : !digestComparable(entry) ? 'digest not compared (not the same checks run)'
+          : entry.digest === recordedDigest ? `digest ${entry.digest.slice(0, 19)}… identical to the recorded certificate's`
+            : `digest ${entry.digest.slice(0, 19)}… differs from the recorded ${recordedDigest.slice(0, 19)}…`);
+    }
+    return `- ${subject}: **${entry.verdict.toUpperCase()}** (${entry.scope}); ${parts.join('; ')}. \`${entry.file}\``;
   });
 }
 
@@ -173,9 +262,10 @@ export function demoMarkdown(report: DemoReport): string {
   if (report.mode === 'live') {
     lines.push(found.length ? `**${plural(found.length, 'problem')}** (listed at the end).` : 'Every step that ran committed, and every certificate in the sample passed.', '');
   } else {
+    const left = notCompared(report);
     lines.push(found.length
       ? `**${plural(found.length, 'difference')} from the recorded run** (listed at the end).`
-      : `**Everything that ran matches the recorded run** (\`${recorded?.directory}\`, branch \`${recorded?.branch}\`).`, '');
+      : `**Everything compared matches the recorded run** (\`${recorded?.directory}\`, branch \`${recorded?.branch}\`).${left.length ? ` Not compared: ${left.join('; ')}.` : ''}`, '');
   }
   lines.push(`Checkout: \`${target.checkout}\`, ${target.source}. Branch \`${target.branch}\`. Work dir: \`${report.workDir}\`.`, '');
 

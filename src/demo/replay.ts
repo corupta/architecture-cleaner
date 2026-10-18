@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
 import { loadProfile, type Profile } from '../certificate/profile.js';
+import type { CheckId } from '../certificate/types.js';
 import { runFindings } from '../findings/index.js';
 import { findingsMarkdown, prBodyMarkdown } from '../findings/render.js';
 import { readRunData } from '../findings/run-data.js';
@@ -25,7 +26,7 @@ import { readPlanYaml } from '../planner/plan-file.js';
 import { planRepo } from '../planner/plan.js';
 import { prepareCheckout } from './checkout.js';
 import { executeLadder } from './ladder.js';
-import type { CertifiedEntry, DemoReport, FileComparison, FindingsPhase, ModelCall, PlanPhase } from './report.js';
+import type { CertifiedEntry, CheckComparison, DemoReport, FileComparison, FindingsPhase, ModelCall, PlanPhase } from './report.js';
 import { certifyInto, certifySample, compareChecks, readCertificate } from './sample.js';
 import type { DemoTarget } from './target.js';
 
@@ -84,6 +85,19 @@ const filesUnder = (directory: string): string[] => (fs.existsSync(directory)
   ? fs.readdirSync(directory, { recursive: true, encoding: 'utf8' }).filter((file) => fs.statSync(path.join(directory, file)).isFile()).sort()
   : []);
 
+/**
+ * node_modules directories above `directory`. TypeScript's @types lookup and Node's resolution walk up from the clone and
+ * from every tree certified in the work dir, so they change what K3a, K3c and K7 see: certificates made below them
+ * can't be compared byte for byte with the recorded ones (on the judges' path, ./ac-demo sits below this tool's own).
+ */
+export function nodeModulesAbove(directory: string): string[] {
+  const found: string[] = [];
+  for (let current = path.dirname(path.resolve(directory)); ; current = path.dirname(current)) {
+    if (fs.existsSync(path.join(current, 'node_modules'))) found.push(path.join(current, 'node_modules'));
+    if (path.dirname(current) === current) return found;
+  }
+}
+
 /** Marks a directory as a demo's work dir: only such a directory is ever emptied. */
 const workDirMarker = '.ac-demo';
 
@@ -129,7 +143,7 @@ export async function replayPlan(checkout: string, profile: Profile, state: RunS
   const calls: ModelCall[] = [];
   const recordedText = fs.readFileSync(path.join(recordedRun, state.plan.file), 'utf8');
   try {
-    const { run, outputs, directory } = await planInto(checkout, profile, gateway, calls, criticSettingsFor(profile), workDir);
+    const { run, outputs, directory } = await planInto(checkout, profile, gateway, calls, criticSettingsFor(profile, 'replay'), workDir);
     const text = outputs.get('plan.yaml')!;
     const recordedPlanDirectory = path.join(recordedRun, path.dirname(state.plan.file));
     // The run directory keeps the planner's outputs but writes its own step files (R3's included).
@@ -187,16 +201,32 @@ export async function replayFindings(recordedRun: string, checkout: string, envi
   }
 }
 
-/** What the replay leaves to the recorded run, and the command that runs each. */
-export function notRerun(profile: Profile, recorded: RunState | null, ran: { environment: string | null; oracles: boolean }): string[] {
+const ranHere = (check: CheckComparison) => check.status === 'pass' || check.status === 'fail';
+const skipReasons = (checks: CheckComparison[]) => [...new Set(checks.flatMap((check) => (check.status === 'skip' && check.skipReason ? [check.skipReason] : [])))].join('; ');
+
+/**
+ * What the demo leaves to the recorded run, and the command that runs each. Read from the checks the certificates made
+ * here actually ran, never from the flags: an --env that lacks node_modules, or --oracles whose K8 skipped, leaves the
+ * line in, with the reason.
+ */
+export function notRerun(profile: Profile, recorded: RunState | null, ran: { certified: CertifiedEntry[]; environment: string | null; oraclesAsked: boolean }): string[] {
   const lines: string[] = [];
-  if (!ran.oracles) {
+  const checksOf = (id: CheckId) => ran.certified.flatMap((entry) => entry.checks.filter((check) => check.id === id));
+  const k8 = checksOf('K8');
+  if (!k8.some(ranHere)) {
     const oracles = (profile.oracles ?? []).map((oracle) => oracle.name).join(', ');
     const wholePr = recorded?.certificate ? ` (the recorded whole-PR certificate: \`${recorded.certificate.file}\`, digest \`${recorded.certificate.digest.slice(0, 19)}…\`)` : '';
-    lines.push(`**The oracles (K8)**: the target's own commands (${oracles || 'none in the profile'}) on base and head, for every rung and the whole PR${wholePr}. They need the target's node_modules and its Node version: \`ac demo --env <checkout with node_modules> --oracles\` certifies the whole PR with them.`);
+    const attempt = k8.length ? ` Asked for, but K8 ${[...new Set(k8.map((check) => (check.status === 'skip' ? 'skipped' : 'errored')))].join(' and ')} here${skipReasons(k8) ? `: ${skipReasons(k8)}` : ''}.`
+      : ran.oraclesAsked ? ' Asked for, but the whole PR is certified with them only after every step ran.' : '';
+    lines.push(`**The oracles (K8)**: the target's own commands (${oracles || 'none in the profile'}) on base and head, for every rung and the whole PR${wholePr}.${attempt} They need the target's node_modules and its Node version: \`ac demo --env <checkout with node_modules> --oracles\` certifies the whole PR with them.`);
   }
-  if (!ran.environment) {
-    lines.push('**K3b, K3c and K6** (resolution under the test runner and the runtime, the test inventory) skip without node_modules: give `--env <checkout with node_modules>`.');
+  const skipped = (['K3b', 'K3c', 'K6'] as const).filter((id) => checksOf(id).some((check) => check.status === 'skip'));
+  if (!ran.certified.length) lines.push('**The certificates**: none was made here (`--sample 0`, or no step committed).');
+  else if (skipped.length) {
+    const named = skipped.length === 1 ? skipped[0] : `${skipped.slice(0, -1).join(', ')} and ${skipped.at(-1)}`;
+    const reasons = skipReasons(skipped.flatMap(checksOf));
+    lines.push(`**${named}** (resolution under the test runner and the runtime, the test inventory) skipped here${reasons ? ` (${reasons})` : ''}: `
+      + `${ran.environment ? `the environment ${ran.environment} lacks what they need` : 'they need node_modules'}; give \`--env <checkout with node_modules>\`.`);
   }
   lines.push('**The run loop**: the baseline with its flaky-test quarantine, the preflight envelope, a certificate for every step, the rung certificates, rollback and replan. `ac demo --full --env <checkout>` runs `ac run` end to end (about 2 h on a quiet machine).');
   lines.push('**Nemotron itself**: its answers come from the cassette. `ac demo --live` asks it again, on your own Token Factory key.');
@@ -222,6 +252,8 @@ export async function replayDemo(options: ReplayOptions): Promise<DemoResult> {
   const environment = options.environment ? path.resolve(options.environment) : null;
   const environmentOrCheckout = environment ?? checkout.directory;
   const gateway = (options.gateway ?? replayGateway(target.cassette, workDir))();
+  const above = nodeModulesAbove(workDir);
+  if (environment && above.length) log(`${above.join(', ')} above the work dir ${above.length === 1 ? 'changes' : 'change'} what K3a, K3c and K7 see: the certificates' content and digests are compared only with a --work outside ${above.length === 1 ? 'it' : 'them'}`);
 
   log(`plan: replaying ${path.basename(target.cassette)}`);
   const planned = await replayPlan(checkout.directory, profile, state, target.recordedRun, gateway, workDir);
@@ -261,14 +293,14 @@ export async function replayDemo(options: ReplayOptions): Promise<DemoResult> {
 
   const report: DemoReport = {
     mode: 'replay',
-    target: { name: target.name, sha: target.sha, packageRoot: planFile.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: demoBranch },
+    target: { name: target.name, sha: target.sha, packageRoot: planFile.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: demoBranch, nodeModulesAbove: above },
     recorded: { directory: target.recordedRun, branch: state.branch, steps: state.steps.length, head: state.head, wholePrDigest: state.certificate?.digest ?? null },
     plan: planned.phase,
     ...ladder,
     certified,
     findings,
     spentUsd: 0,
-    notRerun: notRerun(profile, state, { environment, oracles: certified.some((entry) => entry.subject === 'whole PR') }),
+    notRerun: notRerun(profile, state, { certified, environment, oraclesAsked: options.oracles }),
     workDir,
     durationMs: elapsed(started),
   };
