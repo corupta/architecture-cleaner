@@ -3,15 +3,18 @@
 // rollbacks, pins, findings) are shown as prominently as its passes.
 import { compare } from '../boundaries/folder-graph.js';
 import { dagOrder } from '../boundaries/order.js';
+import type { CheckId } from '../certificate/types.js';
 import type { Finding } from '../findings/types.js';
-import { rungIds, type AttemptRecord, type StepRecord } from '../orchestrator/types.js';
+import { models } from '../gateway/models.js';
+import { rungIds, type AttemptRecord, type AttemptState, type RungId, type RungStatus, type RunState, type StepRecord } from '../orchestrator/types.js';
+import { checkOrder } from './ab.js';
 import { flowChart, horizontalBars, legend, matrix, partsBar, stackedColumns, type FlowLink, type FlowNode, type MatrixCell, type Series } from './charts.js';
-import type { CertificateView } from './certificates.js';
+import { oracleNames, type CertificateView } from './certificates.js';
 import { composedPathMap, type FolderKind, type GraphSide, type RunGraph } from './graph.js';
 import { code, count, details, escapeHtml, figure, formatDuration, link, page, plural, pre, section, shortSha, statusMark, table, tiles, usd, type Section, type Status } from './html.js';
 import { modelLabel } from './ledger.js';
 import { renderAbTable, type AbLinks } from './render-ab.js';
-import type { AttemptView, RunReportData, StepView, StoredCertificate } from './run-data.js';
+import { failedAttemptCounts, failedAttempts, failedAttemptStates, type AttemptView, type PlanSummary, type RunReportData, type StepView, type StoredCertificate } from './run-data.js';
 
 export interface RenderOptions {
   /** Breadcrumb links above the title (the site's), relative to the page. */
@@ -63,12 +66,27 @@ const stepStatus: Record<StepRecord['status'], { status: Status; label: string }
   running: { status: 'none', label: 'running' },
 };
 
-const failedAttempts = (step: StepRecord) => step.attempts.filter((attempt) => attempt.state !== 'passed' && attempt.state !== 'interrupted');
+const failureWords: Partial<Record<AttemptState, string>> = {
+  failed: 'certified FAIL and rolled back',
+  declined: 'declined by the executor',
+  unverified: 'unverified by the executor',
+  error: 'errored',
+};
+
+/** "no attempt failed", or how many failed and how: the run report's and the site's run cards' wording. */
+export function failedAttemptsPhrase(state: RunState): string {
+  const counts = failedAttemptCounts(state);
+  const total = counts.reduce((sum, entry) => sum + entry.count, 0);
+  if (!total) return 'no attempt failed';
+  const how = counts.map((entry) => `${counts.length > 1 ? `${count(entry.count)} ` : ''}${failureWords[entry.state] ?? entry.state}`).join(', ');
+  return `${plural(total, 'attempt')} failed (${how})`;
+}
 
 function headerSection(data: RunReportData): { lead: string; body: string } {
   const { state, whole } = data;
   const certified = state.steps.filter((step) => step.status === 'certified');
   const rolledBack = state.steps.flatMap((step) => step.attempts).filter((attempt) => attempt.state === 'failed').length;
+  const inFlight = state.steps.flatMap((step) => step.attempts).filter((attempt) => attempt.state === 'executing' || attempt.state === 'committed' || attempt.state === 'certifying').length;
   const moved = composedPathMap(state).size;
   const moveCount = certified.reduce((sum, step) => sum + (step.counts?.filesMoved ?? 0), 0);
   const k2 = whole?.view.checks.find((check) => check.id === 'K2');
@@ -88,7 +106,7 @@ function headerSection(data: RunReportData): { lead: string; body: string } {
     { label: 'Certified commits', value: count(certified.length), note: rungIds.filter((rung) => certified.some((step) => step.rung === rung)).map((rung) => `${rung} ${certified.filter((step) => step.rung === rung).length}`).join(' · ') || 'none' },
     { label: 'Files moved', value: count(moved), note: `${moveCount > moved ? `${count(moveCount - moved)} of them moved again by R3 renames; ` : ''}${plural(state.pins.length, 'file')} pinned` },
     { label: 'Specifier edits', value: edits.value, note: edits.note },
-    { label: 'Rolled-back attempts', value: count(rolledBack), note: rolledBack ? 'each one certified FAIL, then rolled back' : 'every attempt that committed passed' },
+    { label: 'Rolled-back attempts', value: count(rolledBack), note: [rolledBack ? 'each one certified FAIL, then rolled back' : 'no commit failed its certificate', inFlight ? `${plural(inFlight, 'attempt')} still in flight when the run stopped` : ''].filter(Boolean).join('; ') },
     { label: 'Wall time', value: formatDuration(state.timeline.durationMs), note: state.timeline.resumedAt.length ? `resumed ${state.timeline.resumedAt.length}×` : 'one invocation' },
     { label: 'Plan cost when recorded', value: planCost, note: `planner spend in this run ${usd(state.cost.llmUsd)}` },
   ]);
@@ -105,6 +123,26 @@ function headerSection(data: RunReportData): { lead: string; body: string } {
   return { lead, body: `${tileList}\n${facts}` };
 }
 
+/** `ultra#2` → Nemotron 3 Ultra: a candidate's label names the model alias it was sampled from. */
+function candidateModel(label: string): string {
+  const alias = label.split('#')[0]!;
+  return alias in models ? `NVIDIA ${modelLabel(models[alias as keyof typeof models].id)}` : alias;
+}
+
+/** Who made the plan, from plan.json: the seeds draft, the model's edited candidates, the critic; or plan.yaml's sources alone. */
+export function planMaking(plan: PlanSummary): string {
+  if (plan.editors === null) {
+    const changed = ['planner', 'critic'].filter((source) => plan.bySource[source]).map((source, index) => `${count(plan.bySource[source]!)}${index ? '' : ` ${plan.bySource[source] === 1 ? 'placement' : 'placements'}`} by the ${source}`);
+    return `Deterministic seeds decided where files go${changed.length ? `; plan.yaml marks ${changed.join(' and ')}` : ''}. This run dir has no plan.json, so the report can't name the models that made the plan.`;
+  }
+  if (!plan.editors.length) {
+    const edited = plan.bySource.planner ? 'the planner edited the draft (plan.json names no edited candidate)' : 'no model edited the draft';
+    return `Deterministic seeds decided where files go, and ${edited}${plan.critic ? '; a critic call reviewed it' : ''}.`;
+  }
+  const editors = [...new Set(plan.editors.map(candidateModel))].join(' and ');
+  return `Deterministic seeds decided where files go; ${editors} (on Nebius Token Factory) edited the draft in ${plural(plan.editors.length, 'candidate')}${plan.critic ? ', and a critic call reviewed the chosen one' : ''}; the validator gates ${plan.critic ? 'both' : 'the edits'}.`;
+}
+
 function planSection(data: RunReportData): Section {
   const plan = data.plan;
   if (!plan) return { id: 'plan', title: 'The plan', body: '<p>The run dir has no plan.yaml.</p>' };
@@ -117,8 +155,8 @@ function planSection(data: RunReportData): Section {
   return {
     id: 'plan',
     title: 'The plan: Nemotron draws the map',
-    body: `<p>Deterministic seeds decide where files go; NVIDIA Nemotron 3 Ultra (on Nebius Token Factory) edits the draft and a critic call reviews it; the validator gates both. The plan has ${plan.groups.module} modules, ${plan.groups.platform} platform folders and ${plan.groups.shared} shared folder over ${count(plan.files)} planned files: ${escapeHtml(decided)}. ${count(plan.contested)} placements are marked contested.${plan.winner ? ` The chosen candidate is ${code(plan.winner)}.` : ''}</p>
-${plan.criticReview ? `<p><strong>The critic's review</strong> (Nemotron 3 Ultra): ${escapeHtml(plan.criticReview)}</p>` : ''}
+    body: `<p>${escapeHtml(planMaking(plan))} The plan has ${plan.groups.module} modules, ${plan.groups.platform} platform folders and ${plan.groups.shared} shared folder over ${count(plan.files)} planned files: ${escapeHtml(decided)}. ${count(plan.contested)} placements are marked contested.${plan.winner ? ` The chosen candidate is ${code(plan.winner)}.` : ''}</p>
+${plan.criticReview ? `<p><strong>The critic's review</strong> (plan.json): ${escapeHtml(plan.criticReview)}</p>` : ''}
 ${details(`Placements the planner and the critic decided (${plan.decisions.length})`, decisions, { className: 'more' })}
 <p class="small">${[...attachmentLinks(data, [['plan/plan.yaml', 'plan.yaml'], ['plan/plan.md', 'plan.md']]), ...(plan.recordedCostUsd !== null ? [`the plan cost ${usd(plan.recordedCostUsd)} when it was recorded; a replay from the cassette costs $0`] : [])].join(' · ')}</p>`,
   };
@@ -191,22 +229,84 @@ function matrixFigure(title: string, side: GraphSide, cell: number, caption: str
 const pairShare = (side: GraphSide) => side.internalPairs / Math.max(1, side.internalPairs + side.crossPairs);
 const percent = (share: number) => `${(100 * share).toFixed(1)}%`;
 
-/** The graph section's prose, worded from the numbers (a rise, a fall, totals that match or not). */
-export function graphNarrative(graph: RunGraph): string {
+/** What the graph prose says about the run beyond the graph itself, read from run.json and the findings log. */
+export interface NarrativeFacts {
+  /** R4's rung status in run.json (null when the run has no R4 record): its rules freeze the violations only once certified. */
+  r4: RungStatus | null;
+  /** Findings that name what ties the modules together. */
+  godInjections: number;
+  moduleCycles: number;
+}
+
+export function narrativeFacts(data: RunReportData): NarrativeFacts {
+  const kinds = data.findings?.findings.map((finding) => finding.kind) ?? data.state.findings.map((finding) => finding.kind);
+  return {
+    r4: data.state.rungs.find((rung) => rung.id === 'R4')?.status ?? null,
+    godInjections: kinds.filter((kind) => kind === 'god-injection').length,
+    moduleCycles: kinds.filter((kind) => kind === 'module-cycle').length,
+  };
+}
+
+const layoutKinds: { kind: FolderKind; describe: (folders: number) => string }[] = [
+  { kind: 'module', describe: (folders) => plural(folders, 'feature module') },
+  { kind: 'platform', describe: (folders) => plural(folders, 'platform folder') },
+  { kind: 'shared', describe: () => 'shared/' },
+];
+
+/**
+ * Where the base's source files sit on one side, by layout kind, from graph.json's flow: "sit in 14 folders outside the
+ * layout", "18 sit in 3 feature modules and 545 are still in 14 folders outside the layout", "all sit in the layout: ...".
+ */
+export function whereFilesSit(graph: RunGraph, side: 'base' | 'head'): string {
+  const kindOf = new Map(graph[side].folders.map((folder) => [folder.key, folder.kind]));
+  const files = new Map<string, number>();
+  for (const edge of graph.flow) {
+    const key = side === 'base' ? edge.from : edge.to;
+    files.set(key, (files.get(key) ?? 0) + edge.files);
+  }
+  const inKinds = (kinds: FolderKind[]) => {
+    const keys = [...files.keys()].filter((key) => kinds.includes(kindOf.get(key) ?? 'folder'));
+    return { folders: keys.length, files: keys.reduce((sum, key) => sum + files.get(key)!, 0) };
+  };
+  const others = inKinds(['folder', 'root', 'outside']);
+  const outside = `${plural(others.folders, 'folder')} outside the layout`;
+  const inLayout = layoutKinds.map(({ kind, describe }) => ({ ...inKinds([kind]), describe })).filter((part) => part.files);
+  if (!inLayout.length) return `sit in ${outside}`;
+  const parts = inLayout.map((part) => `${count(part.files)} in ${part.describe(part.folders)}`);
+  const listed = parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+  if (!others.files) return `all sit in the layout: ${listed}`;
+  const placed = inLayout.length === 1
+    ? `${count(inLayout[0]!.files)} sit in ${inLayout[0]!.describe(inLayout[0]!.folders)}`
+    : `${count(inLayout.reduce((sum, part) => sum + part.files, 0))} sit in the layout (${listed})`;
+  return `${placed} and ${count(others.files)} are still in ${outside}`;
+}
+
+/** What R4's state means for today's violations. */
+function boundaryRulesClause(r4: RungStatus | null): string {
+  if (r4 === 'certified') return "R4's rules freeze today's violations so they can't grow.";
+  const why = r4 === null || r4 === 'not-requested' ? 'R4 was not part of this run' : `R4 ended ${r4}`;
+  return `${why}, so no boundary rules hold them yet.`;
+}
+
+/** The graph section's prose, worded from the numbers (a rise, a fall, totals that match or not) and the run's state. */
+export function graphNarrative(graph: RunGraph, facts: NarrativeFacts): string {
   const { base, head } = graph;
   const total = (side: GraphSide) => side.internalPairs + side.crossPairs;
   const share = (side: GraphSide) => `${count(side.internalPairs)} of ${count(total(side))} (${percent(pairShare(side))})`;
   const topInternal = (side: GraphSide) => [...side.folders].sort((a, b) => b.internalPairs - a.internalPairs || compare(a.key, b.key)).slice(0, 3).filter((folder) => folder.internalPairs)
     .map((folder) => `${folder.key} ${folder.internalPairs}`).join(', ') || 'none';
+  const files = graph.flow.reduce((sum, edge) => sum + edge.files, 0);
+  const layout = `At the base commit the ${plural(files, 'source file')} under ${graph.moduleRoot || 'the package'}/ ${whereFilesSit(graph, 'base')}; at the head commit ${whereFilesSit(graph, 'head')}.`;
   const totals = total(base) === total(head)
     ? `The file-level import pairs are the same ${count(total(base))} on both sides (a certified move keeps every import resolving to the same file); only their grouping changes.`
     : `There are ${count(total(base))} file-level import pairs at base and ${count(total(head))} at head: the head tree adds or drops importers under the module root.`;
   const delta = pairShare(head) - pairShare(base);
   const direction = Math.abs(delta) < 0.0005 ? 'stays the same' : delta > 0 ? 'rises' : 'falls';
+  const ties = [facts.godInjections && plural(facts.godInjections, 'god-injection base class', 'god-injection base classes'), facts.moduleCycles && plural(facts.moduleCycles, 'module cycle')].filter(Boolean);
   const reading = delta > 0.0005
     ? 'More of the imports now stay inside one folder.'
-    : 'Grouping by feature doesn\'t remove the imports between features; it makes them visible. The findings below name the hubs that tie the modules together, and R4\'s rules freeze today\'s violations so they can\'t grow.';
-  return `At the base commit the code sits in type folders; at the head commit in feature modules, platform folders and shared/. ${totals} The share of pairs inside one folder ${direction}: ${share(base)} at base, ${share(head)} at head. The largest blocks of internal pairs are ${topInternal(base)} at base and ${topInternal(head)} at head. ${reading}`;
+    : `Grouping by feature doesn't remove the imports between features; it makes them visible.${ties.length ? ` The findings below name what ties the modules together (${ties.join(' and ')}).` : ''} ${boundaryRulesClause(facts.r4)}`;
+  return `${layout} ${totals} The share of pairs inside one folder ${direction}: ${share(base)} at base, ${share(head)} at head. The largest blocks of internal pairs are ${topInternal(base)} at base and ${topInternal(head)} at head. ${reading}`;
 }
 
 function graphSection(data: RunReportData): Section {
@@ -232,13 +332,13 @@ function graphSection(data: RunReportData): Section {
     { label: 'Import pairs inside one folder', value: `${percent(pairShare(base))} → ${percent(pairShare(head))}`, note: `${count(base.internalPairs)} → ${count(head.internalPairs)} file pairs` },
     { label: 'Largest import cycle', value: `${largest(base)} of ${base.folders.length} → ${largest(head)} of ${head.folders.length}`, note: 'strongly connected folders, the composition root left out' },
   ])}
-<p>${escapeHtml(graphNarrative(graph))}</p>
+<p>${escapeHtml(graphNarrative(graph, narrativeFacts(data)))}</p>
 ${cycleList(base, 'Import cycles at base')}
 ${cycleList(head, 'Import cycles at head')}
 ${flowFigure(graph)}
 ${matrixFigure(`Before: ${base.folders.length} folders at ${shortSha(base.commit)}`, base, 22, `${count(base.crossPairs)} file pairs cross folders in ${count(base.edges.length)} folder edges.`)}
 ${matrixFigure(`After: ${head.folders.length} folders at ${shortSha(head.commit)}`, head, 10, `${count(head.crossPairs)} file pairs cross folders in ${count(head.edges.length)} folder edges.`)}
-<p class="small muted">Computed by ${escapeHtml(graph.source.analyzer)} with TypeScript ${escapeHtml(graph.source.typescript)}, from git objects of both commits; stored in graph.json. Folders outside the layout are collapsed to their first directory under the module root, so this graph can count fewer folders than R4's report and the findings log.${graph.unmatched.length ? ` ${plural(graph.unmatched.length, 'file')} of the step maps were not found at head: ${graph.unmatched.slice(0, 5).map((file) => code(file)).join(', ')}.` : ''}</p>`;
+<p class="small muted">Computed by ${escapeHtml(graph.source.analyzer)} with TypeScript ${escapeHtml(graph.source.typescript)}, from git objects of both commits; stored in graph.json. Folders outside the layout are collapsed to their first directory under the module root, so this graph can count fewer folders than ${data.attachments.includes('boundaries/report.json') ? "R4's report and " : ''}the findings log.${graph.unmatched.length ? ` ${plural(graph.unmatched.length, 'file')} of the step maps were not found at head: ${graph.unmatched.slice(0, 5).map((file) => code(file)).join(', ')}.` : ''}</p>`;
   return { id: 'graph', title: 'Before and after: the module graph', body };
 }
 
@@ -291,7 +391,7 @@ function timingFigure(data: RunReportData): string {
       return [String(step.index), escapeHtml(step.rung), code(step.group), values.move.toFixed(1), values.certify.toFixed(1), values.other.toFixed(1), values.failed.toFixed(1)];
     }));
   return figure('Time per step', stackedColumns(columns, used, { unit: 's', labelEvery: 5 }), {
-    caption: 'Seconds per step, from run.json attempt timings. R4 has no static step certificate: its time is its rung certificate (with oracles).',
+    caption: `Seconds per step, from run.json attempt timings.${ran.some(({ step }) => step.rung === 'R4') ? ' R4 has no static step certificate: its time is its rung certificate (with oracles).' : ''}`,
     tableView,
   });
 }
@@ -312,6 +412,104 @@ function wallTimeFigure(data: RunReportData): string {
   return figure(`Wall time: ${formatDuration(timeline.durationMs)}`, partsBar(segments, { format: formatDuration }), { tableView });
 }
 
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** What the failed attempts' kinds left behind: a FAIL is rolled back, the executor's refusals commit nothing. */
+function failureMechanics(states: AttemptState[]): string {
+  const uncommitted = (['declined', 'unverified', 'error'] as const).filter((state) => states.includes(state)).map((state) => failureWords[state]!.replace(' by the executor', ''));
+  return [
+    states.includes('failed') ? 'A commit that fails its certificate is rolled back.' : '',
+    uncommitted.length ? `An attempt ${uncommitted.join(' or ')} commits nothing.` : '',
+  ].filter(Boolean).join(' ');
+}
+
+/** What happened to a failed attempt's step next: the replan and the next attempt's outcome, from run.json. */
+function afterFailure(step: StepRecord, attempt: AttemptRecord): string {
+  const next = step.attempts.find((candidate) => candidate.attempt === attempt.attempt + 1);
+  if (!next) return '';
+  return `<p class="small">The step then replanned${attempt.pinned.length ? ` without ${plural(attempt.pinned.length, 'pinned file')}` : ''}: attempt ${next.attempt} ${escapeHtml(attemptStatus[next.state].label)}.</p>`;
+}
+
+/** The ladder's line when no attempt failed, qualified by what the steps did: certified, resumed, pinned. */
+export function noFailureSentence(state: RunState): string {
+  const certified = state.steps.filter((step) => step.status === 'certified');
+  const resumed = certified.filter((step) => step.attempts.some((attempt) => attempt.state === 'interrupted')).length;
+  const pinned = state.steps.filter((step) => step.status === 'pinned').length;
+  const passed = !certified.length
+    ? 'no step was certified'
+    : `${certified.length === 1 ? 'the one certified step' : `each of the ${count(certified.length)} certified steps`} passed its certificate on its first attempt${resumed ? ` (${plural(resumed, 'step')} after an interrupted attempt that --resume discarded)` : ''}`;
+  return `No attempt failed: ${passed}.${pinned ? ` ${plural(pinned, 'step was', 'steps were')} pinned and left in place.` : ''}`;
+}
+
+/** Which of the run's commits are certified how, from the stored certificates (the ladder's opening and the site's run cards). */
+export interface CertificateCoverage {
+  /** Certified steps by their certificate's scope. */
+  staticSteps: StepRecord[];
+  fullSteps: StepRecord[];
+  /** Certified steps without a certificate file in the run dir. */
+  unstoredSteps: number;
+  /** The checks the static step certificates ran, in check order. */
+  staticChecks: CheckId[];
+  /** Rung certificates by scope; partial when the run stopped inside the rung. */
+  fullRungs: { id: RungId; partial: boolean }[];
+  staticRungs: RungId[];
+  whole: 'full' | 'static' | null;
+  /** The oracles K8 ran in the certificates with oracles. */
+  oracles: string[];
+}
+
+export function certificateCoverage(data: RunReportData): CertificateCoverage {
+  const stepCertificates = data.steps.flatMap((view) => {
+    const file = view.step.certificate?.file;
+    const certificate = view.attempts.find((attempt) => attempt.certificate && attempt.certificate.file === file)?.certificate;
+    return view.step.status === 'certified' && certificate ? [{ step: view.step, certificate }] : [];
+  });
+  const staticSteps = stepCertificates.filter(({ certificate }) => certificate.view.scope === 'static');
+  const rungs = data.rungs.filter((view) => view.certificate);
+  const fullRungs = rungs.filter((view) => view.certificate!.view.scope === 'full');
+  const withOracles = [...fullRungs.map((view) => view.certificate!), ...(data.whole?.view.scope === 'full' ? [data.whole] : [])];
+  return {
+    staticSteps: staticSteps.map(({ step }) => step),
+    fullSteps: stepCertificates.filter(({ certificate }) => certificate.view.scope === 'full').map(({ step }) => step),
+    unstoredSteps: data.state.steps.filter((step) => step.status === 'certified').length - stepCertificates.length,
+    staticChecks: checkOrder.filter((id) => staticSteps.some(({ certificate }) => certificate.view.checks.some((check) => check.id === id))),
+    fullRungs: fullRungs.map((view) => ({ id: view.rung.id, partial: Boolean(view.rung.certificate?.partial) })),
+    staticRungs: rungs.filter((view) => view.certificate!.view.scope === 'static').map((view) => view.rung.id),
+    whole: data.whole?.view.scope ?? null,
+    oracles: [...new Set(withOracles.flatMap((certificate) => oracleNames(certificate.view)))],
+  };
+}
+
+/** The ladder's opening, from the run's certificates: which commits had the static checks, which the oracles, what is missing. */
+export function ladderIntro(data: RunReportData): string {
+  const { state } = data;
+  const coverage = certificateCoverage(data);
+  const sentences: string[] = [];
+  if (coverage.staticSteps.length) {
+    const checks = coverage.staticChecks.join(', ');
+    const order = state.options.jobs > 1
+      ? `with the static checks (${checks}); with --jobs ${state.options.jobs}, later steps executed ahead of the certificates, and a FAIL discards them`
+      : `before the next one started, with the static checks (${checks})`;
+    sentences.push(`One transformation per commit: ${coverage.staticSteps.length === 1 ? 'the one committed step was' : `each of the ${count(coverage.staticSteps.length)} committed steps was`} certified against its parent ${order}.`);
+  }
+  for (const step of coverage.fullSteps) {
+    const rung = state.rungs.find((candidate) => candidate.id === step.rung);
+    sentences.push(`Step ${step.index} (${step.rung}) is certified with the oracles${rung?.certificate?.file === step.certificate?.file ? ', by its rung certificate' : ''}.`);
+  }
+  if (coverage.unstoredSteps) sentences.push(`${plural(coverage.unstoredSteps, 'certified step has', 'certified steps have')} no certificate file in the run dir.`);
+  const rungNames = coverage.fullRungs.map((rung) => `${rung.id}${rung.partial ? ' (partial: the run stopped inside the rung)' : ''}`);
+  const withOracles = [rungNames.length ? `the rung ${rungNames.length === 1 ? 'certificate' : 'certificates'} of ${rungNames.join(', ')}` : '', coverage.whole === 'full' ? 'the whole-PR certificate' : ''].filter(Boolean);
+  if (withOracles.length) {
+    const many = rungNames.length + Number(coverage.whole === 'full') > 1;
+    sentences.push(`${capitalize(withOracles.join(' and '))} ${many ? 'add' : 'adds'} the oracles (K8: ${coverage.oracles.join(', ') || 'none named'}).`);
+  }
+  if (coverage.staticRungs.length) sentences.push(`The rung ${coverage.staticRungs.length === 1 ? 'certificate' : 'certificates'} of ${coverage.staticRungs.join(', ')} ${coverage.staticRungs.length === 1 ? 'has' : 'have'} the static checks only.`);
+  if (coverage.whole === 'static') sentences.push('The whole-PR certificate has the static checks only.');
+  if (!coverage.whole) sentences.push(`There is no whole-PR certificate (run status: ${state.status}).`);
+  sentences.push('A FAIL rolls the commit back and the step replans without the offending files.');
+  return sentences.join(' ');
+}
+
 function ladderSection(data: RunReportData): Section {
   const { state } = data;
   const rungRows = data.rungs.map(({ rung, certificate }) => {
@@ -322,26 +520,26 @@ function ladderSection(data: RunReportData): Section {
     const bisect = rung.bisect ? `<br><span class="small">K8 bisect: ${rung.bisect.firstFailingStep !== null ? `step ${rung.bisect.firstFailingStep} pinned` : 'stopped without evidence'}, ${rung.bisect.probes.length} probes</span>` : '';
     return [`<strong>${escapeHtml(rung.id)}</strong>`, escapeHtml(rung.status), stepCell, verdict + bisect, formatDuration(rung.durationMs)];
   });
-  const failures = data.steps.flatMap((view) => view.attempts.filter(({ attempt }) => attempt.state !== 'passed' && attempt.state !== 'interrupted').map((attempt) => ({ view, attempt })));
+  const failures = data.steps.flatMap((view) => view.attempts.filter(({ attempt }) => failedAttemptStates.has(attempt.state)).map((attempt) => ({ view, attempt })));
   const failureBlock = failures.length
     ? `<h3>Failed attempts and rollbacks (${failures.length})</h3>
-<p>Each of these was committed or tried, failed, and was undone; the run then replanned without the offending entries. They are recorded here and in run.json, never hidden.</p>
-${failures.map(({ view, attempt }) => `<div class="finding"><h4>Step ${view.step.index} ${code(view.step.group)}, attempt ${attempt.attempt.attempt} of ${view.step.attempts.length}; the step ended ${statusMark(stepStatus[view.step.status].status, stepStatus[view.step.status].label)}</h4>${attemptBlock(attempt)}</div>`).join('\n')}`
-    : '<p>No attempt failed: every step committed and passed its certificate on the first try.</p>';
+<p>${escapeHtml(capitalize(failedAttemptsPhrase(state)))}. ${escapeHtml(failureMechanics(failures.map(({ attempt }) => attempt.attempt.state)))} They are recorded here and in run.json, never hidden.</p>
+${failures.map(({ view, attempt }) => `<div class="finding"><h4>Step ${view.step.index} ${code(view.step.group)}, attempt ${attempt.attempt.attempt} of ${view.step.attempts.length}; the step ended ${statusMark(stepStatus[view.step.status].status, stepStatus[view.step.status].label)}</h4>${attemptBlock(attempt)}${afterFailure(view.step, attempt.attempt)}</div>`).join('\n')}`
+    : `<p>${escapeHtml(noFailureSentence(state))}</p>`;
   const neverRan = data.steps.filter((view) => !view.step.attempts.length && view.step.status === 'pending').length;
   const rungCertificates = data.rungs.filter((view) => view.certificate).map((view) => certificateBlock(view.certificate!, `${view.rung.id} rung certificate: `)).join('\n');
   const probes = data.rungs.flatMap((view) => view.probes.map((probe) => certificateBlock(probe, `${view.rung.id} bisect probe: `))).join('\n');
   const others = data.otherCertificates.length
     ? `<h3>Other stored certificates</h3><p class="small">Certificates in the run dir that run.json no longer points to (a rung certificate a bisect superseded, a FAIL kept under a -2 name).</p>${data.otherCertificates.map((certificate) => certificateBlock(certificate)).join('\n')}`
     : '';
-  const body = `<p>One transformation per commit, each certified against its parent before the next one starts (static checks K0–K7); each rung and the whole PR are then certified with the oracles (K8: tsc, the unit suite, the OpenAPI byte-diff). A FAIL rolls the commit back and the step replans without the offending files.</p>
+  const body = `<p>${escapeHtml(ladderIntro(data))}</p>
 ${table([{ label: 'Rung' }, { label: 'Status' }, { label: 'Steps' }, { label: 'Rung certificate' }, { label: 'Duration', numeric: true }], rungRows)}
 ${wallTimeFigure(data)}
 ${failureBlock}
 <h3>Every step</h3>
 <p class="small">Open a step for its moves, its attempts and its certificate.</p>
 ${data.steps.filter((view) => view.step.attempts.length || view.step.status !== 'pending').map(stepBlock).join('\n')}
-${neverRan ? `<p class="small muted">${plural(neverRan, 'step')} never ran (the run stopped first).</p>` : ''}
+${neverRan ? `<p class="small muted">${plural(neverRan, 'step')} never ran (run status: ${escapeHtml(state.status)}).</p>` : ''}
 ${timingFigure(data)}
 <h3>Rung certificates</h3>
 ${rungCertificates || '<p>None.</p>'}
@@ -364,6 +562,20 @@ ${details('Evidence', pre(finding.evidence), { className: 'more' })}
 ${files}<p class="small muted">Source: ${escapeHtml(finding.source)}${where ? `; ${escapeHtml(where)}` : ''}</p></div>`;
 }
 
+/**
+ * How many findings the narration covered and why the others have none, from findings.json: a drop is the lexical
+ * guard's (a narration may only restate its evidence) unless the model returned nothing (src/findings/narrate.ts).
+ */
+export function narrationOutcome(narration: { narrated: number; dropped: { reason: string }[] }): string {
+  const notReturned = narration.dropped.filter((drop) => drop.reason.startsWith('no narration returned')).length;
+  const guarded = narration.dropped.length - notReturned;
+  const drops = [
+    guarded ? `${plural(guarded, 'narration')} dropped by the lexical guard (a narration may only restate its evidence)` : '',
+    notReturned ? `${plural(notReturned, 'finding')} with no narration returned by the model` : '',
+  ].filter(Boolean);
+  return `${plural(narration.narrated, 'finding')} narrated${drops.length ? `; ${drops.join(', ')}` : ''}`;
+}
+
 function findingsSection(data: RunReportData): Section {
   const document = data.findings;
   if (!document) {
@@ -378,7 +590,7 @@ function findingsSection(data: RunReportData): Section {
   const kinds = [...byKind].sort((left, right) => rank(left[0]) - rank(right[0]) || right[1].length - left[1].length || compare(left[0], right[0]));
   const narration = document.narration;
   const narrationLine = narration
-    ? `<p class="small">Narration: ${escapeHtml(narration.label)} (${code(narration.model)}), ${narration.calls} calls, ${usd(narration.costUsd)} when recorded${narration.replayed ? ', replayed here' : ''}; ${narration.narrated} findings narrated, ${narration.dropped.length} narrations dropped by the lexical guard (a narration may only restate its evidence).</p>${narration.dropped.length ? details('Dropped narrations', table([{ label: 'Finding' }, { label: 'Why' }], narration.dropped.map((drop) => [code(drop.id), escapeHtml(drop.reason)])), { className: 'more' }) : ''}`
+    ? `<p class="small">Narration: ${escapeHtml(narration.label)} (${code(narration.model)}), ${narration.calls} calls, ${usd(narration.costUsd)} when recorded${narration.replayed ? ', replayed here' : ''}; ${escapeHtml(narrationOutcome(narration))}.</p>${narration.dropped.length ? details('Dropped narrations', table([{ label: 'Finding' }, { label: 'Why' }], narration.dropped.map((drop) => [code(drop.id), escapeHtml(drop.reason)])), { className: 'more' }) : ''}`
     : '<p class="small">No narration: every finding shows its deterministic evidence only.</p>';
   const body = `<p>A good restructure makes existing bugs obvious; fixing them is never part of it. These ${count(document.findings.length)} findings were found by deterministic collectors and are left exactly as they are in the code.</p>
 ${table([{ label: 'Kind' }, { label: 'Findings', numeric: true }], kinds.map(([kind, findings]) => [link(`#kind-${kind}`, kind), count(findings.length)]))}
@@ -387,6 +599,12 @@ ${details('Sources', table([{ label: 'Source' }, { label: 'What it contributed' 
 ${kinds.map(([kind, findings]) => `<h3 id="kind-${escapeHtml(kind)}">${escapeHtml(kind)} (${findings.length})</h3>\n${[...findings].sort((left, right) => right.weight - left.weight || compare(left.id, right.id)).map((finding) => findingBlock(finding, narration ? modelLabel(narration.model) : null)).join('\n')}`).join('\n')}
 <p class="small">${attachmentLinks(data, [['findings/findings.json', 'findings.json'], ['findings/findings.md', 'findings.md'], ['findings/pr-body.md', 'the PR body']]).join(' · ')}</p>`;
   return { id: 'findings', title: 'Findings: recorded, never fixed', body };
+}
+
+/** The heatmap's pointer to the findings log: how many multi-writer-table findings it records. */
+function multiWriterFindings(data: RunReportData): string {
+  const findings = (data.findings?.findings ?? []).filter((finding) => finding.kind === 'multi-writer-table').length;
+  return findings ? `The findings log records ${plural(findings, 'multi-writer-table finding')}, not fixed.` : 'The findings log records no multi-writer-table finding.';
 }
 
 function heatmapSection(data: RunReportData): Section {
@@ -409,7 +627,7 @@ function heatmapSection(data: RunReportData): Section {
   ]);
   const tableView = table([{ label: 'Table' }, { label: 'Written by' }, { label: 'Read only by' }],
     heatmap.tables.map((table) => [`${table.multiWriter ? '⚠ ' : ''}${code(table.name)}`, table.writerGroups.map((group) => code(group)).join(' ') || '–', table.readerGroups.map((group) => code(group)).join(' ') || '–']));
-  const body = `<p>${count(heatmap.tables.length)} database tables × the ${count(heatmap.groups.length)} groups whose files touch them, from the planner's facts at the base commit (Kysely, Prisma and Drizzle call shapes), mapped through the plan's placements${data.state.pins.length ? '; pinned files count under `pinned`' : ''}. ${multi.length ? `${plural(multi.length, 'table is', 'tables are')} written by files of several groups: ${multi.map((table) => `${code(table.name)} (${table.writerGroups.map((group) => code(group)).join(', ')})`).join('; ')}. Each is a finding, recorded and not fixed.` : 'Every table is written by at most one group.'}</p>
+  const body = `<p>${count(heatmap.tables.length)} database tables × the ${count(heatmap.groups.length)} groups whose files touch them, from the planner's facts at the base commit (Kysely, Prisma and Drizzle call shapes), mapped through the plan's placements${data.state.pins.length ? '; pinned files count under `pinned`' : ''}. ${multi.length ? `${plural(multi.length, 'table is', 'tables are')} written by files of several groups: ${multi.map((table) => `${code(table.name)} (${table.writerGroups.map((group) => code(group)).join(', ')})`).join('; ')}. ${multiWriterFindings(data)}` : 'Every table is written by at most one group.'}</p>
 ${figure('Table access by group', `${keyLegend}${matrix(rows, columns, cells, { cell: 13, labelWidth: 190 })}`, { caption: 'Rows are tables, ordered under the first group that writes them; columns are groups in plan order. The facts read table names from query call shapes, so a common table expression\'s alias (<code>.with(\'cte\', …)</code>) shows up as a read-only table: a known gap of the facts scan.', tableView })}`;
   return { id: 'tables', title: 'Table access', body };
 }
@@ -417,9 +635,10 @@ ${figure('Table access by group', `${keyLegend}${matrix(rows, columns, cells, { 
 function costSection(data: RunReportData): Section {
   const { state, ledger } = data;
   const narration = data.findings?.narration ?? null;
-  const thisRun = `<p>This run: the plan cost ${state.cost.planRecordedUsd === null ? 'an unknown amount' : usd(state.cost.planRecordedUsd)} when it was recorded${state.cost.budgetRun ? ` (budget run ${code(state.cost.budgetRun)})` : ''}; planner spend during the run ${usd(state.cost.llmUsd)}${state.cost.mode ? ` (mode ${escapeHtml(state.cost.mode)})` : ''}${narration ? `; the findings narration ${usd(narration.costUsd)} in ${narration.calls} calls of ${escapeHtml(narration.label)}${narration.replayed ? ' (replayed, $0 now)' : ''}` : ''}. Replaying the plan and the narration from the committed cassettes costs $0.</p>`;
+  const thisRun = `<p>This run: the plan cost ${state.cost.planRecordedUsd === null ? 'an unknown amount' : usd(state.cost.planRecordedUsd)} when it was recorded${state.cost.budgetRun ? ` (budget run ${code(state.cost.budgetRun)})` : ''}; planner spend during the run ${usd(state.cost.llmUsd)}${state.cost.mode ? ` (mode ${escapeHtml(state.cost.mode)})` : ''}${narration ? `; the findings narration ${usd(narration.costUsd)} in ${narration.calls} calls of ${escapeHtml(narration.label)}${narration.replayed ? ' (replayed, $0 now)' : ''}` : ''}. Replaying ${narration ? 'the plan and the narration' : 'the plan'} from the committed cassettes costs $0.</p>`;
   if (!ledger) return { id: 'cost', title: 'Cost', body: `${thisRun}<p>No budget/ledger.jsonl in this package.</p>` };
   const g3Usd = ledger.runs.filter((run) => run.run.startsWith('g3-')).reduce((sum, run) => sum + run.costUsd, 0);
+  const carriedRuns = ledger.runs.filter((run) => run.notes.some((note) => note.startsWith('carried over'))).map((run) => run.run);
   const bars = ledger.runs.map((run) => ({
     label: run.run, value: run.costUsd, valueLabel: `${usd(run.costUsd)}${run.capUsd !== null ? ` of ${usd(run.capUsd, 2)}` : ''}`,
     tip: `${run.run}: ${usd(run.costUsd)} in ${count(run.calls)} paid calls${run.models.length ? `\n${run.models.join(', ')}` : ''}`,
@@ -428,7 +647,7 @@ function costSection(data: RunReportData): Section {
     [...ledger.runs.map((run) => [code(run.run), count(run.calls), usd(run.costUsd), run.capUsd === null ? '–' : usd(run.capUsd, 2), escapeHtml(run.models.join(', ') || '–'), `<span class="small">${escapeHtml(run.notes.join(' '))}${run.openReservationsUsd ? ` open reservations ${usd(run.openReservationsUsd)}` : ''}</span>`]),
       ['<strong>total</strong>', count(ledger.runs.reduce((sum, run) => sum + run.calls, 0)), `<strong>${usd(ledger.totalUsd)}</strong>`, ledger.globalCapUsd === null ? '–' : usd(ledger.globalCapUsd, 2), '', '']]);
   const body = `${thisRun}
-<p>The whole project's spend on Nebius Token Factory, from the gateway's ledger (budget/ledger.jsonl): ${usd(ledger.totalUsd)}${ledger.globalCapUsd !== null ? ` of the ${usd(ledger.globalCapUsd, 2)} hard cap` : ''}. ${g3Usd > 0 ? `The G3 runs (opencode with Nemotron 3 Super, the generic-agent baseline) account for ${usd(g3Usd)} of it. ` : ''}The gate spike's runs are carried over as one line each.</p>
+<p>The whole project's spend on Nebius Token Factory, from the gateway's ledger (budget/ledger.jsonl): ${usd(ledger.totalUsd)}${ledger.globalCapUsd !== null ? ` of the ${usd(ledger.globalCapUsd, 2)} hard cap` : ''}. ${g3Usd > 0 ? `The G3 runs (opencode with Nemotron 3 Super, the generic-agent baseline) account for ${usd(g3Usd)} of it. ` : ''}${carriedRuns.length ? `${carriedRuns.length === 1 ? 'The run' : 'The runs'} ${carriedRuns.map((run) => code(run)).join(', ')} ${carriedRuns.length === 1 ? 'is' : 'are'} carried over from the gate spike as one line each.` : ''}</p>
 ${figure('LLM spend by budget run', horizontalBars(bars, { labelWidth: 110 }), { tableView })}`;
   return { id: 'cost', title: 'Cost', body };
 }
@@ -438,7 +657,7 @@ function abSection(data: RunReportData, links: AbLinks): Section | null {
   return {
     id: 'ab',
     title: 'A/B: the same task, a generic agent',
-    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches are certified by the same checker.</p>\n${renderAbTable(data.ab, links)}`,
+    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by the same checker.</p>\n${renderAbTable(data.ab, links)}`,
   };
 }
 

@@ -89,3 +89,23 @@ export function certificateSummary(jsonFile: string, certificate: StoredCertific
   return summarize({ ...certificate, baseTree: '', headTree: '', profile: null } as unknown as Certificate)
     .split('\n').filter((line) => !line.startsWith('trees: ')).join('\n');
 }
+
+/** The oracles a certificate's K8 ran, as the profile names them (`tsc`, `unit`, `openapi`), in the certificate's order. */
+export function oracleNames(view: CertificateView): string[] {
+  const k8 = view.checks.find((check) => check.id === 'K8');
+  if (!k8) return [];
+  return Object.keys(k8.metrics).map((key) => /^(.+)\.head\.exit$/.exec(key)?.[1]).filter((name): name is string => name !== undefined);
+}
+
+/**
+ * One oracle's part of K8's summary, as the certifier wrote it: K8 joins one summary per oracle with '; ', each starting
+ * with the oracle's name (src/certificate/oracles.ts). Null when K8 or that oracle isn't in the certificate.
+ */
+export function oracleSummary(view: CertificateView, oracle: string): string | null {
+  const k8 = view.checks.find((check) => check.id === 'K8');
+  const names = oracleNames(view);
+  if (!k8 || !names.includes(oracle)) return null;
+  const escaped = names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const parts = k8.summary.split(new RegExp(`; (?=(?:${escaped.join('|')}) )`));
+  return parts.find((part) => part.startsWith(`${oracle} `)) ?? null;
+}

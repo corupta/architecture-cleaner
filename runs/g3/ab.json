@@ -1,6 +1,6 @@
 {
  "format": "ac-ab/1",
- "about": "The same restructuring task on the same pinned commits: a generic coding agent (G3: opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, a fixed prompt, no human input) and architecture-cleaner. Every number is measured offline and names its source. The certificate rows are read from the certificate files in this directory and in runs/immich-ladder/.",
+ "about": "The same restructuring task on the same pinned commits: a generic coding agent (G3: opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, a fixed prompt, no human input) and architecture-cleaner. Every typed number is measured offline and names its source. The verdict and check rows, and the certificate line under a value of a row that names a certificate count, are read from the certificate files in this directory and in runs/immich-ladder/ when the page is built; a row whose numbers the gate measured differently says why in `differs`.",
  "tables": [
   {
    "id": "immich",
@@ -71,7 +71,9 @@
       "g3-single": "211 files copied into src/features/, originals kept; every rewritten import corrupted",
       "g3-persistent": "297 moved, 562 copied (a src.backup/ tree), 68 edited, 12 Python scripts left behind"
      },
-     "source": "docs/storyboard.md (lead table); runs/immich-ladder/certificate.txt (K1, K2)"
+     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K1, K2)",
+     "certificate": "K1",
+     "differs": "The gate counted moved and copied files with git's rename and copy detection at 50% similarity (spike/g3/measure-diff.mjs). The certifier pairs a head file with a base file only when their bytes are equal outside specifier spans, so a moved, copied or edited file with any other change is an added file to it, and only exact copies count as copies. The persistent branch's certified moves are its base files paired with their untouched copies in src.backup/ (the certificate's pathMap); the files it moved into src/features/ or edited are among the added."
     },
     {
      "metric": "tsc errors (base: 0)",
@@ -81,7 +83,8 @@
       "g3-single": "1,680",
       "g3-persistent": "768 (nest build: 4,675)"
      },
-     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K8)"
+     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K8)",
+     "certificate": "K8 tsc"
     },
     {
      "metric": "Unit suite (base: 105 files, 2,337 cases)",
@@ -91,7 +94,8 @@
       "g3-single": "2,337/2,337 cases pass, but 66 of 171 spec files never load",
       "g3-persistent": "5/105 files, 52 cases"
      },
-     "source": "docs/storyboard.md (lead table); runs/immich-ladder/certificate.txt (K6, K8)"
+     "source": "docs/storyboard.md (lead table); runs/immich-ladder/certificate.txt (K6, K8)",
+     "certificate": "K8 unit"
     },
     {
      "metric": "OpenAPI spec (base: 947,932 bytes)",
@@ -101,7 +105,8 @@
       "g3-single": "byte-identical: the copies are dead code",
       "g3-persistent": "not produced: sync-open-api crashes"
      },
-     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K8)"
+     "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K8)",
+     "certificate": "K8 openapi"
     },
     {
      "metric": "Non-specifier lines changed in moved or copied files",
@@ -111,7 +116,9 @@
       "g3-single": "1,104 (2.4%)",
       "g3-persistent": "0, plus 926 in modified files"
      },
-     "source": "docs/gates.md (G3 table); the certificates' K2"
+     "source": "G3 arms: docs/gates.md (G3 table, the gate's line diff); ac arms: the certificates' K2",
+     "certificate": "K2",
+     "differs": "The gate diffed each renamed or copied file against its original line by line. K2 compares only the files the certifier pairs with a base file, and those differ at most in specifier spans by construction, so the edits inside copies and rewrites are not K2's to see: those files are K1's added files, and K1 fails."
     },
     {
      "metric": "New dangling specifiers",
@@ -121,7 +128,9 @@
       "g3-single": "0: the copies still import the originals",
       "g3-persistent": "2,923"
      },
-     "source": "docs/gates.md (G3 table); the certificates' K3a–K3c"
+     "source": "G3 arms: docs/gates.md (G3 table, the gate's TypeScript analyzer); ac arms: the certificates' K3a–K3c",
+     "certificate": "K3b",
+     "differs": "The gate counted import sites its TypeScript analyzer could not resolve at the head, leaving out specifiers already unresolved at base. K3b resolves every site the way the test runner does (vitest) and counts the sites of kept or moved files that no longer reach their base target (dangling, retargeted) apart from unresolved sites in added files; K3a and K3c do the same under TypeScript and the runtime."
     },
     {
      "metric": "Behavior changes no unit test catches",
@@ -131,7 +140,9 @@
       "g3-single": "0 claims survived review: the copies are dead code",
       "g3-persistent": "2 survived review: database.repository.ts and config.repository.ts moved but kept their import.meta.dirname paths (migrations, helmet.json)"
      },
-     "source": "docs/gates.md (Addendum: G3 review); the certificates' K4"
+     "source": "G3 arms: docs/gates.md (Addendum: G3 review); ac arms: the certificates' K4",
+     "certificate": "K4",
+     "differs": "K4 fails closed: it lists every use of a moved file's location, computed path into a changed directory and old path in code or config that it can't prove safe, so its counts are hazards, not confirmed breaks. On the persistent branch it flags both files whose breaks the G3 review confirmed by hand (database.repository.ts and config.repository.ts, as added files: their certified pairs are the src.backup/ copies)."
     },
     {
      "metric": "LLM cost",
@@ -156,8 +167,8 @@
    ],
    "notes": [
     {
-     "text": "A green test count is not proof. The single-shot branch passes 2,337/2,337 cases while its restructure is a dead copy tree with 1,680 type errors; the certificate names why (K1: 211 files added; K6: 66 of 171 spec files don't load).",
-     "source": "docs/storyboard.md"
+     "text": "The single-shot branch's restructure is a dead copy tree: nothing imports its 211 copies, so the tests still run against the original files.",
+     "source": "docs/gates.md (G3 table; Addendum: G3 review)"
     },
     {
      "text": "The persistent run is the reference baseline, because single-shot runs quit within 3 minutes.",
@@ -211,7 +222,9 @@
       "g3-single": "87 source files moved, 1 deleted, 0 importers rewritten",
       "g3-persistent": "287 copied, 5 new re-export facades"
      },
-     "source": "docs/gates.md (G3 table)"
+     "source": "docs/gates.md (G3 table)",
+     "certificate": "K1",
+     "differs": "The gate counted moved and copied files with git's rename and copy detection at 50% similarity (spike/g3/measure-diff.mjs). The certifier pairs a head file with a base file only when their bytes are equal outside specifier spans, so a moved, copied or edited file with any other change is an added file to it, and only exact copies count as copies."
     },
     {
      "metric": "Non-specifier lines changed in moved or copied files",
@@ -219,7 +232,9 @@
       "g3-single": "0",
       "g3-persistent": "256 (0.4%)"
      },
-     "source": "docs/gates.md (G3 table)"
+     "source": "docs/gates.md (G3 table)",
+     "certificate": "K2",
+     "differs": "The gate diffed each renamed or copied file against its original line by line. K2 compares only the files the certifier pairs with a base file, and those differ at most in specifier spans by construction, so the edits inside copies and rewrites are not K2's to see: those files are K1's added files, and K1 fails."
     },
     {
      "metric": "New dangling specifiers",
@@ -227,7 +242,9 @@
       "g3-single": "1,102 (720 imports, 367 jest.mock, 15 dynamic or typeof)",
       "g3-persistent": "891"
      },
-     "source": "docs/gates.md (G3 table)"
+     "source": "docs/gates.md (G3 table)",
+     "certificate": "K3b",
+     "differs": "The gate counted import sites its TypeScript analyzer could not resolve at the head, leaving out specifiers already unresolved at base. K3b resolves every site the way the test runner does (jest) and counts the sites of kept or moved files that no longer reach their base target (dangling, retargeted) apart from unresolved sites in added files; K3a and K3c do the same under TypeScript and the runtime."
     },
     {
      "metric": "tsc errors (base: 0)",
@@ -235,7 +252,8 @@
       "g3-single": "908",
       "g3-persistent": "101"
      },
-     "source": "docs/gates.md (G3 table)"
+     "source": "docs/gates.md (G3 table)",
+     "certificate": "K8 tsc"
     },
     {
      "metric": "Unit tests, offline (base: 218/226 files, 1,952/1,986 cases)",
@@ -243,7 +261,9 @@
       "g3-single": "96/226 files, 790/800 cases",
       "g3-persistent": "222/264 files (+38 duplicates), 1,971/2,004 cases; the extra failures are all in the duplicated copies"
      },
-     "source": "docs/gates.md (G3 table)"
+     "source": "docs/gates.md (G3 table)",
+     "certificate": "K8 unit",
+     "differs": "The gate ran the whole suite and counted passing cases over collected ones. K8 leaves out the 7 test files that need the network (the G2 quarantine, docs/gates.md; unit.quarantined in the certificate) and counts the files and cases equal to base, so its base is 219 files and 1,934 cases."
     },
     {
      "metric": "LLM cost",

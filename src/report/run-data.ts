@@ -6,7 +6,7 @@ import path from 'node:path';
 import { compare } from '../boundaries/folder-graph.js';
 import type { FindingsDocument } from '../findings/types.js';
 import { readRunState } from '../orchestrator/run-directory.js';
-import type { AttemptRecord, RungRecord, RunState, StepRecord } from '../orchestrator/types.js';
+import type { AttemptRecord, AttemptState, RungRecord, RunState, StepRecord } from '../orchestrator/types.js';
 import { readPlanYaml, type PlanFile } from '../planner/plan-file.js';
 import type { FileFact } from '../planner/types.js';
 import { abTableFor, abTableView, readAbDocument, type AbTableView } from './ab.js';
@@ -47,6 +47,10 @@ export interface PlanSummary {
   contested: number;
   /** Placements the planner or critic made, with their rationale, in path order. */
   decisions: { path: string; group: string; source: string; rationale: string | null }[];
+  /** Labels of the candidates a model edited (plan.json: `ultra#1`, ...), in plan.json order; null without a plan.json. */
+  editors: string[] | null;
+  /** Whether a critic call ran (plan.json has a critic block); null without a plan.json. */
+  critic: boolean | null;
   /** The critic's review (plan.json), when one ran. */
   criticReview: string | null;
   winner: string | null;
@@ -77,6 +81,21 @@ export interface ReadOptions {
   packageDirectory: string;
 }
 
+/**
+ * Attempt states that ended in a failure: certified FAIL and rolled back, declined or unverified by the executor, or an
+ * error (those three committed nothing). A passed or interrupted attempt is not a failure; executing, committed and
+ * certifying are still in flight (a run killed mid-attempt). The run report and the site's run cards both count these.
+ */
+export const failedAttemptStates: ReadonlySet<AttemptState> = new Set<AttemptState>(['failed', 'declined', 'unverified', 'error']);
+
+export const failedAttempts = (step: StepRecord): AttemptRecord[] => step.attempts.filter((attempt) => failedAttemptStates.has(attempt.state));
+
+/** The run's failed attempts by state, in the order of failedAttemptStates. */
+export function failedAttemptCounts(state: RunState): { state: AttemptState; count: number }[] {
+  const attempts = state.steps.flatMap(failedAttempts);
+  return [...failedAttemptStates].map((attemptState) => ({ state: attemptState, count: attempts.filter((attempt) => attempt.state === attemptState).length })).filter((entry) => entry.count);
+}
+
 const readJson = <T>(file: string): T | null => (fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, 'utf8')) as T) : null);
 
 /** Every certificate JSON under the run dir's certificates/ and rungs/ (and certificate.json), run-dir-relative, sorted. */
@@ -97,7 +116,15 @@ export function certificateFiles(runDirectory: string): string[] {
   return files.sort(compare);
 }
 
-export function planSummary(planFile: PlanFile, planJson: { winner?: string; critic?: { critiques?: { review?: string }[] } | null } | null, recordedCostUsd: number | null): PlanSummary {
+/** The parts of plan.json the report reads. */
+export interface PlanJson {
+  winner?: string;
+  candidates?: { label: string; edit?: unknown }[];
+  critic?: { critiques?: { review?: string }[] } | null;
+  facts?: { files: FileFact[] };
+}
+
+export function planSummary(planFile: PlanFile, planJson: PlanJson | null, recordedCostUsd: number | null): PlanSummary {
   const groups = { module: 0, platform: 0, shared: 0 };
   const bySource: Record<string, number> = {};
   const decisions: PlanSummary['decisions'] = [];
@@ -116,6 +143,8 @@ export function planSummary(planFile: PlanFile, planJson: { winner?: string; cri
   return {
     groups, files, bySource, contested,
     decisions: decisions.sort((left, right) => compare(left.path, right.path)),
+    editors: planJson ? (planJson.candidates ?? []).filter((candidate) => candidate.edit !== undefined).map((candidate) => candidate.label) : null,
+    critic: planJson ? Boolean(planJson.critic) : null,
     criticReview: planJson?.critic?.critiques?.[0]?.review ?? null,
     winner: planJson?.winner ?? null,
     recordedCostUsd,
@@ -154,7 +183,7 @@ export function readRunReport(runDirectory: string, options: ReadOptions): RunRe
   const planDirectory = path.join(root, path.dirname(state.plan.file));
   const planYaml = path.join(root, state.plan.file);
   const planFile = fs.existsSync(planYaml) ? readPlanYaml(fs.readFileSync(planYaml, 'utf8')) : null;
-  const planJson = readJson<{ winner?: string; critic?: { critiques?: { review?: string }[] } | null; facts?: { files: FileFact[] } }>(path.join(planDirectory, 'plan.json'));
+  const planJson = readJson<PlanJson>(path.join(planDirectory, 'plan.json'));
   const heatmap = planFile && planJson?.facts
     ? tableHeatmap(planJson.facts.files, finalGroups(planFile, state.pins.map((pin) => pin.file)), planGroupOrder(planFile))
     : null;

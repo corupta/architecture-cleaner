@@ -122,6 +122,7 @@ th{font-weight:600;color:var(--ink-2);background:var(--surface);position:sticky;
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 table.ab td:first-child{min-width:150px}
 table.ab td{min-width:120px}
+.certificate-count{margin-top:4px;padding-top:3px;border-top:1px dashed var(--axis);color:var(--ink-2)}
 details{margin:6px 0}
 details>summary{cursor:pointer}
 details.table-view>summary,details.more>summary{font-size:13px;color:var(--ink-2)}

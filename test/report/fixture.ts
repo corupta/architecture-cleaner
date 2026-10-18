@@ -267,3 +267,9 @@ export function benchResultFixture() {
     notes: ['The planner loses to name-token here by 3.25 MoJoFM.'],
   };
 }
+
+/** The page's text as a reader sees it: tags dropped, entities decoded (so assertions on prose can't pass vacuously on escaping). */
+export function pageText(html: string): string {
+  return html.replace(/<(style|script)[\s\S]*?<\/\1>/g, '').replace(/<[^>]+>/g, '')
+    .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}

@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { abTableFor, abTableView, readAbDocument } from '../../src/report/ab.js';
-import { certificateSummary, readCertificate } from '../../src/report/certificates.js';
+import { abTableFor, abTableView, certificateCount, checkNote, readAbDocument } from '../../src/report/ab.js';
+import { certificateSummary, oracleNames, oracleSummary, readCertificate } from '../../src/report/certificates.js';
 import { finalGroups, tableHeatmap } from '../../src/report/heatmap.js';
 import { readLedger, summarizeLedger } from '../../src/report/ledger.js';
 import { readRunReport } from '../../src/report/run-data.js';
@@ -132,6 +132,47 @@ describe('the A/B', () => {
     expect(row('K7')).toEqual({ 'ac-ladder': 'pass', 'ac-r1': null, 'g3-single': null, 'g3-persistent': null });
     const mcphub = abTableView(document.tables[1]!, packageDirectory);
     expect(Object.values(mcphub.certificates).map((certificate) => certificate?.view.verdict)).toEqual(['fail', 'fail']);
+  });
+
+  it('shows the certificates\' own counts wherever a row cites them, and every named count exists in every certificate', () => {
+    const document = readAbDocument(path.join(packageDirectory, 'runs', 'g3', 'ab.json'))!;
+    for (const table of document.tables) {
+      const view = abTableView(table, packageDirectory);
+      for (const row of table.rows) {
+        if (/certificate/.test(row.source)) expect(row.certificate, `${table.id}: ${row.metric}`).toBeDefined();
+        if (!row.certificate) continue;
+        for (const arm of table.arms) {
+          const certificate = view.certificates[arm.id];
+          if (certificate) expect(certificateCount(certificate.view, row.certificate), `${table.id}: ${row.metric}, ${arm.id}`).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  it('reads the counts from the certificate: K1 pairing, a K2 PASS with nothing to compare, one oracle of K8', () => {
+    const single = readCertificate(path.join(packageDirectory, 'runs', 'g3', 'g3-immich-opencode-super.full.json')).view;
+    expect(certificateCount(single, 'K1')).toBe('K1: 0 moved, 0 edited in place, 211 added (31 of them copies of files that still exist), 0 deleted');
+    expect(certificateCount(single, 'K2')).toBe('K2: no file paired with a base file changed, so there was nothing to compare; K1 counts the 211 added files');
+    expect(checkNote(single, 'K2')).toBe('nothing to compare: K1 counts the 211 added files');
+    expect(checkNote(single, 'K1')).toBeNull();
+    expect(oracleNames(single)).toEqual(['tsc', 'unit', 'openapi']);
+    expect(certificateCount(single, 'K8 tsc')).toBe('K8: tsc exited 1 on head (1,680 diagnostics), 0 on base');
+    expect(oracleSummary(single, 'openapi')).toBe("openapi byte-identical to the base's open-api/immich-openapi-specs.json (947,932 bytes), but 1 step failed on head");
+    const ladder = readCertificate(path.join(packageDirectory, 'runs', 'immich-ladder', 'certificate.json')).view;
+    expect(certificateCount(ladder, 'K2')).toBe('K2: 2474 specifier spans changed in 515 files; every other byte identical');
+    expect(checkNote(ladder, 'K2')).toBeNull();
+    const mcphub = readCertificate(path.join(packageDirectory, 'runs', 'g3', 'g3-mcphub-opencode-super.full.json')).view;
+    expect(certificateCount(mcphub, 'K8 openapi')).toBeNull();
+    expect(certificateCount(mcphub, 'K8 unit')).toBe('K8: unit 96/219 files and 779/1,934 cases equal to base (head: 99/219 files load, 779 passed, 8 failed, 0 skipped)');
+  });
+
+  it('refuses a row that names a certificate count it doesn\'t know', () => {
+    const { root } = makePackageFixture();
+    const file = path.join(root, 'runs', 'g3', 'ab.json');
+    const document = JSON.parse(fs.readFileSync(file, 'utf8'));
+    document.tables[0].rows[0].certificate = 'K9';
+    fs.writeFileSync(file, JSON.stringify(document));
+    expect(() => readAbDocument(file)).toThrow(/unknown certificate count K9/);
   });
 
   it('refuses a row that names an arm the table doesn\'t have', () => {

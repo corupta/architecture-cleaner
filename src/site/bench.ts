@@ -81,12 +81,15 @@ function entryBlock(result: BenchResult): string {
   if (result.scramble) {
     const certificate = result.scramble.certificate;
     facts.push(`Scrambled by our own executor in commit ${code(shortSha(result.scramble.commit))}: ${count(result.scramble.moved)} files moved into type folders, ${count(result.scramble.declined)} declined (they stay), ${count(result.scramble.excluded)} excluded; ${certificate ? `certificate ${statusMark(certificate.verdict)} (${certificate.scope}${certificate.failing.length ? `, failing ${escapeHtml(certificate.failing.join(', '))}` : ''})` : 'not certified in this run'}.`);
-    facts.push(`Ground truth: ${count(result.featureFiles ?? 0)} feature files in ${count(result.groundTruthModules ?? 0)} original folders; ${count(result.hardFiles ?? 0)} hard files (their name doesn't give their feature away); ${count(result.leakyFiles ?? 0)} leaky files.`);
+    const leakage = result.leakage
+      ? `${count(result.leakyFiles ?? 0)} of the movable files give their feature away in their path (${count(result.leakage.renamed)} renamed after it, ${count(result.leakage.inFeatureFolder)} still in a feature folder, ${count(result.leakage.underSubFolder)} under a sub-folder their feature kept; ${count(result.leakage.unseen)} more that no method sees are not counted)`
+      : `${count(result.leakyFiles ?? 0)} leaky files`;
+    facts.push(`Ground truth: ${count(result.featureFiles ?? 0)} feature files in ${count(result.groundTruthModules ?? 0)} original folders; ${count(result.hardFiles ?? 0)} hard files (their name doesn't give their feature away); ${leakage}.`);
   } else {
     facts.push('A real type-sliced target: no ground truth, so TurboMQ (higher is more modular) and back-edges (lower is better) only.');
   }
   facts.push(result.planner
-    ? `Planner: ${result.planner.groups} groups, plan sha256 ${code(result.planner.planSha256.slice(0, 12))}, ${usd(result.planner.recordedCostUsd)} when recorded${result.planner.replayed ? ', replayed from ' : ', recorded into '}${code(result.planner.cassette)} (${usd(result.planner.spentUsd)} spent by this run).`
+    ? `Planner: ${result.planner.groups} groups${result.planner.modules === undefined ? '' : ` (${count(result.planner.modules)} modules)`}${result.draft ? `, from the ${escapeHtml(result.draft.method)}` : ''}, plan sha256 ${code(result.planner.planSha256.slice(0, 12))}, ${usd(result.planner.recordedCostUsd)} when recorded${result.planner.replayed ? ', replayed from ' : ', recorded into '}${code(result.planner.cassette)} (${usd(result.planner.spentUsd)} spent by this run).`
     : 'Planner: not recorded yet.');
   const louvain = result.louvainMojoFmByResolution
     ? details('Louvain MoJoFM by resolution, seeds 1–5', table([{ label: 'Resolution' }, { label: 'MoJoFM per seed' }], Object.entries(result.louvainMojoFmByResolution).map(([resolution, values]) => [escapeHtml(resolution), escapeHtml(values.map((entry) => entry.toFixed(2)).join(', '))])), { className: 'more' })
@@ -100,8 +103,40 @@ ${louvain}
 <p class="small">${link(`results/${result.entry}.json`, `${result.entry}.json`)}</p>`;
 }
 
+/** Names as prose: `a`, `a and b`, `a, b and c`. */
+const list = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
+
+/** What our certifier said about the scramble commits, from the results: a FAIL is never called a certified move. */
+export function scrambleCertificatesLine(results: readonly BenchResult[]): string {
+  const scrambles = results.filter((result) => result.scramble);
+  if (!scrambles.length) return '';
+  const verdict = (wanted: 'pass' | 'fail') => scrambles.filter((result) => result.scramble!.certificate?.verdict === wanted);
+  const scopes = (entries: BenchResult[]) => [...new Set(entries.map((result) => result.scramble!.certificate!.scope === 'full' ? 'static checks and oracles' : 'static checks'))].join(' or ');
+  const passing = verdict('pass');
+  const failing = verdict('fail');
+  const unchecked = scrambles.filter((result) => !result.scramble!.certificate);
+  const parts = [
+    passing.length ? `${list(passing.map((result) => result.entry))} ${passing.length === 1 ? 'passes' : 'pass'} (${scopes(passing)})` : '',
+    failing.length ? `${list(failing.map((result) => `${result.entry} (failing ${result.scramble!.certificate!.failing.join(', ') || 'no check named'})`))} ${failing.length === 1 ? 'fails' : 'fail'} (${scopes(failing)})` : '',
+    unchecked.length ? `${list(unchecked.map((result) => result.entry))} ${unchecked.length === 1 ? 'was' : 'were'} not certified in this run` : '',
+  ].filter(Boolean);
+  return `Each scramble is one commit by our own executor, then checked by our own certifier as a pure move: ${parts.join('; ')}. Each entry below shows its verdict; a scramble is scored whatever its verdict, since the ground truth is its original folders.`;
+}
+
+/** How the planner did against the best deterministic method, entry by entry, from the overview. */
+export function plannerTally(overview: readonly BenchOverviewRow[]): string {
+  const compared = overview.filter((row) => row.planner !== null && row.best);
+  if (!compared.length) return '';
+  const wins = compared.filter((row) => row.planner! > row.best!.value).map((row) => row.entry);
+  const losses = compared.filter((row) => row.planner! < row.best!.value).map((row) => row.entry);
+  const ties = compared.filter((row) => row.planner === row.best!.value).map((row) => row.entry);
+  const clause = (names: string[], verb: string) => (names.length ? `${verb} on ${names.length} (${list(names)})` : '');
+  return `In these results the planner beats the best deterministic method (on the entry's metric, MoJoFM or TurboMQ) on ${wins.length} of ${compared.length} entries${wins.length ? ` (${list(wins)})` : ''}${[clause(ties, 'ties it'), clause(losses, 'and loses')].filter(Boolean).map((part) => `, ${part}`).join('')}.`;
+}
+
 export function renderBenchBody(results: readonly BenchResult[]): string {
-  const intro = `<p>Can a planner recover a codebase's real feature boundaries? We flatten feature-modular repos into type folders with our own executor (a certified move), then score each method against the original folders: MoJoFM (0–100), ARI, c2c_cvg and the cluster-count ratio. Deterministic baselines are always shown next to the planner, because classic methods often win (ICSA 2026 found they beat LLM decompositions by 62% on MoJoFM, docs/plan.md §7; our G1 gate agrees on kaneo, docs/gates.md). Real type-sliced targets have no ground truth and get TurboMQ and back-edges only.</p>`;
+  const certificates = scrambleCertificatesLine(results);
+  const intro = `<p>Can a planner recover a codebase's real feature boundaries? We flatten feature-modular repos into type folders, then score each method against the original folders: MoJoFM (0–100), ARI, c2c_cvg and the cluster-count ratio.${certificates ? ` ${escapeHtml(certificates)}` : ''} Deterministic baselines are always shown next to the planner, because classic methods often win (ICSA 2026 found they beat LLM decompositions by 62% on MoJoFM, docs/plan.md §7; our G1 gate agrees on kaneo, docs/gates.md). Real type-sliced targets have no ground truth and get TurboMQ and back-edges only.</p>`;
   if (!results.length) return `${intro}<p><strong>Not recorded yet.</strong> The benchmark runs land in ${code('bench/results/')} (${code('ac bench bench/manifest.json')}); this page renders them when they do.</p>`;
   const overview = benchOverview(results);
   const overviewTable = table([{ label: 'Entry' }, { label: 'Metric' }, { label: 'Best deterministic method' }, { label: 'Best', numeric: true }, { label: 'Seeds draft', numeric: true }, { label: 'Planner', numeric: true }, { label: 'Planner − best', numeric: true }],
@@ -109,7 +144,9 @@ export function renderBenchBody(results: readonly BenchResult[]): string {
       link(`#entry-${row.entry}`, row.entry), row.metric, escapeHtml(row.best?.method ?? dash), row.best ? row.best.value.toFixed(2) : dash, fixed(row.draft, 2), fixed(row.planner, 2),
       row.planner !== null && row.best ? `${row.planner - row.best.value >= 0 ? '+' : ''}${(row.planner - row.best.value).toFixed(2)}` : dash,
     ]));
+  const tally = plannerTally(overview);
   return `${intro}
+${tally ? `<p>${escapeHtml(tally)}</p>` : ''}
 ${overviewTable}
 <p class="small">${link('results/summary.md', 'summary.md')} · each entry's JSON is linked under its table.</p>
 ${results.map(entryBlock).join('\n')}`;
