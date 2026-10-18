@@ -20,7 +20,15 @@ S5 ran on 2026-10-07; [docs/sessions/s5.md](docs/sessions/s5.md) has the report.
 
 S6 ran on 2026-10-07/14; [docs/sessions/s6.md](docs/sessions/s6.md) has the report. It shipped `ac run` (R0–R4 with rollback, replan and resume), certificate v2 on trees, R3 renames, R4 dependency-cruiser rules with an anti-vacuity check, and the findings log. Unattended on immich it made 63 commits, each certified, with every rung and the whole PR PASS with oracles, in 1 h 55 m (branch `ac/s6-ladder`, run dir `~/ac-work/s6/final`). The planner's stricter critic gate regenerated the immich plan (now 59 groups, still the tool's own output). An adversarial review confirmed 17 defects, and all are fixed. Storyboard decision 2 is taken: no single-step fallback.
 
-Next is S7 (reporter and replay site v1, scramble tool, benchmark runner and runs, the judges' --replay build), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
+S7 ran on 2026-10-17/18; [docs/sessions/s7.md](docs/sessions/s7.md) has the report.
+- It shipped `ac report` and the replay site v1 (`ac site`, offline, deterministic) and the judges' `ac demo --replay`.
+- From a fresh clone with no key, `npx ac demo --replay` takes 12 minutes. Every tree equals the recording, and with `--env` the digests reproduce.
+- It also shipped `ac scramble`, `ac bench`, and a recorded `--inject-fault` run (`runs/immich-fault`).
+- Benchmarks: the planner beats the best deterministic baseline on 1 of 5 entries (hoppscotch +6.2), and loses on H1, kaneo, ghostfolio and immich's TurboMQ.
+- The H1 bench caught a planner regression. Certifying our own scrambles found certifier false positives, which are fixed with proofs; kaneo's scramble fails closed.
+- An adversarial review confirmed 18 defects, including a K4 false pass round 2 had introduced, and all are fixed. S7 spent $1.12.
+
+Next is S8 (freeze prep: hermetic certificates, planner robustness, carry-overs, stretch if time, polish), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
 
 ## Decided (revisable with a reason)
 

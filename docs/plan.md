@@ -432,6 +432,8 @@ Estimate 20–32 focused hours (MVP cut 16–20).
 
 **Actuals after S5 (2026-10-07):** $8.82 in the ledger (`budget/ledger.jsonl`, the spike's runs carried over). S5 spent $1.29 of its $3 cap: the n>1 probe $0.00006, seven planner iterations $0.91, a first final plan $0.18 and, after the review fixes changed the prompt, the committed immich plan $0.1961 (one n=3 Ultra edit, one critic call). Caps live in `budget/runs.json` (global $50).
 
+**Actuals after S7 (2026-10-18):** $10.43 in the ledger. S6 spent $0.43. S7 spent $1.12 of its $5 cap: 12 Ultra calls for the benchmark plans on hoppscotch, H1, kaneo and ghostfolio, including a superseded first H1 and ghostfolio pair. Every run replays from committed cassettes.
+
 ## 6. Gates (ran 2026-10-02, see [gates.md](gates.md)). Decision: Tue Oct 6
 
 **Before the gates (corupta, ~15 min):** create the Token Factory account, add a card, redeem both $25 credits, create an API key and put `NEBIUS_API_KEY` in `.env`.
@@ -521,6 +523,19 @@ Spike code goes on branch `spike/gates`. Only the gate report and the feedback l
 - ICSA 2026 found classic methods beat LLM decompositions by 62% on MoJoFM, so baselines are mandatory. G1 agrees: Louvain beat every LLM plan on kaneo.
 - Baseline set (from G1): B0 type folders; name-token (full stem and anchored with prefix merging); export-symbol tokens, which survive H1; seeds + label propagation from both seed sources; Louvain at resolutions 1, 2 and 4 × 5 seeds. Headline = the best of them.
 - Correction to research 03b: with B = 3×3, both all-singletons and one-cluster score MoJoFM **0**, not 14.29 (brute-force checked). Degenerate partitions score low in general but not always 0, so keep the cluster-count ratio next to MoJoFM.
+
+**Results (S7, `bench/results/`).** MoJoFM, the planner vs the best deterministic method:
+
+| Entry | Planner | Best deterministic |
+|---|---|---|
+| hoppscotch | **87.59** | 81.38 |
+| H1 | 79.31 | **81.38** |
+| kaneo | 49.61 | **66.90** (Louvain r=4) |
+| ghostfolio | 82.64 | **84.72** |
+| immich (TurboMQ) | 10.07 | **10.50** |
+
+- The scramble keeps non-type sub-folders as qualifiers, as G1 did. The planner's prompt shows them and the name-token baselines don't, and each entry discloses it.
+- kaneo's scramble certificate fails closed: an esbuild runtime, and two URL templates K4 can't prove aren't paths.
 
 **Real-world recovery:** immich @`6e93ddf2` vs its own pre-reorg modules @`40262c30`, if G2 finds it feasible.
 

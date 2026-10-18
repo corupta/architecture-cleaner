@@ -85,7 +85,8 @@ What the replay does, and what it proves:
 
 The command exits 0 when everything it compared matches the recorded run, and 1 otherwise, listing each difference.
 Its summary also lists what it did not compare.
-Each step takes about 10 s (measured on our machine); `--steps <n>` stops early.
+From a fresh clone on our machine (12-core aarch64, 2026-10-17), `npm ci` took 15 s and the replay 11 m 41 s, with
+exit 0; `--steps <n>` stops early.
 
 What the replay does **not** re-run:
 - **The oracles (K8)**: tsc, the 105-file unit suite and the OpenAPI spec, on every rung and the whole PR. They need
@@ -172,6 +173,33 @@ A green test count is not proof: the single-shot branch passes 2,337/2,337 cases
 tree with 1,680 type errors. The certificate says exactly why. The same comparison on mcphub is in `runs/g3/`; both
 of its arms fail certification.
 
+## A seeded wrong move (runs/immich-fault)
+
+`ac run --inject-fault 2:M2` replaces step 2's commit with a mutant that drops one importer rewrite. The step's
+certificate fails K3a, K3b and K3c on that import, the attempt is rolled back, the file it names (`album.dto.ts`) is
+pinned, and the step is replanned and passes. The R1 rung certificate (3 steps, with the oracles) passes. 13 m 37 s.
+
+## Benchmarks (bench/results)
+
+`ac scramble` flattens a feature-modular repo into type folders with our executor, in one commit our certifier
+checks; the original folders are the ground truth. `ac bench` scores the planner next to deterministic baselines
+(plan §7). MoJoFM, 0–100, planner vs the best deterministic method:
+
+| Entry | Scramble certificate | Best deterministic | Planner (Nemotron 3 Ultra) |
+|---|---|---|---|
+| hoppscotch | PASS (static) | 81.38, seeds draft (export names) | **87.59** |
+| hoppscotch-H1 (opaque file names) | PASS (static) | **81.38**, seeds draft (export names) | 79.31 |
+| kaneo | FAIL (static: K3c, K4) | **66.90**, Louvain r=4 | 49.61 |
+| ghostfolio | PASS (static) | **84.72**, seeds draft (file names) | 82.64 |
+| immich (real target, TurboMQ) | – | **10.50**, Louvain r=4 | 10.07 |
+
+The planner wins on 1 of 5. That matches the literature (classic methods beat LLM decompositions, ICSA 2026) and our
+G1 gate, which is why ac uses Nemotron to edit a deterministic draft, not to draw the map from nothing, and why the
+certificate, not the plan, carries the proof. On ghostfolio and kaneo the winning edit named files by id, so the
+validator dropped every move and the planner kept its draft. kaneo's scramble certificate fails closed: its API runs
+an esbuild bundle that K3c doesn't model, and two URL templates K4 can't prove aren't paths. The recordings cost
+$1.12 (`cassettes/s7-bench.jsonl`); `ac bench bench/manifest.json` replays them for $0.
+
 ## Our own misses
 
 We show these because the checker exists to catch them:
@@ -183,7 +211,17 @@ We show these because the checker exists to catch them:
   at max(2, 2%).
 - **R4 against our own certificate.** The first real R4 made the whole-PR certificate FAIL K4 on its own rules file.
   Inert tool configs are now skipped, and only when proven inert.
-- **Reviews.** An adversarial review confirmed 17 defects in S6 and refuted none, and 16 in S5. All were fixed with
+- **Our own scrambles against our own certifier (S7).** Certifying the benchmark scrambles failed on certifier false
+  positives: route strings and pubsub topics read as paths, a runtime probe resolving into its own sandbox, `vi`
+  re-exported by `vite-plus/test`. We fixed each with a proof, and a check that can't prove a case still fails it:
+  kaneo's scramble stays FAIL.
+- **A false pass we introduced, caught by review (S7).** One of those precision fixes cleared a string compared
+  against an exact moved path (`relative(cwd, file) === 'src/services/legacy.service.ts'`). The S7 review found it
+  before it shipped; it is now a hunt case, and the mutation harness kills 420/420.
+- **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored 57.24
+  because its draft read only file names; G1 had picked the seed source without ground truth. Restoring that rule
+  lifted H1 to 79.31, and on ghostfolio it chose the export names, which cost 3.5 points there (86.11 → 82.64).
+- **Reviews.** Adversarial reviews confirmed 18 defects in S7, 17 in S6 and 16 in S5. All were fixed with
   regression tests.
 
 ## Commands

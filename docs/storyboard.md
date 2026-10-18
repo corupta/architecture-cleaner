@@ -33,3 +33,19 @@ The contrast is the video: **a green test count is not proof.** The single-shot 
 2. **Single-step fallback:** deferred until we know whether the full ladder run (S6) slips. **Taken at the end of S6 (2026-10-14): no fallback.** The full ladder ran unattended on immich (63 commits, each certified; every rung and the whole PR PASS with oracles; 1 h 55 m; `~/ac-work/s6/final`), so the video shows that run.
 3. **Honesty, presented strongly:** show our own misses as strengths ("a failure is always an opportunity"). The R1 step's stale coverage path that K4 caught moves into the credibility beat as "the checker caught our own executor"; the red team's 26 closed false passes stay in it.
 4. **opencode is named on screen**, with its model and provider said aloud; its numbers are reproducible from our recorded cassettes.
+
+## S7 updates (2026-10-18), for the Oct 22–23 script
+
+- **The seeded wrong move is recorded** (`runs/immich-fault`, the site's second run):
+  - step 2's mutant (one importer rewrite dropped) fails K3a, K3b and K3c on `workflow-execution.service.ts`;
+  - it is rolled back, `album.dto.ts` is pinned, and the step is replanned and passes;
+  - 13 m 37 s.
+- **The graph beat:** the folder graph doesn't get cleaner. Import pairs inside one folder fall from 23.4% to 20.5%, and the largest cycle grows from 12 of 14 folders to 41 of 70 (the `BaseService` hub). Show it as "the hub made obvious" (findings), not as a cleanup.
+- **The credibility beat:** the bench table, honestly (`bench/results/summary.md`).
+  - The planner beats the best deterministic method on hoppscotch, 87.59 vs 81.38, and loses on H1, kaneo, ghostfolio and immich's TurboMQ.
+  - Say it: Nemotron edits a deterministic draft, and the certificate, not the plan, carries the proof.
+  - Our own misses, from S7, now include:
+    - the H1 bench catching a planner regression;
+    - our certifier refusing our own kaneo scramble;
+    - a false pass we introduced, which the review caught.
+- **Mutation numbers for the video:** 420/420 killed by the static checks (fixtures, synthetic, hunt). The 561 in this storyboard is S4's count, which included the immich subjects; re-measure before quoting.

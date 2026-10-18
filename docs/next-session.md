@@ -1,23 +1,19 @@
-# Next session: S7 (reporter and replay site v1, scramble tool, benchmark runner and runs, the judges' --replay build)
+# Next session: S8 (freeze prep: hermetic certificates, planner robustness, carry-overs, stretch if time, polish)
 
-Opening prompt for S7, from [sessions/s6.md](sessions/s6.md). Paste it as the first message.
+Opening prompt for S8, from [sessions/s7.md](sessions/s7.md). Paste it as the first message.
 
 ```
-Session S7 for architecture-cleaner: the reporter and replay site v1, the scramble tool, the benchmark runner and its runs, and the judges' --replay build.
+Session S8 for architecture-cleaner: freeze prep. Feature freeze is Tue Oct 20; this is the last build session.
 
-Read CLAUDE.md, docs/sessions/s6.md, docs/plan.md §4, §7, §8 and §9, docs/storyboard.md, and the S6 run's report (~/ac-work/s6/final/report.md, findings/pr-body.md, certificate.txt). Mode: execution, high autonomy, branch s7/reporter from main; merge when the exit criteria hold. LLM calls only through src/gateway, under a new budget run s7 (add it to budget/runs.json, cap $5: benchmark plans on several repos); every run replays from committed cassettes.
+Read CLAUDE.md, docs/sessions/s7.md (all of it, especially item 10), docs/plan.md §2.3 (stretch rungs), §8 (cut order) and §9, docs/storyboard.md, README.md, and the replay site (`npm run build && node dist/cli/main.js site --out /tmp/site`). Mode: execution, high autonomy, branch s8/freeze from main; merge when the exit criteria hold. LLM calls only through src/gateway under a new budget run s8 (cap $3), and only if a planner fix needs the bench plans re-recorded; every run replays from committed cassettes.
 
-Build:
-1. src/report/, `ac report <run-dir> --out <dir>`: a static HTML bundle per run (plan §4 "Outputs"):
-   - the before/after module graph (type folders → modules), from the run's base and final trees;
-   - the ladder: every step with its certificate (expandable), the rung and whole-PR certificates, timings;
-   - the findings log (findings/findings.json), the table-access heatmap, the cost ledger;
-   - the A/B (G3 single-shot and persistent vs ac, from docs/gates.md and the S4 certificates).
-2. The replay site v1: a static site (GitHub Pages ready, no live calls) with the immich run, the A/B and the benchmark results, built by one command from committed run artifacts (decide what of ~/ac-work/s6/final gets committed, without the per-tree cache).
-3. The judges' build (plan §4 "Test build"): `npm ci && npx ac demo --replay` replays the pipeline on the pinned immich SHA from cassettes (plan, narration) with no key and no cost; live mode with the judge's own key. The full ladder takes ~2 h: decide the honest fast path (a recorded run plus re-certifying a sample of commits, or one rung) and say so in the README draft.
-4. The scramble tool and the benchmark runner (plan §7): `ac scramble` on our executor and certificate (dogfooding), the H1 opaque-name variant, and `ac bench <manifest>` with MoJoFM, ARI, c2c_cvg and the cluster-count ratio next to the B0, name-token, seeds and Louvain baselines; TurboMQ and back-edges for real targets. Runs on ≥3 repos (the G1 set: hoppscotch, kaneo, immich, plus a backup from the hunt), recorded.
-5. S6 carry-overs (docs/sessions/s6.md item 10): a recorded --inject-fault run for the storyboard's "seeded wrong move" beat; K8 runs cached per tree (head runs too); the critic prompt matching its gate at the next live critic recording; testRegex modelled; whether rung certificates that only errored should be resumable.
+In priority order (plan §8's cut order applies: stretch rungs go first if time runs short):
+1. Hermetic certificates: certify in a work dir that no parent node_modules can reach (TypeScript's @types walk, Node's resolution), so the default `npx ac demo --replay --env <checkout>` compares digests from inside the clone; then default the demo's work dir accordingly. Prove it: the recorded digests reproduce from a fresh clone's default layout.
+2. Planner robustness from the S7 bench, if it fits: a move naming a file by its id resolves (versioned so the immich cassette still replays byte-identically), and a 0-module plan can't win the ranking. Re-record the bench plans (s8), re-run `ac bench`, and report before and after honestly.
+3. Small carry-overs: K3b/K6 report fail (not error) when a runner found violations; the findings renderer separates "dropped by the guard" from "not returned" (regenerate the committed findings from the cassette, $0, and keep the demo byte-identical); scripts/target-env.sh picks the arch.
+4. Stretch, only with time left: S3 (whitespace-only re-wrap of touched import lines, certified by token-stream equality), then S1 (tests follow their subject). S2 is cut.
+5. Polish for the freeze: README final draft (clone URL and site URL placeholders stay until the repo is public), the storyboard updated with S7's measured beats (the fault run, the bench table, the graph framing), the site's copy reviewed end to end, CLAUDE.md status.
 
-Exit criteria: `ac report` on the S6 immich run and the replay site v1 building offline; the --replay build working from a clean clone with no key; benchmark results on ≥3 repos with baselines; docs/sessions/s7.md (10 lines) ending with the S8 opening prompt (stretch rungs S1–S3, polish, README draft before the Oct 20 freeze).
+Exit criteria: main frozen with a green suite and the mutation harness at 100%; `npx ac demo --replay` from a fresh clone exits 0 (with --env: digests reproduced); the site builds offline; docs/sessions/s8.md (10 lines) ending with the opening prompt for the recording session (final recorded runs, numbers frozen Oct 22, site deployed, repo public).
 Log weird-but-not-blocking observations with /log-anomaly.
 ```
