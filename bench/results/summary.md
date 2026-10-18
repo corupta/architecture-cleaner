@@ -2,8 +2,7 @@
 
 `ac bench` writes one JSON file per entry next to this summary (format `ac-bench/1`, src/bench/types.ts).
 
-- **Scramble** entries flatten a feature-modular package into type folders with our own executor, in a certified
-  commit. The original feature folders are the ground truth.
+- **Scramble** entries flatten a feature-modular package into type folders with our own executor, in one commit. Our certifier checks that commit as a pure move: hoppscotch, hoppscotch-H1 and ghostfolio pass; kaneo (K3c, K4) fails. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.
 - **Real** entries are type-sliced targets with no ground truth: TurboMQ and back-edges only.
 - MoJoFM runs 0 to 100 (ARCADE port). ARI runs from −0.5 to 1. c2c_cvg is the share of ground-truth modules recovered
   (c2c above 0.66). The cluster ratio is predicted clusters over ground-truth clusters.
@@ -16,10 +15,10 @@
 ## hoppscotch (scramble, default)
 
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
-- Scramble: commit `cb622dd6f23a`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; certificate PASS (static), digest `6dd17f2da96b`.
-- Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 3 files give their feature away (leaky renames and files left in a feature folder).
+- Scramble: commit `a38bd84671c2`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; certificate PASS (static), digest `110a9b0bf198`.
+- Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
 - Best deterministic method: seeds draft (export names), MoJoFM 81.38.
-- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.1375, this run spent $0); 29 groups; plan.yaml sha256 `5611214a28ec`.
+- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.1375, this run spent $0); 29 groups (22 modules), from the seeds draft (file names); plan.yaml sha256 `615def2cbbab`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
 |---|---|---|---|---|---|---|---|---|
@@ -37,14 +36,17 @@
 Louvain MoJoFM per seed (1 to 5): r=1: 29.66, 35.17, 35.86, 32.41, 29.66; r=2: 56.55, 51.72, 59.31, 57.93, 59.31; r=4: 75.86, 73.79, 74.48, 75.86, 73.10.
 
 - 1 feature file is pinned in the facts (no method can place it) and not scored.
+- The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 10 (no ground truth is read).
+- The planner's plan moves 7 of 186 files out of their draft group and merges 14 draft groups into others (43 draft groups, 29 plan groups). The winning edit, ultra#1, had 43 group entries and 7 moves; the validator found 2 problems with it (foreign-name 2) and dropped or repaired each before applying it. The critic made 9 suggestions and its gate kept 8.
+- Leakage, over the 186 movable files every method sees: 0 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 0 in a sub-folder that only files of their feature share). Sub-folders kept under the type folders: constants (1 file, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. 3 more leaky files are pinned or not read by the facts, so no method sees them: not counted.
 
 ## hoppscotch-H1 (scramble, H1)
 
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
-- Scramble: commit `d61af1c77de0`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; certificate PASS (static), digest `a93ef8132e86`.
-- Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 3 files give their feature away (leaky renames and files left in a feature folder).
+- Scramble: commit `bf37a0f63913`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; certificate PASS (static), digest `aaae99a7b3cc`.
+- Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
 - Best deterministic method: seeds draft (export names), MoJoFM 81.38.
-- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.1377, this run spent $0); 31 groups; plan.yaml sha256 `a38f96c02a77`.
+- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.1377, this run spent $0); 31 groups (21 modules), from the seeds draft (export names); plan.yaml sha256 `4beafa8dc3e8`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
 |---|---|---|---|---|---|---|---|---|
@@ -62,14 +64,17 @@ Louvain MoJoFM per seed (1 to 5): r=1: 29.66, 35.17, 35.86, 32.41, 29.66; r=2: 5
 Louvain MoJoFM per seed (1 to 5): r=1: 26.21, 34.48, 42.76, 33.10, 30.34; r=2: 55.86, 51.03, 54.48, 51.03, 53.10; r=4: 74.48, 76.55, 76.55, 80.00, 73.79.
 
 - 1 feature file is pinned in the facts (no method can place it) and not scored.
+- The planner starts from the seeds draft (export names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 85 (no ground truth is read).
+- The planner's plan moves 22 of 186 files out of their draft group and merges 17 draft groups into others (45 draft groups, 31 plan groups). The winning edit, ultra#3, had 45 group entries and 99 moves; the validator found 9 problems with it (banned-name 4, foreign-name 4, kind-conflict 1) and dropped or repaired each before applying it. The critic made 9 suggestions and its gate kept 7.
+- Leakage, over the 186 movable files every method sees: 0 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 0 in a sub-folder that only files of their feature share). Sub-folders kept under the type folders: constants (1 file, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. 3 more leaky files are pinned or not read by the facts, so no method sees them: not counted.
 
 ## kaneo (scramble, default)
 
 - Target: `~/ac-targets/kaneo` `apps/api/src` @ `b80818fe2e93`.
 - Scramble: commit `aad6fc97e3c7`, 400 files moved, 1 declined by the executor (they stay), 12 excluded; certificate FAIL (static), failing K3c, K4, digest `d68239231a54`.
-- Scored: 401 feature files in 47 modules (234 hard), of 454 movable files. 58 files give their feature away (leaky renames and files left in a feature folder).
+- Scored: 401 feature files in 47 modules (234 hard), of 454 movable files. 54 of the movable files give their feature away in their path (the leakage note below).
 - Best deterministic method: Louvain r=4 (mean of seeds 1-5), MoJoFM 66.90.
-- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.1683, this run spent $0); 68 groups; plan.yaml sha256 `670cef018843`.
+- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.1683, this run spent $0); 68 groups (58 modules), from the seeds draft (file names); plan.yaml sha256 `670cef018843`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
 |---|---|---|---|---|---|---|---|---|
@@ -86,13 +91,17 @@ Louvain MoJoFM per seed (1 to 5): r=1: 26.21, 34.48, 42.76, 33.10, 30.34; r=2: 5
 
 Louvain MoJoFM per seed (1 to 5): r=1: 27.15, 31.85, 27.68, 32.90, 27.68; r=2: 51.44, 50.13, 48.30, 52.22, 53.00; r=4: 63.97, 65.80, 68.15, 68.15, 68.41.
 
+- The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 125 against 29 (no ground truth is read).
+- The planner's plan moves 4 of 454 files out of their draft group and merges 46 draft groups into others (114 draft groups, 68 plan groups). The winning edit, ultra#2, had 114 group entries and 29 moves; the validator found 30 problems with it (unknown-file 29, banned-name 1) and dropped or repaired each before applying it. The critic made 39 suggestions and its gate kept 7.
+- Leakage, over the 454 movable files every method sees: 54 give their feature away in their path (1 still in a feature folder; 53 leaky renames; 0 in a sub-folder that only files of their feature share). 4 more leaky files are pinned or not read by the facts, so no method sees them: not counted.
+
 ## ghostfolio (scramble, default)
 
 - Target: `~/ac-targets/ghostfolio` `apps/api/src/app` @ `347cd06a4012`.
-- Scramble: commit `4e7776bf720a`, 156 files moved, 3 declined by the executor (they stay), 219 excluded; certificate PASS (static), digest `6713d93e7285`.
-- Scored: 153 feature files in 34 modules (54 hard), of 154 movable files. 28 files give their feature away (leaky renames and files left in a feature folder).
+- Scramble: commit `9e65a3a63971`, 156 files moved, 3 declined by the executor (they stay), 219 excluded; certificate PASS (static), digest `c2d4ef40f83d`.
+- Scored: 153 feature files in 34 modules (54 hard), of 154 movable files. 16 of the movable files give their feature away in their path (the leakage note below).
 - Best deterministic method: seeds draft (file names), MoJoFM 84.72.
-- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.0817, this run spent $0); 44 groups; plan.yaml sha256 `29e54d6d4627`.
+- Planner: replayed from `cassettes/s7-bench.jsonl` (recorded cost $0.0817, this run spent $0); 44 groups (0 modules), from the seeds draft (export names); plan.yaml sha256 `8186eff0a9df`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
 |---|---|---|---|---|---|---|---|---|
@@ -105,18 +114,22 @@ Louvain MoJoFM per seed (1 to 5): r=1: 27.15, 31.85, 27.68, 32.90, 27.68; r=2: 5
 | Louvain r=1 (mean of seeds 1-5) | 17.6 | 53.20 | 0.334 | 0.229 | 0.49 | 84.89 | 13.84 | 6.6 |
 | Louvain r=2 (mean of seeds 1-5) | 23 | 64.72 | 0.492 | 0.294 | 0.65 | 88.17 | 16.21 | 12 |
 | Louvain r=4 (mean of seeds 1-5) | 30.8 | 75.56 | 0.501 | 0.435 | 0.87 | 85.30 | 19.71 | 7.2 |
-| **planner (Ultra)** | **44** | **82.64** | **0.421** | **0.765** | **1.26** | **75.51** | **19.20** | **7** |
+| **planner (Ultra) (its draft's partition; 0 modules)** | **44** | **82.64** | **0.421** | **0.765** | **1.26** | **75.51** | **19.20** | **7** |
 
 Louvain MoJoFM per seed (1 to 5): r=1: 54.86, 52.78, 52.78, 52.78, 52.78; r=2: 65.28, 64.58, 64.58, 63.89, 65.28; r=4: 73.61, 76.39, 76.39, 75.00, 76.39.
 
 - 6 feature files are pinned in the facts (no method can place them) and not scored.
+- The planner starts from the seeds draft (export names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 4 against 5 (no ground truth is read).
+- The planner's plan keeps the partition of its draft, the seeds draft (export names): every file stays in its draft group, so the planner row scores the draft. The winning edit, ultra#1, had 44 group entries and 154 moves; the validator found 155 problems with it (unknown-file 154, banned-name 1) and dropped or repaired each before applying it. The critic made 2 suggestions and its gate kept none.
+- The plan has no feature modules: all 44 groups are platform or shared.
+- Leakage, over the 154 movable files every method sees: 16 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 16 in a sub-folder that only files of their feature share). Sub-folders kept under the type folders: calculator (6 files, 1 feature), errors (2 files, 2 features), ghostfolio (7 files, 1 feature), queue (3 files, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. 28 more leaky files are pinned or not read by the facts, so no method sees them: not counted.
 
 ## immich (real)
 
 - Target: `~/ac-targets/immich` `server/src` @ `02063972e82b`.
 - 269 movable files; no ground truth.
 - Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.
-- Planner: replayed from `cassettes/s6-immich.jsonl` (recorded cost $0.1998, this run spent $0); 59 groups; plan.yaml sha256 `b4c7c548883c`.
+- Planner: replayed from `cassettes/s6-immich.jsonl` (recorded cost $0.1998, this run spent $0); 59 groups (38 modules), from the seeds draft (file names); plan.yaml sha256 `b4c7c548883c`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
 |---|---|---|---|---|---|---|---|---|
@@ -130,3 +143,6 @@ Louvain MoJoFM per seed (1 to 5): r=1: 54.86, 52.78, 52.78, 52.78, 52.78; r=2: 6
 | Louvain r=2 (mean of seeds 1-5) | 25.6 | – | – | – | – | – | 7.09 | 136.8 |
 | **Louvain r=4 (mean of seeds 1-5)** | **47.6** | – | – | – | – | – | **10.50** | **166** |
 | **planner (Ultra)** | **59** | – | – | – | – | – | **10.07** | **118** |
+
+- The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 31 against 29 (no ground truth is read).
+- The planner's plan moves 9 of 269 files out of their draft group and merges 23 draft groups into others (81 draft groups, 59 plan groups). The winning edit, ultra#3, had 81 group entries and 29 moves; the validator found 4 problems with it (foreign-name 3, kind-conflict 1) and dropped or repaired each before applying it. The critic made 12 suggestions and its gate kept 6.

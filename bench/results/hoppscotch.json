@@ -11,9 +11,22 @@
  "featureFiles": 156,
  "groundTruthModules": 25,
  "hardFiles": 46,
- "leakyFiles": 3,
+ "leakyFiles": 0,
+ "leakage": {
+  "renamed": 0,
+  "inFeatureFolder": 0,
+  "underSubFolder": 0,
+  "subFolders": [
+   {
+    "folder": "constants",
+    "files": 1,
+    "features": 1
+   }
+  ],
+  "unseen": 3
+ },
  "scramble": {
-  "commit": "cb622dd6f23a4f9666e673ea820cdf802e95b38d",
+  "commit": "a38bd84671c2e18defba297eb98464300b3d2559",
   "tree": "a005c3c9036b6e3da0bc753d37ab7b1c939c68b0",
   "moved": 156,
   "declined": 1,
@@ -21,7 +34,7 @@
   "certificate": {
    "verdict": "pass",
    "scope": "static",
-   "digest": "sha256:6dd17f2da96b09b6650f6d09a04ceeff54ac4d2c803b4ee7befc10235be80314",
+   "digest": "sha256:110a9b0bf19849b8b8184932bbc7791bba85f7ecef44fe57a033593e02dce260",
    "failing": []
   }
  },
@@ -191,7 +204,26 @@
   "spentUsd": 0,
   "replayed": true,
   "groups": 29,
-  "planSha256": "5611214a28ec5ad8c7a79f8247dc765c0f9b1dbbb94db799f086a702c562183f"
+  "modules": 22,
+  "change": {
+   "draftGroups": 43,
+   "samePartition": false,
+   "filesMoved": 7,
+   "groupsMerged": 14,
+   "winner": {
+    "label": "ultra#1",
+    "groupEntries": 43,
+    "moves": 7,
+    "issues": {
+     "foreign-name": 2
+    }
+   },
+   "critic": {
+    "suggestions": 9,
+    "kept": 8
+   }
+  },
+  "planSha256": "615def2cbbab977eea977bc2d6182596b24dc35948ae4218c837f1033c3dc994"
  },
  "louvainMojoFmByResolution": {
   "1": [
@@ -216,7 +248,18 @@
    73.1
   ]
  },
+ "draft": {
+  "method": "seeds draft (file names)",
+  "source": "file names",
+  "contested": {
+   "fileNames": 10,
+   "exportNames": 12
+  }
+ },
  "notes": [
-  "1 feature file is pinned in the facts (no method can place it) and not scored."
+  "1 feature file is pinned in the facts (no method can place it) and not scored.",
+  "The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 10 (no ground truth is read).",
+  "The planner's plan moves 7 of 186 files out of their draft group and merges 14 draft groups into others (43 draft groups, 29 plan groups). The winning edit, ultra#1, had 43 group entries and 7 moves; the validator found 2 problems with it (foreign-name 2) and dropped or repaired each before applying it. The critic made 9 suggestions and its gate kept 8.",
+  "Leakage, over the 186 movable files every method sees: 0 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 0 in a sub-folder that only files of their feature share). Sub-folders kept under the type folders: constants (1 file, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. 3 more leaky files are pinned or not read by the facts, so no method sees them: not counted."
  ]
 }

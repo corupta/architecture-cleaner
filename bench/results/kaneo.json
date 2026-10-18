@@ -11,7 +11,14 @@
  "featureFiles": 401,
  "groundTruthModules": 47,
  "hardFiles": 234,
- "leakyFiles": 58,
+ "leakyFiles": 54,
+ "leakage": {
+  "renamed": 53,
+  "inFeatureFolder": 1,
+  "underSubFolder": 0,
+  "subFolders": [],
+  "unseen": 4
+ },
  "scramble": {
   "commit": "aad6fc97e3c73ecd2cf9c6084c01456e5cc01568",
   "tree": "2c0d5a4c6bc43b69b238ffa1651e22b0a1d409d8",
@@ -194,6 +201,26 @@
   "spentUsd": 0,
   "replayed": true,
   "groups": 68,
+  "modules": 58,
+  "change": {
+   "draftGroups": 114,
+   "samePartition": false,
+   "filesMoved": 4,
+   "groupsMerged": 46,
+   "winner": {
+    "label": "ultra#2",
+    "groupEntries": 114,
+    "moves": 29,
+    "issues": {
+     "banned-name": 1,
+     "unknown-file": 29
+    }
+   },
+   "critic": {
+    "suggestions": 39,
+    "kept": 7
+   }
+  },
   "planSha256": "670cef01884321d5b119036ecb0e41a1943475c7b8c1cace8bc09e95bb7d2e50"
  },
  "louvainMojoFmByResolution": {
@@ -219,5 +246,17 @@
    68.41
   ]
  },
- "notes": []
+ "draft": {
+  "method": "seeds draft (file names)",
+  "source": "file names",
+  "contested": {
+   "fileNames": 29,
+   "exportNames": 125
+  }
+ },
+ "notes": [
+  "The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 125 against 29 (no ground truth is read).",
+  "The planner's plan moves 4 of 454 files out of their draft group and merges 46 draft groups into others (114 draft groups, 68 plan groups). The winning edit, ultra#2, had 114 group entries and 29 moves; the validator found 30 problems with it (unknown-file 29, banned-name 1) and dropped or repaired each before applying it. The critic made 39 suggestions and its gate kept 7.",
+  "Leakage, over the 454 movable files every method sees: 54 give their feature away in their path (1 still in a feature folder; 53 leaky renames; 0 in a sub-folder that only files of their feature share). 4 more leaky files are pinned or not read by the facts, so no method sees them: not counted."
+ ]
 }

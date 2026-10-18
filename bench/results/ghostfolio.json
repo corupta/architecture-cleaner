@@ -11,9 +11,37 @@
  "featureFiles": 153,
  "groundTruthModules": 34,
  "hardFiles": 54,
- "leakyFiles": 28,
+ "leakyFiles": 16,
+ "leakage": {
+  "renamed": 0,
+  "inFeatureFolder": 0,
+  "underSubFolder": 16,
+  "subFolders": [
+   {
+    "folder": "calculator",
+    "files": 6,
+    "features": 1
+   },
+   {
+    "folder": "errors",
+    "files": 2,
+    "features": 2
+   },
+   {
+    "folder": "ghostfolio",
+    "files": 7,
+    "features": 1
+   },
+   {
+    "folder": "queue",
+    "files": 3,
+    "features": 1
+   }
+  ],
+  "unseen": 28
+ },
  "scramble": {
-  "commit": "4e7776bf720af95468911cc7ba0e254c789d42a3",
+  "commit": "9e65a3a63971b29f57cb1913a725c241d96db314",
   "tree": "7d3ee23e75f109d2405de19ddf92210f10ae9694",
   "moved": 156,
   "declined": 3,
@@ -21,7 +49,7 @@
   "certificate": {
    "verdict": "pass",
    "scope": "static",
-   "digest": "sha256:6713d93e728529dce91a55dc27e6e8e7b10d3c4318ede8e63f044985eb6e834f",
+   "digest": "sha256:c2d4ef40f83d24cef992132537144ceb9e89a991bb6090296c73a0ba07bcfe0c",
    "failing": []
   }
  },
@@ -177,7 +205,8 @@
     "sum": 19.203,
     "mean": 0.4364
    },
-   "backEdges": 7
+   "backEdges": 7,
+   "note": "its draft's partition; 0 modules"
   }
  ],
  "bestBaseline": {
@@ -191,7 +220,27 @@
   "spentUsd": 0,
   "replayed": true,
   "groups": 44,
-  "planSha256": "29e54d6d462728c1d56ed3b3333859ac70fb10082b38be12481c445f8546dd47"
+  "modules": 0,
+  "change": {
+   "draftGroups": 44,
+   "samePartition": true,
+   "filesMoved": 0,
+   "groupsMerged": 0,
+   "winner": {
+    "label": "ultra#1",
+    "groupEntries": 44,
+    "moves": 154,
+    "issues": {
+     "banned-name": 1,
+     "unknown-file": 154
+    }
+   },
+   "critic": {
+    "suggestions": 2,
+    "kept": 0
+   }
+  },
+  "planSha256": "8186eff0a9dffaac7a95104cffe3efa1676c5e69c2db0eff2988214128501551"
  },
  "louvainMojoFmByResolution": {
   "1": [
@@ -216,7 +265,19 @@
    76.39
   ]
  },
+ "draft": {
+  "method": "seeds draft (export names)",
+  "source": "export names",
+  "contested": {
+   "fileNames": 5,
+   "exportNames": 4
+  }
+ },
  "notes": [
-  "6 feature files are pinned in the facts (no method can place them) and not scored."
+  "6 feature files are pinned in the facts (no method can place them) and not scored.",
+  "The planner starts from the seeds draft (export names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 4 against 5 (no ground truth is read).",
+  "The planner's plan keeps the partition of its draft, the seeds draft (export names): every file stays in its draft group, so the planner row scores the draft. The winning edit, ultra#1, had 44 group entries and 154 moves; the validator found 155 problems with it (unknown-file 154, banned-name 1) and dropped or repaired each before applying it. The critic made 2 suggestions and its gate kept none.",
+  "The plan has no feature modules: all 44 groups are platform or shared.",
+  "Leakage, over the 154 movable files every method sees: 16 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 16 in a sub-folder that only files of their feature share). Sub-folders kept under the type folders: calculator (6 files, 1 feature), errors (2 files, 2 features), ghostfolio (7 files, 1 feature), queue (3 files, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. 28 more leaky files are pinned or not read by the facts, so no method sees them: not counted."
  ]
 }

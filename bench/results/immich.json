@@ -12,6 +12,7 @@
  "groundTruthModules": null,
  "hardFiles": null,
  "leakyFiles": null,
+ "leakage": null,
  "scramble": null,
  "methods": [
   {
@@ -179,8 +180,39 @@
   "spentUsd": 0,
   "replayed": true,
   "groups": 59,
+  "modules": 38,
+  "change": {
+   "draftGroups": 81,
+   "samePartition": false,
+   "filesMoved": 9,
+   "groupsMerged": 23,
+   "winner": {
+    "label": "ultra#3",
+    "groupEntries": 81,
+    "moves": 29,
+    "issues": {
+     "foreign-name": 3,
+     "kind-conflict": 1
+    }
+   },
+   "critic": {
+    "suggestions": 12,
+    "kept": 6
+   }
+  },
   "planSha256": "b4c7c548883c0635951f893c7717727f3d086a0c4e23b2db442e796dd416cc7f"
  },
  "louvainMojoFmByResolution": null,
- "notes": []
+ "draft": {
+  "method": "seeds draft (file names)",
+  "source": "file names",
+  "contested": {
+   "fileNames": 29,
+   "exportNames": 31
+  }
+ },
+ "notes": [
+  "The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 31 against 29 (no ground truth is read).",
+  "The planner's plan moves 9 of 269 files out of their draft group and merges 23 draft groups into others (81 draft groups, 59 plan groups). The winning edit, ultra#3, had 81 group entries and 29 moves; the validator found 4 problems with it (foreign-name 3, kind-conflict 1) and dropped or repaired each before applying it. The critic made 12 suggestions and its gate kept 6."
+ ]
 }
