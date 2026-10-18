@@ -59,6 +59,7 @@ export async function benchCommand(argv: string[]): Promise<number> {
       out,
       work: values.work ?? null,
       keep: values.keep,
+      mode,
       log,
     });
   } catch (error) {

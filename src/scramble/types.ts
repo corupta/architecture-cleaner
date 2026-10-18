@@ -1,5 +1,6 @@
 // Vocabulary of `ac scramble` (plan §7): flatten a feature-modular package into type folders with our own executor,
-// certify the move, and keep the original feature folder of every file as the benchmark's ground truth.
+// check the move with our certifier (its verdict recorded, FAIL included), and keep the original feature folder of
+// every file as the benchmark's ground truth.
 import type { Profile } from '../certificate/profile.js';
 import type { CheckId } from '../certificate/types.js';
 
@@ -34,7 +35,7 @@ export interface ScrambleEntity {
   /** Technical type (`service`, `controller`, …) and where it was read from. */
   type: string;
   typeVia: 'suffix' | 'folder' | 'ast';
-  /** The scrambled name gives the feature away (a collision renamed with a module-token prefix). */
+  /** The scrambled name gives the feature away: a collision renamed with a module-token prefix, or counted (`-2`). */
   leaky: boolean;
 }
 

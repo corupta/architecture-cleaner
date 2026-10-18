@@ -1,7 +1,8 @@
-// `ac scramble` (plan §7): flatten a feature-modular package into type folders as one real, certified move. The layout
-// is planned from the base commit, applied with our executor (a file it declines stays where it is, never forced),
-// committed reproducibly (fixed identity, the base commit's date) and certified with our certifier: the scramble is
-// itself a certified pure move. The original feature folder of every scored file is the benchmark's ground truth.
+// `ac scramble` (plan §7): flatten a feature-modular package into type folders as one real move. The layout is planned
+// from the base commit, applied with our executor (a file it declines stays where it is, never forced), committed
+// reproducibly (fixed identity, the base commit's date) and checked by our certifier as a pure move: its verdict is
+// recorded as it comes back, FAIL included (the bench scores the scramble either way). The original feature folder of
+// every scored file is the benchmark's ground truth.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -136,12 +137,21 @@ function inferenceDisagreement(repo: string, base: string, moves: ReadonlyMap<st
   return differing.length ? new Map(differing.map(([from]) => [from, inferred.map(from)])) : null;
 }
 
-/** The layout with some destinations replaced (repo-relative), for scored files and their tests. */
-function reassign(layout: ScrambleLayout, packagePrefix: string, destinations: ReadonlyMap<string, string>): ScrambleLayout {
+/**
+ * The layout with some destinations replaced (repo-relative), for scored files and their tests. The leaky flag belongs
+ * to a planned name (a feature prefix, a counter), so a file paired with another file's destination takes that
+ * destination's flag; a test's destination carries its subject's.
+ */
+export function reassign(layout: ScrambleLayout, packagePrefix: string, destinations: ReadonlyMap<string, string>): ScrambleLayout {
   const destinationOf = (file: string, planned: string) => destinations.get(packagePrefix + file)?.slice(packagePrefix.length) ?? planned;
+  const leakyAt = new Map(layout.entities.map((entity) => [entity.scrambled, entity.leaky]));
+  for (const entity of layout.entities) for (const planned of layout.tests.get(entity.original)?.values() ?? []) leakyAt.set(planned, entity.leaky);
   return {
     ...layout,
-    entities: layout.entities.map((entity) => ({ ...entity, scrambled: destinationOf(entity.original, entity.scrambled) })),
+    entities: layout.entities.map((entity) => {
+      const scrambled = destinationOf(entity.original, entity.scrambled);
+      return { ...entity, scrambled, leaky: leakyAt.get(scrambled) ?? entity.leaky };
+    }),
     tests: new Map([...layout.tests].map(([subject, tests]) => [subject, new Map([...tests].map(([test, planned]) => [test, destinationOf(test, planned)]))])),
   };
 }

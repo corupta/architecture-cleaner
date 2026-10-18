@@ -235,7 +235,11 @@ export type SeedSource = 'file names' | 'export names';
 /**
  * The planner's draft, chosen without ground truth as G1 chose it: from the file names, unless the primary exports
  * leave fewer files contested. Opaque file names (the H1 scramble) leave almost every file contested, so the exports
- * decide there; where names are informative (immich, hoppscotch, kaneo) the file names stay.
+ * decide there. immich, hoppscotch and kaneo keep their file names. Informative names don't always win: ghostfolio's
+ * names are informative too, but its exports leave 4 files contested against 5, so its draft comes from the exports,
+ * which score lower against its ground truth (seeds draft MoJoFM 82.64, against 84.72 from the file names). S5's port
+ * had lost this rule and the S7 bench's H1 entry exposed it; the S7 session report has the planner's scores before and
+ * after its return, ghostfolio's drop included.
  */
 export function plannerDraft(facts: Facts): { draft: Draft; source: SeedSource } {
   const byName = seedDraft(facts);

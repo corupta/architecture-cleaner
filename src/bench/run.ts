@@ -11,7 +11,7 @@ import { gitRepoFs } from '../analyzer/repo-fs.js';
 import { addWorktree, removeWorktrees } from '../certificate/certify.js';
 import { loadProfile, type Profile } from '../certificate/profile.js';
 import { packageDirectory } from '../certificate/toolchain.js';
-import { GatewayError, type Gateway } from '../gateway/types.js';
+import { GatewayError, type CassetteMode, type Gateway } from '../gateway/types.js';
 import { branchExists, git, resolveRevision } from '../orchestrator/git.js';
 import { buildFacts } from '../planner/facts.js';
 import type { Facts, FileFact } from '../planner/types.js';
@@ -19,11 +19,11 @@ import { readScrambleManifest, scrambleRepo } from '../scramble/index.js';
 import { readInventory } from '../scramble/inventory.js';
 import { layoutScramble } from '../scramble/layout.js';
 import type { ScrambleManifest, ScrambleOptions, ScrambleResult } from '../scramble/types.js';
-import { baselinePartitions, louvainPartitions, nameTokenAnchored, underNames, type Assignment } from './baselines.js';
-import { planPartition } from './planner.js';
+import { baselinePartitions, benchDraft, louvainPartitions, nameTokenAnchored, underNames, type Assignment } from './baselines.js';
+import { planPartition, type PlannerPartition } from './planner.js';
 import { graphScores, truthScores, truthTokens, type GroundTruth } from './score.js';
 import { benchSummary } from './summary.js';
-import type { BenchEntry, BenchManifest, BenchResult, MethodScore } from './types.js';
+import type { BenchDraft, BenchEntry, BenchLeakage, BenchManifest, BenchResult, MethodScore } from './types.js';
 
 export interface BenchOptions {
   /** Entry names to run; null runs every entry. */
@@ -38,6 +38,8 @@ export interface BenchOptions {
   work: string | null;
   /** Keep the worktrees (default: removed after each entry; the scramble branches stay). */
   keep: boolean;
+  /** The gateway's cassette mode: a profile's pinned critic prompt applies to replays only. */
+  mode: CassetteMode;
   log(message: string): void;
 }
 
@@ -57,6 +59,7 @@ const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const round = (value: number, digits: number) => Number(value.toFixed(digits));
 const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 const expandHome = (file: string) => (file === '~' || file.startsWith('~/') ? path.join(os.homedir(), file.slice(1)) : file);
+const counted = (count: number, singular: string, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`;
 
 /** Scramble manifests and cassettes are named relative to this package (`~/` is the home directory, as in target checkouts). */
 export const packagePath = (file: string) => path.resolve(packageDirectory(), expandHome(file));
@@ -107,6 +110,83 @@ export function groundTruthOf(scramble: ScrambleResult, facts: Facts, defaultPat
     hardFiles: featureFiles.filter((file) => anchored.get(file) !== truthTokens(truth.get(file)!)),
     pinnedFeatureFiles: features.length - scored.length,
   };
+}
+
+/**
+ * What the scrambled paths give away, over the files every method sees: the facts' movable files (the planner's prompt
+ * lists them by path). A leaky file that the facts pin or don't read (a test without a subject, an asset, a declined
+ * file with a pinned hazard) reaches no method and is counted apart, as unseen. `files`: the leaky files at their
+ * scrambled paths, sorted.
+ */
+export function leakageOf(scramble: ScrambleResult, facts: Facts): { leakage: BenchLeakage; files: string[] } {
+  const visible = new Set(facts.files.map((file) => file.path));
+  const leakyRenames = scramble.entities.filter((entity) => entity.leaky);
+  const renamed = leakyRenames.filter((entity) => visible.has(entity.scrambled)).map((entity) => entity.scrambled);
+  const inFeatureFolder = scramble.leakage.filter((file) => visible.has(file.path)).map((file) => file.path);
+  const modulePrefix = scramble.manifest.moduleRoot ? `${scramble.manifest.moduleRoot}/` : '';
+  const subFolders = new Map<string, { files: string[]; features: Set<string> }>();
+  for (const entity of scramble.entities) {
+    if (entity.truthKind !== 'feature' || entity.scrambled === entity.original || !visible.has(entity.scrambled)) continue;
+    // `<type folder>/<sub-folders of its feature…>/<name>` under the module root.
+    const segments = entity.scrambled.slice(modulePrefix.length).split('/');
+    if (segments.length < 3) continue;
+    const folder = subFolders.get(segments[1]!) ?? { files: [], features: new Set<string>() };
+    folder.files.push(entity.scrambled);
+    folder.features.add(entity.truth);
+    subFolders.set(segments[1]!, folder);
+  }
+  const underSubFolder = [...subFolders.values()].filter((folder) => folder.files.length > 1 && folder.features.size === 1).flatMap((folder) => folder.files);
+  const unseenRenames = leakyRenames.length - renamed.length;
+  return {
+    leakage: {
+      renamed: renamed.length,
+      inFeatureFolder: inFeatureFolder.length,
+      underSubFolder: underSubFolder.length,
+      subFolders: [...subFolders].sort(([a], [b]) => byCodeUnit(a, b)).map(([folder, { files, features }]) => ({ folder, files: files.length, features: features.size })),
+      unseen: scramble.leakage.length - inFeatureFolder.length + unseenRenames,
+    },
+    files: [...new Set([...renamed, ...inFeatureFolder, ...underSubFolder])].sort(byCodeUnit),
+  };
+}
+
+/** The leakage in plain words, for the notes (summary.md and the site render them). */
+export function leakageNote(leakage: BenchLeakage, leakyFiles: number, files: number): string {
+  const kinds = [`${leakage.inFeatureFolder} still in a feature folder`, counted(leakage.renamed, 'leaky rename'), `${leakage.underSubFolder} in a sub-folder that only files of their feature share`];
+  const overlap = leakage.inFeatureFolder + leakage.renamed + leakage.underSubFolder - leakyFiles;
+  const folders = leakage.subFolders.map((folder) => `${folder.folder} (${counted(folder.files, 'file')}, ${counted(folder.features, 'feature')})`);
+  return [
+    `Leakage, over the ${counted(files, 'movable file')} every method sees: ${leakyFiles} give their feature away in their path (${kinds.join('; ')}${overlap ? `; ${overlap} counted under two kinds` : ''}).`,
+    ...(folders.length ? [`Sub-folders kept under the type folders: ${folders.join(', ')}; the planner's prompt shows them, and no deterministic method groups by them.`] : []),
+    ...(leakage.unseen ? [`${counted(leakage.unseen, 'more leaky file')} ${leakage.unseen === 1 ? 'is' : 'are'} pinned or not read by the facts, so no method sees ${leakage.unseen === 1 ? 'it' : 'them'}: not counted.`] : []),
+  ].join(' ');
+}
+
+/** The planner's draft, and how far the plan moved from it, in plain words; the planner row's short note. */
+export function plannerNotes(planned: Pick<PlannerPartition, 'groups' | 'modules' | 'change' | 'errors'>, draft: BenchDraft, files: number): { notes: string[]; rowNote: string | null } {
+  const { change } = planned;
+  const { winner, critic } = change;
+  const issues = winner ? Object.entries(winner.issues).sort(([a, countA], [b, countB]) => countB - countA || byCodeUnit(a, b)) : [];
+  const issueCount = issues.reduce((sum, [, count]) => sum + count, 0);
+  const sentences = [
+    change.samePartition
+      ? `The planner's plan keeps the partition of its draft, the ${draft.method}: every file stays in its draft group, so the planner row scores the draft.`
+      : `The planner's plan moves ${change.filesMoved} of ${files} files out of their draft group and merges ${counted(change.groupsMerged, 'draft group')} into others (${change.draftGroups} draft groups, ${planned.groups} plan groups).`,
+    winner
+      ? `The winning edit, ${winner.label}, had ${counted(winner.groupEntries, 'group entry', 'group entries')} and ${counted(winner.moves, 'move')}; ${issueCount ? `the validator found ${counted(issueCount, 'problem')} with it (${issues.map(([code, count]) => `${code} ${count}`).join(', ')}) and dropped or repaired each before applying it.` : 'the validator found no problem with it.'}`
+      : 'No edit came back, so the draft is the plan.',
+    ...(critic ? [critic.suggestions ? `The critic made ${counted(critic.suggestions, 'suggestion')} and its gate kept ${critic.kept || 'none'}.` : 'The critic made no suggestion.'] : []),
+  ];
+  const notes = [
+    `The planner starts from the ${draft.method}: plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave ${draft.contested.exportNames} against ${draft.contested.fileNames} (no ground truth is read).`,
+    sentences.join(' '),
+    ...(planned.modules ? [] : [`The plan has no feature modules: all ${counted(planned.groups, 'group')} are platform or shared.`]),
+  ];
+  const rowNote = [
+    ...(planned.errors.length ? [`invalid plan: ${counted(planned.errors.length, 'validator error')}`] : []),
+    ...(change.samePartition ? ["its draft's partition"] : []),
+    ...(planned.modules ? [] : ['0 modules']),
+  ].join('; ');
+  return { notes, rowNote: rowNote || null };
 }
 
 function methodScore(method: string, kind: MethodScore['kind'], assignment: Assignment, facts: Facts, groundTruth: GroundTruth | null): MethodScore {
@@ -220,6 +300,7 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       notes.push(`${count} feature ${count === 1 ? 'file is' : 'files are'} pinned in the facts (no method can place ${count === 1 ? 'it' : 'them'}) and not scored.`);
     }
 
+    const draft = benchDraft(facts);
     const methods: MethodScore[] = baselinePartitions(facts).map((partition) => methodScore(partition.method, partition.kind, partition.assignment, facts, groundTruth));
     const louvainMojoFm: Record<string, number[]> = {};
     for (const [resolution, partitions] of louvainPartitions(facts)) {
@@ -236,11 +317,16 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       const gateway = options.gateway(entry);
       const spentBefore = gateway.spent().run;
       try {
-        const planned = await planPartition(repoFs, gateway, profile ?? { name: entry.name, packageRoot: target.packageRoot, node: 'system' }, roots);
+        const planned = await planPartition(repoFs, gateway, profile ?? { name: entry.name, packageRoot: target.packageRoot, node: 'system' }, roots, options.mode);
         const spentUsd = round(gateway.spent().run - spentBefore, 6);
-        methods.push({ ...methodScore(planned.method, 'planner', planned.assignment, facts, groundTruth), ...(planned.errors.length ? { note: `invalid plan: ${planned.errors.length} validator errors` } : {}) });
-        planner = { cassette: entry.cassette, recordedCostUsd: round(planned.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, groups: planned.groups, planSha256: planned.planSha256 };
+        const described = plannerNotes(planned, draft, facts.files.length);
+        methods.push({ ...methodScore(planned.method, 'planner', planned.assignment, facts, groundTruth), ...(described.rowNote ? { note: described.rowNote } : {}) });
+        planner = {
+          cassette: entry.cassette, recordedCostUsd: round(planned.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, groups: planned.groups,
+          modules: planned.modules, change: planned.change, planSha256: planned.planSha256,
+        };
         if (planned.errors.length) notes.push(`The validator rejects the planner's plan (${planned.errors.slice(0, 3).join('; ')}); it is scored as it came back.`);
+        notes.push(...described.notes);
         log(`planner: ${planned.groups} groups, plan.yaml sha256 ${planned.planSha256.slice(0, 12)}, ${planner.replayed ? 'replayed' : `spent $${spentUsd.toFixed(4)}`}`);
       } catch (error) {
         if (!(error instanceof GatewayError && error.code === 'replay-miss')) throw error;
@@ -249,7 +335,8 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       }
     }
 
-    const leaky = scramble ? new Set([...scramble.entities.filter((entity) => entity.leaky).map((entity) => entity.original), ...scramble.leakage.map((file) => file.path)]) : null;
+    const leaky = scramble ? leakageOf(scramble, facts) : null;
+    if (leaky) notes.push(leakageNote(leaky.leakage, leaky.files.length, facts.files.length));
     return {
       format: 'ac-bench/1',
       entry: entry.name,
@@ -263,7 +350,8 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       featureFiles: groundTruth?.featureFiles.length ?? null,
       groundTruthModules: groundTruth ? new Set(groundTruth.truth.values()).size : null,
       hardFiles: groundTruth?.hardFiles.length ?? null,
-      leakyFiles: leaky?.size ?? null,
+      leakyFiles: leaky?.files.length ?? null,
+      leakage: leaky?.leakage ?? null,
       scramble: scramble && {
         commit: scramble.commit,
         tree: scramble.tree,
@@ -276,6 +364,7 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       bestBaseline: bestDeterministic(methods, Boolean(scramble)),
       planner,
       louvainMojoFmByResolution: scramble ? louvainMojoFm : null,
+      draft,
       notes,
     };
   } finally {

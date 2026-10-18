@@ -47,6 +47,54 @@ export interface MethodScore {
   note?: string;
 }
 
+/** The seeds draft the planner starts from: plannerDraft's choice, which compares contested counts and reads no ground truth. */
+export interface BenchDraft {
+  /** The method row it is (kind `draft`). */
+  method: string;
+  source: 'file names' | 'export names';
+  /** Files each seed source leaves contested: the exports win when they leave fewer. */
+  contested: { fileNames: number; exportNames: number };
+}
+
+/**
+ * What the scrambled paths give away, over the movable files in the facts: those are the files every method sees, and
+ * the planner's prompt lists them by their module-root-relative paths. `leakyFiles` is the union of the three kinds.
+ */
+export interface BenchLeakage {
+  /** Leaky renames: named after their feature by a collision (a feature prefix or a counter). */
+  renamed: number;
+  /** Still in a feature folder (declined by the executor, …): the folder names the feature. */
+  inFeatureFolder: number;
+  /**
+   * Moved feature files in a sub-folder their feature kept under the type folder (`services/calculator/twr/`), when that
+   * sub-folder (by its name, across type folders) holds two or more files and all of one feature: a path groups them.
+   * The planner's prompt shows these paths; the deterministic methods group by file names, exports or imports, never
+   * by a sub-folder. `subFolders` lists every kept sub-folder name, counted or not: its files and their features.
+   */
+  underSubFolder: number;
+  subFolders: { folder: string; files: number; features: number }[];
+  /** Leaky files no method sees (pinned or not read by the facts: tests, assets, declined files the facts pin): not in leakyFiles. */
+  unseen: number;
+}
+
+/** The planner's final plan against the draft it started from: partitions compared, so renaming a group moves no file. */
+export interface BenchPlannerChange {
+  draftGroups: number;
+  /** Every plan group is exactly one draft group: the row scores the draft. */
+  samePartition: boolean;
+  /** Files outside the plan group that holds most of their draft group. */
+  filesMoved: number;
+  /** Draft groups whose files mostly went to the same plan group as another draft group's: draft groups minus their distinct images. */
+  groupsMerged: number;
+  /**
+   * The winning candidate's edit and the validator's issues with it by code (each issue is an entry or move it dropped,
+   * or one it repaired, before applying the edit); null when the draft itself won.
+   */
+  winner: { label: string; groupEntries: number; moves: number; issues: Record<string, number> } | null;
+  /** The critic's suggestions and how many its gate kept; null when the critic didn't run. */
+  critic: { suggestions: number; kept: number } | null;
+}
+
 /** bench/results/<entry>.json */
 export interface BenchResult {
   format: 'ac-bench/1';
@@ -62,7 +110,13 @@ export interface BenchResult {
   featureFiles: number | null;
   groundTruthModules: number | null;
   hardFiles: number | null;
+  /**
+   * Movable files whose scrambled path gives their feature away (the union in `leakage`). Results written before the
+   * S7 fix round counted every leaky rename and every file left in a feature folder instead, files no method sees included.
+   */
   leakyFiles: number | null;
+  /** The split behind leakyFiles (scrambles; absent in results written before the S7 fix round). */
+  leakage?: BenchLeakage | null;
   scramble: {
     commit: string;
     tree: string;
@@ -81,10 +135,18 @@ export interface BenchResult {
     spentUsd: number;
     replayed: boolean;
     groups: number;
+    /** Feature modules among the groups (0: every group is platform or shared). Absent before the S7 fix round, like `change`. */
+    modules?: number;
+    change?: BenchPlannerChange;
     planSha256: string;
   } | null;
+  /** The seeds draft the planner starts from (absent in results written before the S7 fix round). */
+  draft?: BenchDraft;
   /** Louvain MoJoFM per resolution, one value per seed. */
   louvainMojoFmByResolution: Record<string, number[]> | null;
-  /** Plain-words remarks: the planner not run or not recorded, an invalid plan, feature files the facts pin. */
+  /**
+   * Plain-words remarks: the planner not run or not recorded, an invalid plan, its draft and how far the plan moved
+   * from it, feature files the facts pin, the leakage.
+   */
   notes?: string[];
 }

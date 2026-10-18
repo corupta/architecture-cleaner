@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { benchCommand } from '../../src/bench/command.js';
-import { groundTruthOf, readBenchManifest, runBench, type BenchOptions } from '../../src/bench/run.js';
+import { groundTruthOf, leakageNote, leakageOf, plannerNotes, readBenchManifest, runBench, type BenchOptions } from '../../src/bench/run.js';
 import type { BenchManifest, BenchResult } from '../../src/bench/types.js';
 import { GatewayError, type Gateway, type StructuredRequest, type StructuredResult } from '../../src/gateway/types.js';
 import type { Facts } from '../../src/planner/types.js';
@@ -80,7 +80,7 @@ async function fakeScramble(options: ScrambleOptions): Promise<ScrambleResult> {
   return {
     format: 'ac-scramble/1', manifest: options.manifest, variant: options.variant, repo: options.repo, base, baseTree: git('rev-parse', `${base}^{tree}`),
     commit: scrambledCommit, tree: git('rev-parse', `${scrambledCommit}^{tree}`), branch: options.branch!, worktree: options.repo, entities,
-    excluded: [{ path: 'src/main.ts', reason: 'outside the feature folders' }], declined: [], leakage: [],
+    excluded: [{ path: 'src/main.ts', reason: 'outside the feature folders' }], declined: [], leakage: [{ path: 'src/album/album.e2e-spec.ts', reason: 'test with no co-located subject' }],
     certificate: { file: 'certificate.json', verdict: 'pass', scope: 'static', digest: `sha256:${'f'.repeat(64)}`, failing: [] },
   };
 }
@@ -111,6 +111,27 @@ function fakeGateway(): Gateway & { calls(): number } {
   };
 }
 
+/** Answers like ghostfolio's winning Ultra edit: every group re-kinded platform, every move naming a file by its bare id. */
+function byIdGateway(): Gateway {
+  return {
+    async structured<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>> {
+      const schema = request.schema as { properties: { groups: { properties?: Record<string, unknown> } } };
+      const keys = request.schemaName === 'plan_edit' ? Object.keys(schema.properties.groups.properties!) : [];
+      const answers = request.schemaName === 'plan_edit'
+        ? Array.from({ length: request.n ?? 1 }, () => ({
+          groups: Object.fromEntries(keys.map((key) => [key, { name: key.slice(key.indexOf(':') + 1), kind: 'platform' }])),
+          moves: keys.map((key, index) => ({ file: String(index + 1), to: key.split(':')[0]!, kind: 'platform', rationale: 'by id' })),
+        }))
+        : [{ review: 'Two ideas.', groups: [{ group: 'platform/user', name: 'user-core', kind: 'module', rationale: 'a guess' }], moves: [] }];
+      return {
+        choices: answers.map((answer, index) => ({ index, finishReason: 'stop', value: request.parse(answer), reasoning: null })),
+        usage: { promptTokens: 100, completionTokens: 10, reasoningTokens: 0 }, costUsd: 0.005, replayed: true, key: 'fake:by-id',
+      };
+    },
+    spent: () => ({ run: 0, global: 0 }),
+  };
+}
+
 const missingGateway: Gateway = {
   structured: async () => {
     throw new GatewayError('replay miss: no ultra record in cassettes/none.jsonl', 'replay-miss');
@@ -126,7 +147,7 @@ const manifest: BenchManifest = {
 };
 
 const optionsFor = (label: string, gateway: BenchOptions['gateway']): BenchOptions & { work: string } => ({
-  only: null, gateway, certify: true, out: path.join(temporary, label, 'results'), work: path.join(temporary, label, 'work'), keep: false, log: () => {},
+  only: null, gateway, certify: true, out: path.join(temporary, label, 'results'), work: path.join(temporary, label, 'work'), keep: false, mode: 'replay' as const, log: () => {},
 });
 
 describe('ac bench on a fixture', async () => {
@@ -146,7 +167,10 @@ describe('ac bench on a fixture', async () => {
   it('scores the scramble against its ground truth, with hard files judged on the original names', () => {
     expect(scrambled).toMatchObject({
       format: 'ac-bench/1', entry: 'fixture', kind: 'scramble', variant: 'default', sha: base, packageRoot: 'pkg', moduleRoot: 'src',
-      featureFiles: 8, groundTruthModules: 2, hardFiles: 2, leakyFiles: 0,
+      featureFiles: 8, groundTruthModules: 2, hardFiles: 2,
+      // The e2e test left in album/ is pinned in the facts: no method sees it, so it isn't leakage.
+      leakyFiles: 0, leakage: { renamed: 0, inFeatureFolder: 0, underSubFolder: 0, subFolders: [], unseen: 1 },
+      draft: { method: 'seeds draft (file names)', source: 'file names', contested: { fileNames: 2, exportNames: 2 } },
       scramble: { commit: scrambledCommit, moved: 8, declined: 0, excluded: 1, certificate: { verdict: 'pass', scope: 'static', failing: [] } },
     });
     const byMethod = new Map(scrambled.methods.map((score) => [score.method, score]));
@@ -168,9 +192,24 @@ describe('ac bench on a fixture', async () => {
 
   it('records the planner row: groups, plan sha256, the recorded cost, nothing spent', () => {
     expect(gateway.calls()).toBe(2);
-    expect(scrambled.planner).toMatchObject({ cassette: 'cassettes/fixture.jsonl', recordedCostUsd: 0.01, spentUsd: 0, replayed: true });
+    expect(scrambled.planner).toMatchObject({ cassette: 'cassettes/fixture.jsonl', recordedCostUsd: 0.01, spentUsd: 0, replayed: true, modules: 3 });
     expect(scrambled.planner!.planSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(scrambled.planner!.groups).toBe(scrambled.methods.at(-1)!.clusters);
+  });
+
+  it('says when the planner row is its draft: the edit kept every draft group as it was', () => {
+    expect(scrambled.planner!.change).toEqual({
+      draftGroups: 3, samePartition: true, filesMoved: 0, groupsMerged: 0,
+      winner: { label: 'ultra#1', groupEntries: 3, moves: 0, issues: {} }, critic: { suggestions: 0, kept: 0 },
+    });
+    expect(scrambled.methods.at(-1)).toMatchObject({ method: 'planner (Ultra)', note: "its draft's partition" });
+    expect(scrambled.notes).toEqual([
+      'The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 2 against 2 (no ground truth is read).',
+      "The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. "
+        + 'The winning edit, ultra#1, had 3 group entries and 0 moves; the validator found no problem with it. The critic made no suggestion.',
+      'Leakage, over the 9 movable files every method sees: 0 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 0 in a sub-folder that only files of their feature share). '
+        + '1 more leaky file is pinned or not read by the facts, so no method sees it: not counted.',
+    ]);
   });
 
   it('scores a real entry without ground truth, and says when its planner is not recorded', () => {
@@ -188,8 +227,9 @@ describe('ac bench on a fixture', async () => {
     expect(summary.indexOf('## fixture (scramble, default)')).toBeLessThan(summary.indexOf('## fixture-real (real)'));
     expect(summary).toContain('| method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |');
     expect(summary).toContain(`| **${scrambled.bestBaseline!.method}** |`);
-    expect(summary).toMatch(/\| \*\*planner \(Ultra\)\*\* \|/);
-    expect(summary).toContain('Scored: 8 feature files in 2 modules (2 hard), of ');
+    expect(summary).toContain("| **planner (Ultra) (its draft's partition)** |");
+    expect(summary).toContain('Scored: 8 feature files in 2 modules (2 hard), of 9 movable files. 0 of the movable files give their feature away in their path (the leakage note below).');
+    expect(summary).toContain('; 3 groups (3 modules), from the seeds draft (file names); plan.yaml sha256 ');
     expect(summary).toContain('certificate PASS (static), digest `ffffffffffff`.');
   });
 
@@ -200,6 +240,20 @@ describe('ac bench on a fixture', async () => {
     for (const file of ['fixture.json', 'fixture-real.json', 'summary.md']) {
       expect(fs.readFileSync(path.join(again.out, file), 'utf8'), file).toBe(fs.readFileSync(path.join(options.out, file), 'utf8'));
     }
+  });
+
+  it('discloses a winning edit whose moves were all dropped and whose plan has no modules (ghostfolio, S7)', async () => {
+    const byId = { ...optionsFor('by-id', () => byIdGateway()), only: ['fixture'] };
+    const [result] = (await runBench(manifest, byId, { scramble: fakeScramble })).results as [BenchResult];
+    expect(result.planner).toMatchObject({ groups: 3, modules: 0 });
+    expect(result.planner!.change).toEqual({
+      draftGroups: 3, samePartition: true, filesMoved: 0, groupsMerged: 0,
+      winner: { label: 'ultra#1', groupEntries: 3, moves: 3, issues: { 'unknown-file': 3 } }, critic: { suggestions: 1, kept: 0 },
+    });
+    expect(result.methods.at(-1)).toMatchObject({ method: 'planner (Ultra)', note: "its draft's partition; 0 modules" });
+    expect(result.notes).toContain("The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. "
+      + 'The winning edit, ultra#1, had 3 group entries and 3 moves; the validator found 3 problems with it (unknown-file 3) and dropped or repaired each before applying it. The critic made 1 suggestion and its gate kept none.');
+    expect(result.notes).toContain('The plan has no feature modules: all 3 groups are platform or shared.');
   });
 
   it('skips the planner row with --no-llm and keeps the worktree with --keep', async () => {
@@ -241,6 +295,78 @@ describe('ground truth', () => {
     expect(groundTruthOf(scramble, factsAt(opaque.slice(0, 4)), defaultPaths).hardFiles).toEqual(['src/services/s-1a2b.service.ts']);
     // Without the default names every opaque name is wrong.
     expect(groundTruthOf(scramble, factsAt(opaque.slice(0, 4))).hardFiles).toHaveLength(4);
+  });
+});
+
+describe('leakage', () => {
+  // ghostfolio's shapes: a sub-folder kept under the type folder, a declined file and pinned tests left in feature folders.
+  const entity = (original: string, scrambled: string, truth: string, leaky = false): ScrambleEntity => ({ original, scrambled, truth, truthKind: 'feature', type: 'service', typeVia: 'suffix', leaky });
+  const entities = [
+    entity('src/app/portfolio/calculator/twr/twr.ts', 'src/app/services/calculator/twr/twr.ts', 'portfolio'),
+    entity('src/app/portfolio/calculator/roi.ts', 'src/app/utils/calculator/roi.ts', 'portfolio'),
+    entity('src/app/import/errors/import.error.ts', 'src/app/utils/errors/import.error.ts', 'import'),
+    entity('src/app/portfolio/errors/portfolio.error.ts', 'src/app/utils/errors/portfolio.error.ts', 'portfolio'),
+    entity('src/app/admin/queue/queue.service.ts', 'src/app/services/queue/queue.service.ts', 'admin', true),
+    entity('src/app/admin/queue/jobs.ts', 'src/app/services/queue/jobs.ts', 'admin'),
+    entity('src/app/admin/admin.service.ts', 'src/app/services/admin.admin.service.ts', 'admin', true),
+    entity('src/app/user/user.service.ts', 'src/app/services/user.service.ts', 'user'),
+    entity('src/app/user/hidden.service.ts', 'src/app/services/hidden.service.ts', 'user', true),
+    entity('src/app/user/templates.ts', 'src/app/user/templates.ts', 'user'),
+  ];
+  const scramble = {
+    manifest: { name: 'x', sha: 'x', packageRoot: 'apps/api', moduleRoot: 'src/app', shared: [], exclude: [] },
+    entities,
+    leakage: [
+      { path: 'src/app/portfolio/calculator/roai/a.spec.ts', reason: 'test with no co-located subject' },
+      { path: 'src/app/portfolio/calculator/roai/b.spec.ts', reason: 'test with no co-located subject' },
+      { path: 'src/app/user/templates.ts', reason: 'declined by the executor (location-sensitive)' },
+    ],
+  } as unknown as ScrambleResult;
+  // hidden.service.ts is pinned: only the other nine files reach the facts.
+  const facts = { files: entities.filter((moved) => !moved.scrambled.includes('hidden')).map((moved) => ({ path: moved.scrambled })) } as Facts;
+
+  it('counts only the files the facts show, and the sub-folders that group files of one feature', () => {
+    const { leakage, files } = leakageOf(scramble, facts);
+    // errors/ mixes two features, so a path groups nothing right there; calculator/ and queue/ hold one feature each.
+    expect(leakage).toEqual({
+      renamed: 2, inFeatureFolder: 1, underSubFolder: 4, unseen: 3,
+      subFolders: [{ folder: 'calculator', files: 2, features: 1 }, { folder: 'errors', files: 2, features: 2 }, { folder: 'queue', files: 2, features: 1 }],
+    });
+    expect(files).toEqual([
+      'src/app/services/admin.admin.service.ts', 'src/app/services/calculator/twr/twr.ts', 'src/app/services/queue/jobs.ts', 'src/app/services/queue/queue.service.ts',
+      'src/app/user/templates.ts', 'src/app/utils/calculator/roi.ts',
+    ]);
+  });
+
+  it('says it in plain words, a file counted under two kinds included', () => {
+    const { leakage, files } = leakageOf(scramble, facts);
+    expect(leakageNote(leakage, files.length, 9)).toBe('Leakage, over the 9 movable files every method sees: 6 give their feature away in their path '
+      + '(1 still in a feature folder; 2 leaky renames; 4 in a sub-folder that only files of their feature share; 1 counted under two kinds). '
+      + "Sub-folders kept under the type folders: calculator (2 files, 1 feature), errors (2 files, 2 features), queue (2 files, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. "
+      + '3 more leaky files are pinned or not read by the facts, so no method sees them: not counted.');
+  });
+});
+
+describe('planner notes', () => {
+  const draft = { method: 'seeds draft (file names)', source: 'file names' as const, contested: { fileNames: 10, exportNames: 12 } };
+
+  it("says how far a plan moved from its draft (hoppscotch's recorded plan)", () => {
+    const change = { draftGroups: 43, samePartition: false, filesMoved: 7, groupsMerged: 14, winner: { label: 'ultra#1', groupEntries: 43, moves: 7, issues: { 'foreign-name': 2 } }, critic: { suggestions: 9, kept: 8 } };
+    expect(plannerNotes({ groups: 29, modules: 22, change, errors: [] }, draft, 186)).toEqual({
+      notes: [
+        'The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 10 (no ground truth is read).',
+        "The planner's plan moves 7 of 186 files out of their draft group and merges 14 draft groups into others (43 draft groups, 29 plan groups). "
+          + 'The winning edit, ultra#1, had 43 group entries and 7 moves; the validator found 2 problems with it (foreign-name 2) and dropped or repaired each before applying it. The critic made 9 suggestions and its gate kept 8.',
+      ],
+      rowNote: null,
+    });
+  });
+
+  it('says when no edit came back, and keeps the invalid-plan note on the row', () => {
+    const change = { draftGroups: 5, samePartition: true, filesMoved: 0, groupsMerged: 0, winner: null, critic: null };
+    const { notes, rowNote } = plannerNotes({ groups: 5, modules: 4, change, errors: ['singleton-group: x'] }, draft, 20);
+    expect(notes[1]).toBe("The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. No edit came back, so the draft is the plan.");
+    expect(rowNote).toBe("invalid plan: 1 validator error; its draft's partition");
   });
 });
 

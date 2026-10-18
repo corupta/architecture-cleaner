@@ -8,12 +8,29 @@ const fixed = (value: number | null, digits: number) => (value === null ? dash :
 const short = (hash: string) => hash.replace(/^sha256:/, '').slice(0, 12);
 const code = (text: string) => `\`${text}\``;
 
-const header = `# ac bench results
+/** Names as prose: `a`, `a and b`, `a, b and c`. */
+const list = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
+
+/** What our certifier said about each scramble commit, from the results (every sentence about a run comes from its data). */
+function scrambleVerdicts(results: readonly BenchResult[]): string {
+  const scrambles = results.filter((result) => result.scramble);
+  if (!scrambles.length) return '';
+  const passing = scrambles.filter((result) => result.scramble!.certificate?.verdict === 'pass').map((result) => result.entry);
+  const failing = scrambles.filter((result) => result.scramble!.certificate?.verdict === 'fail').map((result) => `${result.entry} (${result.scramble!.certificate!.failing.join(', ') || 'no failing check named'})`);
+  const unchecked = scrambles.filter((result) => !result.scramble!.certificate).map((result) => result.entry);
+  const parts = [
+    ...(passing.length ? [`${list(passing)} ${passing.length === 1 ? 'passes' : 'pass'}`] : []),
+    ...(failing.length ? [`${list(failing)} ${failing.length === 1 ? 'fails' : 'fail'}`] : []),
+    ...(unchecked.length ? [`${list(unchecked)} ${unchecked.length === 1 ? 'was' : 'were'} not certified in this run`] : []),
+  ];
+  return ` Our certifier checks that commit as a pure move: ${parts.join('; ')}. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.`;
+}
+
+const header = (results: readonly BenchResult[]) => `# ac bench results
 
 \`ac bench\` writes one JSON file per entry next to this summary (format \`ac-bench/1\`, src/bench/types.ts).
 
-- **Scramble** entries flatten a feature-modular package into type folders with our own executor, in a certified
-  commit. The original feature folders are the ground truth.
+- **Scramble** entries flatten a feature-modular package into type folders with our own executor, in one commit.${scrambleVerdicts(results)}
 - **Real** entries are type-sliced targets with no ground truth: TurboMQ and back-edges only.
 - MoJoFM runs 0 to 100 (ARCADE port). ARI runs from −0.5 to 1. c2c_cvg is the share of ground-truth modules recovered
   (c2c above 0.66). The cluster ratio is predicted clusters over ground-truth clusters.
@@ -49,7 +66,8 @@ function entrySection(result: BenchResult): string {
       ? `certificate ${scramble.certificate.verdict.toUpperCase()} (${scramble.certificate.scope})${scramble.certificate.failing.length ? `, failing ${scramble.certificate.failing.join(', ')}` : ''}, digest ${code(short(scramble.certificate.digest))}`
       : 'not certified';
     lines.push(`- Scramble: commit ${code(short(scramble.commit))}, ${scramble.moved} files moved, ${scramble.declined} declined by the executor (they stay), ${scramble.excluded} excluded; ${certificate}.`);
-    lines.push(`- Scored: ${result.featureFiles} feature files in ${result.groundTruthModules} modules (${result.hardFiles} hard), of ${result.files} movable files. ${result.leakyFiles} files give their feature away (leaky renames and files left in a feature folder).`);
+    const leaky = result.leakage ? `${result.leakyFiles} of the movable files give their feature away in their path (the leakage note below)` : `${result.leakyFiles} files give their feature away (leaky renames and files left in a feature folder)`;
+    lines.push(`- Scored: ${result.featureFiles} feature files in ${result.groundTruthModules} modules (${result.hardFiles} hard), of ${result.files} movable files. ${leaky}.`);
   } else {
     lines.push(`- ${result.files} movable files; no ground truth.`);
   }
@@ -60,7 +78,8 @@ function entrySection(result: BenchResult): string {
   if (result.planner) {
     const { planner } = result;
     const spend = planner.replayed ? `replayed from ${code(planner.cassette)} (recorded cost $${planner.recordedCostUsd.toFixed(4)}, this run spent $0)` : `recorded into ${code(planner.cassette)} for $${planner.spentUsd.toFixed(4)}`;
-    lines.push(`- Planner: ${spend}; ${planner.groups} groups; plan.yaml sha256 ${code(short(planner.planSha256))}.`);
+    const groups = `${planner.groups} groups${planner.modules === undefined ? '' : ` (${planner.modules} modules)`}${result.draft ? `, from the ${result.draft.method}` : ''}`;
+    lines.push(`- Planner: ${spend}; ${groups}; plan.yaml sha256 ${code(short(planner.planSha256))}.`);
   } else {
     lines.push('- Planner: no row (see the notes).');
   }
@@ -75,6 +94,6 @@ function entrySection(result: BenchResult): string {
 }
 
 export function benchSummary(results: readonly BenchResult[]): string {
-  if (!results.length) return `${header}\nNo results recorded yet.\n`;
-  return `${header}\n${results.map(entrySection).join('\n\n')}\n`;
+  if (!results.length) return `${header(results)}\nNo results recorded yet.\n`;
+  return `${header(results)}\n${results.map(entrySection).join('\n\n')}\n`;
 }

@@ -1,4 +1,5 @@
-// summary.md from BenchResult files alone: the empty case, a real entry (no ground truth: dashes), bolding and notes.
+// summary.md from BenchResult files alone: the empty case, a real entry (no ground truth: dashes), bolding and notes,
+// and the scramble verdicts the header states from the results.
 import { describe, expect, it } from 'vitest';
 import { benchSummary } from '../../src/bench/summary.js';
 import type { BenchResult, MethodScore } from '../../src/bench/types.js';
@@ -21,7 +22,29 @@ const real: BenchResult = {
   notes: ['A note in plain words.'],
 };
 
+const scramble = (entry: string, certificate: NonNullable<BenchResult['scramble']>['certificate'], extra: Partial<BenchResult> = {}): BenchResult => ({
+  ...real, entry, kind: 'scramble', files: 454, featureFiles: 401, groundTruthModules: 47, hardFiles: 234, leakyFiles: 5,
+  leakage: { renamed: 2, inFeatureFolder: 1, underSubFolder: 2, subFolders: [{ folder: 'queue', files: 2, features: 1 }], unseen: 52 },
+  scramble: { commit: 'a'.repeat(40), tree: 'b'.repeat(40), moved: 400, declined: 1, excluded: 12, certificate },
+  draft: { method: 'seeds draft (file names)', source: 'file names', contested: { fileNames: 5, exportNames: 7 } },
+  ...extra,
+});
+const certificate = (verdict: 'pass' | 'fail', failing: string[] = []) => ({ verdict, scope: 'static' as const, digest: `sha256:${'d'.repeat(64)}`, failing });
+
 describe('bench summary', () => {
+  it("states each scramble's verdict from the results, never a blanket 'certified' (kaneo's FAIL, S7)", () => {
+    const summary = benchSummary([scramble('hoppscotch', certificate('pass')), scramble('kaneo', certificate('fail', ['K3c', 'K4'])), scramble('ghostfolio', certificate('pass')), real]);
+    expect(summary.replace(/\s+/g, ' ')).not.toContain('certified commit');
+    expect(summary).toContain('in one commit. Our certifier checks that commit as a pure move: hoppscotch and ghostfolio pass; kaneo (K3c, K4) fails. Verdict, scope and failing checks are per entry below');
+    expect(benchSummary([scramble('hoppscotch', null), scramble('kaneo', null)])).toContain('Our certifier checks that commit as a pure move: hoppscotch and kaneo were not certified in this run.');
+    expect(benchSummary([real])).toContain('into type folders with our own executor, in one commit.\n');
+  });
+
+  it('points the scored line at the leakage note, and keeps the old wording for results written before the split', () => {
+    expect(benchSummary([scramble('kaneo', null)])).toContain('of 454 movable files. 5 of the movable files give their feature away in their path (the leakage note below).');
+    expect(benchSummary([scramble('kaneo', null, { leakage: undefined })])).toContain('of 454 movable files. 5 files give their feature away (leaky renames and files left in a feature folder).');
+  });
+
   it('says when nothing is recorded yet', () => {
     expect(benchSummary([])).toMatch(/No results recorded yet\.\n$/);
   });

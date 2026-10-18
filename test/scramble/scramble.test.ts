@@ -5,8 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { scrambleRepo } from '../../src/scramble/index.js';
-import type { ScrambleManifest } from '../../src/scramble/types.js';
+import { reassign, scrambleRepo } from '../../src/scramble/index.js';
+import type { ScrambleLayout } from '../../src/scramble/layout.js';
+import type { ScrambleEntity, ScrambleManifest } from '../../src/scramble/types.js';
 import { repoFrom } from '../executor/repo.js';
 
 const git = (root: string, ...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
@@ -61,6 +62,8 @@ describe('scrambleRepo', () => {
       'src/utils.ts': ['src/utils.ts', 'root', 'util'],
     });
     expect(messages).toContain("the certifier's pathMap inference pairs 2 interchangeable files differently: taking its pairing");
+    // The counter name (`-2`) is the leaky one, whichever twin the certifier's pairing gives it to.
+    expect(result.entities.filter((entity) => entity.leaky).map((entity) => entity.scrambled)).toEqual(['src/util/is-system-label-2.ts']);
     expect(result.declined).toEqual([{ path: 'src/user/templates.ts', code: 'location-sensitive', detail: 'src/user/templates.ts: __dirname' }]);
     expect(result.leakage).toEqual([
       { path: 'src/team/e2e.spec.ts', reason: 'test with no co-located subject' },
@@ -104,5 +107,24 @@ describe('scrambleRepo', () => {
     await expect(scrambleRepo({ repo: root, manifest: manifest('0000000'), variant: 'default', out, certify: false })).rejects.toThrow();
     git(root, 'branch', 'ac-scramble/demo');
     await expect(scrambleRepo({ repo: root, manifest: manifest(sha), variant: 'default', out, certify: false })).rejects.toThrow('already exists');
+  });
+});
+
+describe('reassign', () => {
+  const entity = (original: string, scrambled: string, leaky: boolean): ScrambleEntity => ({ original, scrambled, truth: original.split('/')[1]!, truthKind: 'feature', type: 'util', typeVia: 'folder', leaky });
+  const layout: ScrambleLayout = {
+    entities: [entity('src/a/labels.ts', 'src/util/labels.ts', false), entity('src/b/labels.ts', 'src/util/labels-2.ts', true), entity('src/c/other.ts', 'src/util/other.ts', false)],
+    excluded: [],
+    tests: new Map([['src/b/labels.ts', new Map([['src/b/labels.spec.ts', 'src/util/labels-2.spec.ts']])]]),
+  };
+
+  it('carries the leaky flag with the destination, and a test destination with its subject\'s flag', () => {
+    const swapped = reassign(layout, 'pkg/', new Map([['pkg/src/a/labels.ts', 'pkg/src/util/labels-2.ts'], ['pkg/src/b/labels.ts', 'pkg/src/util/labels.ts'], ['pkg/src/c/other.ts', 'pkg/src/util/labels-2.spec.ts']]));
+    expect(swapped.entities.map((moved) => [moved.original, moved.scrambled, moved.leaky])).toEqual([
+      ['src/a/labels.ts', 'src/util/labels-2.ts', true],
+      ['src/b/labels.ts', 'src/util/labels.ts', false],
+      ['src/c/other.ts', 'src/util/labels-2.spec.ts', true],
+    ]);
+    expect(layout.entities.map((planned) => planned.leaky)).toEqual([false, true, false]);
   });
 });

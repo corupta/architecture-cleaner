@@ -10,6 +10,7 @@ import { exportName, exportSeedDraft, plannerDraft, renamedFacts, seedDraft, ste
 
 export { exportName, renamedFacts };
 import type { Facts, FileFact } from '../planner/types.js';
+import type { BenchDraft } from './types.js';
 
 // TypeScript reads both packages' typings as CommonJS (neither declares "type": "module") and types the default import
 // as the module object; at runtime the default import is the class and the function themselves.
@@ -99,6 +100,12 @@ export function baselinePartitions(facts: Facts): BaselinePartition[] {
     { method: 'seeds draft (file names)', kind: source === 'file names' ? 'draft' : 'baseline', assignment: seedDraft(facts).assignment },
     { method: 'seeds draft (export names)', kind: source === 'export names' ? 'draft' : 'baseline', assignment: exportSeedDraft(facts).assignment },
   ];
+}
+
+/** The seeds draft the planner starts from, and the contested counts plannerDraft chose it by. */
+export function benchDraft(facts: Facts): BenchDraft {
+  const { source } = plannerDraft(facts);
+  return { method: `seeds draft (${source})`, source, contested: { fileNames: seedDraft(facts).contested.length, exportNames: exportSeedDraft(facts).contested.length } };
 }
 
 /** Louvain per resolution, one partition per seed. */
