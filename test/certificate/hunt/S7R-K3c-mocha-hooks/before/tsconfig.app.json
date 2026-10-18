@@ -1,0 +1,1 @@
+{"compilerOptions":{"module":"commonjs","moduleResolution":"node10","target":"es2020","strict":true,"types":[],"outDir":"dist","rootDir":"src","baseUrl":".","paths":{"@/*":["src/*"]}},"include":["src"]}

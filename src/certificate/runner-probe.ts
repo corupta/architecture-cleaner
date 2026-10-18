@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { PathMap } from './path-map.js';
 import type { RunnerKind, RunnerSpec } from './profile.js';
-import { shellCommands } from './runtime-mechanism.js';
+import { nodeLaunch, shellCommands, testRunnerOf } from './runtime-mechanism.js';
 import { nodeBinary, targetEnvironment } from './toolchain.js';
 import type { CertifyContext, Side } from './types.js';
 
@@ -25,7 +25,20 @@ export interface Runner extends RunnerSpec {
 const resolutionVariables = ['NODE_PATH', 'NODE_OPTIONS'];
 const launchers = new Set(['cross-env', 'npx', 'env', 'exec', 'pnpm', 'yarn', 'bun', 'npm']);
 
-/** The NODE_PATH and NODE_OPTIONS that the first script running `kind` (`test` first) sets for it, inline or by `export`. */
+/** The runner whose CLI a path is (`node_modules/mocha/bin/_mocha`, `node_modules/.bin/jest`), as a runner kind. */
+const runnerKindOf = (file: string): string | undefined => {
+  const name = testRunnerOf(file);
+  return name === '_mocha' ? 'mocha' : name === 'jest-cli' ? 'jest' : name;
+};
+
+/** A NODE_OPTIONS word: quoted when it holds whitespace or quotes (Node splits NODE_OPTIONS like a shell, on double quotes). */
+const optionWord = (word: string) => (/[\s"\\]/.test(word) ? JSON.stringify(word) : word);
+
+/**
+ * The NODE_PATH and NODE_OPTIONS that the first script running `kind` (`test` first) sets for it, inline or by `export`.
+ * When node runs mocha's CLI (`node -r tsconfig-paths/register node_modules/mocha/bin/_mocha`), the options it gives node
+ * to resolve and load modules join NODE_OPTIONS: mocha loads the code under test in that process, with those hooks.
+ */
 function scriptEnvironment(manifest: string | undefined, kind: RunnerKind): Record<string, string> {
   let scripts: Record<string, unknown>;
   try {
@@ -45,9 +58,14 @@ function scriptEnvironment(manifest: string | undefined, kind: RunnerKind): Reco
         if (variable) inline[variable[1]!] = variable[2]!;
         else if (!launchers.has(path.posix.basename(command[index]!)) && !['exec', 'run', '--'].includes(command[index]!)) break;
       }
+      const program = path.posix.basename(command[index] ?? '');
+      const launched = program === 'node' || program === 'nodejs' ? nodeLaunch(command.slice(index + 1)) : undefined;
       if (command[0] === 'export') Object.assign(exported, inline);
-      else if (path.posix.basename(command[index] ?? '') === kind) {
-        const environment = { ...exported, ...inline };
+      else if (program === kind || (launched?.script !== undefined && runnerKindOf(launched.script) === kind)) {
+        const environment: Record<string, string> = { ...exported, ...inline };
+        if (kind === 'mocha' && launched?.resolution.length) {
+          environment.NODE_OPTIONS = [environment.NODE_OPTIONS, ...launched.resolution.flatMap(([flag, value]) => [flag, optionWord(value)])].filter(Boolean).join(' ');
+        }
         return Object.fromEntries(resolutionVariables.filter((variable) => environment[variable] !== undefined).map((variable) => [variable, environment[variable]!]));
       }
     }
@@ -71,11 +89,13 @@ function packageDirectoryOf(context: CertifyContext, directory: string): string 
   }
 }
 
+/** The scripts that run `command`, by name or through its CLI under node_modules (`node node_modules/mocha/bin/_mocha`). */
 function scriptsInvoking(manifest: string | undefined, command: string): string[] {
   if (!manifest) return [];
   try {
     const scripts = JSON.parse(manifest).scripts ?? {};
-    return Object.values(scripts).filter((script): script is string => typeof script === 'string' && new RegExp(`(^|[\\s;&|/])${command}(\\s|$)`).test(script));
+    return Object.values(scripts).filter((script): script is string => typeof script === 'string' && (new RegExp(`(^|[\\s;&|/])${command}(\\s|$)`).test(script)
+      || shellCommands(script).some((tokens) => tokens.some((token) => runnerKindOf(token) === command))));
   } catch {
     return [];
   }
@@ -273,11 +293,15 @@ function globWord(word: string): string {
   return word.split(/([*?[\]])/).map((part) => (/^[*?[\]]$/.test(part) ? part : part ? `'${part.replace(/'/g, `'\\''`)}'` : '')).join('');
 }
 
-/** The command text from `mocha` to the end of its shell command (before `&&`, `||`, `;` or `|`). */
+/**
+ * The command text from `mocha` (or its CLI file, `node_modules/mocha/bin/_mocha`, `mocha.js`) to the end of its shell
+ * command (before `&&`, `||`, `;` or `|`), spelled as `mocha …`.
+ */
 function mochaCommand(script: string): string | null {
-  const start = script.search(/(^|[\s;&|/])mocha(\s|$)/);
-  if (start === -1) return null;
-  const from = script.indexOf('mocha', start);
+  const match = /(^|[\s;&|/])(_?mocha(?:\.js)?)(?=\s|$)/.exec(script);
+  if (!match) return null;
+  const from = match.index + match[1]!.length + match[2]!.length;
+  const spelled = (text: string) => `mocha${text}`;
   let quote: string | null = null;
   for (let index = from; index < script.length; index++) {
     const char = script[index]!;
@@ -286,9 +310,9 @@ function mochaCommand(script: string): string | null {
       else if (char === '\\' && quote === '"') index++;
     } else if (char === '"' || char === "'") quote = char;
     else if (char === '\\') index++;
-    else if (char === ';' || char === '|' || (char === '&' && script[index + 1] === '&')) return script.slice(from, index);
+    else if (char === ';' || char === '|' || (char === '&' && script[index + 1] === '&')) return spelled(script.slice(from, index));
   }
-  return script.slice(from);
+  return spelled(script.slice(from));
 }
 
 /**

@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runBaseline } from '../../src/certificate/baseline.js';
+import { prerequisiteDigest } from '../../src/certificate/oracle-runs.js';
 import { canonicalForm, certify } from '../../src/certificate/certify.js';
 import type { OracleSpec, Profile } from '../../src/certificate/profile.js';
 import { openTreeCache, type ToolIdentity } from '../../src/certificate/tree-cache.js';
@@ -117,6 +118,48 @@ describe('K8 runs in the per-tree cache', () => {
     expect(damaged.verdict).toBe('pass');
     const repaired = await certifyK8(root, first, second, profileOf([unit]), cacheDir);
     expect(cachedFacts(repaired)).toEqual({ 'unit.head.cached': true, 'unit.base.cached': true });
+  });
+
+  // S7 review (k8-cache-key-directory-prerequisite): a prerequisite was keyed by its stat; a directory's size and mtime
+  // follow its entry list only, so a rebuild of a workspace package's dist in place reused runs made against the old build.
+  it('misses when a prerequisite directory is rebuilt in place, and hits again once nothing changed', async () => {
+    const { root, commits } = chain();
+    const [first, second] = commits as [string, string];
+    // A workspace package's build, linked into node_modules as kaneo's @kaneo/mcp is (profiles/kaneo.json requires its dist).
+    const dist = path.join(root, 'node_modules', '@fixture', 'shared', 'dist');
+    fs.mkdirSync(path.join(dist, 'lib'), { recursive: true });
+    fs.writeFileSync(path.join(dist, 'index.js'), 'export const version = 1;\n');
+    fs.writeFileSync(path.join(dist, 'lib', 'util.js'), 'export const util = 1;\n');
+    const profile = profileOf([{ ...unit, requires: ['node_modules/@fixture/shared/dist'] }]);
+    const cacheDir = fresh('cache');
+    await certifyK8(root, first, second, profile, cacheDir);
+    expect(cachedFacts(await certifyK8(root, first, second, profile, cacheDir))).toEqual({ 'unit.head.cached': true, 'unit.base.cached': true });
+    // Rewritten in place (tsc without a clean step): the directory's size and mtime stay as they were.
+    const { size, mtimeMs } = fs.statSync(dist);
+    fs.writeFileSync(path.join(dist, 'lib', 'util.js'), 'export const util = 2;\n');
+    expect(fs.statSync(dist)).toMatchObject({ size, mtimeMs });
+    expect(cachedFacts(await certifyK8(root, first, second, profile, cacheDir))).toEqual({ 'unit.head.cached': false, 'unit.base.cached': false });
+    expect(cachedFacts(await certifyK8(root, first, second, profile, cacheDir))).toEqual({ 'unit.head.cached': true, 'unit.base.cached': true });
+  });
+
+  it('digests a prerequisite by content: a file rewritten with its size and times kept, a directory by every file below it', () => {
+    const directory = fresh('prerequisite');
+    const file = path.join(directory, 'nested', 'a.js');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, 'a = 1');
+    const [fileDigest, directoryDigest] = [prerequisiteDigest(file), prerequisiteDigest(directory)];
+    const times = fs.statSync(file);
+    fs.writeFileSync(file, 'a = 2');
+    fs.utimesSync(file, times.atime, times.mtime);
+    expect(prerequisiteDigest(file)).not.toBe(fileDigest);
+    expect(prerequisiteDigest(directory)).not.toBe(directoryDigest);
+    fs.writeFileSync(file, 'a = 1');
+    expect([prerequisiteDigest(file), prerequisiteDigest(directory)]).toEqual([fileDigest, directoryDigest]);
+    fs.writeFileSync(path.join(directory, 'nested', 'b.js'), '');
+    expect(prerequisiteDigest(directory)).not.toBe(directoryDigest);
+    fs.symlinkSync(directory, path.join(directory, 'nested', 'loop'));
+    expect(prerequisiteDigest(directory)).toMatch(/^directory:[0-9a-f]{64}$/);
+    expect(prerequisiteDigest(path.join(directory, 'missing'))).toBeNull();
   });
 
   it('is seeded by the baseline: the first range certified after it reads its base runs', async () => {

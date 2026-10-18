@@ -1,0 +1,21 @@
+{
+  "id": "S7R-K4-comparison",
+  "report": "S7R-K4-comparison",
+  "source": "S7 review, ~/ac-work/s7/review-confirmed.json: k4-comparison-clears-moved-path",
+  "lens": "certifier",
+  "title": "A computed path compared with a moved file's old path (===, a switch case) flips after the move; K4 cleared the hit as a non-path comparison",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K4",
+      "reason": "src/app.ts compares relative(process.cwd(), file) with 'src/services/legacy.service.ts' and switches on 'src/services/user.service.ts': both are old paths of moved files"
+    }
+  ],
+  "identityControl": true,
+  "notes": "Round 2 (b25ae2b) made comparisons, switch cases, `in` lookups and string tests non-path consumers whatever the other operand; the static certificate was PASS with one non-path-string finding per line. The executor moves both services and leaves the strings, as it must.",
+  "origin": {
+    "before": "built by hand from the review's evidence",
+    "after": "the move src/services/<name>.service.ts -> src/modules/<name>/<name>.service.ts, app.ts byte-identical"
+  }
+}

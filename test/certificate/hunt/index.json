@@ -496,5 +496,25 @@
       "K6"
     ],
     "controls": []
+  },
+  "S7R-K4-comparison": {
+    "report": "S7R-K4-comparison",
+    "title": "A computed path compared with a moved file's old path (===, a switch case) flips after the move; K4 cleared the hit as a non-path comparison",
+    "applicable": true,
+    "expectedChecks": [
+      "K4"
+    ],
+    "controls": [
+      "identity"
+    ]
+  },
+  "S7R-K3c-mocha-hooks": {
+    "report": "S7R-K3c-mocha-hooks",
+    "title": "node -r tsconfig-paths/register runs mocha's CLI: the hook resolves the moved alias to legacy/util/x.js, while tsc resolves it to the moved file",
+    "applicable": true,
+    "expectedChecks": [
+      "K3c"
+    ],
+    "controls": []
   }
 }

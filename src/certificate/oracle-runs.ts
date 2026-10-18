@@ -189,7 +189,7 @@ export interface CacheIdentity {
   linked: string[];
 }
 
-/** Cache directory of a base run: a readable prefix plus a hash of everything the run depends on. */
+/** Cache directory of a base run: a readable prefix plus a hash of everything the run depends on (prerequisites by content). */
 export function cacheDirectory(cacheRoot: string, identity: CacheIdentity): string {
   const installs = identity.linked.map((directory) => {
     for (const marker of installMarkers) {
@@ -199,7 +199,8 @@ export function cacheDirectory(cacheRoot: string, identity: CacheIdentity): stri
     return [directory];
   });
   const { profile } = identity;
-  const key = JSON.stringify({ format: runFormat, repo: fs.realpathSync(identity.repo), base: identity.baseCommit, oracle: identity.oracle, node: profile.node, env: profile.env ?? {}, offline: Boolean(profile.offline), checkout: identity.checkout, installs });
+  const prerequisites = (identity.oracle.requires ?? []).map((file) => [file, prerequisiteDigest(path.join(identity.checkout, file))]);
+  const key = JSON.stringify({ format: runFormat, repo: fs.realpathSync(identity.repo), base: identity.baseCommit, oracle: identity.oracle, node: profile.node, env: profile.env ?? {}, offline: Boolean(profile.offline), checkout: identity.checkout, installs, prerequisites });
   const hash = createHash('sha256').update(key).digest('hex').slice(0, 16);
   return path.join(cacheRoot, `${path.basename(identity.repo)}-${identity.baseCommit.slice(0, 12)}-${identity.oracle.name}-${hash}`);
 }
@@ -237,20 +238,45 @@ export const oracleRunKind = 'K8-run';
 export const outsideScratch = (relative: string) => relative !== 'scratch' && !relative.startsWith('scratch/');
 
 /**
+ * The content of a prerequisite in the environment: a file's sha256, or for a directory one over the relative path and
+ * sha256 of every file below it (symlinks followed, each real directory once); null when it is missing. A build that
+ * rewrites its output in place changes it; a directory's own size and mtime don't (they follow its entry list only).
+ */
+export function prerequisiteDigest(target: string): string | null {
+  const found = fs.statSync(target, { throwIfNoEntry: false });
+  if (!found) return null;
+  if (!found.isDirectory()) return createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+  const hash = createHash('sha256');
+  const visited = new Set<string>();
+  const walk = (directory: string, relative: string) => {
+    const real = fs.realpathSync(directory);
+    if (visited.has(real)) return;
+    visited.add(real);
+    for (const name of fs.readdirSync(directory).sort()) {
+      const entry = path.join(directory, name);
+      const stat = fs.statSync(entry, { throwIfNoEntry: false });
+      const below = relative ? `${relative}/${name}` : name;
+      if (stat?.isDirectory()) walk(entry, below);
+      else if (stat?.isFile()) hash.update(`${below}\0${createHash('sha256').update(fs.readFileSync(entry)).digest('hex')}\n`);
+      else hash.update(`${below}\0${stat ? 'special' : 'dangling'}\n`);
+    }
+  };
+  walk(target, '');
+  return `directory:${hash.digest('hex')}`;
+}
+
+/**
  * What an oracle run depends on besides its tree, the package root, the environment's node_modules and lockfiles and
  * the tool (the tree cache's own key): the oracle as the profile defines it, the `{quarantine}` expansion of the side
- * it runs as, the target's Node binary, the variables its steps see (hashed: they may hold secrets) and the
- * prerequisite builds it requires in the environment.
+ * it runs as, the target's Node binary, the variables its steps see (hashed: they may hold secrets) and the content of
+ * the prerequisite builds it requires in the environment.
  */
 export function oracleRunKey(profile: Profile, oracle: OracleSpec, quarantine: string[], checkout: string): unknown {
   const binary = fs.realpathSync(nodeBinary(profile.node));
   const node = fs.statSync(binary);
   const variables = Object.entries(targetEnvironment({ node: profile.node, ...(profile.offline ? { offlineLog: '{offline-log}' } : {}), ...(profile.env ? { extra: profile.env } : {}) }))
     .filter(([, value]) => value !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  const prerequisites = (oracle.requires ?? []).map((file) => {
-    const found = fs.statSync(path.join(checkout, file), { throwIfNoEntry: false });
-    return [file, found?.size ?? null, found?.mtimeMs ?? null];
-  });
+  const prerequisites = (oracle.requires ?? []).map((file) => [file, prerequisiteDigest(path.join(checkout, file))]);
   return {
     oracle, quarantine, node: [profile.node, binary, node.size, node.mtimeMs],
     environment: createHash('sha256').update(JSON.stringify(variables)).digest('hex'), prerequisites,

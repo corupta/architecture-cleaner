@@ -1,6 +1,6 @@
 # Bug-hunt corpus
 
-The S3 adversarial bug hunts (`~/ac-work/s3/bug-hunt.json`, `bug-hunt-round2.json`, 42 reports) as committed trees. Each applicable case is an executor output that changed behavior or was wrong. The certifier must reject every one of them with its static checks, without K8. `test/certificate/hunt.test.ts` certifies each case in-process.
+The S3 adversarial bug hunts (`~/ac-work/s3/bug-hunt.json`, `bug-hunt-round2.json`, 42 reports) as committed trees, plus the certifier false passes the S7 review confirmed (`S7R-*`: a move the executor applies as it must that a check let through). Each applicable case is an executor output that changed behavior or was wrong. The certifier must reject every one of them with its static checks, without K8. `test/certificate/hunt.test.ts` certifies each case in-process.
 
 ## Layout
 

@@ -1,17 +1,31 @@
 // K4 part 3 (old-path-scan.ts): what a path-like token inside a JS/TS file is to the program, read from the syntax
 // around it. A token in a comment or a type has no runtime value. A token inside a string matters only to a consumer
 // that takes that string as a path; when the string provably goes only to consumers that take something else (an HTTP
-// route of a known router, a test title, a value an assertion compares, a description), the token names no file.
-// A string that is a segment of a path built from the file's own location (`resolve(__dirname, './src')`) means the
-// path that expression evaluates to. Everything else is open: the token's readings decide, as before.
+// route of a known router, a test title, a description), the token names no file. A consumer that compares the string
+// with another value (`===`, a switch case, an `in` lookup, an assertion, `'…'.startsWith(x)`) or fetches it as a URL
+// takes a path when that value is one the program computes: it is reported as comparing, and old-path-scan.ts clears
+// such a hit only when the string names nothing either tree has. A string that is a segment of a path built from the
+// file's own location (`resolve(__dirname, './src')`) means the path that expression evaluates to. Everything else is
+// open: the token's readings decide, as before.
 import ts from 'typescript';
 import { type Binding, describeCallee, familyOf, moduleBindings, pathEvaluator, type PathValue, unwrapExpression } from './path-expressions.js';
+
+/**
+ * How a consumer's outcome depends on a value other than the string: `value` when it compares that value with the
+ * string itself (`===`, a switch case, an `in` lookup, an assertion, a URL fetched as written), `part` when with a part
+ * of it or with a string built from it (`'…'.startsWith(x)`, `'src/' + name === x`, `toContain`). When the other value
+ * is a path the program computes, a move can flip the outcome.
+ */
+export type Comparison = 'value' | 'part';
 
 export type StringUse =
   | { kind: 'comment' }
   | { kind: 'type' }
-  /** Every place the string goes takes something other than a file-system path. */
-  | { kind: 'consumed'; consumer: string }
+  /**
+   * Every place the string goes takes something other than a file-system path; `compares`: some of them compare it
+   * with a value the syntax doesn't fix (null: none does).
+   */
+  | { kind: 'consumed'; consumer: string; compares: Comparison | null }
   /** A segment of a path built from the file's location: these values, not the token, are what it names. */
   | { kind: 'path-expression'; expression: string; values: PathValue[] }
   | { kind: 'open' };
@@ -41,6 +55,8 @@ const comparingMatchers = new Set(['toBe', 'toEqual', 'toStrictEqual', 'toMatchO
   'lastReturnedWith', 'nthReturnedWith', 'toMatchInlineSnapshot', 'toThrowErrorMatchingInlineSnapshot', 'toBeOneOf',
   'toEqualLeft', 'toEqualRight', 'toStrictEqualLeft', 'toStrictEqualRight', 'toSubsetEqualLeft', 'toSubsetEqualRight', 'toEqualSome', 'toStrictEqualSome', 'toSubsetEqualSome']);
 const asymmetricMatchers = new Set(['stringContaining', 'stringMatching', 'objectContaining', 'arrayContaining']);
+// Matchers that test a part of a string (a substring, a pattern, an error message) rather than the whole value.
+const partMatchers = new Set(['toContain', 'toMatch', 'toThrow', 'toThrowError', 'stringContaining', 'stringMatching']);
 // Keys whose string values are prose in every format that has them (OpenAPI, GraphQL, JSON Schema, package.json, Nest).
 export const proseKeys = new Set(['description', 'summary', 'deprecationReason']);
 const comparisons = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken]);
@@ -83,11 +99,12 @@ export function followsSubstitution(sourceFile: ts.SourceFile, offset: number): 
  * The string value at `offset`: `literal` without substitutions, or a template whose `tail` is the static text after its
  * last substitution; null outside a string value.
  */
-export function stringValueAt(sourceFile: ts.SourceFile, offset: number): { literal: true } | { literal: false; tail: string } | null {
+export function stringValueAt(sourceFile: ts.SourceFile, offset: number): { literal: true; text: string } | { literal: false; tail: string } | null {
   const part = [...nodeAt(sourceFile, offset)].reverse().find(isStringPart);
   const value = part && !inType(part) ? valueOf(part) : null;
   if (!value) return null;
-  return ts.isTemplateExpression(value) ? { literal: false, tail: value.templateSpans[value.templateSpans.length - 1]!.literal.text } : { literal: true };
+  if (ts.isTemplateExpression(value)) return { literal: false, tail: value.templateSpans[value.templateSpans.length - 1]!.literal.text };
+  return { literal: true, text: ts.isStringLiteralLike(value) ? value.text : '' };
 }
 
 /** A string in a type (a literal type, a template literal type, a member name of an interface): erased at emit. */
@@ -108,6 +125,46 @@ function valueOf(part: ts.Node): ts.Expression | null {
 }
 
 const staticText = (value: ts.Expression) => (ts.isTemplateExpression(value) ? [value.head.text, ...value.templateSpans.map((span) => span.literal.text)].join('') : ts.isStringLiteralLike(value) ? value.text : '');
+
+/** The static text an expression contributes to a string: its literals, also inside templates and concatenations. */
+function textOf(expression: ts.Expression): string {
+  const inner = unwrapExpression(expression);
+  if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.PlusToken) return textOf(inner.left) + textOf(inner.right);
+  return staticText(inner);
+}
+
+/** Text before a string that makes it not the start of a URL's path: anything but slashes and dots (`https://h`, `/api/v1`). */
+const leads = (text: string) => /[^./]/.test(text);
+
+/** A value the syntax fixes: a literal, a keyword constant, `typeof x`. */
+function isConstant(expression: ts.Expression): boolean {
+  const inner = unwrapExpression(expression);
+  return ts.isStringLiteralLike(inner) || ts.isNumericLiteral(inner) || ts.isBigIntLiteral(inner) || ts.isRegularExpressionLiteral(inner)
+    || inner.kind === ts.SyntaxKind.TrueKeyword || inner.kind === ts.SyntaxKind.FalseKeyword || inner.kind === ts.SyntaxKind.NullKeyword
+    || (ts.isIdentifier(inner) && inner.text === 'undefined') || ts.isTypeOfExpression(inner) || (ts.isPrefixUnaryExpression(inner) && ts.isNumericLiteral(inner.operand));
+}
+
+/** Where a string goes, and whether it is compared there with a value the syntax doesn't fix. */
+interface Consumer {
+  what: string;
+  compares: Comparison | null;
+}
+
+/**
+ * How the string reached the place: `joined` when it is only a part of the value there (a concatenation, a template),
+ * `led` when static text other than slashes and dots comes before it in that value.
+ */
+interface Flow {
+  joined: boolean;
+  led: boolean;
+}
+
+const direct: Flow = { joined: false, led: false };
+const takes = (what: string): Consumer => ({ what, compares: null });
+
+/** A comparison of the string (as it flowed) with `others`: none when every other operand is a constant (null: unknown). */
+const comparison = (kind: Comparison, flow: Flow, others: readonly ts.Expression[] | null): Comparison | null =>
+  (others !== null && others.every(isConstant) ? null : flow.joined ? 'part' : kind);
 
 const exported = (node: ts.Node) => ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
 
@@ -198,35 +255,46 @@ export function stringUses(file: string, sourceFile: ts.SourceFile): (offset: nu
   const bindings = moduleBindings(sourceFile);
   const evaluate = pathEvaluator(sourceFile, file, bindings);
 
-  /** Where an argument of `call` goes: a consumer's description, or null. `key`: the property of an object argument. */
-  const callConsumer = (call: ts.CallExpression | ts.NewExpression, index: number, key: string | null, depth: number): string | null => {
+  /** An assertion on the string (`expect(x).toBe('…')`, `expect('…').toContain(x)`): compared with its other operands. */
+  const assertion = (chain: NonNullable<ReturnType<typeof expectChain>>, argument: ts.Expression, flow: Flow): Consumer => ({
+    what: `a value ${chain.matcher} compares`,
+    compares: comparison(partMatchers.has(chain.matcher) ? 'part' : 'value', flow, [...chain.received.arguments, ...chain.matcherCall.arguments].filter((operand) => operand !== argument)),
+  });
+
+  /** Where an argument of `call` goes: its consumer, or null. `key`: the property of an object argument. */
+  const callConsumer = (call: ts.CallExpression | ts.NewExpression, index: number, key: string | null, depth: number, flow: Flow): Consumer | null => {
     if (ts.isCallExpression(call)) {
       const chain = expectChain(call, bindings);
-      if (chain && comparingMatchers.has(chain.matcher)) return `a value ${chain.matcher} compares`;
+      if (chain && comparingMatchers.has(chain.matcher)) return assertion(chain, call.arguments[index]!, flow);
       const callee = unwrapExpression(call.expression);
-      if (ts.isPropertyAccessExpression(callee) && asymmetricMatchers.has(callee.name.text) && isExpect(callee.expression, bindings)) return `a value expect.${callee.name.text} compares`;
-      if (index === 0 && key === null && testFunctionRoot(call.expression, bindings)) return `the title of a ${testFunctionRoot(call.expression, bindings)}() block`;
+      if (ts.isPropertyAccessExpression(callee) && asymmetricMatchers.has(callee.name.text) && isExpect(callee.expression, bindings)) {
+        // What it is matched against is anywhere: never a constant.
+        return { what: `a value expect.${callee.name.text} compares`, compares: comparison(partMatchers.has(callee.name.text) ? 'part' : 'value', flow, null) };
+      }
+      if (index === 0 && key === null && testFunctionRoot(call.expression, bindings)) return takes(`the title of a ${testFunctionRoot(call.expression, bindings)}() block`);
       if (ts.isIdentifier(callee)) {
         const binding = bindings.get(callee.text);
         const api = binding?.member ? knownApis[binding.module]?.[binding.member] : undefined;
         if (api && (key === null ? api.arguments.includes(index) : api.keys?.includes(key) && (api.arguments.length === 0 || api.arguments.includes(index)))) {
-          return `${api.what} (${binding!.member} from ${binding!.module})`;
+          return takes(`${api.what} (${binding!.member} from ${binding!.module})`);
         }
-        if (!binding && callee.text === 'fetch') return 'a URL (fetch)';
-        if (!binding && ['Error', 'TypeError', 'RangeError', 'SyntaxError'].includes(callee.text) && key === null) return `an error message (${callee.text})`;
+        // A URL that starts with the string is resolved against the page's origin, which a dev server can map onto the
+        // repository: as a path, like a value compared with one. After a host or a path prefix it names neither.
+        if (!binding && callee.text === 'fetch') return { what: 'a URL (fetch)', compares: flow.led ? null : flow.joined ? 'part' : 'value' };
+        if (!binding && ['Error', 'TypeError', 'RangeError', 'SyntaxError'].includes(callee.text) && key === null) return takes(`an error message (${callee.text})`);
       }
-      if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === 'console' && !bindings.has('console')) return `console output (console.${callee.name.text})`;
-      return localFunctionConsumer(callee, index, key, depth);
+      if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === 'console' && !bindings.has('console')) return takes(`console output (console.${callee.name.text})`);
+      return localFunctionConsumer(callee, index, key, depth, flow);
     }
     const constructor = unwrapExpression(call.expression);
     if (ts.isIdentifier(constructor) && !bindings.has(constructor.text) && ['Error', 'TypeError', 'RangeError', 'SyntaxError'].includes(constructor.text) && index === 0 && key === null) {
-      return `an error message (new ${constructor.text})`;
+      return takes(`an error message (new ${constructor.text})`);
     }
     return null;
   };
 
   /** A function declared in this file (not exported): where its parameter takes the argument. */
-  const localFunctionConsumer = (callee: ts.Expression, index: number, key: string | null, depth: number): string | null => {
+  const localFunctionConsumer = (callee: ts.Expression, index: number, key: string | null, depth: number, flow: Flow): Consumer | null => {
     if (!ts.isIdentifier(callee) || key !== null || depth >= maxDepth || bindings.has(callee.text)) return null;
     const declaration = localFunction(callee.text);
     const parameter = declaration?.parameters[index];
@@ -235,7 +303,7 @@ export function stringUses(file: string, sourceFile: ts.SourceFile): (offset: nu
     const body = declaration.body;
     if (!body || containsIdentifier(body, 'arguments')) return null;
     const references = referencesIn(body, parameter.name);
-    return references ? allConsumers(references, depth + 1) : null;
+    return references ? allConsumers(references, depth + 1, flow) : null;
   };
 
   // A name declared once in the file, as a function (or a const bound to one): every use of the name means it.
@@ -260,49 +328,61 @@ export function stringUses(file: string, sourceFile: ts.SourceFile): (offset: nu
     return localFunctions.get(name)!;
   };
 
-  const allConsumers = (references: readonly ts.Node[], depth: number): string | null => {
+  /** Every reference's consumer (null if one is unknown); it compares when any of them does, `part` before `value`. */
+  const allConsumers = (references: readonly ts.Node[], depth: number, flow: Flow): Consumer | null => {
     const consumers = new Set<string>();
+    let compares: Comparison | null = null;
     for (const reference of references) {
-      const consumer = consumerOf(reference as ts.Expression, depth);
+      const consumer = consumerOf(reference as ts.Expression, depth, flow);
       if (consumer === null) return null;
-      consumers.add(consumer);
+      consumers.add(consumer.what);
+      if (consumer.compares === 'part' || (consumer.compares === 'value' && compares === null)) compares = consumer.compares;
     }
-    return consumers.size ? [...consumers].sort().join('; ') : 'nothing (the name is never read)';
+    return consumers.size ? { what: [...consumers].sort().join('; '), compares } : takes('nothing (the name is never read)');
   };
 
   /** Where the value of `expression` goes, as far as the syntax around it shows. */
-  const consumerOf = (expression: ts.Expression, depth: number): string | null => {
+  const consumerOf = (expression: ts.Expression, depth: number, flow: Flow): Consumer | null => {
     let node: ts.Node = expression;
     while (ts.isParenthesizedExpression(node.parent) || ts.isAsExpression(node.parent) || ts.isSatisfiesExpression(node.parent) || ts.isNonNullExpression(node.parent)
       || ts.isTypeAssertionExpression(node.parent)) node = node.parent;
     const parent = node.parent;
-    if (ts.isTemplateSpan(parent) && parent.expression === node) return consumerOf(parent.parent, depth);
+    if (ts.isTemplateSpan(parent) && parent.expression === node) {
+      const template = parent.parent;
+      const before = [template.head.text, ...template.templateSpans.slice(0, template.templateSpans.indexOf(parent)).map((span) => span.literal.text)].join('');
+      return consumerOf(template, depth, { joined: true, led: flow.led || leads(before) });
+    }
     if (ts.isBinaryExpression(parent)) {
       const operator = parent.operatorToken.kind;
-      if (comparisons.has(operator)) return 'a comparison';
-      // The result can be this string (or contain it): it goes where the result goes.
-      if (operator === ts.SyntaxKind.PlusToken || operator === ts.SyntaxKind.BarBarToken || operator === ts.SyntaxKind.QuestionQuestionToken
-        || (operator === ts.SyntaxKind.AmpersandAmpersandToken && parent.right === node)) return consumerOf(parent, depth);
-      if (operator === ts.SyntaxKind.AmpersandAmpersandToken) return 'a truth test';
-      if (operator === ts.SyntaxKind.InKeyword && parent.left === node) return 'a key lookup';
+      if (comparisons.has(operator)) return { what: 'a comparison', compares: comparison('value', flow, [parent.left === node ? parent.right : parent.left]) };
+      // The result contains this string: it goes where the result goes.
+      if (operator === ts.SyntaxKind.PlusToken) return consumerOf(parent, depth, { joined: true, led: flow.led || (parent.right === node && leads(textOf(parent.left))) });
+      // The result can be this string: it goes where the result goes.
+      if (operator === ts.SyntaxKind.BarBarToken || operator === ts.SyntaxKind.QuestionQuestionToken || (operator === ts.SyntaxKind.AmpersandAmpersandToken && parent.right === node)) {
+        return consumerOf(parent, depth, flow);
+      }
+      if (operator === ts.SyntaxKind.AmpersandAmpersandToken) return takes('a truth test');
+      if (operator === ts.SyntaxKind.InKeyword && parent.left === node) return { what: 'a key lookup', compares: comparison('value', flow, [parent.right]) };
       return null;
     }
-    if (ts.isConditionalExpression(parent)) return parent.condition === node ? 'a truth test' : consumerOf(parent, depth);
-    if (ts.isCaseClause(parent) && parent.expression === node) return 'a switch case';
-    if (ts.isExpressionStatement(parent)) return 'nothing (an expression statement)';
-    if ((ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.arguments?.includes(node as ts.Expression)) return callConsumer(parent, parent.arguments.indexOf(node as ts.Expression), null, depth);
+    if (ts.isConditionalExpression(parent)) return parent.condition === node ? takes('a truth test') : consumerOf(parent, depth, flow);
+    if (ts.isCaseClause(parent) && parent.expression === node) return { what: 'a switch case', compares: comparison('value', flow, [parent.parent.parent.expression]) };
+    if (ts.isExpressionStatement(parent)) return takes('nothing (an expression statement)');
+    if ((ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.arguments?.includes(node as ts.Expression)) return callConsumer(parent, parent.arguments.indexOf(node as ts.Expression), null, depth, flow);
     if (ts.isPropertyAccessExpression(parent) && parent.expression === node) {
-      if (parent.name.text === 'length') return 'its length';
-      if (inspectingMethods.has(parent.name.text) && ts.isCallExpression(parent.parent) && parent.parent.expression === parent) return `a string test (${parent.name.text})`;
+      if (parent.name.text === 'length') return takes('its length');
+      if (inspectingMethods.has(parent.name.text) && ts.isCallExpression(parent.parent) && parent.parent.expression === parent) {
+        return { what: `a string test (${parent.name.text})`, compares: comparison('part', flow, parent.parent.arguments) };
+      }
       return null;
     }
-    if (ts.isPropertyAssignment(parent) && parent.initializer === node) return propertyConsumer(parent, parent.name, node as ts.Expression, depth);
-    if (ts.isShorthandPropertyAssignment(parent)) return propertyConsumer(parent, parent.name, node as ts.Expression, depth);
-    if (ts.isArrayLiteralExpression(parent)) return arrayConsumer(parent, depth);
+    if (ts.isPropertyAssignment(parent) && parent.initializer === node) return propertyConsumer(parent, parent.name, node as ts.Expression, depth, flow);
+    if (ts.isShorthandPropertyAssignment(parent)) return propertyConsumer(parent, parent.name, node as ts.Expression, depth, flow);
+    if (ts.isArrayLiteralExpression(parent)) return arrayConsumer(parent, depth, flow);
     if (ts.isVariableDeclaration(parent) && parent.initializer === node && ts.isIdentifier(parent.name) && ts.isVariableDeclarationList(parent.parent)
       && (parent.parent.flags & ts.NodeFlags.Const) !== 0 && !(ts.isVariableStatement(parent.parent.parent) && exported(parent.parent.parent)) && depth < maxDepth) {
       const references = referencesIn(scopeOf(parent.parent), parent.name);
-      return references && !exportsName(parent.name.text) ? allConsumers(references, depth + 1) : null;
+      return references && !exportsName(parent.name.text) ? allConsumers(references, depth + 1, flow) : null;
     }
     return null;
   };
@@ -312,9 +392,9 @@ export function stringUses(file: string, sourceFile: ts.SourceFile): (offset: nu
     && ts.isNamedExports(statement.exportClause) && statement.exportClause.elements.some((element) => (element.propertyName ?? element.name).text === name))
     || sourceFile.statements.some((statement) => ts.isExportAssignment(statement) && ts.isIdentifier(statement.expression) && statement.expression.text === name);
 
-  const propertyConsumer = (property: ts.ObjectLiteralElementLike, name: ts.PropertyName, value: ts.Expression, depth: number): string | null => {
+  const propertyConsumer = (property: ts.ObjectLiteralElementLike, name: ts.PropertyName, value: ts.Expression, depth: number, flow: Flow): Consumer | null => {
     const key = ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null;
-    if (key !== null && proseKeys.has(key) && /\s/.test(staticText(unwrapExpression(value)))) return `prose (the ${key} of an object)`;
+    if (key !== null && proseKeys.has(key) && /\s/.test(staticText(unwrapExpression(value)))) return takes(`prose (the ${key} of an object)`);
     const object = property.parent;
     if (key === null || !ts.isObjectLiteralExpression(object)) return null;
     let node: ts.Node = object;
@@ -322,26 +402,26 @@ export function stringUses(file: string, sourceFile: ts.SourceFile): (offset: nu
     const call = node.parent;
     if ((ts.isCallExpression(call) || ts.isNewExpression(call)) && call.arguments?.includes(node as ts.Expression)) {
       const chain = ts.isCallExpression(call) ? expectChain(call, bindings) : null;
-      if (chain && comparingMatchers.has(chain.matcher)) return `a value ${chain.matcher} compares`;
-      return callConsumer(call, call.arguments.indexOf(node as ts.Expression), key, depth);
+      if (chain && comparingMatchers.has(chain.matcher)) return assertion(chain, node as ts.Expression, flow);
+      return callConsumer(call, call.arguments.indexOf(node as ts.Expression), key, depth, flow);
     }
     return null;
   };
 
-  const arrayConsumer = (array: ts.ArrayLiteralExpression, depth: number): string | null => {
+  const arrayConsumer = (array: ts.ArrayLiteralExpression, depth: number, flow: Flow): Consumer | null => {
     let node: ts.Node = array;
     while (ts.isParenthesizedExpression(node.parent) || ts.isAsExpression(node.parent) || ts.isSatisfiesExpression(node.parent)) node = node.parent;
     const parent = node.parent;
     if (ts.isForOfStatement(parent) && parent.expression === node && ts.isVariableDeclarationList(parent.initializer) && (parent.initializer.flags & ts.NodeFlags.Const) !== 0
       && parent.initializer.declarations.length === 1 && ts.isIdentifier(parent.initializer.declarations[0]!.name) && depth < maxDepth) {
       const references = referencesIn(parent.statement, parent.initializer.declarations[0]!.name as ts.Identifier);
-      return references ? allConsumers(references, depth + 1) : null;
+      return references ? allConsumers(references, depth + 1, flow) : null;
     }
     if ((ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.arguments?.includes(node as ts.Expression)) {
       // Route decorators take an array of routes; assertions compare arrays.
-      return callConsumer(parent, parent.arguments.indexOf(node as ts.Expression), null, depth);
+      return callConsumer(parent, parent.arguments.indexOf(node as ts.Expression), null, depth, flow);
     }
-    if (ts.isArrayLiteralExpression(parent) || ts.isPropertyAssignment(parent)) return consumerOf(node as ts.Expression, depth);
+    if (ts.isArrayLiteralExpression(parent) || ts.isPropertyAssignment(parent)) return consumerOf(node as ts.Expression, depth, flow);
     return null;
   };
 
@@ -380,7 +460,7 @@ export function stringUses(file: string, sourceFile: ts.SourceFile): (offset: nu
     if (!value) return { kind: 'open' };
     const expression = pathExpression(value);
     if (expression) return expression;
-    const consumer = consumerOf(value, 0);
-    return consumer ? { kind: 'consumed', consumer } : { kind: 'open' };
+    const consumer = consumerOf(value, 0, direct);
+    return consumer ? { kind: 'consumed', consumer: consumer.what, compares: consumer.compares } : { kind: 'open' };
   };
 }

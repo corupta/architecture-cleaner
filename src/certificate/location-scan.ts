@@ -11,7 +11,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import type { CommitTree } from './git-tree.js';
-import { cwdBases, emittedLayouts, type EmittedLayout, globOrderChange, globToRegExp, scanOldPaths } from './old-path-scan.js';
+import { cwdBases, emittedLayouts, type EmittedLayout, globOrderChange, globToRegExp, judgedStringKinds, scanOldPaths } from './old-path-scan.js';
 import { type Binding, describeCallee, type Evaluate, familyOf, locate, type Located, moduleBindings, pathEvaluator, type PathValue, unwrapExpression } from './path-expressions.js';
 import { isScannedSource } from './spans.js';
 import { addedToolConfigs } from './tool-configs.js';
@@ -640,7 +640,8 @@ function movedCallers(context: CertifyContext, observers: ReadonlyMap<string, st
   return violations;
 }
 
-export function checkLocations(context: CertifyContext): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number> } {
+/** `judgedStrings`: old-path findings for strings in code or config whose syntax shows they name nothing the move changed. */
+export function checkLocations(context: CertifyContext): { violations: Violation[]; findings: Finding[]; metrics: Record<string, number>; judgedStrings: number } {
   const { base, pathMap } = context;
   const layouts = emittedLayouts(context);
   const index = diffIndex(context, layouts);
@@ -713,6 +714,7 @@ export function checkLocations(context: CertifyContext): { violations: Violation
     violations,
     findings,
     metrics: { movedFilesScanned: movedScanned, movedFileHazards: movedHazards, copiedFileHazards: copyHazards, filesScannedForComputedPaths: computedScanned, computedPathViolations: computedViolations, ...oldPaths.metrics },
+    judgedStrings: oldPaths.findings.filter((finding) => judgedStringKinds.has(finding.kind)).length,
   };
 }
 
@@ -720,10 +722,14 @@ export const locationScan: Check = {
   id: 'K4',
   title,
   run(context) {
-    const { violations, findings, metrics } = checkLocations(context);
+    const { violations, findings, metrics, judgedStrings } = checkLocations(context);
+    // Strings the syntax around them clears are findings in code and config, not in docs or comments: counted apart.
+    const listed = judgedStrings
+      ? `${metrics.oldPathFindings} findings: ${metrics.oldPathFindings! - judgedStrings} in docs, comments or ungated coverage settings, ${judgedStrings} strings in code or config whose syntax shows they name nothing the move changed`
+      : `${metrics.oldPathFindings} findings in docs, comments or ungated coverage settings`;
     const summary = violations.length
       ? `${metrics.movedFileHazards} path-exposing uses in moved files${metrics.copiedFileHazards ? ` (and ${metrics.copiedFileHazards} in added files)` : ''}, ${metrics.computedPathViolations} computed paths into changed directories, ${metrics.oldPathViolations} old paths in code/config (${metrics.coverageViolations} in coverage settings)`
-      : `${metrics.movedFilesScanned} moved files expose no location; no computed path reaches a change; no old path in code, config or CI (${metrics.oldPathFindings} findings in docs, comments or ungated coverage settings)`;
+      : `${metrics.movedFilesScanned} moved files expose no location; no computed path reaches a change; no old path in code, config or CI (${listed})`;
     return result('K4', title, { summary, violations, findings, metrics });
   },
 };

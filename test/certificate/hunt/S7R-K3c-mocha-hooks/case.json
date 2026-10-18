@@ -1,0 +1,21 @@
+{
+  "id": "S7R-K3c-mocha-hooks",
+  "report": "S7R-K3c-mocha-hooks",
+  "source": "S7 review, ~/ac-work/s7/review-confirmed.json: k3c-drops-node-launched-mocha-hooks",
+  "lens": "certifier",
+  "title": "node -r tsconfig-paths/register runs mocha's CLI: the hook resolves the moved alias to legacy/util/x.js, while tsc resolves it to the moved file",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K3c",
+      "reason": "under node/emit+tsconfig-paths (the hook reads tsconfig.json: @/* -> legacy/*, src/*), '@/util/x' resolves to legacy/util/x.js, expected src/util/x.ts"
+    }
+  ],
+  "runner": "vitest",
+  "notes": "runner vitest links this repo's node_modules, which holds tsconfig-paths 4, the hook the test script preloads (mocha itself is not installed, so K3b and K6 skip). Round 2 dropped every node launch of a test runner's CLI as K3b's; K3b applied no node-level hook and didn't see _mocha as mocha, so K3c fell back to its hook-less assumed runtime and the alias compared unresolved == unresolved.",
+  "origin": {
+    "before": "built by hand from the review's evidence (its scratch repro, /tmp/s7-reverify-k3cmocha)",
+    "after": "the move src/lib/x.ts -> src/util/x.ts with the alias rewritten, as the executor writes it"
+  }
+}

@@ -75,11 +75,12 @@ describe('K4 precision: strings that only non-path consumers take', () => {
       '',
     ].join('\n');
     const outcome = scan({ 'src/topics.spec.ts': spec });
-    expect(findingsOf(outcome, 'non-path-string').map((finding) => /line (\d+).*goes only to (.*)$/.exec(finding)!.slice(1).join(': '))).toEqual([
+    expect(findingsOf(outcome, 'non-path-string').map((finding) => /line (\d+).*goes only to (.*?)(, which compares|$)/.exec(finding)!.slice(1, 3).join(': '))).toEqual([
       '1: the title of a it() block',
       '2: a value toHaveBeenCalledWith compares',
       '3: a value toBe compares',
     ]);
+    expect(findingsOf(outcome, 'non-path-string')[2]).toContain('which compares it with another value; it names nothing at base or at head, so no path read from either tree equals it');
     expect(details(outcome).map((detail) => /line (\d+): '([^']+)' is the (\S+ \S+)/.exec(detail)!.slice(1).join(' '))).toEqual([
       '5 src/team/team.service.ts old path',
       '6 src/admin/sub directory the',
@@ -118,6 +119,69 @@ describe('K4 precision: strings that only non-path consumers take', () => {
     });
     expect(findingsOf(outcome, 'non-path-string').map((finding) => finding.split(':')[0])).toEqual(['sentry/alerts.json', 'src/model.ts']);
     expect(details(outcome).map((detail) => detail.split(': line')[0])).toEqual(['schema.json', 'sentry/alerts.json', 'src/model.ts']);
+  });
+});
+
+// S7 review (k4-comparison-clears-moved-path): a comparison is a path consumer when its other side is a path the
+// program computes. Each case below certified PASS with only a finding after round 2; on main every one failed.
+describe('K4 precision: a string compared with another value', () => {
+  const app = (body: string) => scan({ 'src/app.ts': `import { dirname, relative } from 'node:path';\n${body}` });
+  const violationLines = (outcome: CheckResult) => details(outcome).map((detail) => /^src\/app\.ts: line (\d+): '([^']+)' (.*)$/.exec(detail)?.slice(1).join(' | ') ?? detail);
+
+  it.each([
+    ['===', "export const isTeam = (file: string) => relative(process.cwd(), file) === 'src/team/team.service.ts';\n", 'a comparison'],
+    ['!== in an if', "export function skip(file: string) { if (relative(process.cwd(), file) !== 'src/team/team.service.ts') return true; return false; }\n", 'a comparison'],
+    ['a non-exported const', "const LEGACY = 'src/team/team.service.ts';\nexport const isTeam = (file: string) => relative(process.cwd(), file) === LEGACY;\n", 'a comparison'],
+    ['a switch case', "export function kind(file: string) { switch (relative(process.cwd(), file)) { case 'src/team/team.service.ts': return 1; default: return 0; } }\n", 'a switch case'],
+    ['an in lookup', "export const known = (manifest: Record<string, string>) => 'src/team/team.service.ts' in manifest;\n", 'a key lookup'],
+    ['a string test on the literal', "export const suffix = (file: string) => 'src/team/team.service.ts'.endsWith(file);\n", 'a string test (endsWith)'],
+    ['the emptied directory itself', "export const inTeam = (file: string) => dirname(relative(process.cwd(), file)) === 'src/team';\n", 'a comparison'],
+    ['an assertion', "expect(relative(process.cwd(), file)).toBe('src/team/team.service.ts');\n", 'a value toBe compares'],
+    ['a URL fetched as written', "export const load = () => fetch('/src/team/team.service.ts');\n", 'a URL (fetch)'],
+  ])('fails %s naming a moved file or the directory it left', (_name, body, consumer) => {
+    const outcome = app(body);
+    expect(outcome.status).toBe('fail');
+    expect(violationLines(outcome)).toEqual([expect.stringContaining(`and the string goes to ${consumer}: a path the program computes on the other side can match it before the move and not after`)]);
+    expect(findingsOf(outcome, 'non-path-string')).toEqual([]);
+  });
+
+  it('fails a template or a concatenation that can spell a moved file, even below an emptied directory', () => {
+    const outcome = app([
+      'export const isTeam = (file: string, name: string) => relative(process.cwd(), file) === `src/team/${name}`;',
+      "export const isAudit = (file: string, name: string) => relative(process.cwd(), file) === 'src/admin/sub/x/' + name;",
+      '',
+    ].join('\n'));
+    expect(violationLines(outcome)).toEqual([
+      expect.stringMatching(/^2 \| src\/team\/\$\{name\} \| .*goes to a comparison/),
+      expect.stringMatching(/^3 \| src\/admin\/sub\/x\/ \| .*goes to a comparison/),
+    ]);
+  });
+
+  it('keeps as findings a comparison with a constant, and one with a string that names nothing either tree has', () => {
+    const outcome = app([
+      "const LEGACY = 'src/team/team.service.ts';",
+      "export const typed = LEGACY.endsWith('.ts');",
+      "export const isTopic = (topic: string) => topic === 'admin/only_one_admin_account_found';",
+      'export const isAdded = (topic: string, id: string) => topic === `team/${id}/member_added`;',
+      '',
+    ].join('\n'));
+    expect(details(outcome)).toEqual([]);
+    expect(findingsOf(outcome, 'non-path-string').map((finding) => /line (\d+).*goes only to (.*?)(, which compares|$)/.exec(finding)!.slice(1, 4).join(' '))).toEqual([
+      '2 a string test (endsWith) ',
+      '4 a comparison , which compares',
+      '5 a comparison , which compares',
+    ]);
+    // The summary counts them apart from findings in docs and comments (it called every finding one of those).
+    expect(outcome.summary).toMatch(/\(3 findings: 0 in docs, comments or ungated coverage settings, 3 strings in code or config whose syntax shows they name nothing the move changed\)$/);
+    expect(scan({ 'docs/notes.md': 'See src/team/team.service.ts.\n' }).summary).toMatch(/\(1 findings in docs, comments or ungated coverage settings\)$/);
+  });
+
+  it('fails a string named nothing at its first reading that spells a moved file at another', () => {
+    // In src/x/a.ts, 'team/team.service.ts' first reads as src/x/team/team.service.ts (below the emptied src/x/team,
+    // nothing there), but from src it is the moved file.
+    const files: Files = { ...backend, 'src/x/team/keep.ts': 'export const keep = 1;\n', 'src/x/a.ts': "export const is = (file: string) => file === 'team/team.service.ts';\n" };
+    const outcome = k4(files, variant(files, { ...flatten, 'src/x/team/keep.ts': 'src/x/keep.ts' }));
+    expect(details(outcome)).toEqual([expect.stringMatching(/^src\/x\/a\.ts: line 1: 'team\/team\.service\.ts' .*goes to a comparison/)]);
   });
 });
 

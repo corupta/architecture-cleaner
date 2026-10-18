@@ -3,8 +3,10 @@
 // nest-cli.json, tsconfig.json's `ts-node` block, the register imports in the code, and the launch lines of shell
 // scripts, Dockerfiles and Procfiles under the package root, with the environment they set (`VAR=x cmd`, `export`,
 // Dockerfile `ENV`): NODE_OPTIONS carries node flags, NODE_PATH adds lookup roots for bare specifiers. vite-plus tasks
-// (`vp run <task>`) are read from the package's vite.config. Test runners, also when node runs their CLI, are K3b's
-// consumers, not runtimes. Node running what a bundler built is a launch K3c doesn't model: it fails closed on it.
+// (`vp run <task>`) are read from the package's vite.config. Test runners are K3b's consumers, not runtimes, with one
+// exception: when node runs the CLI of a runner that loads the code under test through Node itself (mocha, ava, tap,
+// …), the hooks node preloads apply to that code, so the launch is a runtime. Node running what a bundler built is a
+// launch K3c doesn't model: it fails closed on it.
 import path from 'node:path';
 import ts from 'typescript';
 import { isSourceFile, stripBom } from '../analyzer/analyze.js';
@@ -81,6 +83,9 @@ export const hasAliasLayer = (runtime: Runtime) => runtime.build === 'nest-cli' 
 const testRunners = new Set(['mocha', 'jest', 'vitest', 'ava', 'tap', 'nyc', 'c8', 'playwright', 'cypress', 'karma', 'jasmine', 'uvu']);
 // The packages and bin names under node_modules whose CLI is one of those runners.
 const testRunnerEntries = new Set([...testRunners, 'jest-cli', '_mocha']);
+// Runners that load the code under test with a resolver of their own (jest-resolve, vite, a browser bundle), which the
+// hooks node preloads into the runner's process don't reach. The others load it with Node's require and import.
+const ownResolverRunners = new Set(['jest', 'jest-cli', 'vitest', 'cypress', 'karma']);
 const bundlers = new Set(['webpack', 'esbuild', 'rollup', 'tsup', 'ncc', 'parcel', 'rspack', 'swc', 'babel', 'tsdown', 'unbuild', 'pkgroll']);
 // These emit one file per source, as tsc does (esbuild too without --bundle); the others inline what they resolve.
 const transpilers = new Set(['swc', 'babel']);
@@ -135,28 +140,36 @@ export function shellCommands(line: string): string[][] {
   return commands;
 }
 
-/** The script `node [options] <script>` runs (option values skipped), or undefined (`node -e`, `node --test`, the REPL). */
-function scriptOperand(commandLine: string[]): string | undefined {
+// Node flags that change how modules resolve and load: preloads, loaders, export conditions.
+const resolutionFlags = new Set(['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions']);
+
+/**
+ * `node [options] <script>`: the script it runs (option values skipped; undefined for `node -e`, `node --test`, the
+ * REPL), and the options before it that change how modules resolve and load, as `[flag, value]` pairs.
+ */
+export function nodeLaunch(commandLine: string[]): { script: string | undefined; resolution: [string, string][] } {
+  const resolution: [string, string][] = [];
   for (let index = 0; index < commandLine.length; index++) {
     const argument = commandLine[index]!;
-    const flag = argument.startsWith('--') && argument.includes('=') ? argument.slice(0, argument.indexOf('=')) : argument;
-    if (!flag.startsWith('-')) return argument;
-    if (['-e', '--eval', '-p', '--print', '--test'].includes(flag)) return undefined;
-    if (valueFlags.has(flag) && flag === argument) index++;
+    const [flag, inline] = argument.startsWith('--') && argument.includes('=') ? [argument.slice(0, argument.indexOf('=')), argument.slice(argument.indexOf('=') + 1)] : [argument, undefined];
+    if (!flag.startsWith('-')) return { script: argument, resolution };
+    if (['-e', '--eval', '-p', '--print', '--test'].includes(flag)) return { script: undefined, resolution };
+    const value = valueFlags.has(flag) ? inline ?? commandLine[++index] : undefined;
+    if (value !== undefined && resolutionFlags.has(flag)) resolution.push([flag, value]);
   }
-  return undefined;
+  return { script: undefined, resolution };
 }
 
 const normalizedPath = (file: string) => path.posix.normalize(file).replace(/^\.\//, '').replace(/\/$/, '');
 
-/** A test runner's CLI run as a script: `node --inspect-brk node_modules/.bin/jest`, `node node_modules/jest/bin/jest.js`. */
-function isTestRunnerScript(file: string): boolean {
+/** The test runner whose CLI a script is (`node --inspect-brk node_modules/.bin/jest`, `node node_modules/mocha/bin/_mocha`). */
+export function testRunnerOf(file: string): string | undefined {
   const segments = normalizedPath(file).split('/');
   const at = segments.lastIndexOf('node_modules');
-  if (at === -1) return false;
+  if (at === -1) return undefined;
   const [first, second] = segments.slice(at + 1);
   const name = first === '.bin' ? second : first?.startsWith('@') && second ? `${first}/${second}` : first;
-  return name !== undefined && testRunnerEntries.has(name);
+  return name !== undefined && testRunnerEntries.has(name) ? name : undefined;
 }
 
 /** What a bundler's command line names as its output, directories or files (package-root-relative). */
@@ -508,9 +521,12 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
    * flags apply before the command line's; NODE_PATH adds lookup roots. `nest start` runs Nest's emitted entry.
    */
   const launch = (loader: Loader, commandLine: string[], evidence: string, inherited: Environment, nest = false) => {
-    // Its hooks load in the runner's own process; the runner loads the code under test with its own resolver (K3b's).
-    const script = scriptOperand(commandLine);
-    if (!nest && script !== undefined && isTestRunnerScript(script)) return;
+    // A runner with a resolver of its own loads the code under test with it (K3b's): the hooks stay in its process.
+    // mocha and the others load it with Node, preloads included: a runtime on what they load, the sources when tsx or
+    // ts-node is preloaded, else the emitted JavaScript.
+    const { script } = nodeLaunch(commandLine);
+    const runner = !nest && script !== undefined ? testRunnerOf(script) : undefined;
+    if (runner !== undefined && ownResolverRunners.has(runner)) return;
     const hooks: Hook[] = [];
     const conditions: string[] = [];
     const nodePath: string[] = [];
@@ -557,6 +573,7 @@ export function detectRuntimes(tree: CommitTree, packageRoot: string, views: (fi
       break;
     }
     if (nest) collected.launches.push({ loader, loads: 'emit', hooks, conditions, nodePath, nest, evidence });
+    else if (file && runner !== undefined) collected.launches.push({ loader, loads: loader === 'node' ? 'emit' : 'source', hooks, conditions, nodePath, nest, evidence });
     else if (file) collected.launches.push({ loader, loads: isTypeScriptPath(file) ? 'source' : 'emit', hooks, conditions, nodePath, nest, evidence, file });
   };
 

@@ -119,17 +119,30 @@ describe('runtime mechanism detection', () => {
     expect(detect({ 'package.json': manifest({}), 'src/main.ts': "import { register } from 'tsconfig-paths';\nregister({ baseUrl: '.', paths: {} });\n" }).unsupported).toEqual(['programmatic tsconfig-paths registration']);
   });
 
-  it("treats node running a test runner's CLI as that runner (hoppscotch's test:debug), not as a runtime", () => {
+  it("treats node running the CLI of a runner with its own resolver as that runner (hoppscotch's test:debug), not as a runtime", () => {
     const scripts = {
       build: 'nest build', start: 'nest start', 'start:prod': 'node dist/main',
       'test:debug': 'node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand',
-      'test:cli': 'node ./node_modules/jest/bin/jest.js', 'test:mocha': 'NODE_OPTIONS="-r ts-node/register" node node_modules/mocha/bin/_mocha', 'test:vitest': 'node node_modules/.bin/vitest run',
+      'test:cli': 'node ./node_modules/jest/bin/jest.js', 'test:vitest': 'node node_modules/.bin/vitest run',
     };
     expect(detect({ 'package.json': manifest({ scripts }), 'nest-cli.json': '{}', 'tsconfig.json': '{}' })).toMatchObject({ ids: ['nest-cli/emit'], unsupported: [] });
     // The same layers in front of the app's own entry are a runtime.
     expect(detect({ 'package.json': manifest({ scripts: { ...scripts, 'start:prod': 'node -r tsconfig-paths/register -r ts-node/register dist/main' } }), 'nest-cli.json': '{}', 'tsconfig.json': '{}' }).ids)
       .toEqual(['nest-cli/emit', 'nest-cli/emit+tsconfig-paths']);
     expect(detect({ 'package.json': manifest({ scripts: { start: 'node node_modules/my-server/bin/serve.js' } }) }).ids).toEqual(['node/emit']);
+  });
+
+  it('keeps node running mocha (or another runner that loads the code under test with Node) as a runtime with its preloads', () => {
+    const runtimesOf = (test: string) => detect({ 'package.json': manifest({ scripts: { build: 'tsc', test } }), 'tsconfig.json': '{}' }).runtimes
+      .map((runtime) => ({ id: runtime.id, hooks: runtime.hooks, loads: runtime.loads, evidence: runtime.evidence }));
+    expect(runtimesOf('node -r tsconfig-paths/register -r ts-node/register node_modules/.bin/mocha "test/**/*.spec.ts"')).toEqual([
+      { id: 'ts-node/source+tsconfig-paths', hooks: ['tsconfig-paths'], loads: 'source', evidence: ['package.json scripts.test: node -r tsconfig-paths/register -r ts-node/register node_modules/.bin/mocha "test/**/*.spec.ts"'] },
+    ]);
+    expect(runtimesOf('NODE_OPTIONS="-r tsconfig-paths/register" node node_modules/mocha/bin/_mocha dist/test').map((runtime) => runtime.id)).toEqual(['node/emit+tsconfig-paths']);
+    expect(runtimesOf('node --import tsx node_modules/mocha/bin/mocha.js').map((runtime) => runtime.id)).toEqual(['tsx/source']);
+    expect(runtimesOf('node -r tsconfig-paths/register node_modules/ava/entrypoints/cli.mjs').map((runtime) => runtime.id)).toEqual(['node/emit+tsconfig-paths']);
+    // A runner program itself (`mocha -r …`) applies its own requires: K3b's.
+    expect(runtimesOf('mocha -r tsconfig-paths/register test').map((runtime) => runtime.id)).toEqual(['node/emit (assumed)']);
   });
 
   const kaneoViteConfig = [

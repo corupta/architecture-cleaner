@@ -1,0 +1,1 @@
+{"name":"f","private":true,"scripts":{"build":"tsc -p tsconfig.app.json","test":"node -r tsconfig-paths/register node_modules/mocha/bin/_mocha dist/test"}}

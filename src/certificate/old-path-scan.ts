@@ -12,10 +12,12 @@
 // is a violation. A rename into or out of a Nest compiler plugin's suffixes (`.dto.ts`) changes what it emits.
 // A hit that would be a violation is read once more with what the syntax around it proves (string-flow.ts), and is a
 // finding instead when it names nothing the move changed: a string in a type, a string only non-path consumers take
-// (an HTTP route, a test title, a value an assertion compares, prose), a segment of a path built from the file's
-// location whose value is elsewhere, an absolute glob in code read away from the repository and package root, a Nix
-// input's directory, or a string in code that names nothing the move touched and does so only at a directory no
-// process runs in and no code of the repository computes.
+// (an HTTP route, a test title, prose), a string compared with another value (`===`, an assertion) that names nothing
+// either tree has, a segment of a path built from the file's location whose value is elsewhere, an absolute glob in
+// code read away from the repository and package root, a Nix input's directory, or a string in code that names nothing
+// the move touched and does so only at a directory no process runs in and no code of the repository computes. A
+// comparison with a moved file's old path, an emptied directory or an old specifier stays a violation: a path the
+// program computes on its other side matches before the move and not after.
 import path from 'node:path';
 import ts from 'typescript';
 import { coverageGates, isCoverageSetting } from '../analyzer/coverage-settings.js';
@@ -51,6 +53,9 @@ const emittedExtension: Record<string, string> = { '.ts': '.js', '.tsx': '.js', 
 const declarationExtension: Record<string, string> = { '.ts': '.d.ts', '.tsx': '.d.ts', '.mts': '.d.mts', '.cts': '.d.cts' };
 // Values under these keys are substitution patterns (`*` spans directories) that K3 resolves through, not globs.
 const substitutionKeys = new Set(['paths', 'exports', 'imports', 'moduleNameMapper', 'alias', 'aliases']);
+
+/** Finding kinds of strings in code or config that the syntax around them (string-flow.ts) shows name nothing the move changed. */
+export const judgedStringKinds = new Set(['non-path-string', 'old-path-in-type', 'resolved-path-string', 'absolute-path-string', 'unreachable-path-string', 'relative-path-string']);
 
 export const isDocumentation = (file: string) => documentationExtensions.test(file) || documentationNames.test(path.posix.basename(file))
   || file.split('/').slice(0, -1).some((segment) => /^(docs?|documentation)$/i.test(segment));
@@ -330,7 +335,7 @@ function syntaxOf(file: string, text: string): Syntax | null {
       const literal = chain[chain.length - 1]!;
       const property = chain[chain.length - 2];
       if (property && ts.isStringLiteral(literal) && ts.isPropertyAssignment(property) && property.initializer === literal && ts.isStringLiteral(property.name)
-        && proseKeys.has(property.name.text) && /\s/.test(literal.text)) return { kind: 'consumed', consumer: `prose (the ${property.name.text} of an object)` };
+        && proseKeys.has(property.name.text) && /\s/.test(literal.text)) return { kind: 'consumed', consumer: `prose (the ${property.name.text} of an object)`, compares: null };
       return { kind: 'open' };
     },
   };
@@ -504,6 +509,39 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
   for (const directory of crossed.keys()) interesting.add(path.posix.basename(directory));
   // Every path a move touched: its old and new path and the directories above them.
   const touchedPaths = new Set(moves.flat().flatMap((file) => [file, ...ancestors(file).filter(Boolean)]));
+  // Every name code can give what a move changed: the touched paths, each moved file's old and new spellings
+  // (without extension, as a specifier, an index file's directory, emitted under every outDir) and the emitted
+  // mirrors of the directories above them.
+  let changed: Set<string> | undefined;
+  const changedNames = () => {
+    if (changed) return changed;
+    changed = new Set([...touchedPaths, ...needles.keys(), ...emptied.keys()]);
+    for (const [from, to] of moves) {
+      for (const file of [from, to]) {
+        const extension = moduleExtension.exec(file)?.[0];
+        const stem = extension ? file.slice(0, -extension.length) : file;
+        changed.add(stem);
+        if (extension && emittedExtension[extension]) changed.add(stem + emittedExtension[extension]);
+        if (path.posix.basename(stem) === 'index') changed.add(path.posix.dirname(stem));
+        const sourceExtension = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.exec(file)?.[0];
+        for (const layout of layouts) {
+          if (!layout.files.has(from)) continue;
+          for (const directory of [file, ...ancestors(file).filter(Boolean)]) {
+            if (!under(layout.rootDir, directory) || directory === layout.rootDir) continue;
+            const emitted = path.posix.join(layout.outDir, relativeTo(layout.rootDir, directory));
+            if (directory !== file) changed.add(emitted);
+            else if (sourceExtension) {
+              const emittedStem = emitted.slice(0, -sourceExtension.length);
+              changed.add(emittedStem);
+              changed.add(emittedStem + emittedExtension[sourceExtension]!);
+              if (declarationExtension[sourceExtension]) changed.add(emittedStem + declarationExtension[sourceExtension]!);
+            }
+          }
+        }
+      }
+    }
+    return changed;
+  };
   const namesBasePath = (candidate: string) => context.base.entries.has(candidate) || context.base.directories.has(candidate)
     || ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.json'].some((extension) => context.base.entries.has(candidate + extension));
 
@@ -618,12 +656,16 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
      * the file's location that evaluates elsewhere, a Nix input's directory); the evaluated path when that is what
      * names the change; null when the token readings stand.
      */
+    const compared = (consumer: string) => `, and the string goes to ${consumer}: a path the program computes on the other side can match it before the move and not after`;
     const judge = (hit: Hit, keys: readonly string[]): { finding: string; reason: string } | { names: string } | null => {
       const foreign = foreignInputDirectory(file, text, keys);
       if (foreign) return { finding: 'non-path-string', reason: `it is ${foreign}` };
       const use = syntax?.use(hit.offset) ?? { kind: 'open' };
       if (use.kind === 'type') return { finding: 'old-path-in-type', reason: 'a string in a type, erased at emit' };
-      if (use.kind === 'consumed') return { finding: 'non-path-string', reason: `the string goes only to ${use.consumer}` };
+      if (use.kind === 'consumed' && use.compares === null) return { finding: 'non-path-string', reason: `the string goes only to ${use.consumer}` };
+      if (use.kind === 'consumed' && use.compares === 'value' && hit.needle.inside && namesNothingEitherTreeHas(hit)) {
+        return { finding: 'non-path-string', reason: `the string goes only to ${use.consumer}, which compares it with another value; it names nothing at base or at head, so no path read from either tree equals it` };
+      }
       if (use.kind === 'path-expression') {
         const located = use.values.flatMap((value) => locate(value, []));
         if (located.length && located.every((location) => location.complete && !globCharacters.test(location.path))) {
@@ -633,15 +675,33 @@ export function scanOldPaths(context: CertifyContext, layouts: readonly EmittedL
         }
       }
       // In code an absolute glob (a route, a URL path, a container path) is rooted at '/': as a repository path it can
-      // only be the repository or the package mounted there, the same readings an absolute path gets.
+      // only be the repository or the package mounted there, the same readings an absolute path gets. (A path the
+      // program computes equals it only there too.)
       if (codeFile && hit.glob && hit.base !== undefined && /^!?\/[^/]/.test(hit.token) && hit.base !== '' && hit.base !== context.options.packageRoot
         && !(syntax?.followsSubstitution(hit.offset) ?? true)) {
         const pattern = hit.token.replace(/^!/, '').replace(/^\.?\//, '');
         const mounted = ['', context.options.packageRoot].map((base) => globNeedle(base, pattern, codeFile)).find((needle) => needle !== undefined);
         if (!mounted) return { finding: 'absolute-path-string', reason: `an absolute path in code: read at the repository or package root it reaches nothing the move changed (only its reading at ${hit.base} does)` };
-        return { names: `is the ${mounted.form} of ${mounted.from} (moved to ${mounted.to})` };
+        return { names: `is the ${mounted.form} of ${mounted.from} (moved to ${mounted.to})${use.kind === 'consumed' ? compared(use.consumer) : ''}` };
       }
+      // A comparison with a value the syntax doesn't fix is a path consumer when that value is a computed path.
+      if (use.kind === 'consumed') return { names: `is the ${hit.needle.form} of ${hit.needle.from} (moved to ${hit.needle.to})${compared(use.consumer)}` };
       return unreachableBelowEmptied(hit);
+    };
+    /**
+     * For a string compared with another value: its value is no changed name, whatever base a path is read relative to.
+     * The needle already names a path below an emptied directory that is no moved file in any spelling; no changed
+     * name (a moved file's old or new path in every spelling and emitted form, the directories above them) may end the
+     * way the string does (a template: the way its static end does). A path the program reads from either tree (listed,
+     * resolved, built from an unmoved file's location; part 1 rejects moved files that build their own) then can't
+     * equal it on either side.
+     */
+    const namesNothingEitherTreeHas = (hit: Hit): boolean => {
+      const value = syntax?.stringValue(hit.offset);
+      if (!value) return false;
+      const end = (value.literal ? value.text : value.tail).replace(/^(\.\/)+/, '').replace(/\/+$/, '').replace(/\/\.(?=\/|$)/g, '').replace(/\/{2,}/g, '/');
+      if (!end || end === '/' || end.split('/').includes('..')) return false;
+      return ![...changedNames()].some((name) => (end.startsWith('/') ? `/${name}` : name).endsWith(end));
     };
     /**
      * A string in code that only names something below a directory the move emptied, and only when read at the file's

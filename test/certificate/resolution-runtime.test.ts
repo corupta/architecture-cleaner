@@ -126,6 +126,28 @@ describe('K3c resolution identity under the runtime', () => {
     expect(details(outcome)).toEqual(["src/main.ts: node/emit+tsconfig-paths: import '@/lib/x' resolves to legacy/lib/x.js, expected src/lib/x.ts; base src/main.ts './lib/x'"]);
   });
 
+  // S7 review (k3c-drops-node-launched-mocha-hooks): mocha loads the code under test in its own process, through Node,
+  // so the hooks node preloads for it resolve that code. With nothing else launching the package this passed under the
+  // assumed hook-less runtime (unresolved in base and head).
+  it.skipIf(!tsconfigPathsEnvironment).each([
+    'node -r tsconfig-paths/register node_modules/mocha/bin/_mocha dist/test',
+    'NODE_OPTIONS="-r tsconfig-paths/register" node node_modules/mocha/bin/mocha.js dist/test',
+  ])('fails an alias rewrite that tsconfig-paths resolves elsewhere when the hook is preloaded for mocha: %s', async (test) => {
+    const files = {
+      'package.json': commonjsPackage({ build: 'tsc -p tsconfig.app.json', test }),
+      'tsconfig.json': JSON.stringify({ files: [], compilerOptions: { baseUrl: '.', paths: { '@/*': ['legacy/*', 'src/*'] } } }),
+      'tsconfig.app.json': commonjs({ baseUrl: '.', paths: { '@/*': ['src/*'] } }),
+      'legacy/util/x.js': 'exports.x = 0;\n',
+    };
+    const outcome = await k3c(
+      { ...files, 'src/main.ts': "import { x } from '@/lib/x';\nexport const main = x;\n", 'src/lib/x.ts': 'export const x = 1;\n' },
+      { ...files, 'src/main.ts': "import { x } from '@/util/x';\nexport const main = x;\n", 'src/util/x.ts': 'export const x = 1;\n' },
+      tsconfigPathsEnvironment,
+    );
+    expect(outcome.metrics).toMatchObject({ runtimes: 'node/emit+tsconfig-paths' });
+    expect(details(outcome)).toEqual(["src/main.ts: node/emit+tsconfig-paths: import '@/util/x' resolves to legacy/util/x.js, expected src/util/x.ts; base src/main.ts '@/lib/x'"]);
+  });
+
   it.skipIf(!tsconfigPathsEnvironment)('reports an alias the runtime already maps elsewhere than TypeScript as a finding (pre-existing, not the step)', async () => {
     const tree = {
       'package.json': commonjsPackage({ build: 'tsc -p tsconfig.app.json', start: 'node -r tsconfig-paths/register dist/main.js' }),

@@ -53,6 +53,30 @@ describe('string-flow', () => {
     expect(useOf("import { Get } from './routes';\nGet('admin/x');\n", 'admin/x').kind).toBe('open');
   });
 
+  it('tells consumers that compare the string with another value from those that only take it', () => {
+    const compares = (text: string, needle: string) => {
+      const use = useOf(text, needle);
+      return use.kind === 'consumed' ? use.compares : use.kind;
+    };
+    expect(compares("if (topic === 'admin/x') run();\n", 'admin/x')).toBe('value');
+    expect(compares("if (typeof topic === 'admin/x') run();\n", 'admin/x')).toBe(null);
+    expect(compares("switch (topic) { case 'admin/x': break; }\n", 'admin/x')).toBe('value');
+    expect(compares("export const known = (m: object) => 'admin/x' in m;\n", 'admin/x')).toBe('value');
+    expect(compares("export const test = (x: string) => 'admin/x'.startsWith(x);\n", 'admin/x')).toBe('part');
+    expect(compares("export const test = 'admin/x'.startsWith('/');\n", 'admin/x')).toBe(null);
+    expect(compares("export const is = (x: string, y: string) => x === 'admin/' + y;\n", 'admin/')).toBe('part');
+    expect(compares("expect(x).toBe('admin/x');\n", 'admin/x')).toBe('value');
+    expect(compares("expect(x).toContain('admin/x');\n", 'admin/x')).toBe('part');
+    expect(compares("expect('admin/x').toBe('admin/x');\n", 'admin/x')).toBe(null);
+    expect(compares("expect(x).toEqual(expect.objectContaining({ path: 'admin/x' }));\n", 'admin/x')).toBe('value');
+    expect(compares("const TOPIC = 'admin/x';\nconsole.log(TOPIC);\nif (TOPIC === t) run();\n", 'admin/x')).toBe('value');
+    expect(compares("export const load = () => fetch('/admin/x');\n", '/admin/x')).toBe('value');
+    expect(compares("export const load = (base: string) => fetch(base + '/admin/x');\n", '/admin/x')).toBe('part');
+    expect(compares("export const load = (base: string) => fetch(`${base}/api/v1${'/admin/x'}`);\n", '/admin/x')).toBe(null);
+    expect(compares("function get(path: string) { return path.startsWith('/') ? fetch(`https://h${path}`) : null; }\nget('/admin/x');\n", '/admin/x')).toBe(null);
+    expect(compares("describe('admin/x', () => {});\nconsole.log('admin/y');\n", 'admin/x')).toBe(null);
+  });
+
   it('judges a segment of a path built from the file location by the path it builds', () => {
     const use = useOf("import { resolve } from 'node:path';\nexport const util = resolve(__dirname, './src/util');\n", './src/util', 'kernel/vite.config.ts');
     expect(use).toEqual({ kind: 'path-expression', expression: "resolve(__dirname, './src/util')", values: [{ anchor: 'repo', text: '/repo/kernel/src/util', complete: true }] });

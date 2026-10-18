@@ -159,6 +159,18 @@ describe.skipIf(!installed(mochaNodeModules, 'mocha') || !installed(mochaNodeMod
     const broken = await k3b(repo, variant(repo, { 'src/clock.ts': 'src/lib/clock.ts' }), mochaNodeModules);
     expect(broken.metrics.dangling).toBe(1);
   });
+
+  // S7 review (k3c-drops-node-launched-mocha-hooks): node running mocha's CLI file was no mocha script to K3b (it
+  // skipped: "no test runner"), and the hooks node preloads for it never reached the probe.
+  it('runs mocha launched by node through its CLI file, with the hooks node preloads for it', async () => {
+    const launched = { ...repo, 'package.json': JSON.stringify({ name: 'mocha-fixture', private: true, scripts: { test: "node --import tsx node_modules/mocha/bin/mocha.js 'tests/**/*.test.ts'" } }) };
+    const good = await k3b(launched, variant(launched, { 'src/clock.ts': 'src/lib/clock.ts' }, { 'src/billing.ts': [["'./clock'", "'./lib/clock'"]] }), mochaNodeModules);
+    expect(good.status).toBe('pass');
+    expect(good.metrics).toMatchObject({ runner: 'mocha', dangling: 0 });
+    const broken = await k3b(launched, variant(launched, { 'src/clock.ts': 'src/lib/clock.ts' }), mochaNodeModules);
+    expect(broken.status).toBe('fail');
+    expect(broken.metrics.dangling).toBe(1);
+  });
 });
 
 describe('mocha argv as /bin/sh hands it over', () => {
@@ -178,6 +190,9 @@ describe('mocha argv as /bin/sh hands it over', () => {
     expect(mochaArguments(root, { kind: 'mocha', cwd: '', args: ['--recursive', 'tests/unit/**/*.ts'] })).toEqual(['--recursive', 'tests/unit/a/one.test.ts']);
     fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ scripts: { test: "mocha 'tests/unit/**/*.ts'" } }));
     expect(mochaArguments(root, { kind: 'mocha', cwd: '' })).toEqual(['tests/unit/**/*.ts']);
+    // Its CLI file run by node: the node options are node's, the rest mocha's.
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ scripts: { test: "node -r tsconfig-paths/register node_modules/mocha/bin/_mocha --timeout 5 'tests/unit/**/*.ts' && echo done" } }));
+    expect(mochaArguments(root, { kind: 'mocha', cwd: '' })).toEqual(['--timeout', '5', 'tests/unit/**/*.ts']);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });
