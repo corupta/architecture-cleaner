@@ -462,6 +462,7 @@ describe('ac bench --repeats, --planner and --cassette', async () => {
   const configurations: [PlannerConfigurationName, string, object | undefined][] = [
     ['super-vl', 'planner (Super VL, thinking on)', undefined],
     ['super-vl-low', 'planner (Super VL, low_effort)', { low_effort: true }],
+    ['super-vl-direct', 'planner (Super VL, thinking off)', { enable_thinking: false }],
     ['ultra', 'planner (Ultra)', { medium_effort: true }],
   ];
   it.each(configurations)('asks the models of --planner %s, the edit and the critic alike', async (configuration, method, kwargs) => {
@@ -654,7 +655,7 @@ describe('the bench manifest and the command line', () => {
     }
     expect(errors.join('\n')).toContain('--run <id from budget/runs.json> is required for record and auto modes');
     expect(errors.join('\n')).toContain('no bench entry nope');
-    expect(errors.join('\n')).toContain('--planner is ultra, super-vl, super-vl-low');
+    expect(errors.join('\n')).toContain('--planner is ultra, super-vl, super-vl-low, super-vl-direct');
     expect(errors.join('\n')).toContain('--repeats takes a whole number from 1 up');
   });
 });

@@ -13,12 +13,13 @@ import { modelLabel } from '../../src/planner/outputs.js';
 
 describe('planner configurations', () => {
   it('are Ultra on medium_effort (the default), Super VL thinking on (no template kwargs) and Super VL on low_effort', () => {
-    expect(plannerConfigurationNames).toEqual(['ultra', 'super-vl', 'super-vl-low']);
+    expect(plannerConfigurationNames).toEqual(['ultra', 'super-vl', 'super-vl-low', 'super-vl-direct']);
     expect(defaultPlannerConfiguration).toBe('ultra');
     expect(plannerConfigurations).toEqual({
       ultra: { edit: { model: 'ultra', templateKwargs: { medium_effort: true } }, critic: { model: 'ultra', templateKwargs: { medium_effort: true } } },
       'super-vl': { edit: { model: 'super-vl', templateKwargs: {} }, critic: { model: 'super-vl', templateKwargs: {} } },
       'super-vl-low': { edit: { model: 'super-vl', templateKwargs: { low_effort: true } }, critic: { model: 'super-vl', templateKwargs: { low_effort: true } } },
+      'super-vl-direct': { edit: { model: 'super-vl', templateKwargs: { enable_thinking: false } }, critic: { model: 'super-vl', templateKwargs: { enable_thinking: false } } },
     });
     expect([isPlannerConfigurationName('super-vl-low'), isPlannerConfigurationName('nano'), isPlannerConfigurationName('toString')]).toEqual([true, false, false]);
   });
@@ -48,6 +49,7 @@ describe('planner configurations', () => {
     ['ultra', models.ultra.id, { medium_effort: true }],
     ['super-vl', 'nvidia/Nemotron-3.5-Super-VL', undefined],
     ['super-vl-low', 'nvidia/Nemotron-3.5-Super-VL', { low_effort: true }],
+    ['super-vl-direct', 'nvidia/Nemotron-3.5-Super-VL', { enable_thinking: false }],
   ] as const)('%s sends the edit to %s with chat_template_kwargs %o', async (configuration, modelId, kwargs) => {
     const bodies: RequestBody[] = [];
     const gateway: Gateway = {
@@ -68,6 +70,7 @@ describe('planner configurations', () => {
     expect(modelLabel('lightning', { enable_thinking: false })).toBe('Nemotron 3.5 Lightning (thinking off)');
     expect(modelLabel('super-vl', {})).toBe('Nemotron 3.5 Super VL (thinking on)');
     expect(modelLabel('super-vl', { low_effort: true })).toBe('Nemotron 3.5 Super VL (low_effort)');
-    expect(plannerConfigurationNames.map(plannerMethod)).toEqual(['planner (Ultra)', 'planner (Super VL, thinking on)', 'planner (Super VL, low_effort)']);
+    expect(modelLabel('super-vl', { enable_thinking: false })).toBe('Nemotron 3.5 Super VL (thinking off)');
+    expect(plannerConfigurationNames.map(plannerMethod)).toEqual(['planner (Ultra)', 'planner (Super VL, thinking on)', 'planner (Super VL, low_effort)', 'planner (Super VL, thinking off)']);
   });
 });

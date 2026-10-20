@@ -3,7 +3,7 @@
 // replay pins (rules, critic prompt) belong to its recording, which every target made with the default configuration.
 import type { ModelKey, TemplateKwargs } from '../gateway/types.js';
 
-export type PlannerConfigurationName = 'ultra' | 'super-vl' | 'super-vl-low';
+export type PlannerConfigurationName = 'ultra' | 'super-vl' | 'super-vl-low' | 'super-vl-direct';
 
 /** One call's model and its reasoning control (chat_template_kwargs). */
 export interface ModelSettings {
@@ -24,6 +24,8 @@ export const plannerConfigurations: Readonly<Record<PlannerConfigurationName, Pl
   /** Nemotron 3.5 Super VL with thinking on: no template kwargs, as NVIDIA recommends. */
   'super-vl': both({ model: 'super-vl', templateKwargs: {} }),
   'super-vl-low': both({ model: 'super-vl', templateKwargs: { low_effort: true } }),
+  /** Super VL with thinking off. With thinking on (S8b), every hoppscotch edit choice reasoned to the 64k cap before answering. */
+  'super-vl-direct': both({ model: 'super-vl', templateKwargs: { enable_thinking: false } }),
 };
 
 export const defaultPlannerConfiguration: PlannerConfigurationName = 'ultra';
