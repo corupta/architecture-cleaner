@@ -33,6 +33,7 @@ The contrast is the video: **a green test count is not proof.** The single-shot 
 2. **Single-step fallback:** deferred until we know whether the full ladder run (S6) slips. **Taken at the end of S6 (2026-10-14): no fallback.** The full ladder ran unattended on immich (63 commits, each certified; every rung and the whole PR PASS with oracles; 1 h 55 m; `~/ac-work/s6/final`), so the video shows that run.
 3. **Honesty, presented strongly:** show our own misses as strengths ("a failure is always an opportunity"). The R1 step's stale coverage path that K4 caught moves into the credibility beat as "the checker caught our own executor"; the red team's 26 closed false passes stay in it.
 4. **opencode is named on screen**, with its model and provider said aloud; its numbers are reproducible from our recorded cassettes.
+5. **The graph beat shows the hub, not a cleanup** (corupta, 2026-10-20): the largest import cycle grows from 12 of 14 folders to 41 of 70, the `BaseService` hub made obvious; the beat says so instead of implying a cleaner graph (S7 updates below).
 
 ## S7 updates (2026-10-18), for the Oct 22–23 script
 
