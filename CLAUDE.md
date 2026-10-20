@@ -28,7 +28,13 @@ S7 ran on 2026-10-17/18; [docs/sessions/s7.md](docs/sessions/s7.md) has the repo
 - The H1 bench caught a planner regression. Certifying our own scrambles found certifier false positives, which are fixed with proofs; kaneo's scramble fails closed.
 - An adversarial review confirmed 18 defects, including a K4 false pass round 2 had introduced, and all are fixed. S7 spent $1.12.
 
-Next is S8 (freeze prep: hermetic certificates, planner robustness, carry-overs, stretch if time, polish), whose prompt is in [docs/next-session.md](docs/next-session.md). Feature freeze is **Oct 20** and submission **Oct 28**.
+S8 ran on 2026-10-20; [docs/sessions/s8.md](docs/sessions/s8.md) has the report. Feature freeze held.
+- Certificates are hermetic: the certifier refuses a work dir with a `node_modules` or `package.json` on its path, and the demo defaults to one outside the clone. From a fresh clone's default layout, `npx ac demo --replay --env --oracles` reproduces the four recorded digests.
+- Planner rules 2 read the prompt's ids and keys and rank 0-module plans last; immich pins rules 1. The re-planned bench ($0.11) is higher than the best deterministic method on 3 of 5, 2 of 5 counting only plans our validator accepts.
+- Stretch S3 shipped (`ac rewrap`, optional rung S3, K2's layout class confined to import and export declarations); S1 was not started.
+- The mutation harness kills 831/831 over every target. A review confirmed 28 of 28 findings, including 5 false passes in the first layout rule, and all are fixed. The ledger stands at $10.54.
+
+Next is S9 (the recording session: final recorded runs, numbers frozen Oct 22, site deployed, repo public), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
 
 ## Decided (revisable with a reason)
 
