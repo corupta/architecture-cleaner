@@ -1,6 +1,7 @@
 // What `ac plan` writes: plan.yaml (editable), plan.md (readable), plan.json (every candidate, for analysis), each
 // candidate's full plan as candidates/<label>.yaml (the seeds draft too, so `ac steps` can take any of them) and, when
 // the plan is valid, one step file per group. Pure functions of the run, so a replay writes the same bytes as the recording.
+import { models, reasoningMode } from '../gateway/models.js';
 import type { ModelKey, TemplateKwargs } from '../gateway/types.js';
 import type { CriticSettings } from './critic.js';
 import type { EditSettings } from './edit.js';
@@ -10,11 +11,8 @@ import { planMarkdown } from './report.js';
 import { stepFileName, stepJson, stepsOf } from './steps.js';
 import type { SummarySettings } from './summaries.js';
 
-const modelNames: Record<ModelKey, string> = { super: 'Nemotron 3 Super', ultra: 'Nemotron 3 Ultra', lightning: 'Nemotron 3.5 Lightning' };
-
-/** `Nemotron 3 Ultra (medium_effort)`, `Nemotron 3.5 Lightning (thinking off)`. */
-export const modelLabel = (model: ModelKey, kwargs: TemplateKwargs) =>
-  `${modelNames[model]}${kwargs.medium_effort ? ' (medium_effort)' : kwargs.low_effort ? ' (low_effort)' : kwargs.enable_thinking === false ? ' (thinking off)' : ''}`;
+/** `Nemotron 3 Ultra (medium_effort)`, `Nemotron 3.5 Lightning (thinking off)`, `Nemotron 3.5 Super VL (thinking on)`. */
+export const modelLabel = (model: ModelKey, kwargs: TemplateKwargs) => `${models[model].name} (${reasoningMode(kwargs)})`;
 
 const code = (text: string) => `\`${text}\``;
 

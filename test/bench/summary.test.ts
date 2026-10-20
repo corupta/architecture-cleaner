@@ -1,8 +1,13 @@
 // summary.md from BenchResult files alone: the empty case, a real entry (no ground truth: dashes), bolding and notes,
-// and the scramble verdicts the header states from the results.
+// the scramble verdicts the header states from the results, a repeats block (a run that delivered the seeds draft
+// included), and the committed summary byte for byte.
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { repeatsOf } from '../../src/bench/repeats.js';
+import { readBenchManifest, readResults } from '../../src/bench/run.js';
 import { benchSummary } from '../../src/bench/summary.js';
-import type { BenchResult, MethodScore } from '../../src/bench/types.js';
+import type { BenchPlannerRun, BenchResult, MethodScore } from '../../src/bench/types.js';
 
 const score = (method: string, kind: MethodScore['kind'], turboMq: number, extra: Partial<MethodScore> = {}): MethodScore => ({
   method, kind, clusters: 10, mojoFm: null, ari: null, c2cCvg: null, clusterCountRatio: null, mojoFmHard: null, turboMq: { sum: turboMq, mean: turboMq / 10 }, backEdges: 3, ...extra,
@@ -88,5 +93,58 @@ describe('bench summary', () => {
       '- Planner: no row (see the notes).',
       '- Planner: replayed from `cassettes/s6-immich.jsonl` (2 calls, recorded cost $0.1998, this run spent $0); 59 groups; planner rules 1; plan.yaml sha256 `b4c7c548883c`.',
     ]);
+  });
+
+  it('renders the committed bench/results/summary.md byte for byte from its JSON files: one run of the default configuration says nothing new', () => {
+    const repoRoot = path.join(import.meta.dirname, '..', '..');
+    const results = readResults(path.join(repoRoot, 'bench', 'results'), readBenchManifest(path.join(repoRoot, 'bench', 'manifest.json')));
+    expect(results.map((result) => [result.entry, result.repeats])).toEqual([['hoppscotch', undefined], ['hoppscotch-H1', undefined], ['kaneo', undefined], ['ghostfolio', undefined], ['immich', undefined]]);
+    expect(benchSummary(results)).toBe(fs.readFileSync(path.join(repoRoot, 'bench', 'results', 'summary.md'), 'utf8'));
+  });
+
+  it('renders one run of another configuration: its configuration and its runs table, no mean, min and max', () => {
+    const method = 'planner (Super VL, thinking on)';
+    const row = score(method, 'planner', 11.2, { clusters: 40 });
+    const run: BenchPlannerRun = {
+      repeat: 1, method, valid: true, validatorErrors: 0, fromEdit: true, criticRan: true, editChoices: { asked: 3, returned: 3, parsed: 3, truncated: 0 },
+      groups: 40, modules: 31, samePartition: false, planSha256: 'c'.repeat(64), recordedCostUsd: 0.0412, spentUsd: 0,
+      calls: { replayed: 2, recorded: 0 }, tokens: { prompt: 25_000, completion: 12_345, reasoning: 10_000 },
+    };
+    const summary = benchSummary([{ ...real, methods: [...real.methods.slice(0, 2), row], plannerConfiguration: 'super-vl', repeats: repeatsOf([{ run, score: row }]) }]);
+    expect(summary).toContain('- A planner configuration (src/planner/configurations.ts) names the models that edit the draft and review the');
+    expect(summary).toContain('- Planner configuration `super-vl`: Nemotron 3.5 Super VL (thinking on) edits and reviews.\n- Planner: replayed from');
+    expect(summary).toContain('Planner runs (`super-vl`):');
+    expect(summary).toContain('| run | plan from | edit choices | critic | valid | groups | modules | recorded cost | spent | calls | prompt tokens | completion tokens | reasoning tokens | plan.yaml sha256 |');
+    expect(summary).toContain(`| ${method} | an edit | 3 of 3 parsed | yes | yes | 40 | 31 | $0.0412 | $0.0000 | 2 replayed | 25,000 | 12,345 | 10,000 | \`cccccccccccc\` |`);
+    expect(summary).not.toContain('| over the');
+    expect(summary).toContain("\n1 of 1 run scores above the best deterministic method on TurboMQ's sum, each run as delivered. "
+      + '0 of 1 run had no usable edit; the critic reviewed 1 of 1 plan; 0 of 3 edit choices were cut by the length cap (finish_reason length). '
+      + 'The validator accepts 1 of 1 plan, counting only plans that came from an edit.\n');
+  });
+
+  it('keeps a run that delivered the seeds draft in the mean, min and max as delivered, and never counts it as a valid plan of the model', () => {
+    const method = 'planner (Super VL, thinking on)';
+    const rows = [11, 10, 12].map((turboMq, index) => score(`${method} #${index + 1}`, 'planner', turboMq, { clusters: 40 }));
+    const run = (index: number, extra: Partial<BenchPlannerRun>): BenchPlannerRun => ({
+      repeat: index + 1, method: rows[index]!.method, valid: true, validatorErrors: 0, fromEdit: true, criticRan: true, editChoices: { asked: 3, returned: 3, parsed: 3, truncated: 0 },
+      groups: 40, modules: 31, samePartition: false, planSha256: String(index).repeat(64), recordedCostUsd: 0.04, spentUsd: 0,
+      calls: { replayed: 2, recorded: 0 }, tokens: { prompt: 25_000, completion: 12_000, reasoning: 10_000 }, ...extra,
+    });
+    const runs = [
+      run(0, { editChoices: { asked: 3, returned: 3, parsed: 2, truncated: 1 } }),
+      // Every choice cut by the length cap: the draft is the plan, no critic ran, and the validator accepts the draft.
+      run(1, { fromEdit: false, criticRan: false, editChoices: { asked: 3, returned: 3, parsed: 0, truncated: 3 }, calls: { replayed: 1, recorded: 0 } }),
+      run(2, { valid: false, validatorErrors: 2, editChoices: { asked: 3, returned: 2, parsed: 1, truncated: 1 } }),
+    ];
+    const summary = benchSummary([{ ...real, methods: [...real.methods.slice(0, 2), ...rows], plannerConfiguration: 'super-vl', repeats: repeatsOf(runs.map((each, index) => ({ run: each, score: rows[index]! }))) }]);
+    expect(summary).toContain(`| ${method} #1 | an edit | 2 of 3 parsed (1 truncated) | yes | yes | 40 |`);
+    expect(summary).toContain(`| ${method} #2 | the seeds draft | 0 of 3 parsed (3 truncated) | no | yes | 40 |`);
+    expect(summary).toContain(`| ${method} #3 | an edit | 1 of 3 parsed (2 returned, 1 truncated) | yes | no (2 errors) | 40 |`);
+    expect(summary).toContain('| over the 3 runs, as delivered | TurboMQ |');
+    expect(summary).toContain('| mean | 11.00 |');
+    expect(summary).toContain('| min | 10.00 |');
+    expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered. "
+      + '1 of 3 runs had no usable edit, so the seeds draft became its plan; the critic reviewed 2 of 3 plans; 5 of 9 edit choices were cut by the length cap (finish_reason length). '
+      + 'The validator accepts 1 of 3 plans, counting only plans that came from an edit.\n');
   });
 });

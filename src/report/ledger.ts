@@ -41,11 +41,7 @@ interface LedgerLine {
   completionTokens?: number;
 }
 
-const modelLabels = new Map<string, string>([
-  [models.ultra.id, 'Nemotron 3 Ultra'],
-  [models.super.id, 'Nemotron 3 Super'],
-  [models.lightning.id, 'Nemotron 3.5 Lightning'],
-]);
+const modelLabels = new Map(Object.values(models).map((model) => [model.id, model.name]));
 
 export const modelLabel = (id: string) => modelLabels.get(id) ?? id;
 

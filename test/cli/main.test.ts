@@ -50,6 +50,42 @@ describe.skipIf(!fs.existsSync(cli))('ac (the shared flag parser)', () => {
   });
 });
 
+describe.skipIf(!fs.existsSync(cli))('ac plan --planner', () => {
+  const fixture = fixtureRepo();
+  afterAll(() => fs.rmSync(fixture.scratch, { recursive: true, force: true }));
+
+  it('refuses a configuration it doesn\'t know before anything runs, exit 2', () => {
+    const run = ac('plan', fixture.repo, '--planner', 'nano', '--cassette', path.join(fixture.scratch, 'absent.jsonl'));
+    expect(run.status).toBe(2);
+    expect(run.stderr).toBe('--planner is ultra, super-vl, super-vl-low\n');
+  });
+
+  it('asks the configuration\'s model: a replay of an empty cassette misses on a Super VL record, spending nothing', () => {
+    const cassette = path.join(fixture.scratch, 'absent.jsonl');
+    const run = ac('plan', fixture.repo, '--root', 'server', '--planner', 'super-vl', '--cassette', cassette, '--out', path.join(fixture.scratch, 'plan'));
+    expect(run.status).toBe(2);
+    expect(run.stderr).toMatch(/^ac plan: replay miss: no super-vl record [0-9a-f]{64}:0 in /);
+    expect(fs.existsSync(cassette)).toBe(false);
+  });
+
+  it('is refused by every other command of the shared parser in one line, then the usage, exit 2, as an unknown flag is', () => {
+    const absent = (name: string) => path.join(fixture.scratch, name);
+    const commands = [
+      ['analyze', fixture.repo],
+      ['run', fixture.repo, '--profile', absent('profile.json'), '--cassette', absent('absent.jsonl'), '--out', absent('run')],
+      ['steps', absent('plan.yaml')],
+    ];
+    for (const command of commands) {
+      const run = ac(...command, '--planner', 'super-vl');
+      expect(run.status, command[0]).toBe(2);
+      const [first, ...rest] = run.stderr.split('\n');
+      expect(first).toBe("Option '--planner' is for ac plan and ac bench only");
+      expect(rest.join('\n')).toContain('ac plan <repo>');
+      expect(run.stdout).toBe('');
+    }
+  });
+});
+
 describe.skipIf(!fs.existsSync(cli))('ac run refuses before it plans', () => {
   const fixture = fixtureRepo();
   afterAll(() => fs.rmSync(fixture.scratch, { recursive: true, force: true }));

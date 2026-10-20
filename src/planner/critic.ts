@@ -2,6 +2,7 @@
 // suggestion of every review goes back through the validator one by one; only the ones that pass change the plan.
 import { z } from 'zod';
 import type { CassetteMode, Gateway, ModelKey, TemplateKwargs } from '../gateway/types.js';
+import { defaultPlannerConfiguration, plannerConfigurations, type PlannerConfigurationName } from './configurations.js';
 import { factsText, layoutText, placementRules } from './edit.js';
 import { displayPath, fileResolver } from './facts.js';
 import { canonicalGroup, mergeEvidence, moveEvidence, registryGroup, validatePlan } from './validate.js';
@@ -92,20 +93,21 @@ export interface CriticSettings {
   prompt: CriticPromptVersion;
 }
 
-export const defaultCriticSettings: CriticSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, maxTokens: 32_000, samples: 1, prompt: 2 };
+export const defaultCriticSettings: CriticSettings = { ...plannerConfigurations[defaultPlannerConfiguration].critic, maxTokens: 32_000, samples: 1, prompt: 2 };
 
 /**
- * The critic settings for a target and the cassette mode its calls go through. A replay uses the prompt version the
- * profile pins (`plan.criticPrompt`), so a plan recorded with an older prompt replays from its cassette
- * (profiles/immich.json pins 1, the S6 recording's). Anything that may record (record, and auto, which records what the
- * cassette misses) uses the current prompt: the pin belongs to the recording, not to the target, so a re-recorded plan
- * never keeps a stale prompt.
+ * The critic settings of a planner configuration for a target and the cassette mode its calls go through. A replay
+ * with the default configuration uses the prompt version the profile pins (`plan.criticPrompt`), so a plan recorded
+ * with an older prompt replays from its cassette (profiles/immich.json pins 1, the S6 recording's). Anything that may
+ * record (record, and auto, which records what the cassette misses) uses the current prompt, and so does every other
+ * configuration: the pin belongs to the recording, not to the target, so a re-recorded plan never keeps a stale prompt.
  */
-export function criticSettingsFor(profile: RecordingPins | null | undefined, mode: CassetteMode): CriticSettings {
+export function criticSettingsFor(profile: RecordingPins | null | undefined, mode: CassetteMode, configuration: PlannerConfigurationName = defaultPlannerConfiguration): CriticSettings {
+  const settings = { ...defaultCriticSettings, ...plannerConfigurations[configuration].critic };
   const pinned = profile?.plan?.criticPrompt;
-  if (pinned === undefined) return defaultCriticSettings;
+  if (pinned === undefined) return settings;
   if (!Object.hasOwn(criticPrompts, pinned)) throw new Error(`no critic prompt version ${pinned} (versions: ${Object.keys(criticPrompts).join(', ')})`);
-  return mode === 'replay' ? { ...defaultCriticSettings, prompt: pinned as CriticPromptVersion } : defaultCriticSettings;
+  return mode === 'replay' && configuration === defaultPlannerConfiguration ? { ...settings, prompt: pinned as CriticPromptVersion } : settings;
 }
 
 export interface Suggestion {

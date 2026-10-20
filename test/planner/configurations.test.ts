@@ -1,0 +1,73 @@
+// Planner configurations (S8b): the table, the edit and critic settings each one gives, the replay pins that hold for
+// the default configuration only, the requests each one sends, and the labels plan.md and the bench print.
+import { describe, expect, it } from 'vitest';
+import { plannerMethod } from '../../src/bench/planner.js';
+import { loadProfile } from '../../src/certificate/profile.js';
+import { models } from '../../src/gateway/models.js';
+import { buildRequestBody, type RequestBody } from '../../src/gateway/request.js';
+import type { Gateway, StructuredRequest } from '../../src/gateway/types.js';
+import { defaultPlannerConfiguration, isPlannerConfigurationName, plannerConfigurationNames, plannerConfigurations } from '../../src/planner/configurations.js';
+import { criticSettingsFor, defaultCriticSettings } from '../../src/planner/critic.js';
+import { defaultEditSettings, editSettingsFor, runEdit } from '../../src/planner/edit.js';
+import { modelLabel } from '../../src/planner/outputs.js';
+
+describe('planner configurations', () => {
+  it('are Ultra on medium_effort (the default), Super VL thinking on (no template kwargs) and Super VL on low_effort', () => {
+    expect(plannerConfigurationNames).toEqual(['ultra', 'super-vl', 'super-vl-low']);
+    expect(defaultPlannerConfiguration).toBe('ultra');
+    expect(plannerConfigurations).toEqual({
+      ultra: { edit: { model: 'ultra', templateKwargs: { medium_effort: true } }, critic: { model: 'ultra', templateKwargs: { medium_effort: true } } },
+      'super-vl': { edit: { model: 'super-vl', templateKwargs: {} }, critic: { model: 'super-vl', templateKwargs: {} } },
+      'super-vl-low': { edit: { model: 'super-vl', templateKwargs: { low_effort: true } }, critic: { model: 'super-vl', templateKwargs: { low_effort: true } } },
+    });
+    expect([isPlannerConfigurationName('super-vl-low'), isPlannerConfigurationName('nano'), isPlannerConfigurationName('toString')]).toEqual([true, false, false]);
+  });
+
+  it('keep the default settings as they were: Ultra on medium_effort, K=3 edits of 64k tokens, one 32k-token review with prompt 2', () => {
+    expect(defaultEditSettings).toEqual({ model: 'ultra', templateKwargs: { medium_effort: true }, samples: 3, maxTokens: 64_000, rules: 2 });
+    expect(defaultCriticSettings).toEqual({ model: 'ultra', templateKwargs: { medium_effort: true }, maxTokens: 32_000, samples: 1, prompt: 2 });
+  });
+
+  it.each(plannerConfigurationNames)('%s changes the model and its reasoning only: samples, max tokens, prompt and rules stay', (configuration) => {
+    const { edit, critic } = plannerConfigurations[configuration];
+    expect(editSettingsFor(null, 'auto', configuration)).toEqual({ ...defaultEditSettings, ...edit });
+    expect(criticSettingsFor(null, 'auto', configuration)).toEqual({ ...defaultCriticSettings, ...critic });
+  });
+
+  it("holds a profile's replay pins for the default configuration only: they belong to its recording", () => {
+    const immich = loadProfile('immich');
+    expect([editSettingsFor(immich, 'replay').rules, criticSettingsFor(immich, 'replay').prompt]).toEqual([1, 1]);
+    expect([editSettingsFor(immich, 'replay', 'ultra').rules, criticSettingsFor(immich, 'replay', 'ultra').prompt]).toEqual([1, 1]);
+    for (const configuration of ['super-vl', 'super-vl-low'] as const) {
+      expect([editSettingsFor(immich, 'replay', configuration).rules, criticSettingsFor(immich, 'replay', configuration).prompt], configuration).toEqual([2, 2]);
+    }
+    expect(() => editSettingsFor({ plan: { rules: 9 } }, 'replay', 'super-vl')).toThrow('no planner rules version 9');
+  });
+
+  it.each([
+    ['ultra', models.ultra.id, { medium_effort: true }],
+    ['super-vl', 'nvidia/Nemotron-3.5-Super-VL', undefined],
+    ['super-vl-low', 'nvidia/Nemotron-3.5-Super-VL', { low_effort: true }],
+  ] as const)('%s sends the edit to %s with chat_template_kwargs %o', async (configuration, modelId, kwargs) => {
+    const bodies: RequestBody[] = [];
+    const gateway: Gateway = {
+      async structured<T>(request: StructuredRequest<T>) {
+        bodies.push(buildRequestBody(request as StructuredRequest<unknown>));
+        return { choices: [], usage: null, costUsd: 0, replayed: true, key: 'fake' };
+      },
+      spent: () => ({ run: 0, global: 0 }),
+    };
+    await runEdit(gateway, { system: 'system', user: 'user', groupIds: new Map([['album', 'G1']]) }, editSettingsFor(null, 'auto', configuration));
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toMatchObject({ model: modelId, n: 3, max_tokens: 64_000 });
+    expect(bodies[0]!.chat_template_kwargs).toEqual(kwargs);
+  });
+
+  it("labels the model and its reasoning in plan.md and in the bench's planner row; Ultra's labels stay as they were", () => {
+    expect(modelLabel('ultra', { medium_effort: true })).toBe('Nemotron 3 Ultra (medium_effort)');
+    expect(modelLabel('lightning', { enable_thinking: false })).toBe('Nemotron 3.5 Lightning (thinking off)');
+    expect(modelLabel('super-vl', {})).toBe('Nemotron 3.5 Super VL (thinking on)');
+    expect(modelLabel('super-vl', { low_effort: true })).toBe('Nemotron 3.5 Super VL (low_effort)');
+    expect(plannerConfigurationNames.map(plannerMethod)).toEqual(['planner (Ultra)', 'planner (Super VL, thinking on)', 'planner (Super VL, low_effort)']);
+  });
+});

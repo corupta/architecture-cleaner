@@ -13,7 +13,7 @@ import { loadProfile, type Profile } from '../certificate/profile.js';
 import { packageDirectory } from '../certificate/toolchain.js';
 import { GatewayError, type CassetteMode, type Gateway } from '../gateway/types.js';
 import { branchExists, git, resolveRevision } from '../orchestrator/git.js';
-import { editSettingsFor } from '../planner/edit.js';
+import { defaultPlannerConfiguration, type PlannerConfigurationName } from '../planner/configurations.js';
 import { buildFacts } from '../planner/facts.js';
 import type { Facts, FileFact } from '../planner/types.js';
 import { readScrambleManifest, scrambleRepo } from '../scramble/index.js';
@@ -21,10 +21,11 @@ import { readInventory } from '../scramble/inventory.js';
 import { layoutScramble } from '../scramble/layout.js';
 import type { ScrambleManifest, ScrambleOptions, ScrambleResult } from '../scramble/types.js';
 import { baselinePartitions, benchDraft, louvainPartitions, nameTokenAnchored, underNames, type Assignment } from './baselines.js';
-import { planPartition, type PlannerPartition } from './planner.js';
+import { benchPlanner, planPartition, type PlannerPartition } from './planner.js';
+import { repeatsOf } from './repeats.js';
 import { graphScores, truthScores, truthTokens, type GroundTruth } from './score.js';
 import { benchSummary } from './summary.js';
-import type { BenchDraft, BenchEntry, BenchLeakage, BenchManifest, BenchResult, MethodScore } from './types.js';
+import type { BenchDraft, BenchEntry, BenchLeakage, BenchManifest, BenchPlannerRun, BenchRepeats, BenchResult, MethodScore } from './types.js';
 
 export interface BenchOptions {
   /** Entry names to run; null runs every entry. */
@@ -41,6 +42,16 @@ export interface BenchOptions {
   keep: boolean;
   /** The gateway's cassette mode: a profile's pinned critic prompt applies to replays only. */
   mode: CassetteMode;
+  /** The planner configuration (src/planner/configurations.ts; default ultra). */
+  planner?: PlannerConfigurationName;
+  /** Planner runs per entry through its one gateway (default 1); the deterministic methods run once. */
+  repeats?: number;
+  /**
+   * One cassette for every entry instead of the manifest's (package-relative or absolute), so an experiment never
+   * records into a recorded run's cassette. The profiles' replay pins belong to the entries' own cassettes, so they
+   * don't apply to it.
+   */
+  cassette?: string | null;
   log(message: string): void;
 }
 
@@ -272,6 +283,9 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
   const log = (message: string) => options.log(`${entry.name}: ${message}`);
   const profile = entry.profile ? loadProfile(entry.profile) : null;
   const target = targetOf(entry, profile);
+  const cassette = options.cassette ?? entry.cassette;
+  const repeats = options.repeats ?? 1;
+  const planner = benchPlanner(options.planner ?? defaultPlannerConfiguration, packagePath(cassette) === packagePath(entry.cassette) ? profile : null, options.mode);
   const variant = entry.variant ?? 'default';
   const base = resolveRevision(target.checkout, target.sha);
   const directory = path.resolve(options.work, entry.name);
@@ -304,7 +318,7 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
     const roots = { packageRoot: target.packageRoot, moduleRoot: target.moduleRoot };
     // The facts under the planner rules the entry's planner reads with (planPartition): the baselines and the planner
     // are scored on one set of facts.
-    const facts = buildFacts(repoFs, { ...roots, pins: profile?.plan?.pins ?? [], rules: editSettingsFor(profile, options.mode).rules });
+    const facts = buildFacts(repoFs, { ...roots, pins: profile?.plan?.pins ?? [], rules: planner.edit.rules });
     log(`facts: ${facts.files.length} movable files, ${facts.edges.length} edges, ${facts.pins.length} pinned`);
     const groundTruth = scramble ? groundTruthOf(scramble, facts, defaultPaths) : null;
     if (groundTruth?.pinnedFeatureFiles) {
@@ -322,29 +336,61 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
     }
     log(`${methods.length} deterministic methods scored`);
 
-    let planner: BenchResult['planner'] = null;
+    let plannerRecord: BenchResult['planner'] = null;
+    let repeatsRecord: BenchRepeats | null = null;
     if (!options.gateway) {
       notes.push('The planner did not run (--no-llm).');
     } else {
-      const gateway = options.gateway(entry);
-      const spentBefore = gateway.spent().run;
+      // One gateway for every run: the cassette keys a repeated request by its occurrence, so each run is a sample of its own.
+      const gateway = options.gateway({ ...entry, cassette });
+      const runs: { partition: PlannerPartition; spentUsd: number }[] = [];
       try {
-        const planned = await planPartition(repoFs, gateway, profile ?? { name: entry.name, packageRoot: target.packageRoot, node: 'system' }, roots, options.mode);
-        const spentUsd = round(gateway.spent().run - spentBefore, 6);
-        const described = plannerNotes(planned, draft, facts.files.length);
-        methods.push({ ...methodScore(planned.method, 'planner', planned.assignment, facts, groundTruth), ...(described.rowNote ? { note: described.rowNote } : {}) });
-        planner = {
-          cassette: entry.cassette, recordedCostUsd: round(planned.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, calls: planned.calls, rules: planned.rules,
-          groups: planned.groups, modules: planned.modules, change: planned.change, planSha256: planned.planSha256,
-        };
-        if (planned.errors.length) notes.push(`The validator rejects the planner's plan (${planned.errors.slice(0, 3).join('; ')}); it is scored as it came back.`);
-        notes.push(...described.notes);
-        log(`planner: ${planned.groups} groups, plan.yaml sha256 ${planned.planSha256.slice(0, 12)}, ${planner.replayed ? 'replayed' : `spent $${spentUsd.toFixed(4)}`}`);
+        while (runs.length < repeats) {
+          const spentBefore = gateway.spent().run;
+          const partition = await planPartition(repoFs, gateway, profile ?? { name: entry.name, packageRoot: target.packageRoot, node: 'system' }, roots, planner);
+          runs.push({ partition, spentUsd: round(gateway.spent().run - spentBefore, 6) });
+        }
       } catch (error) {
         if (!(error instanceof GatewayError && error.code === 'replay-miss')) throw error;
-        notes.push(`The planner is not recorded in ${entry.cassette} for these facts (replay miss); record it with --mode auto --run <budget run>.`);
-        log('planner: not recorded (replay miss)');
+        // All or nothing: k runs or no planner row, so a result never mixes a shorter replay into a comparison of k runs.
+        const missed = repeats > 1 ? ` on run ${runs.length + 1} of ${repeats}` : '';
+        notes.push(`The planner is not recorded in ${cassette} for these facts (replay miss${missed}); record it with --mode auto --run <budget run>.`);
+        log(`planner: not recorded (replay miss${missed})`);
+        runs.length = 0;
       }
+      const rows: { run: BenchPlannerRun; score: MethodScore }[] = [];
+      runs.forEach(({ partition, spentUsd }, index) => {
+        const repeat = runs.length > 1 ? `${index + 1} of ${runs.length}` : null;
+        const prefix = repeat ? `Run ${repeat}: ` : '';
+        const method = repeat ? `${partition.method} #${index + 1}` : partition.method;
+        const described = plannerNotes(partition, draft, facts.files.length);
+        const score: MethodScore = { ...methodScore(method, 'planner', partition.assignment, facts, groundTruth), ...(described.rowNote ? { note: described.rowNote } : {}) };
+        methods.push(score);
+        const record = {
+          cassette, recordedCostUsd: round(partition.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, calls: partition.calls, rules: partition.rules,
+          groups: partition.groups, modules: partition.modules, change: partition.change, planSha256: partition.planSha256,
+        };
+        plannerRecord ??= record;
+        const { usage } = partition;
+        rows.push({
+          score,
+          run: {
+            repeat: index + 1, method, valid: !partition.errors.length, validatorErrors: partition.errors.length,
+            // The change names a winning edit and a critic exactly when planRepo's winner is not its draft candidate and the critic ran.
+            fromEdit: partition.change.winner !== null, criticRan: partition.change.critic !== null, editChoices: partition.editChoices,
+            groups: partition.groups, modules: partition.modules,
+            samePartition: partition.change.samePartition, planSha256: partition.planSha256, recordedCostUsd: record.recordedCostUsd, spentUsd, calls: partition.calls,
+            tokens: { prompt: usage.promptTokens, completion: usage.completionTokens, reasoning: usage.reasoningTokens },
+          },
+        });
+        if (partition.errors.length) notes.push(`${prefix}The validator rejects the planner's plan (${partition.errors.slice(0, 3).join('; ')}); it is scored as it came back.`);
+        // The draft is every run's: said once.
+        const [draftNote, ...planNotes] = described.notes;
+        if (index === 0) notes.push(draftNote!);
+        notes.push(...planNotes.map((note) => `${prefix}${note}`));
+        log(`${repeat ? `run ${repeat}: ` : ''}planner: ${partition.groups} groups, plan.yaml sha256 ${partition.planSha256.slice(0, 12)}, ${record.replayed ? 'replayed' : `spent $${spentUsd.toFixed(4)}`}`);
+      });
+      if (rows.length > 1 || (rows.length && planner.configuration !== defaultPlannerConfiguration)) repeatsRecord = repeatsOf(rows);
     }
 
     const leaky = scramble ? leakageOf(scramble, facts) : null;
@@ -374,10 +420,13 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       },
       methods,
       bestBaseline: bestDeterministic(methods, Boolean(scramble)),
-      planner,
+      planner: plannerRecord,
       louvainMojoFmByResolution: scramble ? louvainMojoFm : null,
       draft,
       notes,
+      // Both absent for one run of the default configuration, so its result is the one S7 and S8 wrote.
+      ...(planner.configuration === defaultPlannerConfiguration ? {} : { plannerConfiguration: planner.configuration }),
+      ...(repeatsRecord ? { repeats: repeatsRecord } : {}),
     };
   } finally {
     if (!options.keep) removeWorktrees(target.checkout, [worktree]);

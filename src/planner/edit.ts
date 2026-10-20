@@ -3,6 +3,7 @@
 // The evaluate round stays off (G1: it hurt 6 of 17 samples). K candidates come from one call with n=K.
 import { z } from 'zod';
 import { GatewayError, type CassetteMode, type Gateway, type ModelKey, type TemplateKwargs } from '../gateway/types.js';
+import { defaultPlannerConfiguration, plannerConfigurations, type PlannerConfigurationName } from './configurations.js';
 import { displayPath, lowConfidenceName } from './facts.js';
 import { latestPlannerRules, plannerRulesVersions, type Draft, type Facts, type PlanEdit, type PlannerRules, type RecordingPins } from './types.js';
 import { bannedModuleNames, bannedWords, sharedGroupName } from './validate.js';
@@ -181,27 +182,31 @@ export interface EditSettings {
   rules: PlannerRules;
 }
 
-/** Ultra on medium_effort (G1's best editor), thinking on, K=3, the latest planner rules. */
-export const defaultEditSettings: EditSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, samples: 3, maxTokens: 64_000, rules: latestPlannerRules };
+/** The default configuration's model (Ultra on medium_effort, G1's best editor), K=3, the latest planner rules. */
+export const defaultEditSettings: EditSettings = { ...plannerConfigurations[defaultPlannerConfiguration].edit, samples: 3, maxTokens: 64_000, rules: latestPlannerRules };
 
 /**
- * The edit settings for a target and the cassette mode its calls go through, like criticSettingsFor: a replay reads
- * the answers with the planner rules the profile pins (`plan.rules`), so a plan recorded under older rules replays
- * from its cassette as it was made (profiles/immich.json pins 1, the S6 recording's). Anything that may record (record,
- * and auto) uses the latest rules: the pin belongs to the recording, not to the target.
+ * The edit settings of a planner configuration for a target and the cassette mode its calls go through, like
+ * criticSettingsFor: a replay with the default configuration reads the answers with the planner rules the profile pins
+ * (`plan.rules`), so a plan recorded under older rules replays from its cassette as it was made (profiles/immich.json
+ * pins 1, the S6 recording's). Anything that may record (record, and auto) uses the latest rules, and so does every
+ * other configuration: the pin belongs to the recording, not to the target.
  */
-export function editSettingsFor(profile: RecordingPins | null | undefined, mode: CassetteMode): EditSettings {
+export function editSettingsFor(profile: RecordingPins | null | undefined, mode: CassetteMode, configuration: PlannerConfigurationName = defaultPlannerConfiguration): EditSettings {
+  const settings = { ...defaultEditSettings, ...plannerConfigurations[configuration].edit };
   const pinned = profile?.plan?.rules;
-  if (pinned === undefined) return defaultEditSettings;
+  if (pinned === undefined) return settings;
   const version = plannerRulesVersions.find((candidate) => candidate === pinned);
   if (version === undefined) throw new Error(`no planner rules version ${pinned} (versions: ${plannerRulesVersions.join(', ')})`);
-  return mode === 'replay' ? { ...defaultEditSettings, rules: version } : defaultEditSettings;
+  return mode === 'replay' && configuration === defaultPlannerConfiguration ? { ...settings, rules: version } : settings;
 }
 
 export interface EditCandidate {
   label: string;
   edit?: PlanEdit;
   error?: string;
+  /** The choice's finish_reason: `length` when the max_tokens cap cut it (the bench counts those). */
+  finishReason: string | null;
   reasoningChars: number;
 }
 
@@ -237,7 +242,7 @@ export async function runEdit(gateway: Gateway, prompt: EditPrompt, settings: Ed
     run.usage.reasoningTokens += result.usage?.reasoningTokens ?? 0;
     for (const choice of result.choices) {
       const label = `${settings.model}#${run.candidates.length + 1}`;
-      run.candidates.push({ label, reasoningChars: choice.reasoning?.length ?? 0, ...(choice.value ? { edit: choice.value } : { error: choice.error ?? 'no value' }) });
+      run.candidates.push({ label, finishReason: choice.finishReason, reasoningChars: choice.reasoning?.length ?? 0, ...(choice.value ? { edit: choice.value } : { error: choice.error ?? 'no value' }) });
     }
   };
   if (settings.samples > 1) {

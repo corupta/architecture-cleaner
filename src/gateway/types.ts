@@ -1,7 +1,7 @@
 // The LLM gateway's contract (plan §3.6). Every model call goes through `Gateway.structured`: json_schema strict,
 // explicit sampling, a max_tokens cap, reasoning controlled only through chat_template_kwargs, cassettes and a ledger.
 
-export type ModelKey = 'super' | 'ultra' | 'lightning';
+export type ModelKey = 'super' | 'ultra' | 'lightning' | 'super-vl';
 
 /** record: always call and append to the cassette. replay: never call; a miss fails. auto: replay hits, record misses. */
 export type CassetteMode = 'record' | 'replay' | 'auto';
@@ -14,7 +14,7 @@ export interface ChatMessage {
 /** chat_template_kwargs, the only reasoning control (never `reasoning_effort`). */
 export interface TemplateKwargs {
   enable_thinking?: boolean;
-  /** Super only. */
+  /** Super and Super VL only. */
   low_effort?: boolean;
   /** Ultra only. */
   medium_effort?: boolean;

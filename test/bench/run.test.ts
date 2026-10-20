@@ -1,15 +1,23 @@
 // `ac bench` end to end on a small fixture repo: a feature-modular package (base commit) and its type-folder flattening
 // (a second commit the fake scramble checks out, as scrambleRepo would leave the worktree), a real entry on the same
-// base, the planner through fake gateways (an answer, a replay miss), the results JSON, summary.md, and determinism.
+// base, the planner through fake gateways (an answer, a replay miss, edit choices cut by the length cap), the results
+// JSON, summary.md, and determinism; then --repeats, --planner and --cassette through the real gateway on a fake transport.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { benchCommand } from '../../src/bench/command.js';
+import { compareReport, readComparedResults } from '../../src/bench/compare.js';
 import { groundTruthOf, leakageNote, leakageOf, plannerNotes, readBenchManifest, runBench, type BenchOptions } from '../../src/bench/run.js';
 import type { BenchManifest, BenchResult } from '../../src/bench/types.js';
-import { GatewayError, type Gateway, type StructuredRequest, type StructuredResult } from '../../src/gateway/types.js';
+import type { CassetteRecord } from '../../src/gateway/cassette.js';
+import { createGateway } from '../../src/gateway/gateway.js';
+import { models } from '../../src/gateway/models.js';
+import type { RequestBody } from '../../src/gateway/request.js';
+import type { Transport } from '../../src/gateway/transport.js';
+import { GatewayError, type CassetteMode, type Gateway, type StructuredRequest, type StructuredResult } from '../../src/gateway/types.js';
+import { plannerConfigurations, type PlannerConfigurationName } from '../../src/planner/configurations.js';
 import type { Facts } from '../../src/planner/types.js';
 import type { ScrambleEntity, ScrambleOptions, ScrambleResult } from '../../src/scramble/types.js';
 
@@ -130,6 +138,30 @@ function byIdGateway(): Gateway {
       return {
         choices: answers.map((answer, index) => ({ index, finishReason: 'stop', value: request.parse(answer), reasoning: null })),
         usage: { promptTokens: 100, completionTokens: 10, reasoningTokens: 0 }, costUsd: 0.005, replayed: true, key: 'fake:by-id',
+      };
+    },
+    spent: () => ({ run: 0, global: 0 }),
+  };
+}
+
+/**
+ * fakeGateway's answers with edit choices lost: the first run's three cut by the length cap (no edit is usable, so the
+ * draft is its plan and the critic has nothing to review), the second's one cut and one unparseable, the third's none.
+ */
+function truncatingGateway(): Gateway {
+  const answers = fakeGateway();
+  const lost = [['length', 'length', 'length'], ['length', 'unparseable', null], [null, null, null]];
+  let edits = 0;
+  return {
+    async structured<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>> {
+      const result = await answers.structured(request);
+      if (request.schemaName !== 'plan_edit') return result;
+      const losses = lost[edits++]!;
+      return {
+        ...result,
+        choices: result.choices.map((choice, index) => (losses[index] === 'length'
+          ? { index, finishReason: 'length', error: 'truncated', reasoning: null }
+          : losses[index] === 'unparseable' ? { index, finishReason: 'stop', error: 'content is not JSON: Unexpected end of JSON input', reasoning: null } : choice)),
       };
     },
     spent: () => ({ run: 0, global: 0 }),
@@ -279,6 +311,26 @@ describe('ac bench on a fixture', async () => {
     expect(result.notes!.join('\n')).toContain('had 3 group entries and 3 moves (3 name their file by its id, not its path); the validator found no problem with it. Planner rules 2 read a file by the id the prompt showed for it.');
   });
 
+  it('records per run its edit choices, whether its plan came from an edit and whether the critic ran; a run with no usable edit delivers the draft', async () => {
+    const truncated = { ...optionsFor('truncated', () => truncatingGateway()), only: ['fixture'], repeats: 3 };
+    const [result] = (await runBench(manifest, truncated, { scramble: fakeScramble })).results as [BenchResult];
+    expect(result.repeats!.runs.map((run) => [run.fromEdit, run.criticRan, run.editChoices, run.calls.replayed])).toEqual([
+      [false, false, { asked: 3, returned: 3, parsed: 0, truncated: 3 }, 1],
+      [true, true, { asked: 3, returned: 3, parsed: 1, truncated: 1 }, 2],
+      [true, true, { asked: 3, returned: 3, parsed: 3, truncated: 0 }, 2],
+    ]);
+    // The validator accepts the draft run 1 delivered: it still counts in the mean as delivered, never as a plan of the model.
+    expect(result.repeats!.runs.map((run) => run.valid)).toEqual([true, true, true]);
+    expect(result.notes).toContain("Run 1 of 3: The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. No edit came back, so the draft is the plan.");
+    const summary = fs.readFileSync(path.join(truncated.out, 'summary.md'), 'utf8');
+    expect(summary).toContain('| planner (Ultra) #1 | the seeds draft | 0 of 3 parsed (3 truncated) | no | yes |');
+    expect(summary).toContain('1 of 3 runs had no usable edit, so the seeds draft became its plan; the critic reviewed 2 of 3 plans; 4 of 9 edit choices were cut by the length cap (finish_reason length). '
+      + 'The validator accepts 2 of 3 plans, counting only plans that came from an edit.');
+    const compared = compareReport(readComparedResults([truncated.out]));
+    expect(compared).toMatch(/\n\| results \| `ultra` \| 3 \| [\d.]+ \([\d.]+ to [\d.]+\) \| \d of 3 \| 1 of 3 \| 4 of 9 \| 2 of 3 \| 2 of 3 \| /);
+    expect(compared).toMatch(/\n\| results \| `ultra` \| 1 \| 3 \| \d of 3 \| 1 of 3 \| 4 of 9 \| 2 of 3 \| 2 of 3 \| /);
+  });
+
   it('skips the planner row with --no-llm and keeps the worktree with --keep', async () => {
     const offline = { ...optionsFor('offline', null), only: ['fixture'], keep: true };
     const { results } = await runBench(manifest, offline, { scramble: fakeScramble });
@@ -287,6 +339,165 @@ describe('ac bench on a fixture', async () => {
     expect(results[0]!.notes).toContain('The planner did not run (--no-llm).');
     expect(fs.existsSync(path.join(offline.work, 'fixture', 'repo', 'pkg', 'src', 'services', 'avatar.service.ts'))).toBe(true);
     git('worktree', 'remove', '--force', path.join(offline.work, 'fixture', 'repo'));
+  });
+});
+
+/**
+ * Token Factory behind a fake transport: the first and third edit calls keep every draft group as it is, the second
+ * merges album into user; the critic has nothing to say. Call c reports 100c prompt, 10c completion and 5c reasoning
+ * tokens, so every run's tokens are its own.
+ */
+function fakeTokenFactory() {
+  const bodies: RequestBody[] = [];
+  let edits = 0;
+  const send: Transport = async (body) => {
+    bodies.push(body);
+    const call = bodies.length;
+    const { name, schema } = body.response_format.json_schema as unknown as { name: string; schema: { properties: { groups: { properties?: Record<string, unknown> } } } };
+    const merged = name === 'plan_edit' && ++edits === 2;
+    const answers = name === 'plan_edit'
+      ? Array.from({ length: body.n ?? 1 }, () => ({
+        groups: Object.fromEntries(Object.keys(schema.properties.groups.properties!).map((key) => {
+          const label = key.slice(key.indexOf(':') + 1);
+          return [key, label === 'shared' ? { name: 'shared', kind: 'shared' } : { name: merged && label === 'album' ? 'user' : label, kind: 'module' }];
+        })),
+        moves: [],
+      }))
+      : [{ review: 'The groups follow the features.', groups: [], moves: [] }];
+    const choices = answers.map((answer, index) => ({ index, finish_reason: 'stop', message: { role: 'assistant', content: JSON.stringify(answer) } }));
+    return { status: 200, headers: {}, bodyText: JSON.stringify({ choices, usage: { prompt_tokens: 100 * call, completion_tokens: 10 * call, completion_tokens_details: { reasoning_tokens: 5 * call } } }) };
+  };
+  return { send, bodies };
+}
+
+describe('ac bench --repeats, --planner and --cassette', async () => {
+  const budget = path.join(temporary, 'budget');
+  fs.mkdirSync(budget, { recursive: true });
+  fs.writeFileSync(path.join(budget, 'runs.json'), JSON.stringify({ globalCap: 5, runs: { test: { cap: 2 } } }));
+  /** The real gateway on the cassette the bench hands it (--cassette here), recording through `transport` when given. */
+  const through = (mode: CassetteMode, transport?: Transport): BenchOptions['gateway'] => (entry) => createGateway({
+    runId: 'test', mode, cassettePath: entry.cassette, ledgerPath: path.join(budget, 'ledger.jsonl'), runsPath: path.join(budget, 'runs.json'),
+    ...(transport ? { transport, apiKey: 'test-key' } : {}),
+  });
+  const cassette = path.join(temporary, 'repeats.jsonl');
+  const tokenFactory = fakeTokenFactory();
+  const bench = async (label: string, gateway: BenchOptions['gateway'], extra: Partial<BenchOptions>) =>
+    (await runBench(manifest, { ...optionsFor(label, gateway), only: ['fixture'], ...extra }, { scramble: fakeScramble })).results[0]!;
+  const recorded = await bench('repeats-recorded', through('auto', tokenFactory.send), { mode: 'auto', cassette, repeats: 3 });
+  const plannerRows = (result: BenchResult) => result.methods.filter((score) => score.kind === 'planner');
+
+  it('runs the planner k times through one gateway: the cassette keys each repeated request by its occurrence', () => {
+    const records = fs.readFileSync(cassette, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as CassetteRecord);
+    const named = (name: string) => records.filter((record) => (record.request as RequestBody).response_format.json_schema.name === name);
+    expect(tokenFactory.bodies).toHaveLength(6);
+    expect(named('plan_edit').map((record) => record.occurrence)).toEqual([0, 1, 2]);
+    expect(new Set(named('plan_edit').map((record) => record.hash)).size).toBe(1);
+    // Runs 1 and 3 drew the same edit, so their reviews are one request, at occurrences 0 and 1.
+    const reviews = named('plan_review');
+    expect(reviews.map((record) => record.occurrence)).toEqual([0, 0, 1]);
+    expect(reviews[2]!.hash).toBe(reviews[0]!.hash);
+    expect(reviews[1]!.hash).not.toBe(reviews[0]!.hash);
+  });
+
+  it('keeps one planner row per run with its verdict, cost, calls and tokens, and the mean, min and max over them', () => {
+    // The deterministic methods run once: the nine rows of a single run, then the planner's three.
+    expect(recorded.methods.map((score) => score.method).slice(0, 9)).toEqual([
+      'B0 type folders', 'name-token (full stem)', 'name-token (anchored)', 'export-token (anchored)', 'seeds draft (file names)', 'seeds draft (export names)',
+      'Louvain r=1 (mean of seeds 1-5)', 'Louvain r=2 (mean of seeds 1-5)', 'Louvain r=4 (mean of seeds 1-5)',
+    ]);
+    const rows = plannerRows(recorded);
+    expect(rows.map((score) => score.method)).toEqual(['planner (Ultra) #1', 'planner (Ultra) #2', 'planner (Ultra) #3']);
+    const { runs, mean, min, max } = recorded.repeats!;
+    // The default configuration goes unsaid, as in every result before S8b.
+    expect(recorded.plannerConfiguration).toBeUndefined();
+    expect(runs.map((run) => [run.repeat, run.method, run.valid, run.calls, run.tokens])).toEqual([
+      [1, 'planner (Ultra) #1', true, { replayed: 0, recorded: 2 }, { prompt: 300, completion: 30, reasoning: 15 }],
+      [2, 'planner (Ultra) #2', true, { replayed: 0, recorded: 2 }, { prompt: 700, completion: 70, reasoning: 35 }],
+      [3, 'planner (Ultra) #3', true, { replayed: 0, recorded: 2 }, { prompt: 1100, completion: 110, reasoning: 55 }],
+    ]);
+    // Ultra's prices, $1 and $3 per million prompt and completion tokens; a recording run spends what it records.
+    expect(runs.map((run) => [run.recordedCostUsd, run.spentUsd])).toEqual([[0.00039, 0.00039], [0.00091, 0.00091], [0.00143, 0.00143]]);
+    expect(runs[2]!.planSha256).toBe(runs[0]!.planSha256);
+    expect(runs[1]!.planSha256).not.toBe(runs[0]!.planSha256);
+    expect([runs[0]!.groups, runs[1]!.groups]).toEqual([3, 2]);
+    expect([mean.promptTokens, min.promptTokens, max.promptTokens, mean.recordedCostUsd, mean.groups, min.groups]).toEqual([700, 300, 1100, 0.00091, 2.7, 2]);
+    const mojoFm = rows.map((score) => score.mojoFm!);
+    expect([min.mojoFm, max.mojoFm, mean.mojoFm]).toEqual([Math.min(...mojoFm), Math.max(...mojoFm), Number((mojoFm.reduce((sum, value) => sum + value) / 3).toFixed(2))]);
+    expect(min.mojoFm).not.toBe(max.mojoFm);
+    // `planner` is the first run's, as a single run would write it.
+    expect(recorded.planner).toMatchObject({ cassette, recordedCostUsd: 0.00039, calls: { replayed: 0, recorded: 2 }, planSha256: runs[0]!.planSha256 });
+    expect(recorded.notes!.filter((note) => /^Run \d of 3: The planner's plan/.test(note))).toHaveLength(3);
+    expect(recorded.notes!.filter((note) => note.startsWith('The planner starts from'))).toHaveLength(1);
+  });
+
+  it('says so in summary.md: the repeats note, the configuration, every run and the mean, min and max', () => {
+    const summary = fs.readFileSync(path.join(temporary, 'repeats-recorded', 'results', 'summary.md'), 'utf8');
+    expect(summary).toContain('With `--repeats k` the planner runs k times per entry through one gateway');
+    expect(summary).toContain('- Planner configuration `ultra`: Nemotron 3 Ultra (medium_effort) edits and reviews; 3 runs through one gateway.');
+    expect(summary).toContain('Planner runs (`ultra`):');
+    expect(summary).toContain('- Planner, run 1 of 3 (the runs table has every run): recorded into ');
+    expect(summary).toContain('| **planner (Ultra) #2** |');
+    expect(summary).toContain(`| planner (Ultra) #2 | an edit | 3 of 3 parsed | yes | yes | 2 | 2 | $0.0009 | $0.0009 | 2 recorded | 700 | 70 | 35 | \`${recorded.repeats!.runs[1]!.planSha256.slice(0, 12)}\` |`);
+    expect(summary).toContain('| min | ');
+    expect(summary).toMatch(/\n\d of 3 runs score above the best deterministic method on MoJoFM, each run as delivered\. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap \(finish_reason length\)\. The validator accepts 3 of 3 plans, counting only plans that came from an edit\.\n/);
+  });
+
+  it('replays all k runs from the cassette and spends nothing; a replay asking for one run more fails closed', async () => {
+    const replayed = await bench('repeats-replayed', through('replay'), { cassette, repeats: 3 });
+    expect(replayed.methods).toEqual(recorded.methods);
+    const recordedRuns = recorded.repeats!.runs.map(({ calls: _calls, spentUsd: _spent, ...run }) => run);
+    expect(replayed.repeats!.runs.map(({ calls: _calls, spentUsd: _spent, ...run }) => run)).toEqual(recordedRuns);
+    expect(replayed.repeats!.runs.map((run) => [run.calls, run.spentUsd])).toEqual(Array.from({ length: 3 }, () => [{ replayed: 2, recorded: 0 }, 0]));
+    expect([replayed.repeats!.mean, replayed.repeats!.min, replayed.repeats!.max]).toEqual([recorded.repeats!.mean, recorded.repeats!.min, recorded.repeats!.max]);
+    expect(tokenFactory.bodies).toHaveLength(6);
+
+    const longer = await bench('repeats-longer', through('replay'), { cassette, repeats: 4 });
+    expect([longer.planner, longer.repeats, plannerRows(longer)]).toEqual([null, undefined, []]);
+    const missed = await bench('super-vl-missed', through('replay'), { cassette, planner: 'super-vl', repeats: 3 });
+    // A configuration that recorded nothing still names itself, so compare can say whose row is missing.
+    expect([missed.plannerConfiguration, missed.repeats, plannerRows(missed)]).toEqual(['super-vl', undefined, []]);
+    expect(longer.notes).toContain(`The planner is not recorded in ${cassette} for these facts (replay miss on run 4 of 4); record it with --mode auto --run <budget run>.`);
+  });
+
+  const configurations: [PlannerConfigurationName, string, object | undefined][] = [
+    ['super-vl', 'planner (Super VL, thinking on)', undefined],
+    ['super-vl-low', 'planner (Super VL, low_effort)', { low_effort: true }],
+    ['ultra', 'planner (Ultra)', { medium_effort: true }],
+  ];
+  it.each(configurations)('asks the models of --planner %s, the edit and the critic alike', async (configuration, method, kwargs) => {
+    const asked = fakeTokenFactory();
+    const result = await bench(`planner-${configuration}`, through('auto', asked.send), { mode: 'auto', cassette: path.join(temporary, `${configuration}.jsonl`), planner: configuration });
+    const { model } = plannerConfigurations[configuration].edit;
+    expect(asked.bodies.map((body) => [body.response_format.json_schema.name, body.model, body.chat_template_kwargs, body.n, body.max_tokens])).toEqual([
+      ['plan_edit', models[model].id, kwargs, 3, 64_000],
+      ['plan_review', models[model].id, kwargs, undefined, 32_000],
+    ]);
+    expect(plannerRows(result).map((score) => score.method)).toEqual([method]);
+    // One run of the default configuration writes neither its name nor a repeats block (a result as S8 wrote it); another configuration does.
+    expect(result.plannerConfiguration).toBe(configuration === 'ultra' ? undefined : configuration);
+    expect(result.repeats?.runs.length ?? 0).toBe(configuration === 'ultra' ? 0 : 1);
+  });
+
+  it("applies a profile's replay pins only to the recording they belong to: the entry's own cassette and the default configuration", async () => {
+    const profile = path.join(temporary, 'pinned-profile.json');
+    fs.writeFileSync(profile, JSON.stringify({ name: 'fixture', packageRoot: 'pkg', node: 'system', plan: { moduleRoot: 'src', rules: 1 } }));
+    const pinned: BenchManifest = { entries: [{ ...manifest.entries[0]!, profile }] };
+    const run = async (label: string, extra: Partial<BenchOptions>) =>
+      (await runBench(pinned, { ...optionsFor(label, () => fakeGateway()), only: ['fixture'], ...extra }, { scramble: fakeScramble })).results[0]!.planner!;
+    expect(await run('pins-own', {})).toMatchObject({ rules: 1, cassette: 'cassettes/fixture.jsonl' });
+    expect(await run('pins-own-named', { cassette: 'cassettes/fixture.jsonl' })).toMatchObject({ rules: 1 });
+    expect(await run('pins-other', { cassette: 'cassettes/experiment.jsonl' })).toMatchObject({ rules: 2, cassette: 'cassettes/experiment.jsonl' });
+    expect(await run('pins-super-vl', { planner: 'super-vl' })).toMatchObject({ rules: 2 });
+  });
+
+  it('writes the same bytes with the defaults spelled out: --planner ultra --repeats 1 on the manifest cassette', async () => {
+    const implicit = optionsFor('defaults-implicit', () => fakeGateway());
+    const explicit = { ...optionsFor('defaults-explicit', () => fakeGateway()), planner: 'ultra' as const, repeats: 1, cassette: null };
+    for (const options of [implicit, explicit]) expect((await runBench(manifest, options, { scramble: fakeScramble })).failures).toEqual([]);
+    for (const file of ['fixture.json', 'fixture-real.json', 'summary.md']) {
+      expect(fs.readFileSync(path.join(explicit.out, file), 'utf8'), file).toBe(fs.readFileSync(path.join(implicit.out, file), 'utf8'));
+    }
+    expect(fs.readFileSync(path.join(explicit.out, 'summary.md'), 'utf8')).not.toContain('--repeats');
   });
 });
 
@@ -436,10 +647,14 @@ describe('the bench manifest and the command line', () => {
       expect(await benchCommand([committed, '--mode', 'live'])).toBe(2);
       expect(await benchCommand([committed, '--only', 'nope', '--work', path.join(temporary, 'unused')])).toBe(2);
       expect(await benchCommand([])).toBe(2);
+      expect(await benchCommand([committed, '--planner', 'nano'])).toBe(2);
+      for (const repeats of ['0', '1.5', 'three']) expect(await benchCommand([committed, '--repeats', repeats])).toBe(2);
     } finally {
       console.error = original;
     }
     expect(errors.join('\n')).toContain('--run <id from budget/runs.json> is required for record and auto modes');
     expect(errors.join('\n')).toContain('no bench entry nope');
+    expect(errors.join('\n')).toContain('--planner is ultra, super-vl, super-vl-low');
+    expect(errors.join('\n')).toContain('--repeats takes a whole number from 1 up');
   });
 });

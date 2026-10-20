@@ -24,8 +24,8 @@ const requestFields = new Set(['model', 'messages', 'schemaName', 'schema', 'par
 const roles = new Set(['system', 'user', 'assistant']);
 /** Which models honour each chat_template_kwargs flag (docs/gates/tf-probes.md, "Reasoning controls"). */
 const templateKwargModels: Record<keyof TemplateKwargs, readonly ModelKey[]> = {
-  enable_thinking: ['super', 'ultra', 'lightning'],
-  low_effort: ['super'],
+  enable_thinking: ['super', 'ultra', 'lightning', 'super-vl'],
+  low_effort: ['super', 'super-vl'],
   medium_effort: ['ultra'],
 };
 const schemaNamePattern = /^[A-Za-z0-9_-]{1,64}$/;
@@ -56,7 +56,7 @@ function templateKwargsFor(model: ModelKey, kwargs: unknown): TemplateKwargs | u
 export function buildRequestBody(request: StructuredRequest<unknown>): RequestBody {
   if (!isPlainObject(request)) refuse('the request must be an object');
   for (const field of Object.keys(request)) if (!requestFields.has(field)) refuse(`unknown field ${field}`);
-  if (!isModelKey(request.model)) refuse(`unknown model ${JSON.stringify(request.model)} (super, ultra, lightning)`);
+  if (!isModelKey(request.model)) refuse(`unknown model ${JSON.stringify(request.model)} (${Object.keys(models).join(', ')})`);
   if (!Array.isArray(request.messages) || request.messages.length === 0) refuse('messages must be a non-empty array');
   const messages = request.messages.map((message, index): ChatMessage => {
     if (!isPlainObject(message) || !roles.has(message.role as string) || typeof message.content !== 'string') {

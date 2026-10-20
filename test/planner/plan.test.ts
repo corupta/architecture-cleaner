@@ -1,6 +1,6 @@
 // `ac plan` end to end on a small repo: facts → seeds → K edits → validator → critic → plan.yaml, plan.md, plan.json
 // and steps, through the real gateway. The recording run answers from a fake transport; the replay run has none, and
-// must write the same bytes without touching the ledger.
+// must write the same bytes without touching the ledger. Then the same plan by another planner configuration.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -11,8 +11,8 @@ import { createGateway } from '../../src/gateway/gateway.js';
 import type { RequestBody } from '../../src/gateway/request.js';
 import type { Transport } from '../../src/gateway/transport.js';
 import { GatewayError } from '../../src/gateway/types.js';
-import { defaultCriticSettings } from '../../src/planner/critic.js';
-import { defaultEditSettings } from '../../src/planner/edit.js';
+import { criticSettingsFor, defaultCriticSettings } from '../../src/planner/critic.js';
+import { defaultEditSettings, editSettingsFor } from '../../src/planner/edit.js';
 import { planOutputs } from '../../src/planner/outputs.js';
 import { planRepo, type PlanOptions } from '../../src/planner/plan.js';
 import { readPlanYaml } from '../../src/planner/plan-file.js';
@@ -133,5 +133,34 @@ describe('ac plan on a root with nothing to plan', () => {
       .rejects.toThrow('no movable files under src/ (0 pinned): check --root and --module-root, or the profile');
     expect(calls).toBe(0);
     expect(fs.existsSync(paths.ledgerPath)).toBe(false);
+  });
+});
+
+describe('ac plan --planner super-vl', async () => {
+  const bodies: RequestBody[] = [];
+  const asking: Transport = async (body) => {
+    bodies.push(body);
+    return fakeUltra(body);
+  };
+  const settings = { edit: editSettingsFor(null, 'record', 'super-vl'), critic: criticSettingsFor(null, 'record', 'super-vl') };
+  const paths = { ledgerPath: path.join(temporary, 'super-vl.ledger.jsonl'), runsPath: files.runsPath, cassettePath: path.join(temporary, 'super-vl.jsonl') };
+  const gateway = createGateway({ runId: 'test', mode: 'record', ...paths, transport: asking, apiKey: 'test-key' });
+  const run = await planRepo(gitRepoFs(repoRoot), gateway, { ...options, ...settings });
+  const outputs = planOutputs(run, { name: 'fixture' }, settings);
+
+  it('asks Nemotron 3.5 Super VL to edit and to review, with no template kwargs: thinking on, as NVIDIA recommends', () => {
+    expect(bodies.map((body) => [body.response_format.json_schema.name, body.model, 'chat_template_kwargs' in body, body.n, body.max_tokens])).toEqual([
+      ['plan_edit', 'nvidia/Nemotron-3.5-Super-VL', false, 3, 64_000],
+      ['plan_review', 'nvidia/Nemotron-3.5-Super-VL', false, undefined, 32_000],
+    ]);
+  });
+
+  it('labels the model and its reasoning in plan.md, names the candidates after it, and prices the calls at its rates', () => {
+    const markdown = outputs.get('plan.md')!;
+    expect(markdown).toContain('Planner: deterministic facts and seeds draft → Nemotron 3.5 Super VL (thinking on) edits the draft (json_schema strict, K=3 in one n=K call)');
+    expect(markdown).toContain('→ Nemotron 3.5 Super VL (thinking on) reviews the winner (1 call)');
+    expect([...outputs.keys()].filter((file) => file.startsWith('candidates/'))).toEqual(['candidates/seeds-draft.yaml', 'candidates/super-vl-1.yaml', 'candidates/super-vl-2.yaml', 'candidates/super-vl-3.yaml']);
+    // 1,800 prompt and 600 completion tokens at $0.30 and $0.90 per million.
+    expect(markdown).toContain('- Cost: **$0.0011** in 2 calls (1800 prompt, 600 completion tokens, 200 of them reasoning)');
   });
 });

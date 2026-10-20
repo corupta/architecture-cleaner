@@ -27,6 +27,7 @@ import { scrambleCommand, scrambleUsage } from '../scramble/command.js';
 import { rewrapCommand, rewrapUsage } from '../rewrap/command.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode, Gateway } from '../gateway/types.js';
+import { defaultPlannerConfiguration, isPlannerConfigurationName, plannerConfigurationNames } from '../planner/configurations.js';
 import { criticSettingsFor, defaultCriticSettings } from '../planner/critic.js';
 import { defaultEditSettings, editSettingsFor } from '../planner/edit.js';
 import { defaultSummarySettings } from '../planner/summaries.js';
@@ -43,7 +44,9 @@ const usage = `usage:
   ac analyze <repo> [--json]
   ac plan <repo> [--root <package-dir>] [--profile <name|file>] [--module-root src] [--out <dir>]
           [--mode replay|record|auto] [--run <budget run id>] [--cassette <file.jsonl>] [--samples 3] [--no-critic] [--summaries]
-          (replay is the default and spends nothing; record and auto need --run)
+          [--planner ${plannerConfigurationNames.join('|')}]
+          (replay is the default and spends nothing; record and auto need --run; --planner picks the models that edit and
+          review, ${defaultPlannerConfiguration} by default; the profile's replay pins hold for ${defaultPlannerConfiguration} only)
   ac steps <plan.yaml> [--out <dir>]
   ac normalize <repo> [--profile <name|file>] [--root <package-dir>] [--module-root src] [--out <dir>] [--json]
   ac move <repo> --map <pathmap.json> [--dry-run] [--json]
@@ -109,12 +112,18 @@ interface PlanFlags {
   samples?: string;
   'no-critic': boolean;
   summaries: boolean;
+  planner?: string;
 }
 
 async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const mode = (flags.mode ?? 'replay') as CassetteMode;
   if (!['replay', 'record', 'auto'].includes(mode)) {
     console.error(usage);
+    return 2;
+  }
+  const configuration = flags.planner ?? defaultPlannerConfiguration;
+  if (!isPlannerConfigurationName(configuration)) {
+    console.error(`--planner is ${plannerConfigurationNames.join(', ')}`);
     return 2;
   }
   const profile = flags.profile ? loadProfile(flags.profile) : null;
@@ -132,8 +141,8 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const runId = flags.run ?? 'replay';
   const out = path.resolve(flags.out ?? 'ac-plan');
   const gateway = createGateway({ runId, mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${runId}.jsonl`)) });
-  const edit = { ...editSettingsFor(profile, mode), samples: Number(flags.samples ?? defaultEditSettings.samples) };
-  const critic = flags['no-critic'] ? null : criticSettingsFor(profile, mode);
+  const edit = { ...editSettingsFor(profile, mode, configuration), samples: Number(flags.samples ?? defaultEditSettings.samples) };
+  const critic = flags['no-critic'] ? null : criticSettingsFor(profile, mode, configuration);
   const summaries = flags.summaries ? defaultSummarySettings : null;
   let run;
   try {
@@ -361,6 +370,7 @@ function parseFlags(argv: string[]) {
         samples: { type: 'string' },
         'no-critic': { type: 'boolean', default: false },
         summaries: { type: 'boolean', default: false },
+        planner: { type: 'string' },
         plan: { type: 'string' },
         branch: { type: 'string' },
         rungs: { type: 'string' },
@@ -410,6 +420,11 @@ async function main(argv: string[]): Promise<number> {
   }
   const { positionals, values } = parsed;
   const [command, repo, range] = positionals;
+  // The shared table carries --planner for ac plan (ac bench parses its own): any other command refuses it, as it refuses an unknown flag.
+  if (values.planner !== undefined && command !== 'plan') {
+    console.error(`Option '--planner' is for ac plan and ac bench only\n${usage}`);
+    return 2;
+  }
   if (command === 'analyze' && repo) {
     analyzeCommand(repo, values.json);
     return 0;

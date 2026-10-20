@@ -1,6 +1,7 @@
 // What a demo did, phase by phase, and its summary (<work>/demo.md and the console): what was re-executed on this
 // machine, what was replayed from the cassette, and what was not re-run, each with its numbers and where they come from.
 import type { CheckId, CheckStatus } from '../certificate/types.js';
+import { models } from '../gateway/models.js';
 import type { ModelKey } from '../gateway/types.js';
 import type { RungId } from '../orchestrator/types.js';
 import type { BoundaryStep, ExecutedStep } from './ladder.js';
@@ -118,13 +119,12 @@ export interface DemoReport {
 const short = (sha: string | undefined | null) => (sha ? sha.slice(0, 10) : '-');
 const plural = (count: number, word: string) => `${count.toLocaleString('en-US')} ${word}${count === 1 ? '' : 's'}`;
 const usd = (value: number) => `$${value.toFixed(4)}`;
-const modelNames: Record<ModelKey, string> = { ultra: 'Nemotron 3 Ultra', lightning: 'Nemotron 3.5 Lightning', super: 'Nemotron 3 Super' };
 
 /** `2 Nemotron 3 Ultra calls (plan_edit, plan_review)`. */
 export function describeCalls(calls: ModelCall[]): string {
   const byModel = new Map<ModelKey, ModelCall[]>();
   for (const call of calls) byModel.set(call.model, [...(byModel.get(call.model) ?? []), call]);
-  return [...byModel].map(([model, list]) => `${plural(list.length, `${modelNames[model]} call`)} (${list.map((call) => call.purpose).join(', ')})`).join(' and ') || 'no model call';
+  return [...byModel].map(([model, list]) => `${plural(list.length, `${models[model].name} call`)} (${list.map((call) => call.purpose).join(', ')})`).join(' and ') || 'no model call';
 }
 
 const moveSteps = (report: DemoReport) => report.steps.filter((step) => step.rung !== 'R4');

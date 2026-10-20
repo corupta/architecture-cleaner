@@ -27,7 +27,10 @@ export interface BenchManifest {
 }
 
 export interface MethodScore {
-  /** `B0 type folders`, `name-token (anchored)`, `Louvain r=4 (mean of seeds 1-5)`, `seeds draft`, `planner (Ultra)`. */
+  /**
+   * `B0 type folders`, `name-token (anchored)`, `Louvain r=4 (mean of seeds 1-5)`, `seeds draft`, `planner (Ultra)`;
+   * with --repeats above 1 one planner row per run, `planner (Ultra) #2`.
+   */
   method: string;
   kind: 'baseline' | 'draft' | 'planner';
   /** Clusters over every movable file the method partitions (Louvain rows: the mean over seeds). */
@@ -97,6 +100,66 @@ export interface BenchPlannerChange {
   critic: { suggestions: number; kept: number } | null;
 }
 
+/** One planner run of an entry: its plan, the validator's verdict on it, and what its calls cost and used. */
+export interface BenchPlannerRun {
+  /** 1-based, in the order the runs went through the entry's one gateway (the cassette keys each call by its occurrence). */
+  repeat: number;
+  /** Its row in `methods`. */
+  method: string;
+  /** The validator's verdict on the plan as delivered (the seeds draft too): an invalid plan is scored as it came back. */
+  valid: boolean;
+  validatorErrors: number;
+  /**
+   * The plan came from an edit: planRepo's winner is not its draft candidate. False when none of the edit's choices was
+   * usable (each cut by the max_tokens cap or unparseable): the seeds draft is the plan, and no critic reviews it.
+   */
+  fromEdit: boolean;
+  /** The critic reviewed the winning edit. */
+  criticRan: boolean;
+  /** The edit's choices: K asked, how many came back, parsed into an edit, and were cut by the max_tokens cap (finish_reason length). */
+  editChoices: { asked: number; returned: number; parsed: number; truncated: number };
+  groups: number;
+  modules: number;
+  /** The plan keeps its draft's partition (BenchPlannerChange). */
+  samePartition: boolean;
+  planSha256: string;
+  /** What its calls cost when they were recorded, and what this run spent (0 on a replay). */
+  recordedCostUsd: number;
+  spentUsd: number;
+  calls: { replayed: number; recorded: number };
+  /** The edit's and the critic's usage summed, as the cassette records it. */
+  tokens: { prompt: number; completion: number; reasoning: number };
+}
+
+/** One measure per field over an entry's planner runs: their rows' scores (null when a row has none), plans, cost and tokens. */
+export interface BenchRunMeasures {
+  mojoFm: number | null;
+  ari: number | null;
+  c2cCvg: number | null;
+  clusterCountRatio: number | null;
+  mojoFmHard: number | null;
+  /** TurboMQ's sum. */
+  turboMq: number;
+  backEdges: number;
+  groups: number;
+  modules: number;
+  recordedCostUsd: number;
+  promptTokens: number;
+  completionTokens: number;
+  reasoningTokens: number;
+}
+
+/**
+ * The planner's runs under `ac bench --repeats k` (k samples, one gateway) and `--planner`: written when k is above 1
+ * or the configuration isn't the default, so a default run's result stays as S7 and S8 wrote it.
+ */
+export interface BenchRepeats {
+  runs: BenchPlannerRun[];
+  mean: BenchRunMeasures;
+  min: BenchRunMeasures;
+  max: BenchRunMeasures;
+}
+
 /** bench/results/<entry>.json */
 export interface BenchResult {
   format: 'ac-bench/1';
@@ -130,6 +193,7 @@ export interface BenchResult {
   methods: MethodScore[];
   /** The best deterministic method (baselines and the seeds draft) by MoJoFM (scrambles) or by TurboMQ's sum (real targets). */
   bestBaseline: { method: string; mojoFm: number | null; turboMq: number } | null;
+  /** The planner's run; with --repeats above 1 its first one (`repeats` has every one, `methods` a row for each). */
   planner: {
     cassette: string;
     /** What the plan cost when it was recorded, and what this run spent (0 on a replay). */
@@ -155,4 +219,8 @@ export interface BenchResult {
    * from it, feature files the facts pin, the leakage.
    */
   notes?: string[];
+  /** The planner configuration asked for (src/planner/configurations.ts; absent: ultra, the default, as before S8b). */
+  plannerConfiguration?: string;
+  /** Every planner run with the mean, min and max over them (absent: one run of the default configuration). */
+  repeats?: BenchRepeats;
 }

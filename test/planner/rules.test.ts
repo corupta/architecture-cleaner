@@ -172,10 +172,10 @@ describe('rankCandidates by rules', () => {
 describe('the rules pin', () => {
   it('defaults to rules 2; a replay takes the profile\'s pin, a recording the latest; an unknown version is refused', () => {
     expect(defaultEditSettings.rules).toBe(2);
-    expect(editSettingsFor(null, 'replay')).toBe(defaultEditSettings);
-    expect(editSettingsFor({ plan: {} }, 'replay')).toBe(defaultEditSettings);
+    expect(editSettingsFor(null, 'replay')).toEqual(defaultEditSettings);
+    expect(editSettingsFor({ plan: {} }, 'replay')).toEqual(defaultEditSettings);
     expect(editSettingsFor({ plan: { rules: 1 } }, 'replay')).toEqual({ ...defaultEditSettings, rules: 1 });
-    for (const mode of ['record', 'auto'] as const) expect(editSettingsFor({ plan: { rules: 1 } }, mode)).toBe(defaultEditSettings);
+    for (const mode of ['record', 'auto'] as const) expect(editSettingsFor({ plan: { rules: 1 } }, mode)).toEqual(defaultEditSettings);
     for (const mode of ['replay', 'record'] as const) expect(() => editSettingsFor({ plan: { rules: 9 } }, mode)).toThrow('no planner rules version 9 (versions: 1, 2)');
   });
 

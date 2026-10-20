@@ -29,8 +29,8 @@ describe('critic prompt versions', () => {
 
   it('defaults to version 2; profiles/immich.json pins 1 for replays, other profiles take the default, an unknown version is refused', () => {
     expect(defaultCriticSettings.prompt).toBe(2);
-    expect(criticSettingsFor(null, 'replay')).toBe(defaultCriticSettings);
-    expect(criticSettingsFor({ plan: {} }, 'replay')).toBe(defaultCriticSettings);
+    expect(criticSettingsFor(null, 'replay')).toEqual(defaultCriticSettings);
+    expect(criticSettingsFor({ plan: {} }, 'replay')).toEqual(defaultCriticSettings);
     expect(criticSettingsFor(loadProfile('immich'), 'replay')).toEqual({ ...defaultCriticSettings, prompt: 1 });
     expect(() => criticSettingsFor({ plan: { criticPrompt: 9 } }, 'replay')).toThrow('no critic prompt version 9');
   });
