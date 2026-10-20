@@ -53,9 +53,10 @@ Every call goes through one in-process gateway (`src/gateway/`):
 - a budget ledger (`budget/ledger.jsonl`) with hard caps per run and overall (`budget/runs.json`): the gateway
   refuses a call whose pre-send estimate would cross a cap.
 
-The ledger matched the Nebius console bill on 2026-10-14: **$9.31** spent in total. $6.69 of it went to Nemotron 3
-Super, mostly the G3 baseline runs ($5.79); the immich plan and narration cost $0.20
-([docs/sessions/s6.md](docs/sessions/s6.md)).
+The ledger matched the Nebius console bill on 2026-10-14, at **$9.31**. $6.69 of it went to Nemotron 3 Super, mostly
+the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/sessions/s6.md](docs/sessions/s6.md)).
+Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8): the ledger stands at **$10.54** of the $50
+cap (2026-10-20).
 
 ## Quick start: the replay (no key, $0)
 
@@ -194,19 +195,27 @@ the target's own prettier with each file's own config, and only on declarations 
 whose formatting at base was already prettier's, and that have no directive comment such as `@ts-expect-error` next
 to them. Every other byte stays the same.
 
-K2 certifies such a commit as layout only: the two files' tokens (comments included) and syntax trees are equal.
-The one allowed difference is a trailing comma in an import or export list (immich's `trailingComma: "all"`). A line
-break that changes semicolon insertion, a space inside a string, template or JSX text, a line break moved past a
-directive, or an edited comment fails K2. The mutation harness's layout operators (M34–M38) make exactly those
-changes: 101 mutants on the fixtures and synthetic subjects, all killed by K2, with a genuine re-wrap as the
-passing control.
+K2 certifies such a commit as layout only: the two files' tokens (comments included) and syntax trees are equal,
+both files parse, and whitespace changed only inside top-level import and `export … from` declarations, as spaces,
+tabs and the file's own line break. Every other byte is identical. The one allowed difference beyond whitespace is
+a trailing comma in such a declaration's import or export list (immich's `trailingComma: "all"`). A line break
+anywhere else (one that changes semicolon insertion, one before an arrow's `=>`, one that detaches a JSDoc
+comment), a lone CR or U+2028, a space inside a string, template or JSX text, a line break moved past a directive,
+an edited comment, or a base file that doesn't parse fails K2. The mutation harness's layout operators (M34–M39)
+make those changes, and none is a no-op that K2 rejects only by its byte rule: 108 mutants on the fixtures and
+synthetic subjects, all killed by K2, with a genuine re-wrap as the passing control. Two hunt cases (`S8R-*`) cover
+what a mutation of the head can't: a base with a syntax error, and a string literal that spells K2's placeholder.
+The S8 review found those holes in our first version of this rule, which accepted any layout change; the rule is now
+confined to import and export declarations, which is all S3 needs.
 
 On immich, `ac rewrap` re-wraps 22 declarations in 20 files with immich's prettier 3.9.9, and skips 5 migration
 files that immich's `.prettierignore` excludes. `prettier --check .` in `server/` passes again, and `ac certify` on
 the commit gives PASS with every check, oracles included: K2 reports 20 files changed in layout only, tsc reports 0
 errors, 105/105 test files and 2,337/2,337 cases equal base, and the OpenAPI spec is byte-identical
 (`runs/immich-rewrap/certificate.json`, digest `sha256:39a44461b5a5…`; immich branch `ac/s8-rewrap`). In `ac run` the same step is an optional rung, S3, after R3 and before R4
-(`--rungs R0,R1,R2,R3,S3,R4`). It is off by default, and the recorded run doesn't use it.
+(`--rungs R0,R1,R2,R3,S3,R4`). It is off by default, and the recorded run doesn't use it. With S3 on, the whole-PR certificate pairs a file that
+was moved and then re-wrapped by its import layout, when that pairing is unique: certifying immich's base..re-wrap
+range (02063972e8..7b993adbec) gives PASS (static checks), 367 moves, K2 reporting 20 files changed in layout only.
 
 ## Benchmarks (bench/results)
 
@@ -231,14 +240,15 @@ its moves by the ids the prompt showed, and their targets by draft group keys, s
 of those moves (29 on kaneo, 154 on ghostfolio); and on ghostfolio a plan with no feature module won the ranking.
 Planner rules 2 read exactly the forms the prompt shows, never fuzzily, and rank plans with feature modules first.
 immich's recorded plan keeps rules 1 through its profile's pin, so it replays byte for byte. Re-planning the
-scramble entries re-recorded three critic calls for $0.11; the edit calls replayed. The planner now wins on 3 of 5.
+scramble entries re-recorded three critic calls for $0.11; the edit calls replayed. The planner now scores higher than the best deterministic method on 3 of 5 (hoppscotch, hoppscotch-H1, ghostfolio).
 
-Two of those plans are rejected by our own validator. On kaneo and ghostfolio, Ultra's name for one group was
-banned and dropped, and the group fell back to its draft label, which is banned too (`middleware` is a file type,
-`app` is not a feature). `ac run` refuses such a plan until `plan.yaml` is fixed; the bench scores it as it came
+Our own validator rejects two of the planner's plans: ghostfolio's (one of the three) and kaneo's (a loss either way);
+counting only plans the validator accepts, the planner wins on 2 of 5. On kaneo and ghostfolio, Ultra's name for one
+group was banned and dropped, and the group fell back to its draft label, which is banned too (`middleware` is a file
+type, `app` is not a feature). `ac run` refuses such a plan until `plan.yaml` is fixed; the bench scores it as it came
 back. kaneo's scramble certificate fails closed: its API runs an esbuild bundle that K3c doesn't model, and two URL
-templates K4 can't prove aren't paths. The recordings cost $1.23 in all (`cassettes/s7-bench.jsonl`, S7 and S8);
-`ac bench bench/manifest.json` replays them for $0.
+templates K4 can't prove aren't paths. The recordings cost $1.23 in all (`cassettes/s7-bench.jsonl`, S7 and S8); `ac
+bench bench/manifest.json` replays them for $0.
 
 ## Our own misses
 
@@ -257,7 +267,8 @@ We show these because the checker exists to catch them:
   kaneo's scramble stays FAIL.
 - **A false pass we introduced, caught by review (S7).** One of those precision fixes cleared a string compared
   against an exact moved path (`relative(cwd, file) === 'src/services/legacy.service.ts'`). The S7 review found it
-  before it shipped; it is now a hunt case, and the mutation harness kills 420/420.
+  before it shipped; it is now a hunt case. On 2026-10-20 the mutation harness, over every target (immich
+  included), killed 813 of 813 mutants with the static checks alone (`runs/mutation/report.md`).
 - **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored 57.24
   because its draft read only file names; G1 had picked the seed source without ground truth. Restoring that rule
   lifted H1 to 79.31, and on ghostfolio it chose the export names, which cost 3.5 points there (86.11 → 82.64).
