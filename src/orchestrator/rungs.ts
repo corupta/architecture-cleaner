@@ -1,6 +1,6 @@
 // Rungs (plan §2.3): R1–R3 run their steps, then a cumulative full certificate (oracles included) with one K8
-// bisect on failure; R3's steps are computed after R2; R4 commits the injected boundary rules; the whole PR is
-// certified at the end.
+// bisect on failure; R3's steps are computed after R2; S3, when asked for, re-wraps import lines (rewrap-rung.ts);
+// R4 commits the injected boundary rules; the whole PR is certified at the end.
 import fs from 'node:fs';
 import path from 'node:path';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
@@ -81,13 +81,13 @@ function moveCertificate(runner: Runner, from: string, to: string): string {
  * 'no-evidence': the certificate has no verdict (every check that didn't pass errored), or its bisect stopped at a
  * probe without evidence; the run failed as a crash and the rung still runs, so --resume certifies it again.
  */
-type RungCertification = 'certified' | 'bisected' | 'failed' | 'empty' | 'no-evidence';
+export type RungCertification = 'certified' | 'bisected' | 'failed' | 'empty' | 'no-evidence';
 
 /**
  * The rung's cumulative full certificate (rung start..its last commit, oracles included); one K8 bisect on failure
  * (again when the last one stopped without evidence).
  */
-async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): Promise<RungCertification> {
+export async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): Promise<RungCertification> {
   const { state } = runner;
   if (state.head === rung.start) {
     rung.note = 'no commits: every step was pinned or skipped';

@@ -1,7 +1,7 @@
 // `ac run`: the step ladder on a branch of the target (plan §2.3, §3.2). R0 preflight and baseline; R1 module steps,
-// R2 platform and shared/ steps, R3 filename normalization, each step moved, committed, certified statically against
-// its parent and, on PASS, given the certificate trailers; each rung certified as a whole with the oracles; the whole
-// PR certified at the end. On a FAIL the step is rolled back and replanned by pinning the offending plan entries, at
+// R2 platform and shared/ steps, R3 filename normalization, S3 the import re-wrap (only when --rungs names it), R4 the
+// boundary rules; each step committed, certified statically against its parent and, on PASS, given the certificate
+// trailers; each rung certified as a whole with the oracles; the whole PR certified at the end. On a FAIL the step is rolled back and replanned by pinning the offending plan entries, at
 // most twice, else the whole step is pinned; every pin is a finding. State lives in the run directory (types.ts);
 // a run resumes after its last certified commit, unless it failed on a verdict, which is final.
 import { createHash } from 'node:crypto';
@@ -17,9 +17,10 @@ import { preflight } from './preflight.js';
 import { renderReport } from './report.js';
 import { openRunDirectory, readRunState } from './run-directory.js';
 import { addFinding, createRunner, defaultDependencies, elapsed, failRun, type RunDependencies, RunError, type Runner, rungOf } from './runner.js';
+import { runRewrapRung } from './rewrap-rung.js';
 import { addRenameSteps, certifyRun, runBoundaryRung, runStepRung, writeStepFile } from './rungs.js';
 import { planSteps } from './steps.js';
-import { type RungId, rungIds, type RunState } from './types.js';
+import { ladderRungIds, type RungId, rungIds, type RunState } from './types.js';
 
 export { defaultDependencies, RunError, staticCheckIds, type RunDependencies } from './runner.js';
 
@@ -72,8 +73,10 @@ const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
 async function drive(runner: Runner): Promise<void> {
   const { state } = runner;
-  for (const id of ['R1', 'R2', 'R3', 'R4'] as const) {
-    const rung = rungOf(state, id);
+  for (const id of ['R1', 'R2', 'R3', 'S3', 'R4'] as const) {
+    // S3 has a record only in a run that asked for it.
+    const rung = state.rungs.find((candidate) => candidate.id === id);
+    if (!rung) continue;
     if (state.status !== 'running') break;
     // A failed rung is a verdict: no later rung runs on top of it, and the whole PR isn't certified.
     if (rung.status === 'failed') {
@@ -83,6 +86,13 @@ async function drive(runner: Runner): Promise<void> {
     if (rung.status !== 'pending' && rung.status !== 'running') continue;
     if (id === 'R4') {
       await runBoundaryRung(runner, rung);
+      continue;
+    }
+    if (id === 'S3') {
+      if ((await runRewrapRung(runner, rung)) === 'stopped') {
+        if (state.status === 'running') state.status = 'stopped';
+        break;
+      }
       continue;
     }
     if (id === 'R3' && rung.status === 'pending' && !state.steps.some((step) => step.rung === 'R3')) addRenameSteps(runner);
@@ -160,9 +170,11 @@ export async function startRun(options: StartOptions, overrides: Partial<RunDepe
     branch: options.branch,
     head: base,
     plan: { file: 'plan/plan.yaml', source: options.plan.source, sha256: sha256(options.plan.text), steps: steps.length, moves: steps.reduce((sum, step) => sum + Object.keys(step.moves).length, 0) },
-    rungsRequested: rungIds.filter((id) => options.rungs.includes(id)),
+    rungsRequested: ladderRungIds.filter((id) => options.rungs.includes(id)),
     options: { jobs: options.jobs, injectFault: options.injectFault },
-    rungs: rungIds.map((id) => ({ id, status: options.rungs.includes(id) ? 'pending' : 'not-requested', durationMs: 0 })),
+    // S3 gets a record only when asked for: a run without it writes the run.json it always did.
+    rungs: ladderRungIds.filter((id) => rungIds.includes(id) || options.rungs.includes(id))
+      .map((id) => ({ id, status: options.rungs.includes(id) ? 'pending' : 'not-requested', durationMs: 0 })),
     steps,
     pins: [],
     findings: [],

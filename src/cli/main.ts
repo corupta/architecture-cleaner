@@ -24,6 +24,7 @@ import { reportCommand, reportUsage } from '../report/command.js';
 import { siteCommand, siteUsage } from '../site/command.js';
 import { runFindings } from '../findings/index.js';
 import { scrambleCommand, scrambleUsage } from '../scramble/command.js';
+import { rewrapCommand, rewrapUsage } from '../rewrap/command.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode, Gateway } from '../gateway/types.js';
 import { criticSettingsFor, defaultCriticSettings } from '../planner/critic.js';
@@ -36,7 +37,7 @@ import { checkGroupKeys, stepFileName, stepJson, stepsOf, type Step } from '../p
 import { operatorIds } from '../orchestrator/fault.js';
 import { planFromFile, planInProcess } from '../orchestrator/plan-source.js';
 import { resumeRun, RunError, startRun } from '../orchestrator/run.js';
-import { rungIds, type RungId } from '../orchestrator/types.js';
+import { ladderRungIds, rungIds, type RungId } from '../orchestrator/types.js';
 
 const usage = `usage:
   ac analyze <repo> [--json]
@@ -50,13 +51,14 @@ const usage = `usage:
              [--only K1,K2,...] [--out <certificate.json>] [--work-dir <dir>] [--keep] [--json]
              (AC_CERTIFY_CACHE=<dir> keeps per-tree results between certifications)
   ac run <repo> --profile <name|file> [--plan <plan.yaml> | --cassette <file.jsonl> [--mode replay|record|auto] [--run <budget run>]]
-         [--env <checkout with node_modules>] [--out <run-dir>] [--branch <name>] [--rungs R0,R1,R2,R3,R4]
+         [--env <checkout with node_modules>] [--out <run-dir>] [--branch <name>] [--rungs R0,R1,R2,R3,R4 (and S3: re-wrap import lines)]
          [--max-steps <n>] [--inject-fault <step>:<operator>] [--jobs <n>] [--no-narration]
   ac run [<repo>] --resume --out <run-dir> [--max-steps <n>] [--jobs <n>] [--cassette <file.jsonl> [--mode ...] [--run ...]]
          (exit 0 completed or stopped, 1 failed, 2 usage, 3 declined by the preflight; the findings log is written at the
          end, its narration replayed from the cassette, recorded with --mode auto --run, off without a cassette)
   ac boundaries <repo> [--profile <name|file>] [--root <package-dir>] [--module-root src] [--env <checkout>] [--out <dir>] [--check]
   ${findingsUsage}
+  ${rewrapUsage}
   ${scrambleUsage}
   ${benchUsage}
   ${demoUsage}
@@ -279,8 +281,8 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
         return 2;
       }
       const rungs = (flags.rungs ?? rungIds.join(',')).split(',').map((rung) => rung.trim()) as RungId[];
-      const unknownRung = rungs.find((rung) => !rungIds.includes(rung));
-      if (unknownRung) return fail(`unknown rung ${unknownRung} (rungs: ${rungIds.join(', ')})`);
+      const unknownRung = rungs.find((rung) => !ladderRungIds.includes(rung));
+      if (unknownRung) return fail(`unknown rung ${unknownRung} (rungs: ${ladderRungIds.join(', ')})`);
       const jobs = Number(flags.jobs ?? 1);
       if (!(Number.isInteger(jobs) && jobs >= 1)) return fail('--jobs takes a whole number from 1 (one step at a time) up');
       let injectFault = null;
@@ -375,6 +377,7 @@ function parseFlags(argv: string[]) {
 }
 
 async function main(argv: string[]): Promise<number> {
+  if (argv[0] === 'rewrap') return rewrapCommand(argv.slice(1));
   if (argv[0] === 'scramble') return scrambleCommand(argv.slice(1));
   if (argv[0] === 'bench') return benchCommand(argv.slice(1));
   if (argv[0] === 'demo') return demoCommand(argv.slice(1));

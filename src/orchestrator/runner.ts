@@ -8,6 +8,7 @@ import { boundaryRung } from '../boundaries/index.js';
 import { executeMove } from '../executor/execute.js';
 import { normalizationSteps } from '../filename-normalization/index.js';
 import type { PlanFile } from '../planner/plan-file.js';
+import { planRewrap } from '../rewrap/rewrap.js';
 import type { ReportOptions } from './report.js';
 import type { RunDirectory } from './run-directory.js';
 import type { BoundaryRung, CertificateRecord, RunEvent, RunFailure, RunFinding, RungId, RungRecord, RunState, StepRecord } from './types.js';
@@ -17,6 +18,8 @@ export interface RunDependencies {
   certify: typeof certify;
   runBaseline: typeof runBaseline;
   normalizationSteps: typeof normalizationSteps;
+  /** S3's re-wrap of the import lines the moves lengthened. */
+  rewrap: typeof planRewrap;
   /** Contract C6; null: R4 is reported as not available. */
   boundaryRung: BoundaryRung | null;
   /**
@@ -31,6 +34,7 @@ export const defaultDependencies: RunDependencies = {
   certify,
   runBaseline,
   normalizationSteps,
+  rewrap: planRewrap,
   boundaryRung,
   findings: null,
 };

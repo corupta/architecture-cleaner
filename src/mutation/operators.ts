@@ -1,5 +1,6 @@
 // Mutation operators from research 04b §E3: M1–M30 without the rename rung (M31/M32) and the loader/emit operators
-// M15, M16, M22, whose killers K5/K7 are outside the MVP; M33 (S6) probes K1's one allowed addition. Each takes a known-good result and proposes instances; an
+// M15, M16, M22, whose killers K5/K7 are outside the MVP; M33 (S6) probes K1's one allowed addition; M34–M38 (S3,
+// layout-operators.ts) probe K2's layout class. Each takes a known-good result and proposes instances; an
 // instance builds a head tree that differs from the good head by exactly one mutation, which the certifier must
 // reject without K8.
 import path from 'node:path';
@@ -15,6 +16,7 @@ import {
   bundleMembers, editFile, editSpans, endingOf, headMode, headText, isFileRelative, isRelativeSpecifier, moveWithImporters,
   rawOf, respell, splitExtension, type Ending, type TreeEdits,
 } from './edits.js';
+import { layoutOperators } from './layout-operators.js';
 import type { RewrittenSite, SiteReference, Subject } from './subject.js';
 
 export interface Candidate {
@@ -798,6 +800,7 @@ export const operators: Operator[] = [
       ];
     },
   },
+  ...layoutOperators,
 ];
 
 export const operatorIds = operators.map((operator) => operator.id);

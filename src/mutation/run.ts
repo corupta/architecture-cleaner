@@ -14,6 +14,7 @@ import { NotHermeticError } from '../certificate/hermetic.js';
 import { cacheDirFromEnvironment } from '../certificate/tree-cache.js';
 import type { CheckId } from '../certificate/types.js';
 import { coverageSubject } from './coverage-subject.js';
+import { layoutSubject } from './layout-subject.js';
 import { fixtureSubjects, loadHuntCases, runHarness, staticChecks, targetSubject } from './harness.js';
 import { renderReport } from './report.js';
 import type { SubjectSpec } from './subject.js';
@@ -42,7 +43,7 @@ async function main(): Promise<number> {
   const fixtureNames = expanded.filter((target) => target.startsWith('fixture:')).map((target) => target.slice('fixture:'.length));
   if (expanded.includes('fixtures')) subjects.push(...fixtureSubjects());
   else if (fixtureNames.length) subjects.push(...fixtureSubjects(undefined, fixtureNames));
-  if (expanded.includes('synthetic')) subjects.push(coverageSubject());
+  if (expanded.includes('synthetic')) subjects.push(coverageSubject(), layoutSubject());
   for (const target of expanded.filter((target) => !['fixtures', 'synthetic', 'hunt'].includes(target) && !target.startsWith('fixture:'))) subjects.push(targetSubject(target));
   const hunt = expanded.includes('hunt') ? loadHuntCases() : [];
   const workDir = values['work-dir'] ?? (fs.mkdirSync('/tmp/ac-s4-mutation', { recursive: true }), fs.mkdtempSync('/tmp/ac-s4-mutation/run-'));

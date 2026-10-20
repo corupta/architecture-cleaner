@@ -17,6 +17,7 @@
 //   certificate.{json,txt}         the whole PR: run base..final commit, oracles included
 //   (a stored FAIL is never overwritten: a certificate stored under its name again goes to <name>-2, -3, ...)
 //   boundaries/report.json         R4's report (contract C6), when R4 ran
+//   (S3, when --rungs names it: one step, certificates/<NNN>-S3-rewrap.{json,txt} and rungs/S3.{json,txt})
 //   report.md                      the readable report (timeline, verdicts, totals, cost, findings)
 //   work/                          scratch for certifications (removed after each)
 //   cache/                         the certifier's per-tree cache (~1.7 MB per immich tree): scratch, never published
@@ -25,8 +26,12 @@ import type { Profile } from '../certificate/profile.js';
 import type { CheckId } from '../certificate/types.js';
 import type { PlanFile } from '../planner/plan-file.js';
 
-export type RungId = 'R0' | 'R1' | 'R2' | 'R3' | 'R4';
+/** S3 (plan §2.3, a stretch rung): the import lines the moves lengthened, re-wrapped with the target's prettier. */
+export type RungId = 'R0' | 'R1' | 'R2' | 'R3' | 'S3' | 'R4';
+/** The rungs `ac run` runs unless --rungs says otherwise. */
 export const rungIds: readonly RungId[] = ['R0', 'R1', 'R2', 'R3', 'R4'];
+/** Every rung in ladder order: S3, off by default, runs after R3 and before R4 when --rungs names it. */
+export const ladderRungIds: readonly RungId[] = ['R0', 'R1', 'R2', 'R3', 'S3', 'R4'];
 
 /** Contract C6: what the R4 boundary-rules implementation returns. */
 export interface BoundaryRungResult {
@@ -115,8 +120,8 @@ export interface AttemptRecord {
 }
 
 /**
- * pending → running → certified, or skipped (nothing left to move), or pinned (every file pinned: after two replans,
- * an unattributable failure, or a rung bisect).
+ * pending → running → certified, or skipped (nothing left to move; S3: no import line to re-wrap), or pinned (every
+ * file pinned: after two replans, an unattributable failure, or a rung bisect; S3: its certificate failed).
  */
 export type StepStatus = 'pending' | 'running' | 'certified' | 'skipped' | 'pinned';
 
