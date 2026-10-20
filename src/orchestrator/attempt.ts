@@ -34,11 +34,16 @@ function executorOffenders(result: MoveResult): { offenders: Offender[]; detail:
   return { offenders: [], detail: '' };
 }
 
-/** What a failed certificate's violations name, files mapped back to the base through its pathMap. */
+/**
+ * What a failed certificate's violations name, files mapped back to the base through its pathMap: the failed checks'
+ * violations without the errors they list (marked `error: `), which are about a runner or an oracle, not the change.
+ * `detail` reads every check that didn't pass, errors included.
+ */
 export function certificateOffenders(certificate: Certificate): { offenders: Offender[]; detail: string } {
   const inverse = new Map(Object.entries(certificate.pathMap.entries).map(([from, to]) => [to, from]));
   const failing = certificate.checks.filter((check) => check.status === 'fail' || check.status === 'error');
-  const offenders = failing.flatMap((check) => check.violations.map((violation) => ({ ...(violation.file ? { file: inverse.get(violation.file) ?? violation.file } : {}), detail: violation.detail })));
+  const offenders = failing.filter((check) => check.status === 'fail').flatMap((check) => check.violations.filter((violation) => !violation.detail.startsWith('error: '))
+    .map((violation) => ({ ...(violation.file ? { file: inverse.get(violation.file) ?? violation.file } : {}), detail: violation.detail })));
   const detail = failing.map((check) => `${check.id} ${check.violations.slice(0, 3).map((violation) => `${violation.file ? `${violation.file}: ` : ''}${violation.detail.split('\n')[0]}`).join('; ')}`).join('; ');
   return { offenders, detail };
 }
@@ -264,8 +269,8 @@ export function concludeAttempt(runner: Runner, committed: Committed, certificat
   runner.event({ event: 'rollback', step: step.index, attempt: attempt.attempt, durationMs: attempt.timings.rollbackMs, to: committed.parent });
   const { offenders, detail } = certificateOffenders(certificate);
   attempt.detail = `certificate FAIL (${failingChecks(certificate).join(', ')}): ${detail}`;
-  // A check that crashed gives no evidence about the step: stop (--resume retries it) rather than pin what may be fine.
-  // An errored check that lists a violation does: the step is replanned as on a fail.
+  // A certificate whose every non-passing check errored gives no evidence about the step: stop (--resume retries it)
+  // rather than pin what may be fine. A failed check does, even next to an errored one: the step is replanned.
   if (withoutVerdict(certificate)) {
     finishAttempt(attempt, committed.attemptStarted, 'interrupted');
     failRun(runner, 'crash', `the certifier crashed on step ${step.index} (${failingChecks(certificate).join(', ')}): ${detail}`);

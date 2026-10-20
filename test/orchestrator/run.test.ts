@@ -472,7 +472,7 @@ describe('ac run: certificates without a verdict', () => {
     expect(stopped.exitCode).toBe(1);
     let state = run.state();
     expect(state).toMatchObject({ status: 'failed', failure: 'crash', pins: [] });
-    expect(state.error).toContain("rung R1's certificate has no verdict: K8 errored and none lists a violation");
+    expect(state.error).toContain("rung R1's certificate has no verdict: K8 errored and no check failed");
     expect(state.rungs[1]).toMatchObject({ id: 'R1', status: 'running', certificate: { file: 'rungs/R1.json', verdict: 'fail', failing: ['K8'] } });
     expect(state.rungs[1]!.bisect).toBeUndefined();
     expect(state.steps.map((step) => step.status)).toEqual(['certified', 'certified', 'pending']);
@@ -501,15 +501,15 @@ describe('ac run: certificates without a verdict', () => {
     await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames)).rejects.toThrow('failed on a verdict');
   });
 
-  it('makes a rung certificate whose errored K3b lists a violation another runner found a verdict that --resume refuses', async () => {
+  it('makes a rung certificate whose K3b fails next to a runner\'s error a verdict that --resume refuses', async () => {
     const run = setup();
     const errorAndViolation = async (options: CertifyOptions) => {
       const certificate = await certify(options);
       if (path.basename(options.workDir) !== 'rung-R1') return certificate;
-      // K3b's shape when one runner errors and another finds a retargeted import: the error first, unmarked, then the violation.
+      // K3b's shape when one runner errors and another finds a retargeted import: fail, the marked error first.
       Object.assign(certificate.checks.find((check) => check.id === 'K3b')!, {
-        status: 'error', summary: 'vitest-1 could not resolve in base: killed',
-        violations: [{ detail: 'vitest-1 could not resolve in base: killed' }, { file: 'server/src/modules/user/user.service.ts', detail: "site 0 './user.repository' resolves elsewhere" }],
+        status: 'fail', summary: 'vitest: error; vitest 4.0.0: 1 violations (1 retargeted)',
+        violations: [{ detail: 'error: vitest-1: vitest could not resolve in base: killed' }, { file: 'server/src/modules/user/user.service.ts', detail: "site 0 './user.repository' resolves elsewhere" }],
       });
       return { ...certificate, verdict: 'fail' as const };
     };
@@ -520,16 +520,17 @@ describe('ac run: certificates without a verdict', () => {
     await expect(resumeRun({ runDirectory: run.runDirectory, maxSteps: null, log: quiet }, noRenames)).rejects.toThrow('failed on a verdict');
   });
 
-  it('replans a step whose errored K6 lists a violation, as on a fail, instead of stopping as a crash', async () => {
+  it('replans a step whose K6 fails next to a runner\'s error, pinning what the violation names and not what the error names', async () => {
     const run = setup();
     let calls = 0;
     const errorAndViolation = async (options: CertifyOptions) => {
       const certificate = await certify(options);
       if (options.oracles || ++calls !== 2) return certificate;
       const moved = certificate.pathMap.entries['server/src/repositories/user.repository.ts']!;
+      // The error names a file the step moves: read as an offender, it would pin user.service.ts's entry too.
       Object.assign(certificate.checks.find((check) => check.id === 'K6')!, {
-        status: 'error', summary: 'vitest-0 could not list or load the tests of base',
-        violations: [{ detail: 'vitest-0 could not list or load the tests of base: killed' }, { file: moved, detail: 'listed by vitest-1 in base and head, but collected only in base' }],
+        status: 'fail', summary: 'vitest: error; vitest 4.0.0: 1 violations (1 files that no longer load)',
+        violations: [{ detail: 'error: vitest-0: vitest could not list or load the tests of base: server/src/services/user.service.ts timed out' }, { file: moved, detail: 'listed by vitest-1 in base and head, but collected only in base' }],
       });
       return { ...certificate, verdict: 'fail' as const };
     };

@@ -104,7 +104,7 @@ async function certifyRung(runner: Runner, rung: RungRecord, partial: boolean): 
   if (certificate.verdict === 'pass') return 'certified';
   const failing = failingChecks(certificate);
   if (withoutVerdict(certificate)) {
-    failRun(runner, 'crash', `rung ${rung.id}'s certificate has no verdict: ${failing.join(', ')} errored and none lists a violation; --resume certifies the rung again: ${certificateOffenders(certificate).detail}`);
+    failRun(runner, 'crash', `rung ${rung.id}'s certificate has no verdict: ${failing.join(', ')} errored and no check failed; --resume certifies the rung again: ${certificateOffenders(certificate).detail}`);
     return 'no-evidence';
   }
   const k8 = certificate.checks.find((check) => check.id === 'K8')?.status;
@@ -242,7 +242,7 @@ export async function runBoundaryRung(runner: Runner, rung: RungRecord): Promise
       // No evidence either way: the commit is rolled back and R4 starts over on --resume, as this step's next attempt.
       attempt.state = 'interrupted';
       rung.status = 'pending';
-      failRun(runner, 'crash', `R4's certificate has no verdict: ${failingChecks(certificate).join(', ')} errored and none lists a violation; --resume generates and certifies the rules again: ${certificateOffenders(certificate).detail}`);
+      failRun(runner, 'crash', `R4's certificate has no verdict: ${failingChecks(certificate).join(', ')} errored and no check failed; --resume generates and certifies the rules again: ${certificateOffenders(certificate).detail}`);
       runner.save();
       resetHard(state.repo, rung.start);
     } else {
@@ -282,7 +282,7 @@ export async function certifyRun(runner: Runner): Promise<void> {
   }
   state.certificate = record;
   state.timeline.runCertificationMs += elapsed(started);
-  if (noVerdict) failRun(runner, 'crash', `the whole-PR certificate has no verdict: ${record.failing.join(', ')} errored and none lists a violation; --resume certifies the PR again: see ${record.file}`);
+  if (noVerdict) failRun(runner, 'crash', `the whole-PR certificate has no verdict: ${record.failing.join(', ')} errored and no check failed; --resume certifies the PR again: see ${record.file}`);
   else if (record.verdict === 'fail') failRun(runner, 'verdict', `the whole-PR certificate FAILs (${record.failing.join(', ')}): see ${record.file}`);
   runner.event({ event: 'run-certify', durationMs: elapsed(started), verdict: record.verdict, failing: record.failing, reused: same?.id ?? null });
 }

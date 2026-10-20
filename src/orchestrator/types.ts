@@ -182,10 +182,9 @@ export interface FaultRecord {
 }
 
 /**
- * Why a run failed. A verdict (a rung, R4 or whole-PR certificate FAIL in which a check failed or an errored check
- * lists a violation, a vacuous boundary rule) is final: --resume refuses it. A crash (of the tool, or of a check: no
- * evidence either way, including a certificate whose every non-passing check errored without listing a violation) is
- * what --resume continues after.
+ * Why a run failed. A verdict (a rung, R4 or whole-PR certificate FAIL in which a check failed, a vacuous boundary
+ * rule) is final: --resume refuses it. A crash (of the tool, or of a check: no evidence either way, including a
+ * certificate whose every non-passing check errored) is what --resume continues after.
  */
 export type RunFailure = 'verdict' | 'crash';
 

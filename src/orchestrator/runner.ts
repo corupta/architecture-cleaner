@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import { runBaseline, type QuarantineEntry } from '../certificate/baseline.js';
 import { certify, checks } from '../certificate/certify.js';
-import type { Certificate, CertifyOptions, CheckId, CheckResult } from '../certificate/types.js';
+import type { Certificate, CertifyOptions, CheckId } from '../certificate/types.js';
 import { boundaryRung } from '../boundaries/index.js';
 import { executeMove } from '../executor/execute.js';
 import { normalizationSteps } from '../filename-normalization/index.js';
@@ -46,25 +46,12 @@ export const certificateName = (step: StepRecord) => `${padded(step.index)}-${st
 export const failingChecks = (certificate: Certificate) => certificate.checks.filter((check) => check.status === 'fail' || check.status === 'error').map((check) => check.id);
 
 /**
- * An errored check that also lists evidence about the change. Its errors come first: K8 marks each one `error: …`, so
- * any unmarked entry is evidence; a crashed check (certify.ts), K3b and K6 don't mark them and list one per errored
- * runner, so anything past the first is (or may be) a violation another runner found. Two errored runners are read as
- * evidence too: the certificate can't tell them apart from an error and a violation.
+ * A FAIL without a verdict: no check failed, so every check that didn't pass errored (a check crashed, a runner or an
+ * oracle couldn't run on base). An errored check lists no evidence about the change: K3b, K6 and K8 fail on any
+ * violation, and list their errors marked `error: ` next to it. It says nothing about the change either way: a crash
+ * that --resume certifies again.
  */
-export function erroredWithEvidence(check: CheckResult): boolean {
-  if (check.status !== 'error') return false;
-  const marked = check.violations.filter((violation) => violation.detail.startsWith('error: ')).length;
-  const unmarked = check.violations.length - marked;
-  return marked ? unmarked > 0 : unmarked > 1;
-}
-
-/**
- * A FAIL without a verdict: every check that didn't pass errored, and none of them lists evidence (a check crashed, an
- * oracle couldn't run on base). It says nothing about the change either way: a crash that --resume certifies again.
- * A check that failed, or an errored one that lists a violation, makes it a verdict.
- */
-export const withoutVerdict = (certificate: Certificate) => certificate.verdict === 'fail'
-  && certificate.checks.every((check) => check.status !== 'fail' && !erroredWithEvidence(check));
+export const withoutVerdict = (certificate: Certificate) => certificate.verdict === 'fail' && certificate.checks.every((check) => check.status !== 'fail');
 
 export interface Runner {
   state: RunState;

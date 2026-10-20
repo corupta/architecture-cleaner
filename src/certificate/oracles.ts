@@ -532,7 +532,7 @@ export const oracles: Check = {
     const unreachable = required.filter((file) => !fs.existsSync(path.join(headRoot, file)));
     const absent = unreachable.filter((file) => !fs.existsSync(path.join(context.environment.checkout, file)));
     if (absent.length) return skipped('K8', title, `the environment ${context.environment.checkout} lacks ${absent.join(', ')} (prerequisite builds)`);
-    if (unreachable.length) return result('K8', title, { status: 'error', summary: 'prerequisites not reachable from the worktree', violations: unreachable.map((file) => ({ file, detail: `present in the environment but not reachable through the worktree's node_modules links` })) });
+    if (unreachable.length) return result('K8', title, { status: 'error', summary: 'prerequisites not reachable from the worktree', violations: unreachable.map((file) => ({ file, detail: `error: present in the environment but not reachable through the worktree's node_modules links` })) });
 
     const metrics: Metrics = {
       node: execFileSync(nodeBinary(profile.node), ['--version'], { encoding: 'utf8' }).trim(),

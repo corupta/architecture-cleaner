@@ -422,10 +422,10 @@ export const runnerResolution: Check = {
       }
       violations.push(...outcome.violations);
       findings.push(...outcome.findings);
-      if (outcome.error) errors.push(outcome.error);
+      if (outcome.error) errors.push(runners.length === 1 ? outcome.error : `${label}: ${outcome.error}`);
       for (const [key, value] of Object.entries(outcome.metrics)) metrics[runners.length === 1 ? key : `${label}.${key}`] = value;
       const runnerName = `${outcome.metrics.runner ?? runner.kind}${outcome.metrics.runnerVersion ? ` ${outcome.metrics.runnerVersion}` : ''}`;
-      if (outcome.error) summaries.push(`${runnerName}: error`);
+      if (outcome.error) summaries.push(`${runnerName}: error${outcome.violations.length ? `, ${outcome.violations.length} violations` : ''}`);
       else if (outcome.violations.length) {
         const parts = [['dangling', outcome.metrics.dangling], ['retargeted', outcome.metrics.retargeted], ['newly resolved', outcome.metrics.newlyResolved],
           ['unresolved with changed text', outcome.metrics.unresolvedTextChanged], ['mock changes', outcome.metrics.mockChanged], ['dangling in added files', outcome.metrics.addedDangling]]
@@ -435,10 +435,11 @@ export const runnerResolution: Check = {
     }
     if (skips.length === runners.length) return skipped('K3b', title, skips.join('; '));
     for (const skip of skips) findings.push({ kind: 'runner-not-installed', detail: `not checked: ${skip}` });
-    if (errors.length) {
-      return result('K3b', title, { status: 'error', summary: firstWords(errors.join('; ')), violations: [...errors.map((detail) => ({ detail })), ...violations], findings, metrics });
-    }
-    return result('K3b', title, { summary: summaries.join('; '), violations, findings, metrics });
+    // A runner that errored says nothing about the change, and a violation another runner found is still one: the check
+    // fails on any violation and errors only without one. Errors come first, marked `error: ` as K8 marks its own.
+    const marked = errors.map((error) => ({ detail: `error: ${error}` }));
+    if (errors.length && !violations.length) return result('K3b', title, { status: 'error', summary: firstWords(errors.join('; ')), violations: marked, findings, metrics });
+    return result('K3b', title, { summary: summaries.join('; '), violations: [...marked, ...violations], findings, metrics });
   },
 };
 

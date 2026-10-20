@@ -485,7 +485,8 @@ export const testInventory: Check = {
       violations.push(...(outcome.violations ?? []));
       findings.push(...(outcome.findings ?? []));
       if (outcome.error) {
-        errors.push(outcome.error);
+        errors.push(runners.length === 1 ? outcome.error : `${label}: ${outcome.error}`);
+        summaries.push(`${runner.kind}: error`);
         continue;
       }
       const runnerMetrics = outcome.metrics ?? {};
@@ -505,9 +506,9 @@ export const testInventory: Check = {
     }
     if (skips.length === runners.length) return { ...skipped('K6', title, skips.join('; ')), ...(Object.keys(run).length ? { run } : {}) };
     for (const skip of skips) findings.push({ kind: 'runner-not-installed', detail: `not checked: ${skip}` });
-    if (errors.length) {
-      return result('K6', title, { status: 'error', summary: firstWords(errors.join('; ')), violations: [...errors.map((detail) => ({ detail })), ...violations], findings, metrics, run });
-    }
-    return result('K6', title, { summary: summaries.join('; '), violations, findings, metrics, run });
+    // As K3b: any violation fails the check, errors only make it an error; errors come first, marked `error: `.
+    const marked = errors.map((error) => ({ detail: `error: ${error}` }));
+    if (errors.length && !violations.length) return result('K6', title, { status: 'error', summary: firstWords(errors.join('; ')), violations: marked, findings, metrics, run });
+    return result('K6', title, { summary: summaries.join('; '), violations: [...marked, ...violations], findings, metrics, run });
   },
 };
