@@ -32,14 +32,15 @@ const ofKind = (findings: Finding[], kind: string) => findings.filter((finding) 
 const read = (directory: string, file: string) => fs.readFileSync(path.join(directory, file), 'utf8');
 
 /** A Lightning stand-in: answers each finding with `text(title)`, records the requests. */
-function fakeGateway(text: (title: string) => string): Gateway & { requests: StructuredRequest<unknown>[] } {
+/** Answers every finding with `text(title)`, or leaves it out of the answer when that is null. */
+function fakeGateway(text: (title: string) => string | null): Gateway & { requests: StructuredRequest<unknown>[] } {
   const requests: StructuredRequest<unknown>[] = [];
   return {
     requests,
     async structured<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>> {
       requests.push(request as StructuredRequest<unknown>);
       const shown = JSON.parse(request.messages[1]!.content.replace(/^Findings \(JSON\):\n/, '')) as { id: string; title: string }[];
-      const value = request.parse({ narrations: shown.map((finding) => ({ id: finding.id, text: text(finding.title) })) });
+      const value = request.parse({ narrations: shown.flatMap((finding) => { const answer = text(finding.title); return answer === null ? [] : [{ id: finding.id, text: answer }]; }) });
       return { choices: [{ index: 0, finishReason: 'stop', value, reasoning: null }], usage: { promptTokens: 100, completionTokens: 50, reasoningTokens: null }, costUsd: 0.00002, replayed: true, key: 'k:0' };
     },
     spent: () => ({ run: 0, global: 0 }),
@@ -217,7 +218,9 @@ describe('certificates of commits the run threw away', () => {
 describe('narration', () => {
   it('adds guarded Lightning text to the top findings and changes nothing else', async () => {
     const plain = (await runFindings({ runDirectory: runDirectory(), gateway: null })).document.findings;
-    const gateway = fakeGateway((title) => (title.startsWith('Table asset') ? 'Two groups write this table, per server/src/elsewhere.ts.' : 'This finding is recorded and stays as it was.'));
+    const gateway = fakeGateway((title) => (title.startsWith('Step pinned') ? null
+      : title.startsWith('Table asset') ? 'Two groups write this table, per server/src/elsewhere.ts.' : 'This finding is recorded and stays as it was.'));
+    // The model leaves the pinned step out of its answer: a finding not returned, which the guard never saw.
     const directory = runDirectory();
     const { document } = await runFindings({ runDirectory: directory, gateway, narration: { batchSize: 5 } });
     expect(document.findings.map(({ narration: _narration, ...rest }) => rest)).toEqual(plain.map(({ narration: _narration, ...rest }) => rest));
@@ -227,9 +230,14 @@ describe('narration', () => {
     expect(gateway.requests).toHaveLength(Math.ceil(document.findings.length / 5));
     const table = document.findings.find((finding) => finding.kind === 'multi-writer-table')!;
     expect(table.narration).toBeNull();
-    expect(document.narration!.dropped).toContainEqual({ id: table.id, reason: 'names "server/src/elsewhere.ts", which the evidence doesn\'t contain' });
-    expect(document.findings.filter((finding) => finding.narration)).toHaveLength(document.findings.length - 1);
-    expect(document.narration).toMatchObject({ model: 'nvidia/Nemotron-3_5-Lightning', label: 'Nemotron 3.5 Lightning (thinking off)', replayed: true, narrated: document.findings.length - 1 });
+    const pinned = document.findings.find((finding) => finding.title.startsWith('Step pinned'))!;
+    expect(pinned.narration).toBeNull();
+    expect(document.narration!.dropped).toEqual([{ id: table.id, reason: 'names "server/src/elsewhere.ts", which the evidence doesn\'t contain' }]);
+    expect(document.narration!.notReturned).toEqual([{ id: pinned.id, reason: 'no narration returned' }]);
+    expect(document.findings.filter((finding) => finding.narration)).toHaveLength(document.findings.length - 2);
+    expect(document.narration).toMatchObject({ model: 'nvidia/Nemotron-3_5-Lightning', label: 'Nemotron 3.5 Lightning (thinking off)', replayed: true, narrated: document.findings.length - 2 });
+    expect(read(directory, 'findings/findings.md')).toContain(`for ${document.findings.length - 2} findings in ${gateway.requests.length} calls ($0.0001 when recorded, replayed now), 1 dropped by the guard and 1 not returned by the model (they keep their evidence only).`);
+    expect(reportSectionOf(directory)).toContain('1 dropped by the guard and 1 not returned by the model');
     expect(read(directory, 'findings/pr-body.md')).toContain('1. **4 groups form one import cycle**: This finding is recorded and stays as it was.');
     expect(read(directory, 'findings/findings.md')).toContain('It checks words, not claims: a number or name from the evidence can still be put to the wrong use.');
   });

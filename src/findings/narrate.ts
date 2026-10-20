@@ -144,7 +144,7 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
  */
 export async function narrateFindings(gateway: Gateway, findings: readonly Finding[], settings: NarrationSettings = defaultNarrationSettings): Promise<{ narrations: Map<string, string>; record: NarrationRecord }> {
   const narrations = new Map<string, string>();
-  const record: NarrationRecord = { model: models[settings.model].id, label: modelLabel(settings.model, settings.templateKwargs), calls: 0, costUsd: 0, replayed: true, narrated: 0, dropped: [] };
+  const record: NarrationRecord = { model: models[settings.model].id, label: modelLabel(settings.model, settings.templateKwargs), calls: 0, costUsd: 0, replayed: true, narrated: 0, dropped: [], notReturned: [] };
   const chosen = findings.slice(0, settings.maxFindings);
   for (let start = 0; start < chosen.length; start += settings.batchSize) {
     const batch = chosen.slice(start, start + settings.batchSize).map((finding) => shownText(finding, settings));
@@ -174,9 +174,13 @@ export async function narrateFindings(gateway: Gateway, findings: readonly Findi
     for (const narration of choice?.value?.narrations ?? []) if (!answered.has(narration.id)) answered.set(narration.id, narration.text.replace(/\s+/g, ' ').trim());
     for (const shown of batch) {
       const text = answered.get(shown.id);
-      const problem = text === undefined ? `no narration returned${choice?.error ? ` (${choice.error})` : ''}` : narrationProblem(text, `${shown.kind}\n${shown.title}\n${shown.evidence}`, settings.maxCharacters);
+      if (text === undefined) {
+        record.notReturned.push({ id: shown.id, reason: `no narration returned${choice?.error ? ` (${choice.error})` : ''}` });
+        continue;
+      }
+      const problem = narrationProblem(text, `${shown.kind}\n${shown.title}\n${shown.evidence}`, settings.maxCharacters);
       if (problem) record.dropped.push({ id: shown.id, reason: problem });
-      else narrations.set(shown.id, text!);
+      else narrations.set(shown.id, text);
     }
   }
   record.narrated = narrations.size;

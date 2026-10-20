@@ -10,7 +10,7 @@ Recorded, never fixed. The run only moved files; every finding below describes t
 - Source validator: 10 warnings on the run's plan
 - Source certificate: 67 certificates read (steps, rungs, whole PR)
 - Source run: 107 run.json findings
-- Narration: Nemotron 3.5 Lightning (thinking off) wrote 1–2 sentences for 35 findings in 2 calls ($0.0010), 5 dropped by the guard (they keep their evidence only). Text only, under a lexical guard: it drops any narration naming a path, code identifier, capitalized name, the name in "the <name> table/module/class/…", or number (digits, or words up to twenty) that its evidence doesn't contain. It checks words, not claims: a number or name from the evidence can still be put to the wrong use.
+- Narration: Nemotron 3.5 Lightning (thinking off) wrote 1–2 sentences for 35 findings in 2 calls ($0.0010 when recorded, replayed now), 4 dropped by the guard and 1 not returned by the model (they keep their evidence only). Text only, under a lexical guard: it drops any narration naming a path, code identifier, capitalized name, the name in "the <name> table/module/class/…", or number (digits, or words up to twenty) that its evidence doesn't contain. It checks words, not claims: a number or name from the evidence can still be put to the wrong use.
 
 | Kind | Findings | Source |
 |---|---|---|

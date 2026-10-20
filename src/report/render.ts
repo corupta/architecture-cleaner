@@ -4,7 +4,7 @@
 import { compare } from '../boundaries/folder-graph.js';
 import { dagOrder } from '../boundaries/order.js';
 import type { CheckId } from '../certificate/types.js';
-import type { Finding } from '../findings/types.js';
+import type { Finding, NarrationRecord } from '../findings/types.js';
 import { models } from '../gateway/models.js';
 import { rungIds, type AttemptRecord, type AttemptState, type RungId, type RungStatus, type RunState, type StepRecord } from '../orchestrator/types.js';
 import { checkOrder } from './ab.js';
@@ -563,15 +563,13 @@ ${files}<p class="small muted">Source: ${escapeHtml(finding.source)}${where ? `;
 }
 
 /**
- * How many findings the narration covered and why the others have none, from findings.json: a drop is the lexical
- * guard's (a narration may only restate its evidence) unless the model returned nothing (src/findings/narrate.ts).
+ * How many findings the narration covered and why the others have none, from findings.json: the lexical guard dropped
+ * a narration (it may only restate its evidence), or the model returned none (src/findings/narrate.ts).
  */
-export function narrationOutcome(narration: { narrated: number; dropped: { reason: string }[] }): string {
-  const notReturned = narration.dropped.filter((drop) => drop.reason.startsWith('no narration returned')).length;
-  const guarded = narration.dropped.length - notReturned;
+export function narrationOutcome(narration: Pick<NarrationRecord, 'narrated' | 'dropped' | 'notReturned'>): string {
   const drops = [
-    guarded ? `${plural(guarded, 'narration')} dropped by the lexical guard (a narration may only restate its evidence)` : '',
-    notReturned ? `${plural(notReturned, 'finding')} with no narration returned by the model` : '',
+    narration.dropped.length ? `${plural(narration.dropped.length, 'narration')} dropped by the lexical guard (a narration may only restate its evidence)` : '',
+    narration.notReturned.length ? `${plural(narration.notReturned.length, 'finding')} with no narration returned by the model` : '',
   ].filter(Boolean);
   return `${plural(narration.narrated, 'finding')} narrated${drops.length ? `; ${drops.join(', ')}` : ''}`;
 }
@@ -589,8 +587,12 @@ function findingsSection(data: RunReportData): Section {
   const rank = (kind: string) => (leadingKinds.includes(kind) ? leadingKinds.indexOf(kind) : leadingKinds.length);
   const kinds = [...byKind].sort((left, right) => rank(left[0]) - rank(right[0]) || right[1].length - left[1].length || compare(left[0], right[0]));
   const narration = document.narration;
+  const unnarrated = narration ? [
+    ...narration.dropped.map((drop) => [code(drop.id), escapeHtml(`dropped by the guard: ${drop.reason}`)]),
+    ...narration.notReturned.map((missing) => [code(missing.id), escapeHtml(missing.reason)]),
+  ] : [];
   const narrationLine = narration
-    ? `<p class="small">Narration: ${escapeHtml(narration.label)} (${code(narration.model)}), ${narration.calls} calls, ${usd(narration.costUsd)} when recorded${narration.replayed ? ', replayed here' : ''}; ${escapeHtml(narrationOutcome(narration))}.</p>${narration.dropped.length ? details('Dropped narrations', table([{ label: 'Finding' }, { label: 'Why' }], narration.dropped.map((drop) => [code(drop.id), escapeHtml(drop.reason)])), { className: 'more' }) : ''}`
+    ? `<p class="small">Narration: ${escapeHtml(narration.label)} (${code(narration.model)}), ${narration.calls} calls, ${usd(narration.costUsd)} when recorded${narration.replayed ? ', replayed here' : ''}; ${escapeHtml(narrationOutcome(narration))}.</p>${unnarrated.length ? details('Findings sent without a narration', table([{ label: 'Finding' }, { label: 'Why' }], unnarrated), { className: 'more' }) : ''}`
     : '<p class="small">No narration: every finding shows its deterministic evidence only.</p>';
   const body = `<p>A good restructure makes existing bugs obvious; fixing them is never part of it. These ${count(document.findings.length)} findings were found by deterministic collectors and are left exactly as they are in the code.</p>
 ${table([{ label: 'Kind' }, { label: 'Findings', numeric: true }], kinds.map(([kind, findings]) => [link(`#kind-${kind}`, kind), count(findings.length)]))}

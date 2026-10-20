@@ -1,6 +1,7 @@
 // The findings log's vocabulary (plan §2.3 "Findings log", §3.2 "Findings narrator"): deterministic findings about the
 // target, recorded and never fixed, each with a stable id and evidence text; narration is optional prose on top.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 
 /** Where a finding came from. */
 export type FindingSource =
@@ -80,6 +81,21 @@ export interface NarrationRecord {
   narrated: number;
   /** Narrations the guard dropped, with why; their findings keep only the deterministic evidence. */
   dropped: { id: string; reason: string }[];
+  /** Findings sent whose answer had no narration for them (with the answer's error, if any); evidence only too. */
+  notReturned: { id: string; reason: string }[];
   /** Why narration stopped early (a replay miss, a refused budget), if it did. */
   error?: string;
+}
+
+/**
+ * A findings.json as this version writes it, or null when there is none. One written before S8 lists the findings the
+ * model returned no narration for among `dropped`, by their reason; they move to `notReturned`.
+ */
+export function readFindingsDocument(file: string): FindingsDocument | null {
+  if (!fs.existsSync(file)) return null;
+  const document = JSON.parse(fs.readFileSync(file, 'utf8')) as FindingsDocument;
+  const record = document.narration as (Omit<NarrationRecord, 'notReturned'> & { notReturned?: NarrationRecord['notReturned'] }) | null;
+  if (!record || record.notReturned) return document;
+  const notReturned = record.dropped.filter((drop) => drop.reason.startsWith('no narration returned'));
+  return { ...document, narration: { ...record, dropped: record.dropped.filter((drop) => !notReturned.includes(drop)), notReturned } };
 }

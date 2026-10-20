@@ -200,4 +200,4 @@ The certifier reads only the two committed trees and infers the moves itself, so
 
 Plan (planned in this run, sha256 `b4c7c548883c`): deterministic facts and seeds draft → Nemotron 3 Ultra (medium_effort) edits the draft (json_schema strict, K=3 in one n=K call) → the validator filters and ranks the edits → Nemotron 3 Ultra (medium_effort) reviews the winner (1 call) → the validator checks each suggestion. The plan cost $0.1998 when it was recorded; this run spent $0.0000 (budget run `s6`). Nemotron only plans: every step is deterministic and certified.
 
-Findings narrated by Nemotron 3.5 Lightning (thinking off): 35 of 45, $0.0010. The evidence under each finding is deterministic.
+Findings narrated by Nemotron 3.5 Lightning (thinking off): 35 of 45, $0.0010 when recorded, replayed now. The evidence under each finding is deterministic.

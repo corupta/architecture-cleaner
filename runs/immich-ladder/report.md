@@ -5,7 +5,7 @@
 - Plan: `planner` (sha256 `b4c7c548883c`), 59 steps, 367 moves
 - Commits: `02063972e8` → `c4be040b57`
 - Wall time: **1 h 55 m** (preflight 13.4 s, baseline 3 m 43 s, steps 1 h 34 m, rung certificates 13 m 19 s, whole-PR certificate 2 m 35 s)
-- Cost: planner LLM spend of this run $0.0000 (budget run `s6`); findings narration $0.0010 in 2 calls; the plan cost $0.1998 when it was recorded
+- Cost: planner LLM spend of this run $0.0000 (budget run `s6`); findings narration $0.0010 in 2 calls when recorded (replayed: $0 now); the plan cost $0.1998 when it was recorded
 - Whole PR: **PASS** (full) `certificate.json`, digest `sha256:9a5b2404631c`
 
 ## Rungs
@@ -97,7 +97,7 @@
 
 45 findings, recorded and never fixed. Full log: `findings/findings.md`; as JSON: `findings/findings.json`.
 
-Narration: Nemotron 3.5 Lightning (thinking off) wrote 1–2 sentences for 35 findings in 2 calls ($0.0010), 5 dropped by the guard (they keep their evidence only). Text only, under a lexical guard: it drops any narration naming a path, code identifier, capitalized name, the name in "the <name> table/module/class/…", or number (digits, or words up to twenty) that its evidence doesn't contain. It checks words, not claims: a number or name from the evidence can still be put to the wrong use.
+Narration: Nemotron 3.5 Lightning (thinking off) wrote 1–2 sentences for 35 findings in 2 calls ($0.0010 when recorded, replayed now), 4 dropped by the guard and 1 not returned by the model (they keep their evidence only). Text only, under a lexical guard: it drops any narration naming a path, code identifier, capitalized name, the name in "the <name> table/module/class/…", or number (digits, or words up to twenty) that its evidence doesn't contain. It checks words, not claims: a number or name from the evidence can still be put to the wrong use.
 
 | Kind | Findings | Source |
 |---|---|---|

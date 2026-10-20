@@ -69,7 +69,11 @@ function narrationLine(document: FindingsDocument): string {
   const record = document.narration;
   if (!record) return 'Narration: off; every finding shows its deterministic evidence only.';
   const spend = record.replayed ? `${money(record.costUsd)} when recorded, replayed now` : money(record.costUsd);
-  const dropped = record.dropped.length ? `, ${record.dropped.length} dropped by the guard (they keep their evidence only)` : '';
+  const without = [
+    ...(record.dropped.length ? [`${record.dropped.length} dropped by the guard`] : []),
+    ...(record.notReturned.length ? [`${record.notReturned.length} not returned by the model`] : []),
+  ];
+  const dropped = without.length ? `, ${without.join(' and ')} (they keep their evidence only)` : '';
   return `Narration: ${record.label} wrote 1–2 sentences for ${record.narrated} findings in ${record.calls} call${record.calls === 1 ? '' : 's'} (${spend})${dropped}${record.error ? `; stopped early: ${cell(record.error)}` : ''}. Text only, under a lexical guard: it drops any narration naming a path, code identifier, capitalized name, the name in "the <name> table/module/class/…", or number (digits, or words up to twenty) that its evidence doesn't contain. It checks words, not claims: a number or name from the evidence can still be put to the wrong use.`;
 }
 

@@ -59,7 +59,7 @@ export async function findingsCommand(runDirectory: string, flags: FindingsFlags
   for (const source of document.sources) console.log(`  source ${source.name}: ${source.detail}`);
   if (document.narration) {
     const record = document.narration;
-    console.log(`  narration: ${record.narrated} narrated, ${record.dropped.length} dropped, ${record.calls} calls, $${record.costUsd.toFixed(4)}${record.replayed ? ' (replayed)' : ''}${record.error ? `; stopped: ${record.error}` : ''}`);
+    console.log(`  narration: ${record.narrated} narrated, ${record.dropped.length} dropped by the guard, ${record.notReturned.length} not returned, ${record.calls} calls, $${record.costUsd.toFixed(4)}${record.replayed ? ' (replayed)' : ''}${record.error ? `; stopped: ${record.error}` : ''}`);
   }
   return 0;
 }

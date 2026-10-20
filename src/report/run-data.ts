@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { compare } from '../boundaries/folder-graph.js';
-import type { FindingsDocument } from '../findings/types.js';
+import { type FindingsDocument, readFindingsDocument } from '../findings/types.js';
 import { readRunState } from '../orchestrator/run-directory.js';
 import type { AttemptRecord, AttemptState, RungRecord, RunState, StepRecord } from '../orchestrator/types.js';
 import { readPlanYaml, type PlanFile } from '../planner/plan-file.js';
@@ -203,7 +203,7 @@ export function readRunReport(runDirectory: string, options: ReadOptions): RunRe
     rungs,
     whole,
     otherCertificates,
-    findings: readJson<FindingsDocument>(path.join(root, 'findings', 'findings.json')),
+    findings: readFindingsDocument(path.join(root, 'findings', 'findings.json')),
     plan: planFile ? planSummary(planFile, planJson, state.cost.planRecordedUsd) : null,
     heatmap,
     ledger: readLedger(path.join(options.packageDirectory, 'budget', 'ledger.jsonl'), path.join(options.packageDirectory, 'budget', 'runs.json')),

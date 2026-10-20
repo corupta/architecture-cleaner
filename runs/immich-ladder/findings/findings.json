@@ -43,16 +43,12 @@
   "label": "Nemotron 3.5 Lightning (thinking off)",
   "calls": 2,
   "costUsd": 0.000977,
-  "replayed": false,
+  "replayed": true,
   "narrated": 35,
   "dropped": [
    {
     "id": "F-68921a0c7282",
     "reason": "names \"server/src/repositories/database.repository.ts\", which the evidence doesn't contain"
-   },
-   {
-    "id": "F-70d9e19108a1",
-    "reason": "no narration returned"
    },
    {
     "id": "F-a1ef2439353b",
@@ -65,6 +61,12 @@
    {
     "id": "F-ab71273b30ce",
     "reason": "names \"relocated\", which the evidence doesn't contain"
+   }
+  ],
+  "notReturned": [
+   {
+    "id": "F-70d9e19108a1",
+    "reason": "no narration returned"
    }
   ]
  },

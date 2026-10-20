@@ -8,6 +8,7 @@ import { reportCommand } from '../../src/report/command.js';
 import type { GraphSide, RunGraph } from '../../src/report/graph.js';
 import { graphNarrative, narrationOutcome, noFailureSentence, planMaking, type NarrativeFacts } from '../../src/report/render.js';
 import type { PlanSummary } from '../../src/report/run-data.js';
+import { type FindingsDocument, readFindingsDocument } from '../../src/findings/types.js';
 import type { RunState } from '../../src/orchestrator/types.js';
 import { makeRunFixture, pageText } from './fixture.js';
 
@@ -154,6 +155,9 @@ describe('ac report on the committed immich run', () => {
     expect(text).toContain('The rung certificates of R1, R2, R3, R4 and the whole-PR certificate add the oracles (K8: tsc, unit, openapi).');
     expect(text).toContain("R4's rules freeze today's violations so they can't grow.");
     expect(text).toContain('35 findings narrated; 4 narrations dropped by the lexical guard (a narration may only restate its evidence), 1 finding with no narration returned by the model.');
+    expect(text).toContain('Findings sent without a narration');
+    expect(html).toMatch(/<code>F-ab4403001c97<\/code><\/td><td>dropped by the guard: names &quot;relocated&quot;, which the evidence doesn&#39;t contain<\/td>/);
+    expect(html).toMatch(/<code>F-70d9e19108a1<\/code><\/td><td>no narration returned<\/td>/);
     expect(text).toContain('NVIDIA Nemotron 3 Ultra (on Nebius Token Factory) edited the draft in 3 candidates, and a critic call reviewed the chosen one');
     expect(html).toContain('opencode + Nemotron 3 Super, single-shot');
     expect(html).toContain('Before: 14 folders at 02063972e8');
@@ -255,8 +259,22 @@ describe('the ladder and plan prose', () => {
   });
 
   it('tells a guard drop from a narration the model never returned', () => {
-    expect(narrationOutcome({ narrated: 3, dropped: [{ reason: 'names "relocated", which the evidence doesn\'t contain' }, { reason: 'no narration returned' }, { reason: 'no narration returned (length)' }] }))
+    const notReturned = [{ id: 'F-2', reason: 'no narration returned' }, { id: 'F-3', reason: 'no narration returned (length)' }];
+    expect(narrationOutcome({ narrated: 3, dropped: [{ id: 'F-1', reason: 'names "relocated", which the evidence doesn\'t contain' }], notReturned }))
       .toBe('3 findings narrated; 1 narration dropped by the lexical guard (a narration may only restate its evidence), 2 findings with no narration returned by the model');
-    expect(narrationOutcome({ narrated: 1, dropped: [] })).toBe('1 finding narrated');
+    expect(narrationOutcome({ narrated: 1, dropped: [], notReturned: [] })).toBe('1 finding narrated');
+  });
+
+  it('reads a findings.json written before S8, whose not-returned findings are among the dropped', () => {
+    const { directory } = makeRunFixture();
+    const file = path.join(directory, 'findings', 'findings.json');
+    const current = JSON.parse(fs.readFileSync(file, 'utf8')) as FindingsDocument;
+    const { notReturned, ...older } = current.narration!;
+    const guarded = { id: 'F-000000000001', reason: 'names "relocated", which the evidence doesn\'t contain' };
+    fs.writeFileSync(file, JSON.stringify({ ...current, narration: { ...older, dropped: [guarded, ...notReturned] } }));
+    expect(readFindingsDocument(file)!.narration).toEqual({ ...current.narration, dropped: [guarded], notReturned });
+    fs.writeFileSync(file, JSON.stringify(current));
+    expect(readFindingsDocument(file)).toEqual(current);
+    expect(readFindingsDocument(path.join(directory, 'none.json'))).toBeNull();
   });
 });

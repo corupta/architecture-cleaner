@@ -202,7 +202,7 @@ groups:
     format: 'ac-findings/1',
     run: { base, head: c4, branch: 'ac/fixture', status: 'completed', packageRoot: '', profile: 'shop' },
     sources: [{ name: 'facts', detail: '1 table with writers in several groups' }],
-    narration: { model: 'nvidia/Nemotron-3_5-Lightning', label: 'Nemotron 3.5 Lightning (thinking off)', calls: 1, costUsd: 0.0001, replayed: true, narrated: 1, dropped: [{ id: 'F-000000000002', reason: 'no narration returned' }] },
+    narration: { model: 'nvidia/Nemotron-3_5-Lightning', label: 'Nemotron 3.5 Lightning (thinking off)', calls: 1, costUsd: 0.0001, replayed: true, narrated: 1, dropped: [], notReturned: [{ id: 'F-000000000002', reason: 'no narration returned' }] },
     findings: [
       { id: 'F-000000000001', kind: 'multi-writer-table', title: 'Table users is written by 2 groups', files: ['src/services/order.service.ts', 'src/services/user.service.ts'], evidence: 'Table users is written by 2 files in 2 plan groups:\n- module/order: src/services/order.service.ts\n- module/user: src/services/user.service.ts', source: 'facts', steps: [], certificates: [], weight: 2, narration: 'Two groups write the users table <on purpose>.' },
       { id: 'F-000000000002', kind: 'injected-fault', title: 'Seeded wrong move on step 2', files: [], evidence: 'seeded wrong move (--inject-fault): M2', source: 'run', steps: [2], certificates: [], weight: 1, narration: null },

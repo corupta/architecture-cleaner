@@ -11,7 +11,7 @@ import { defaultNarrationSettings, narrateFindings, type NarrationSettings } fro
 import { findingsMarkdown, prBodyMarkdown, reportSection, topFindings } from './render.js';
 import { readRunData, type RunData } from './run-data.js';
 import { loadTarget, type Target } from './target.js';
-import { toFinding, type CollectedFinding, type Finding, type FindingsDocument, type FindingSource } from './types.js';
+import { readFindingsDocument, toFinding, type CollectedFinding, type Finding, type FindingsDocument, type FindingSource } from './types.js';
 
 export interface RunFindingsOptions {
   runDirectory: string;
@@ -149,6 +149,6 @@ export async function runFindings(options: RunFindingsOptions): Promise<Findings
 
 /** report.md's "## Findings" body from a run directory's findings/findings.json, or null before `runFindings` wrote it. */
 export function reportSectionOf(runDirectory: string): string | null {
-  const file = path.join(runDirectory, 'findings', 'findings.json');
-  return fs.existsSync(file) ? reportSection(JSON.parse(fs.readFileSync(file, 'utf8')) as FindingsDocument) : null;
+  const document = readFindingsDocument(path.join(runDirectory, 'findings', 'findings.json'));
+  return document && reportSection(document);
 }

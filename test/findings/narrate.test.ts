@@ -67,7 +67,10 @@ describe('narrateFindings through the gateway', () => {
       fs.writeFileSync(runsPath, JSON.stringify({ globalCap: 50, runs: { test: { cap: 1 } } }));
       const cassettePath = path.join(directory, 'cassette.jsonl');
       const ledgerPath = path.join(directory, 'ledger.jsonl');
-      const findings = [finding('BaseService injects 56 members into 51 classes', evidence), finding('Table asset is written by 4 groups', 'Table asset is written by 4 files in 4 plan groups.')];
+      const findings = [
+        finding('BaseService injects 56 members into 51 classes', evidence), finding('Table asset is written by 4 groups', 'Table asset is written by 4 files in 4 plan groups.'),
+        finding('Table album is written by 2 groups', 'Table album is written by 2 files in 2 plan groups.'),
+      ];
       const bodies: RequestBody[] = [];
       const transport: Transport = async (body) => {
         bodies.push(body);
@@ -76,10 +79,14 @@ describe('narrateFindings through the gateway', () => {
       };
       const recorded = await narrateFindings(createGateway({ runId: 'test', mode: 'record', cassettePath, ledgerPath, runsPath, transport }), findings);
       expect(bodies).toHaveLength(1);
-      expect(bodies[0]).toMatchObject({ model: 'nvidia/Nemotron-3_5-Lightning', max_tokens: 64 + 2 * defaultNarrationSettings.tokensPerFinding, chat_template_kwargs: { enable_thinking: false } });
+      expect(bodies[0]).toMatchObject({ model: 'nvidia/Nemotron-3_5-Lightning', max_tokens: 64 + 3 * defaultNarrationSettings.tokensPerFinding, chat_template_kwargs: { enable_thinking: false } });
       expect(bodies[0]!.response_format.json_schema).toMatchObject({ name: 'findings_narration', strict: true });
       expect([...recorded.narrations]).toEqual([[findings[0]!.id, 'BaseService hands all 56 members to 51 classes.']]);
-      expect(recorded.record).toMatchObject({ calls: 1, replayed: false, narrated: 1, dropped: [{ id: findings[1]!.id, reason: 'names "server/src/x.ts", which the evidence doesn\'t contain' }] });
+      // The answer leaves the third finding out: not returned, apart from the guard's drop.
+      expect(recorded.record).toMatchObject({
+        calls: 1, replayed: false, narrated: 1,
+        dropped: [{ id: findings[1]!.id, reason: 'names "server/src/x.ts", which the evidence doesn\'t contain' }], notReturned: [{ id: findings[2]!.id, reason: 'no narration returned' }],
+      });
       expect(recorded.record.costUsd).toBeGreaterThan(0);
 
       const ledgerBefore = fs.readFileSync(ledgerPath, 'utf8');
