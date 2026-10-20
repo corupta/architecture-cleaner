@@ -268,7 +268,7 @@ We show these because the checker exists to catch them:
 - **A false pass we introduced, caught by review (S7).** One of those precision fixes cleared a string compared
   against an exact moved path (`relative(cwd, file) === 'src/services/legacy.service.ts'`). The S7 review found it
   before it shipped; it is now a hunt case. On 2026-10-20 the mutation harness, over every target (immich
-  included), killed 813 of 813 mutants with the static checks alone (`runs/mutation/report.md`).
+  included), killed 831 of 831 mutants with the static checks alone (`runs/mutation/report.md`).
 - **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored 57.24
   because its draft read only file names; G1 had picked the seed source without ground truth. Restoring that rule
   lifted H1 to 79.31, and on ghostfolio it chose the export names, which cost 3.5 points there (86.11 → 82.64).
