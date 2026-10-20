@@ -91,8 +91,8 @@ What the replay does, and what it proves:
 
 The command exits 0 when everything it compared matches the recorded run, and 1 otherwise, listing each difference.
 Its summary also lists what it did not compare.
-From a fresh clone on our machine (12-core aarch64, 2026-10-17), `npm ci` took 15 s and the replay 11 m 41 s, with
-exit 0; `--steps <n>` stops early.
+From a fresh clone on our machine (12-core aarch64, 2026-10-20, an empty npm cache), `npm ci` took 16 s and the
+replay 11 m 25 s, with exit 0; `--steps <n>` stops early.
 
 What the replay does **not** re-run:
 - **The oracles (K8)**: tsc, the 105-file unit suite and the OpenAPI spec, on every rung and the whole PR. They need
@@ -138,10 +138,11 @@ package that immich's own install doesn't satisfy is then looked up there.
 | `npx ac demo --full --env ~/immich` | `ac run` end to end on the replayed plan: baseline, 63 certified commits, rung and whole-PR certificates, findings. 1 h 55 m on a quiet machine (S6). | $0 |
 | `NEBIUS_API_KEY=… npx ac demo --live` | a new plan from Nemotron (Ultra edit and critic) on **your** Token Factory key, then its steps executed and a sample certified. The key is read from the environment only, never from a `.env` file, so setting it is the opt-in, and the demo refuses to run without it. It keeps its own ledger and cassette in its work dir (`/tmp/ac-demo/`), capped at $1. | about $0.20 on your key |
 
-On 2026-10-17 we ran `--env --oracles` on our machine. All 62 trees and the R4 tree matched. The three sample
-certificates (steps 1, 4 and 60) and the whole-PR certificate came out with **the recorded digests, byte for byte**:
-`sha256:909262855d4a…`, `1b81fb81f24e…`, `b775e6f44ed8…` and `9a5b2404631c…`. In other words, the certificate was
-reproduced, not just a verdict.
+On 2026-10-20 we ran `npx ac demo --replay --env ~/ac-targets/immich --oracles` from a fresh clone, with no `--work`
+(20 m 57 s, exit 0). All 62 trees and the R4 tree matched. The three sample certificates (steps 1, 4 and 60) and the
+whole-PR certificate came out with **the recorded digests, byte for byte**: `sha256:909262855d4a…`, `1b81fb81f24e…`,
+`b775e6f44ed8…` and `9a5b2404631c…`. In other words, the certificate was reproduced, not just a verdict, by a tool
+that has changed since the run was recorded (S6).
 
 A live plan is a new sample: it differs from the recorded one, and the demo reports how many of its groups the
 recorded plan has too.

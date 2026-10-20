@@ -1,19 +1,18 @@
-# Next session: S8 (freeze prep: hermetic certificates, planner robustness, carry-overs, stretch if time, polish)
+# Next session: S9 (the recording session: final recorded runs, numbers frozen Oct 22, site deployed, repo public)
 
-Opening prompt for S8, from [sessions/s7.md](sessions/s7.md). Paste it as the first message.
+Opening prompt for S9, from [sessions/s8.md](sessions/s8.md). Paste it as the first message.
 
 ```
-Session S8 for architecture-cleaner: freeze prep. Feature freeze is Tue Oct 20; this is the last build session.
+Session S9 for architecture-cleaner: the recording session. The feature freeze held on Oct 20 (main at tag freeze); numbers freeze Oct 22, submission Oct 28.
 
-Read CLAUDE.md, docs/sessions/s7.md (all of it, especially item 10), docs/plan.md §2.3 (stretch rungs), §8 (cut order) and §9, docs/storyboard.md, README.md, and the replay site (`npm run build && node dist/cli/main.js site --out /tmp/site`). Mode: execution, high autonomy, branch s8/freeze from main; merge when the exit criteria hold. LLM calls only through src/gateway under a new budget run s8 (cap $3), and only if a planner fix needs the bench plans re-recorded; every run replays from committed cassettes.
+Read CLAUDE.md, docs/sessions/s8.md, docs/storyboard.md, docs/plan.md §8 and §9, and README.md. Mode: execution, high autonomy; no feature work, only fixes for defects found while recording, each with a regression test. No LLM spend is planned; open budget run s9 (cap $1) only if corupta asks for a live recording.
 
-In priority order (plan §8's cut order applies: stretch rungs go first if time runs short):
-1. Hermetic certificates: certify in a work dir that no parent node_modules can reach (TypeScript's @types walk, Node's resolution), so the default `npx ac demo --replay --env <checkout>` compares digests from inside the clone; then default the demo's work dir accordingly. Prove it: the recorded digests reproduce from a fresh clone's default layout.
-2. Planner robustness from the S7 bench, if it fits: a move naming a file by its id resolves (versioned so the immich cassette still replays byte-identically), and a 0-module plan can't win the ranking. Re-record the bench plans (s8), re-run `ac bench`, and report before and after honestly.
-3. Small carry-overs: K3b/K6 report fail (not error) when a runner found violations; the findings renderer separates "dropped by the guard" from "not returned" (regenerate the committed findings from the cassette, $0, and keep the demo byte-identical); scripts/target-env.sh picks the arch.
-4. Stretch, only with time left: S3 (whitespace-only re-wrap of touched import lines, certified by token-stream equality), then S1 (tests follow their subject). S2 is cut.
-5. Polish for the freeze: README final draft (clone URL and site URL placeholders stay until the repo is public), the storyboard updated with S7's measured beats (the fault run, the bench table, the graph framing), the site's copy reviewed end to end, CLAUDE.md status.
+1. Ask corupta one question first: keep runs/immich-ladder (S6's run, which the frozen tool reproduces byte for byte) as the demo run, or re-record immich with the frozen tool, optionally with the S3 rung (--rungs R0,R1,R2,R3,S3,R4). Recommendation: keep S6's run and show S3 from runs/immich-rewrap.
+2. Final recorded runs on a quiet machine, no agents, from a frozen copy of main: the judges' path from a fresh clone (npx ac demo --replay, then --env --oracles), timings and digests into the README; ac site --out built twice, byte-identical.
+3. Going public is corupta's call: once corupta makes the GitHub repo public (or says to), fill the README's clone and site URL placeholders, deploy the site with .github/workflows/pages.yml, and check the deployed pages against the local build.
+4. Freeze the numbers (Oct 22): check every number in the README, the storyboard and the site against its source once more, and list them with their sources in docs/numbers.md.
+5. Video prep (Oct 22–23): the script from the storyboard's beats, a shot list, scripted captures (VHS tapes for the CLI, Playwright for the site), and the plan for a captioned rough cut under corupta's voiceover.
 
-Exit criteria: main frozen with a green suite and the mutation harness at 100%; `npx ac demo --replay` from a fresh clone exits 0 (with --env: digests reproduced); the site builds offline; docs/sessions/s8.md (10 lines) ending with the opening prompt for the recording session (final recorded runs, numbers frozen Oct 22, site deployed, repo public).
+Exit criteria: main tagged freeze-numbers, the site live, the repo public, the script and shot list ready for corupta's 15-minute OK, and docs/sessions/s9.md ending with the next session's prompt.
 Log weird-but-not-blocking observations with /log-anomaly.
 ```
