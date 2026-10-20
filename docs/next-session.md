@@ -3,7 +3,7 @@
 Opening prompt for S9, from [sessions/s8.md](sessions/s8.md). Paste it as the first message.
 
 ```
-Session S9 for architecture-cleaner: the recording session. The feature freeze held on Oct 20 (main at tag freeze); numbers freeze Oct 22, submission Oct 28.
+Session S9 for architecture-cleaner: the recording session. The feature freeze held on Oct 20 (tag freeze), and main also carries S8b's Super VL experiment (tag s8b; the planner stays Ultra); numbers freeze Oct 22, submission Oct 28.
 
 Read CLAUDE.md, docs/sessions/s8.md, docs/storyboard.md, docs/plan.md §8 and §9, and README.md. Mode: execution, high autonomy; no feature work, only fixes for defects found while recording, each with a regression test. No LLM spend is planned; open budget run s9 (cap $1) only if corupta asks for a live recording.
 

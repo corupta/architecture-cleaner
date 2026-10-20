@@ -44,6 +44,7 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 | **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate keeps only evidenced changes. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
 | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
+| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`, thinking off) | Measured as an alternative planner (S8b), three runs per bench entry: a fifth of Ultra's cost, below it on immich and, less clearly, hoppscotch-H1, no conclusive difference elsewhere. With thinking on it reasoned past our 64k cap. `--planner super-vl-direct`. | $0.54 for 15 runs ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
 - strict `json_schema` answers, explicit sampling and `max_tokens` caps;
@@ -55,8 +56,8 @@ Every call goes through one in-process gateway (`src/gateway/`):
 
 The ledger matched the Nebius console bill on 2026-10-14, at **$9.31**. $6.69 of it went to Nemotron 3 Super, mostly
 the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/sessions/s6.md](docs/sessions/s6.md)).
-Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8): the ledger stands at **$10.54** of the $50
-cap (2026-10-20).
+Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiment $4.00 (S8b): the
+ledger stands at **$14.54** of the $50 cap (2026-10-20).
 
 ## Quick start: the replay (no key, $0)
 
@@ -251,6 +252,15 @@ back. kaneo's scramble certificate fails closed: its API runs an esbuild bundle 
 templates K4 can't prove aren't paths. The recordings cost $1.23 in all (`cassettes/s7-bench.jsonl`, S7 and S8); `ac
 bench bench/manifest.json` replays them for $0.
 
+**Nemotron 3.5 Super VL as the planner (S8b).** NVIDIA's newer Super VL leads Ultra on public benchmarks, so we
+measured it on ours, with three planner runs per entry for Ultra and for Super VL with thinking off
+([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)). With thinking on, 11 of 12 edit choices
+reasoned past our 64k-token cap, and the planner fell back to its draft. With thinking off it worked, at a fifth of
+Ultra's cost and about a third of its time, but scored below Ultra on immich and, less clearly, hoppscotch-H1, with no
+conclusive difference elsewhere; its public lead didn't show on this task. The demo keeps Ultra. The same runs show how much one
+planner run varies: hoppscotch's 87.59 above is one draw, and three fresh Ultra runs of the same request scored 81.38
+to 84.83. The experiment cost $4.00.
+
 ## Our own misses
 
 We show these because the checker exists to catch them:
@@ -297,7 +307,7 @@ We show these because the checker exists to catch them:
 | `ac run <repo> --profile <name> --out <run dir>` | the ladder R0–R4, unattended, with rollback, replan and `--resume`; the run dir must have no `node_modules` or `package.json` on its path |
 | `ac normalize`, `ac rewrap`, `ac boundaries`, `ac findings` | R3, S3, R4 and the findings log on their own |
 | `ac report <run-dir>`, `ac site` | the HTML report of a run, and the static replay site |
-| `ac scramble`, `ac bench <manifest>` | the benchmarks: type-sliced scrambles of feature-sliced repos, scored against their truth |
+| `ac scramble`, `ac bench <manifest>` | the benchmarks: type-sliced scrambles of feature-sliced repos, scored against their truth; `--planner <ultra\|super-vl-direct\|…>`, `--repeats k`, and `ac bench compare <results dirs>` to compare planner configurations |
 
 Run `npx ac` for every flag. Profiles of the targets live in `profiles/`.
 

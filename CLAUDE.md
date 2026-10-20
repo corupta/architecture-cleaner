@@ -34,6 +34,8 @@ S8 ran on 2026-10-20; [docs/sessions/s8.md](docs/sessions/s8.md) has the report.
 - Stretch S3 shipped (`ac rewrap`, optional rung S3, K2's layout class confined to import and export declarations); S1 was not started.
 - The mutation harness kills 831/831 over every target. A review confirmed 28 of 28 findings, including 5 false passes in the first layout rule, and all are fixed. The ledger stands at $10.54.
 
+S8b ran on 2026-10-20 evening (an addendum in [docs/sessions/s8.md](docs/sessions/s8.md)): corupta asked to try Nemotron 3.5 Super VL as the planner. With thinking on it reasoned past the 64k cap; with thinking off it costs a fifth of Ultra but scores below it on immich and, less clearly, hoppscotch-H1. The demo keeps Ultra ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)). The ledger stands at $14.54.
+
 Next is S9 (the recording session: final recorded runs, numbers frozen Oct 22, site deployed, repo public), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
 
 ## Decided (revisable with a reason)
