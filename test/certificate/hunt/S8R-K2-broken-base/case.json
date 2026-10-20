@@ -1,0 +1,21 @@
+{
+  "id": "S8R-K2-broken-base",
+  "report": "S8R-K2-broken-base",
+  "source": "S8 review, ~/ac-work/s8/review/review-result.json: L5",
+  "lens": "certifier",
+  "title": "A base file with a syntax error (a missing ';' between two class fields) whose head adds the separator as a line break: the module goes from a SyntaxError at load to running",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K2",
+      "reason": "src/flags.ts: base has syntax errors; a layout change needs both sides to parse"
+    }
+  ],
+  "identityControl": true,
+  "notes": "Round S8 (60b419d) required only head to parse; TypeScript's recovery for the missing ';' builds the tree that automatic semicolon insertion builds once a line break is there, so tokens and trees were equal and the static certificate was PASS with a layout-only finding.",
+  "origin": {
+    "before": "built by hand from the review's evidence",
+    "after": "a line break before dryRun, nothing else changed"
+  }
+}

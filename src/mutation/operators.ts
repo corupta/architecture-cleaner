@@ -1,5 +1,5 @@
 // Mutation operators from research 04b §E3: M1–M30 without the rename rung (M31/M32) and the loader/emit operators
-// M15, M16, M22, whose killers K5/K7 are outside the MVP; M33 (S6) probes K1's one allowed addition; M34–M38 (S3,
+// M15, M16, M22, whose killers K5/K7 are outside the MVP; M33 (S6) probes K1's one allowed addition; M34–M39 (S3,
 // layout-operators.ts) probe K2's layout class. Each takes a known-good result and proposes instances; an
 // instance builds a head tree that differs from the good head by exactly one mutation, which the certifier must
 // reject without K8.

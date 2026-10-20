@@ -516,5 +516,27 @@
       "K3c"
     ],
     "controls": []
+  },
+  "S8R-K2-broken-base": {
+    "report": "S8R-K2-broken-base",
+    "title": "A base file with a syntax error (a missing ';' between two class fields) whose head adds the separator as a line break: the module goes from a SyntaxError at load to running",
+    "applicable": true,
+    "expectedChecks": [
+      "K2"
+    ],
+    "controls": [
+      "identity"
+    ]
+  },
+  "S8R-K2-placeholder": {
+    "report": "S8R-K2-placeholder",
+    "title": "A string literal that spells K2's specifier placeholder ('ac-specifier') swapped with a specifier span: icon and theme exchange values; K2 joined both sides with that placeholder and read them as equal",
+    "applicable": true,
+    "expectedChecks": [
+      "K2"
+    ],
+    "controls": [
+      "identity"
+    ]
   }
 }

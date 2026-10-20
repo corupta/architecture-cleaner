@@ -2,9 +2,12 @@
 // keep their path; every other base file is matched to a head file by its content hash, first byte-exact, then
 // with specifier spans blanked. Ties among identical candidates are broken by basename and path similarity. A
 // wrong tie-break can only make later checks fail (a false rejection), never pass: every check is evaluated
-// under the inferred map, and the certificate claims "a pure move under this map".
+// under the inferred map, and the certificate claims "a pure move under this map". Last, a source file still
+// unpaired may pair with one whose import layout alone differs too (moved, then re-wrapped: S3 in one range), when
+// that key is unique on both sides; K2 then holds the pair to its layout class (layout.ts).
 import path from 'node:path';
 import type { CommitTree } from './git-tree.js';
+import { importLayoutKey } from './layout.js';
 import type { SpanView } from './spans.js';
 
 export interface PathMap {
@@ -153,6 +156,17 @@ export function inferPathMap(base: CommitTree, head: CommitTree, baseViews: View
   for (const file of sources) if (remaining.has(file)) link(file, file);
   sources = sources.filter((file) => !forward.has(file));
   destinations = destinations.filter((file) => !inverse.has(file));
+
+  // Moved and re-wrapped: the same modulo specifiers and the layout of its import and `export … from` declarations.
+  // Only unique keys pair; no tie-break.
+  if (sources.length && destinations.length) {
+    const layoutKeyOf: KeyOf = (tree, file) => {
+      const view = (tree === 'base' ? baseViews : headViews)(file);
+      return view?.source ? importLayoutKey(file, view) : undefined;
+    };
+    for (const [, entry] of groupsBy(layoutKeyOf)) if (entry.sources.length === 1 && entry.destinations.length === 1) link(entry.sources[0]!, entry.destinations[0]!);
+    unlinked();
+  }
 
   const baseByOid = new Map<string, string>();
   for (const [file, entry] of base.entries) if (!baseByOid.has(entry.oid)) baseByOid.set(entry.oid, file);

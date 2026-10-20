@@ -1,9 +1,10 @@
-// A small known-good result with a genuine re-wrap (plan §2.3 S3), the control the layout operators (M34–M38) mutate:
+// A small known-good result with a genuine re-wrap (plan §2.3 S3), the control the layout operators (M34–M39) mutate:
 // src/services/letters.service.ts moves to src/modules/letters/, and the importer whose declaration the longer
 // specifier pushes past a 90-column printWidth is re-wrapped the way prettier does it (one binding per line, a
-// trailing comma). The head also has what the layout operators look for: directives next to statements, returns,
-// postfix updates, strings, template literals, JSX text, calls and arrays, line and block comments, all in the
-// files edited in place (a mutant of a moved file is K1's: its base can't be paired with it).
+// trailing comma). The head also has what the layout operators look for: line and block directives next to
+// statements, returns, a postfix update in a statement without a semicolon, strings, template literals, JSX text,
+// calls and arrays, a JSDoc comment after a statement, an arrow function, all in the files edited in place (a
+// mutant of a moved file whose text differs beyond its import layout isn't paired with its base: K1's).
 import fs from 'node:fs';
 import path from 'node:path';
 import { materializePair } from './harness.js';
@@ -30,11 +31,21 @@ const report = (declaration: string) => [
   '  return `${padded} of ${alphabetLetters.length} letters: ${vowelLetters.join(\', \')}`;',
   '}',
   '',
-  '/* Counts the consonants, one at a time. */',
+  '/** @internal Counts the consonants, one at a time. */',
   'export function count(): number {',
   '  let total = 0;',
+  '  /* c8 ignore next */',
   '  total++;',
   '  return total + consonantLetters.length;',
+  '}',
+  '',
+  'export const twice = (value: number) => value * 2;',
+  '',
+  'export function tally(): number {',
+  '  let ticks = 0',
+  '  ticks++',
+  '  count()',
+  '  return ticks',
   '}',
   '',
   'export const sizes = [count(), describeLetters(3, 4).length];',
@@ -45,6 +56,12 @@ const view = (specifier: string) => [
   `import { vowelLetters } from '${specifier}';`,
   '',
   "export const view = <p title={`vowels: ${vowelLetters.length}`}>The vowels are {vowelLetters.join(' ')}.</p>;",
+  '',
+  'export const note = (',
+  '  <p>',
+  '    Copy the vowels if the list is too short.',
+  '  </p>',
+  ');',
   '',
 ].join('\n');
 

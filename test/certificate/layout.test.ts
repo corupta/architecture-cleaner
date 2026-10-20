@@ -1,13 +1,15 @@
-// K2's layout-only class (plan §2.3 S3): a genuine re-wrap of import lines passes, alone or next to moves; every
-// layout-looking change that isn't one fails with a violation naming the first differing token, the changed tree or
-// the directive; a K2 result without a layout-only file is exactly what it was before the class existed.
+// K2's layout-only class (plan §2.3 S3): a genuine re-wrap of import lines passes, alone, next to moves, or in a file
+// that was moved too (path-map.ts pairs it by its import layout key); every layout-looking change that isn't one fails
+// with a violation naming the first differing token, the side with syntax errors, the changed tree, the changed gap
+// outside an import or export declaration, or the directive; a K2 result without a layout-only file is exactly what
+// it was before the class existed.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { byteSpanConfinement, checkByteSpans } from '../../src/certificate/byte-spans.js';
 import { certify } from '../../src/certificate/certify.js';
-import { compareLayout } from '../../src/certificate/layout.js';
+import { compareLayout, joinChunks } from '../../src/certificate/layout.js';
 import { certifyFiles, checkOf, localNodeModules, variant, vitestRepo } from './runner-repos.js';
 import { type Tree, twoCommits, withContext } from './two-commit-repo.js';
 
@@ -91,12 +93,12 @@ describe('K2 rejects layout-looking changes that are not layout only', () => {
     expect(rejected('src/a.ts', directive('// @ts-expect-error'), `// @ts-expect-error\n${wrapped}`)).toBe('the directive "// @ts-expect-error" on line 1 precedes or sits inside a statement whose line breaks changed');
     expect(rejected('src/b.ts', directive('// eslint-disable-next-line import/no-unresolved'), `// eslint-disable-next-line import/no-unresolved\n${wrapped}`)).toMatch(/^the directive "\/\/ eslint-disable-next-line import\/no-unresolved" on line 1 precedes/);
     expect(rejected('src/c.ts', "import { alpha, /* @ts-ignore */ beta } from './letters';\n", "import {\n  alpha,\n  /* @ts-ignore */ beta,\n} from './letters';\n")).toMatch(/precedes or sits inside/);
-    const sameLine = "declare function f(...a: number[]): void;\nf(1, 2); // eslint-disable-line no-console\nf(3);\n";
-    expect(rejected('src/d.ts', sameLine, sameLine.replace('f(1, 2);', 'f(\n  1,\n  2);'))).toMatch(/^line breaks changed within the lines the directive "\/\/ eslint-disable-line no-console" on line \d applies to$/);
-    const reach = "declare function f(...a: number[]): void;\n/* c8 ignore next 3 */\nf(1);\nf(2, 3);\nf(4);\n";
-    expect(rejected('src/e.ts', reach, reach.replace('f(2, 3);', 'f(\n  2,\n  3);'))).toMatch(/^line breaks changed within the lines the directive "\/\* c8 ignore next 3 \*\/" on line 2 applies to$/);
-    const prettierIgnore = '// prettier-ignore\nexport const matrix = [1, 0,\n  0, 1];\n';
-    expect(rejected('src/m.ts', prettierIgnore, '// prettier-ignore\nexport const matrix = [1, 0, 0, 1];\n')).toMatch(/precedes or sits inside/);
+    const sameLine = "import { alpha, beta } from './letters'; // eslint-disable-line no-console\nexport const all = [alpha, beta];\n";
+    expect(rejected('src/d.ts', sameLine, sameLine.replace('{ alpha, beta }', '{\n  alpha,\n  beta,\n}'))).toMatch(/^line breaks changed within the lines the directive "\/\/ eslint-disable-line no-console" on line \d applies to$/);
+    const reach = "/* c8 ignore next 3 */\nexport const one = 1;\nimport { alpha, beta } from './letters';\nexport const two = [alpha, beta];\n";
+    expect(rejected('src/e.ts', reach, reach.replace('{ alpha, beta }', '{\n  alpha,\n  beta,\n}'))).toMatch(/^line breaks changed within the lines the directive "\/\* c8 ignore next 3 \*\/" on line 1 applies to$/);
+    const prettierIgnore = "// prettier-ignore\nimport { alpha,\n  beta } from './letters';\nexport const all = [alpha, beta];\n";
+    expect(rejected('src/m.ts', prettierIgnore, prettierIgnore.replace('{ alpha,\n  beta }', '{ alpha, beta }'))).toMatch(/precedes or sits inside/);
   });
 
   it("a comment's text, a comment added, the shebang, a byte order mark", () => {
@@ -106,9 +108,9 @@ describe('K2 rejects layout-looking changes that are not layout only', () => {
     expect(rejected('src/d.ts', oneLine, `\ufeff${oneLine}`)).toBe('the byte order mark was added');
   });
 
-  it('spaces that make an HTML-like comment for Node (<!--, a line-leading -->)', () => {
-    expect(rejected('src/a.js', 'let x = 1, y = 2;\nexports.z = x < !--y;\n', 'let x = 1, y = 2;\nexports.z = x <!--y;\n')).toMatch(/^the space around "[<!]" on head line 2 changed: <!-- and a line-leading --> are comments to Node/);
-    expect(rejected('src/b.js', 'let y = 2;\nexports.z = y-- > 0;\n', 'let y = 2;\nexports.z = y\n-- > 0;\n')).toMatch(/^the space around "--"|different syntax tree|syntax errors/);
+  it('spaces that make an HTML-like comment for Node (<!--, a line-leading -->): outside an import or export declaration', () => {
+    expect(rejected('src/a.js', 'let x = 1, y = 2;\nexports.z = x < !--y;\n', 'let x = 1, y = 2;\nexports.z = x <!--y;\n')).toBe('the whitespace between token "<" on line 2 and token "!" on line 2 changed outside an import or export declaration');
+    expect(rejected('src/b.js', 'let y = 2;\nexports.z = y-- > 0;\n', 'let y = 2;\nexports.z = y\n-- > 0;\n')).toMatch(/^different syntax tree|same tokens, different syntax tree|syntax errors/);
   });
 
   it('text between tokens that is neither whitespace nor a comment (conflict markers)', () => {
@@ -127,11 +129,94 @@ describe('K2 rejects layout-looking changes that are not layout only', () => {
   });
 });
 
+describe('K2 accepts layout changes only inside top-level import and export-from declarations', () => {
+  const rejected = (file: string, base: string, head: string) => {
+    const found = details({ [file]: base }, { [file]: head });
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(/; not layout only: /);
+    return found[0]!.replace(/^.*; not layout only: /s, '');
+  };
+  const outside = (between: string) => `the whitespace between ${between} changed outside an import or export declaration`;
+
+  it('rejects a call re-wrapped, a blank line between statements or imports, an indent, and space at the end of the file', () => {
+    const call = 'declare function f(a: number, b: number): number;\nexport const c = f(1, 2);\n';
+    expect(rejected('src/a.ts', call, call.replace('f(1, 2)', 'f(\n  1, 2)'))).toBe(outside('token "(" on line 2 and token "1" on line 3'));
+    expect(rejected('src/b.ts', 'export const a = 1;\nexport const b = 2;\n', 'export const a = 1;\n\nexport const b = 2;\n')).toBe(outside('token ";" on line 1 and token "export" on line 3'));
+    const imports = "import { alpha } from './letters';\nimport { beta } from './letters';\nexport const all = [alpha, beta];\n";
+    expect(rejected('src/c.ts', imports, imports.replace(";\nimport { beta }", ";\n\nimport { beta }"))).toBe(outside('token ";" on line 1 and token "import" on line 3'));
+    expect(rejected('src/d.ts', 'export function d() {\n  return 1;\n}\n', 'export function d() {\n    return 1;\n}\n')).toBe(outside('token "{" on line 1 and token "return" on line 2'));
+    expect(rejected('src/e.ts', 'export const e = 1;\n', 'export const e = 1;\n\n')).toBe(outside('token ";" on line 1 and the end of the file'));
+  });
+
+  it('rejects whitespace changed in an import nested in a module declaration, an export without a specifier, or around a declaration', () => {
+    const nested = "declare module 'letters' {\n  import { alpha, beta } from './letters';\n  export { alpha, beta };\n}\n";
+    expect(rejected('src/a.d.ts', nested, nested.replace('{ alpha, beta } from', '{\n    alpha,\n    beta } from'))).toBe(outside('token "{" on line 2 and token "alpha" on line 3'));
+    expect(rejected('src/b.d.ts', nested, nested.replace('{ alpha, beta } from', '{ alpha, beta, } from'))).toMatch(/^token \d+ differs: base has token "\}" on line 2, head has token ","/);
+    const local = 'const alpha = 1;\nconst beta = 2;\nexport { alpha, beta };\n';
+    expect(rejected('src/c.ts', local, local.replace('{ alpha, beta }', '{\n  alpha,\n  beta\n}'))).toBe(outside('token "{" on line 3 and token "alpha" on line 4'));
+    expect(rejected('src/d.ts', local, local.replace('{ alpha, beta }', '{ alpha, beta, }'))).toMatch(/^token \d+ differs: base has token "\}" on line 3, head has token ","/);
+    expect(rejected('src/e.ts', oneLine, oneLine.replace("import {", "import  {").replace("';\nexport", "';  \nexport"))).toBe(outside('token ";" on line 1 and token "export" on line 2'));
+  });
+
+  it('L1: rejects a line break before an arrow\'s =>, which tsc (TS1200) and every runtime reject', () => {
+    const arrow = 'declare function helper(value: number): number;\nexport const double = (value: number) => helper(value) * 2;\n';
+    expect(rejected('src/a.ts', arrow, arrow.replace(') =>', ')\n  =>'))).toBe(outside('token ")" on line 2 and token "=>" on line 3'));
+    expect(rejected('src/b.ts', 'export const f = async (x: number) => x;\n', 'export const f = async (x: number)\n=> x;\n')).toBe(outside('token ")" on line 1 and token "=>" on line 2'));
+    expect(rejected('src/c.js', 'const f = x => x;\nmodule.exports = { f };\n', 'const f = x\n=> x;\nmodule.exports = { f };\n')).toBe(outside('token "x" on line 1 and token "=>" on line 2'));
+  });
+
+  it('L2: rejects a line break that attaches or detaches a JSDoc or @internal comment', () => {
+    const detached = 'export const limit = 10; /** @internal */\nexport const resetForTests = (): void => {};\n';
+    const attached = 'export const limit = 10;\n/** @internal */\nexport const resetForTests = (): void => {};\n';
+    expect(rejected('src/a.ts', detached, attached)).toBe(outside('token ";" on line 1 and comment "/** @internal */" on line 2'));
+    expect(rejected('src/b.ts', attached, detached)).toBe(outside('token ";" on line 1 and comment "/** @internal */" on line 1'));
+    expect(rejected('src/c.ts', detached.replace('/**', '/*'), attached.replace('/**', '/*'))).toMatch(/^the whitespace between token ";" on line 1 and comment "\/\* @internal \*\/"/);
+    expect(rejected('src/d.js', 'exports.a = 1; /** @param {string} name */\nexports.greet = (name) => name;\n', 'exports.a = 1;\n/** @param {string} name */\nexports.greet = (name) => name;\n')).toMatch(/^the whitespace between token ";" on line 1 and comment "\/\*\* @param/);
+  });
+
+  it('L4: rejects a changed gap holding a CR, U+2028, U+2029, a no-break space, or a line terminator the file does not use', () => {
+    const terminator = (character: string) => `the whitespace between token "{" on line 1 and token "alpha" on line ${character === '\u00a0' ? 1 : 2} changed, and head has ${({ '\r': 'U+000D', '\u2028': 'U+2028', '\u2029': 'U+2029', '\u00a0': 'U+00A0' } as Record<string, string>)[character]} in it`;
+    for (const character of ['\r', '\u2028', '\u2029', '\u00a0']) {
+      expect(rejected('src/a.ts', oneLine, oneLine.replace('{ alpha', `{${character}  alpha`)).slice(0, terminator(character).length)).toBe(terminator(character));
+    }
+    expect(rejected('src/b.ts', 'export const a = 1;\nexport const b = 2;\n', 'export const a = 1;\u2028export const b = 2;\n')).toBe(outside('token ";" on line 1 and token "export" on line 2'));
+    expect(rejected('src/c.ts', oneLine.replace('{ alpha', '{\u00a0alpha'), oneLine)).toMatch(/and base has U\+00A0 in it: only spaces, tabs and the file's line terminator \(\\n\) may change$/);
+    const crlf = (text: string) => text.replaceAll('\n', '\r\n');
+    expect(details({ 'src/d.ts': crlf(oneLine), 'src/letters.ts': letters }, { 'src/d.ts': crlf(wrapped), 'src/letters.ts': letters })).toEqual([]);
+    expect(rejected('src/e.ts', crlf(oneLine), crlf(oneLine).replace('{ alpha', '{\n  alpha'))).toMatch(/and head has U\+000A in it: only spaces, tabs and the file's line terminator \(\\r\\n\) may change$/);
+    expect(rejected('src/f.ts', oneLine.replace('\n', '\u2028'), oneLine.replace('\n', '\u2028').replace('{ alpha', '{\n  alpha'))).toMatch(/and head has U\+000A in it: only spaces, tabs and no line break \(the file's first one is a lone CR, U\+2028 or U\+2029\) may change$/);
+  });
+
+  it('L5: rejects a base with syntax errors whose head adds the missing separator as a line break', () => {
+    expect(rejected('src/flags.ts', 'export class Flags { verbose = false dryRun = true }\n', 'export class Flags { verbose = false\n  dryRun = true }\n')).toBe('base has syntax errors');
+    expect(rejected('src/calls.js', 'foo() bar()\n', 'foo()\nbar()\n')).toBe('base has syntax errors');
+    expect(rejected('src/calls.ts', 'export const a = 1;\n', 'export const a = 1 export const b = 2;\n')).toMatch(/^token \d+ differs/);
+  });
+
+  it('L6: accepts an import re-wrap in a file that ends with a JSDoc comment', () => {
+    const trailing = '/**\n * Loads a module.\n */\n';
+    expect(compareLayout('a.ts', `${oneLine}${trailing}`, `${oneLine}${trailing}`)).toEqual({ layoutOnly: true, changedBreaks: 0, firstLine: 0, lineDelta: 0 });
+    expect(compareLayout('a.ts', `${oneLine}${trailing}`, `${wrapped}${trailing}`)).toEqual({ layoutOnly: true, changedBreaks: 4, firstLine: 1, lineDelta: 4 });
+    expect(compareLayout('a.ts', 'export const a = 1;\n/** trailing doc */\n', 'export const a = 1;\n/** trailing  doc */\n')).toMatchObject({ layoutOnly: false, problem: expect.stringMatching(/^token \d+ differs: base has comment "\/\*\* trailing doc \*\/"/) });
+  });
+
+  it('L3: a string literal that spells the placeholder cannot pass for a moved specifier span', () => {
+    expect(joinChunks(["import a from '", "';\n"], ["import a from '", "';\n"])).toEqual(["import a from 'ac-specifier';\n", "import a from 'ac-specifier';\n"]);
+    expect(joinChunks(["x('", "'); y('ac-specifier');\n"], ["x('ac-specifier-1'); y('", "');\n"])).toEqual(["x('ac-specifier-2'); y('ac-specifier');\n", "x('ac-specifier-1'); y('ac-specifier-2');\n"]);
+    const assets = (icon: string, theme: string) => `export const icon = import.meta.resolve('${icon}');\nexport const theme = import.meta.resolve('${theme}');\n`;
+    const tree = (text: string): Tree => ({ 'src/assets.ts': text, 'src/icon.svg': '<svg/>\n', 'package.json': '{ "name": "assets", "type": "module" }\n' });
+    const found = details(tree(assets('./icon.svg', 'ac-specifier')), tree(assets('ac-specifier', './icon.svg')));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatch(/not layout only: token \d+ differs: base has token "'ac-specifier-1'" on line 1, head has token "'ac-specifier'" on line 1$/);
+  });
+});
+
 describe('compareLayout', () => {
   it('compares comments in the trailing comma it drops, and the comments of an empty file', () => {
     expect(compareLayout('a.ts', "import { a, /* x */ } from 'ac-specifier';\n", "import { a /* x */ } from 'ac-specifier';\n")).toMatchObject({ layoutOnly: true });
     expect(compareLayout('a.ts', "import { a /* x */, } from 'ac-specifier';\n", "import { a /* y */ } from 'ac-specifier';\n")).toMatchObject({ layoutOnly: false });
-    expect(compareLayout('a.ts', '// only a comment\n', '\n\n// only a comment\n')).toMatchObject({ layoutOnly: true, changedBreaks: 1, firstLine: 1, lineDelta: 2 });
+    expect(compareLayout('a.ts', '// only a comment\n', '// only a comment\n')).toEqual({ layoutOnly: true, changedBreaks: 0, firstLine: 0, lineDelta: 0 });
+    expect(compareLayout('a.ts', '// only a comment\n', '\n\n// only a comment\n')).toEqual({ layoutOnly: false, problem: 'the whitespace between the start of the file and comment "// only a comment" on line 3 changed outside an import or export declaration' });
   });
 });
 
@@ -155,26 +240,49 @@ describe('a K2 result without a layout-only file is unchanged', () => {
 });
 
 describe('a mixed commit: moves and a re-wrap', () => {
-  it('certifies moves with an importer re-wrapped (K1, K2 pass); a moved file whose own layout changed is not paired (K1 fails closed)', async () => {
-    const service = "import { alpha, beta, gamma } from '../letters';\nexport const service = [alpha, beta, gamma];\n";
-    const base: Tree = { 'src/all.ts': oneLine, 'src/letters.ts': letters, 'src/services/service.ts': service, 'tsconfig.json': '{ "compilerOptions": { "strict": true } }\n' };
-    const moved: Tree = { 'src/all.ts': wrapped.replace('./letters', './modules/letters/letters'), 'src/modules/letters/letters.ts': letters, 'src/modules/service/service.ts': service.replace('../letters', '../letters/letters'), 'tsconfig.json': base['tsconfig.json']! };
-    const certifyTrees = async (head: Tree) => {
-      const repo = twoCommits(base, head);
-      const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-layout-work-'));
-      try {
-        return await certify({ repo: repo.root, base: repo.base, head: repo.head, packageRoot: '', environment: repo.root, profile: null, oracles: false, only: ['K1', 'K2', 'K3a'], workDir, keep: false });
-      } finally {
-        fs.rmSync(repo.root, { recursive: true, force: true });
-      }
-    };
-    const mixed = await certifyTrees(moved);
-    expect(mixed.checks.map((check) => [check.id, check.status])).toEqual([['K1', 'pass'], ['K2', 'pass'], ['K3a', 'pass']]);
+  const service = "import { alpha, beta, gamma } from '../letters';\nexport const service = [alpha, beta, gamma];\n";
+  const wrappedService = "import {\n  alpha,\n  beta,\n  gamma,\n} from '../letters/letters';\nexport const service = [alpha, beta, gamma];\n";
+  const tsconfig = '{ "compilerOptions": { "strict": true } }\n';
+  const base: Tree = { 'src/all.ts': oneLine, 'src/letters.ts': letters, 'src/services/service.ts': service, 'tsconfig.json': tsconfig };
+  const moved: Tree = { 'src/all.ts': wrapped.replace('./letters', './modules/letters/letters'), 'src/modules/letters/letters.ts': letters, 'src/modules/service/service.ts': service.replace('../letters', '../letters/letters'), 'tsconfig.json': tsconfig };
+  const certifyTrees = async (from: Tree, head: Tree) => {
+    const repo = twoCommits(from, head);
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-layout-work-'));
+    try {
+      return await certify({ repo: repo.root, base: repo.base, head: repo.head, packageRoot: '', environment: repo.root, profile: null, oracles: false, only: ['K1', 'K2', 'K3a'], workDir, keep: false });
+    } finally {
+      fs.rmSync(repo.root, { recursive: true, force: true });
+    }
+  };
+  const statuses = (certificate: Awaited<ReturnType<typeof certify>>) => certificate.checks.map((check) => [check.id, check.status]);
+
+  it('certifies moves with an importer re-wrapped (K1, K2 pass)', async () => {
+    const mixed = await certifyTrees(base, moved);
+    expect(statuses(mixed)).toEqual([['K1', 'pass'], ['K2', 'pass'], ['K3a', 'pass']]);
     expect(mixed.checks.find((check) => check.id === 'K2')!.metrics).toEqual({ comparedFiles: 2, editedFiles: 2, changedSpans: 2, layoutOnlyFiles: 1 });
-    const movedAndWrapped = await certifyTrees({ ...moved, 'src/modules/service/service.ts': "import {\n  alpha,\n  beta,\n  gamma,\n} from '../letters/letters';\nexport const service = [alpha, beta, gamma];\n" });
-    expect(movedAndWrapped.verdict).toBe('fail');
-    expect(movedAndWrapped.checks.find((check) => check.id === 'K1')!.status).toBe('fail');
-    expect(movedAndWrapped.pathMap.deleted).toEqual(['src/services/service.ts']);
+  });
+
+  it('pairs a moved file whose own imports were re-wrapped too (the whole PR with S3 on), and K2 holds it to the layout class', async () => {
+    const movedAndWrapped = await certifyTrees(base, { ...moved, 'src/modules/service/service.ts': wrappedService });
+    expect(statuses(movedAndWrapped)).toEqual([['K1', 'pass'], ['K2', 'pass'], ['K3a', 'pass']]);
+    expect(movedAndWrapped.pathMap.entries).toEqual({ 'src/letters.ts': 'src/modules/letters/letters.ts', 'src/services/service.ts': 'src/modules/service/service.ts' });
+    expect(movedAndWrapped.checks.find((check) => check.id === 'K2')!.metrics).toEqual({ comparedFiles: 2, editedFiles: 2, changedSpans: 2, layoutOnlyFiles: 2 });
+    // The key reads whitespace inside the declaration as one space: a U+2028 there pairs the file, and K2 rejects it.
+    const separator = await certifyTrees(base, { ...moved, 'src/modules/service/service.ts': wrappedService.replace('{\n  alpha', '{\u2028  alpha') });
+    expect(separator.pathMap.entries).toMatchObject({ 'src/services/service.ts': 'src/modules/service/service.ts' });
+    expect(statuses(separator)).toEqual([['K1', 'pass'], ['K2', 'fail'], ['K3a', 'pass']]);
+    expect(separator.checks.find((check) => check.id === 'K2')!.violations[0]!.detail).toMatch(/not layout only: the whitespace between token "\{" on line 1 and token "alpha" on line 2 changed, and head has U\+2028 in it/);
+  });
+
+  it('leaves a moved file unpaired when more than import layout changed, or when its layout key is not unique (K1 fails closed)', async () => {
+    const reformatted = await certifyTrees(base, { ...moved, 'src/modules/service/service.ts': wrappedService.replace('[alpha, beta, gamma]', '[\n  alpha,\n  beta,\n  gamma,\n]') });
+    expect(reformatted.checks.find((check) => check.id === 'K1')!.status).toBe('fail');
+    expect(reformatted.pathMap.deleted).toEqual(['src/services/service.ts']);
+    const twins: Tree = { ...base, 'src/services/twin.ts': service };
+    const twinsMoved: Tree = { ...moved, 'src/modules/service/service.ts': wrappedService, 'src/modules/service/twin.ts': wrappedService.replace('{\n  alpha', '{ alpha') };
+    const ambiguous = await certifyTrees(twins, twinsMoved);
+    expect(ambiguous.checks.find((check) => check.id === 'K1')!.status).toBe('fail');
+    expect(ambiguous.pathMap.deleted).toEqual(['src/services/service.ts', 'src/services/twin.ts']);
   });
 });
 

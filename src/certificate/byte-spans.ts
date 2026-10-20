@@ -7,9 +7,10 @@
 // K2 and K3 alike. A `vi` or `jest` imported from another package is the runner's only when the environment proves
 // that package re-exports it (genuine-loaders.ts). Unmoved files may not reach a moved file through a loader call the
 // extractor can't read, nor through an import in a file it doesn't read at all (a .vue component importing `@/services/user`).
-// One more class of change is accepted (plan §2.3 S3): a source file whose bytes outside the spans differ in layout
-// only (layout.ts: equal tokens and syntax trees, no directive near a changed line break), unless a source map maps its
-// lines or a coverage gate measures its line totals. Each such file is a finding; without one the result is as before.
+// One more class of change is accepted (plan §2.3 S3): a source file whose bytes outside the spans differ in import
+// layout only (layout.ts: equal tokens and syntax trees, whitespace changed only inside top-level import and `export …
+// from` declarations, no directive near a changed line break), unless a source map maps its lines or a coverage gate
+// measures its line totals. Each such file is a finding; without one the result is as before.
 import path from 'node:path';
 import ts from 'typescript';
 import { isSourceFile } from '../analyzer/analyze.js';
@@ -19,7 +20,7 @@ import type { ReferenceSite } from '../analyzer/types.js';
 import { unwrapExpression } from './path-expressions.js';
 import type { CommitTree } from './git-tree.js';
 import { genuineReExports } from './genuine-loaders.js';
-import { compareLayout, specifierPlaceholder } from './layout.js';
+import { compareLayout, joinChunks } from './layout.js';
 import type { SpanView } from './spans.js';
 import { type Check, type CertifyContext, type Finding, result, type Violation } from './types.js';
 
@@ -310,7 +311,7 @@ export function checkByteSpans(context: CertifyContext): { violations: Violation
     }
     const differentChunk = before.chunks.findIndex((chunk, index) => chunk !== after.chunks[index]);
     if (differentChunk !== -1) {
-      const layout = compareLayout(to, before.chunks.join(specifierPlaceholder), after.chunks.join(specifierPlaceholder));
+      const layout = compareLayout(to, ...joinChunks(before.chunks, after.chunks));
       if (!layout.layoutOnly) {
         violations.push({ file: to, detail: `bytes outside specifier spans changed, ${firstDifference(before, after)}; not layout only: ${layout.problem}` });
         continue;

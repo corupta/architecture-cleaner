@@ -1,0 +1,21 @@
+{
+  "id": "S8R-K2-placeholder",
+  "report": "S8R-K2-placeholder",
+  "source": "S8 review, ~/ac-work/s8/review/review-result.json: L3",
+  "lens": "certifier",
+  "title": "A string literal that spells K2's specifier placeholder ('ac-specifier') swapped with a specifier span: icon and theme exchange values; K2 joined both sides with that placeholder and read them as equal",
+  "severity": "behavior-change",
+  "applicable": true,
+  "expectedChecks": [
+    {
+      "check": "K2",
+      "reason": "src/assets.ts: the two import.meta.resolve arguments are swapped; with a placeholder neither side contains, a token differs"
+    }
+  ],
+  "identityControl": true,
+  "notes": "Round S8 (60b419d) joined each side's chunks with the fixed 'ac-specifier' before comparing layout; the static certificate was PASS with a layout-only finding. Adversarial: the input needs the tool's own placeholder text.",
+  "origin": {
+    "before": "built by hand from the review's evidence",
+    "after": "the two import.meta.resolve arguments swapped, nothing else changed"
+  }
+}
