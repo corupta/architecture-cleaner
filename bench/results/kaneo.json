@@ -177,17 +177,18 @@
   {
    "method": "planner (Ultra)",
    "kind": "planner",
-   "clusters": 68,
-   "mojoFm": 49.61,
-   "ari": 0.247,
+   "clusters": 64,
+   "mojoFm": 50.65,
+   "ari": 0.248,
    "c2cCvg": 0.277,
-   "clusterCountRatio": 1.4,
-   "mojoFmHard": 34.7,
+   "clusterCountRatio": 1.32,
+   "mojoFmHard": 36.07,
    "turboMq": {
-    "sum": 10.3107,
-    "mean": 0.1516
+    "sum": 9.8985,
+    "mean": 0.1547
    },
-   "backEdges": 57
+   "backEdges": 66,
+   "note": "invalid plan: 1 validator error"
   }
  ],
  "bestBaseline": {
@@ -197,31 +198,37 @@
  },
  "planner": {
   "cassette": "cassettes/s7-bench.jsonl",
-  "recordedCostUsd": 0.168342,
-  "spentUsd": 0,
-  "replayed": true,
-  "groups": 68,
-  "modules": 58,
+  "recordedCostUsd": 0.171439,
+  "spentUsd": 0.064889,
+  "replayed": false,
+  "calls": {
+   "replayed": 1,
+   "recorded": 1
+  },
+  "rules": 2,
+  "groups": 64,
+  "modules": 55,
   "change": {
    "draftGroups": 114,
    "samePartition": false,
-   "filesMoved": 4,
-   "groupsMerged": 46,
+   "filesMoved": 22,
+   "groupsMerged": 50,
    "winner": {
     "label": "ultra#2",
     "groupEntries": 114,
     "moves": 29,
+    "movesById": 29,
     "issues": {
-     "banned-name": 1,
-     "unknown-file": 29
+     "bad-name": 2,
+     "banned-name": 1
     }
    },
    "critic": {
-    "suggestions": 39,
-    "kept": 7
+    "suggestions": 16,
+    "kept": 10
    }
   },
-  "planSha256": "670cef01884321d5b119036ecb0e41a1943475c7b8c1cace8bc09e95bb7d2e50"
+  "planSha256": "bcb39422b864d2297fd0f693bcde568ad465f70391f8560e37a18edec88d874a"
  },
  "louvainMojoFmByResolution": {
   "1": [
@@ -255,8 +262,9 @@
   }
  },
  "notes": [
+  "The validator rejects the planner's plan (banned-name: \"middleware\" is a junk drawer or a type word, not a feature); it is scored as it came back.",
   "The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 125 against 29 (no ground truth is read).",
-  "The planner's plan moves 4 of 454 files out of their draft group and merges 46 draft groups into others (114 draft groups, 68 plan groups). The winning edit, ultra#2, had 114 group entries and 29 moves; the validator found 30 problems with it (unknown-file 29, banned-name 1) and dropped or repaired each before applying it. The critic made 39 suggestions and its gate kept 7.",
+  "The planner's plan moves 22 of 454 files out of their draft group and merges 50 draft groups into others (114 draft groups, 64 plan groups). The winning edit, ultra#2, had 114 group entries and 29 moves (29 name their file by its id, not its path); the validator found 3 problems with it (bad-name 2, banned-name 1) and dropped or repaired each before applying it. Planner rules 2 read a file by the id the prompt showed for it. The critic made 16 suggestions and its gate kept 10.",
   "Leakage, over the 454 movable files every method sees: 54 give their feature away in their path (1 still in a feature folder; 53 leaky renames; 0 in a sub-folder that only files of their feature share). 4 more leaky files are pinned or not read by the facts, so no method sees them: not counted."
  ]
 }

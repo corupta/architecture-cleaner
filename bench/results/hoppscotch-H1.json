@@ -180,17 +180,17 @@
   {
    "method": "planner (Ultra)",
    "kind": "planner",
-   "clusters": 31,
-   "mojoFm": 79.31,
-   "ari": 0.666,
-   "c2cCvg": 0.72,
-   "clusterCountRatio": 1.16,
-   "mojoFmHard": 67.5,
+   "clusters": 37,
+   "mojoFm": 83.45,
+   "ari": 0.641,
+   "c2cCvg": 0.8,
+   "clusterCountRatio": 1.4,
+   "mojoFmHard": 60,
    "turboMq": {
-    "sum": 7.394,
-    "mean": 0.2385
+    "sum": 7.1396,
+    "mean": 0.193
    },
-   "backEdges": 49
+   "backEdges": 42
   }
  ],
  "bestBaseline": {
@@ -200,32 +200,38 @@
  },
  "planner": {
   "cassette": "cassettes/s7-bench.jsonl",
-  "recordedCostUsd": 0.137732,
-  "spentUsd": 0,
-  "replayed": true,
-  "groups": 31,
-  "modules": 21,
+  "recordedCostUsd": 0.127546,
+  "spentUsd": 0.019133,
+  "replayed": false,
+  "calls": {
+   "replayed": 1,
+   "recorded": 1
+  },
+  "rules": 2,
+  "groups": 37,
+  "modules": 35,
   "change": {
    "draftGroups": 45,
    "samePartition": false,
-   "filesMoved": 22,
-   "groupsMerged": 17,
+   "filesMoved": 5,
+   "groupsMerged": 8,
    "winner": {
-    "label": "ultra#3",
+    "label": "ultra#1",
     "groupEntries": 45,
-    "moves": 99,
+    "moves": 17,
+    "movesById": 17,
     "issues": {
-     "banned-name": 4,
-     "foreign-name": 4,
-     "kind-conflict": 1
+     "banned-name": 2,
+     "duplicate-move": 1,
+     "foreign-name": 1
     }
    },
    "critic": {
     "suggestions": 9,
-    "kept": 7
+    "kept": 2
    }
   },
-  "planSha256": "4beafa8dc3e8e252cf5978838098db58dcf69aa7c253ec97a5b34b702d8cc2d1"
+  "planSha256": "e38cd9aeaa6411097778faf3fd823d2b14a76e1e4799c36153ef7d9b996b51dd"
  },
  "louvainMojoFmByResolution": {
   "1": [
@@ -261,7 +267,7 @@
  "notes": [
   "1 feature file is pinned in the facts (no method can place it) and not scored.",
   "The planner starts from the seeds draft (export names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 85 (no ground truth is read).",
-  "The planner's plan moves 22 of 186 files out of their draft group and merges 17 draft groups into others (45 draft groups, 31 plan groups). The winning edit, ultra#3, had 45 group entries and 99 moves; the validator found 9 problems with it (banned-name 4, foreign-name 4, kind-conflict 1) and dropped or repaired each before applying it. The critic made 9 suggestions and its gate kept 7.",
+  "The planner's plan moves 5 of 186 files out of their draft group and merges 8 draft groups into others (45 draft groups, 37 plan groups). The winning edit, ultra#1, had 45 group entries and 17 moves (17 name their file by its id, not its path); the validator found 4 problems with it (banned-name 2, duplicate-move 1, foreign-name 1) and dropped or repaired each before applying it. Planner rules 2 read a file by the id the prompt showed for it. The critic made 9 suggestions and its gate kept 2.",
   "Leakage, over the 186 movable files every method sees: 0 give their feature away in their path (0 still in a feature folder; 0 leaky renames; 0 in a sub-folder that only files of their feature share). Sub-folders kept under the type folders: constants (1 file, 1 feature); the planner's prompt shows them, and no deterministic method groups by them. 3 more leaky files are pinned or not read by the facts, so no method sees them: not counted."
  ]
 }

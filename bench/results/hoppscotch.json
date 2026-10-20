@@ -203,6 +203,11 @@
   "recordedCostUsd": 0.137482,
   "spentUsd": 0,
   "replayed": true,
+  "calls": {
+   "replayed": 2,
+   "recorded": 0
+  },
+  "rules": 2,
   "groups": 29,
   "modules": 22,
   "change": {
@@ -214,6 +219,7 @@
     "label": "ultra#1",
     "groupEntries": 43,
     "moves": 7,
+    "movesById": 0,
     "issues": {
      "foreign-name": 2
     }
