@@ -1,0 +1,430 @@
+{
+ "format": "ac-bench/1",
+ "entry": "kaneo",
+ "kind": "scramble",
+ "variant": "default",
+ "repo": "~/ac-targets/kaneo",
+ "sha": "b80818fe2e9327648a420b7006d53c89463c68ba",
+ "packageRoot": "apps/api",
+ "moduleRoot": "src",
+ "files": 454,
+ "featureFiles": 401,
+ "groundTruthModules": 47,
+ "hardFiles": 234,
+ "leakyFiles": 54,
+ "leakage": {
+  "renamed": 53,
+  "inFeatureFolder": 1,
+  "underSubFolder": 0,
+  "subFolders": [],
+  "unseen": 4
+ },
+ "scramble": {
+  "commit": "65e47f349959a38393115eca99c9aae9180887f5",
+  "tree": "2c0d5a4c6bc43b69b238ffa1651e22b0a1d409d8",
+  "moved": 400,
+  "declined": 1,
+  "excluded": 12,
+  "certificate": null
+ },
+ "methods": [
+  {
+   "method": "B0 type folders",
+   "kind": "baseline",
+   "clusters": 10,
+   "mojoFm": 13.32,
+   "ari": 0.017,
+   "c2cCvg": 0,
+   "clusterCountRatio": 0.17,
+   "mojoFmHard": 16.44,
+   "turboMq": {
+    "sum": 1.0678,
+    "mean": 0.1068
+   },
+   "backEdges": 8
+  },
+  {
+   "method": "name-token (full stem)",
+   "kind": "baseline",
+   "clusters": 426,
+   "mojoFm": 13.05,
+   "ari": 0.012,
+   "c2cCvg": 0.149,
+   "clusterCountRatio": 7.96,
+   "mojoFmHard": 14.61,
+   "turboMq": {
+    "sum": 2.3804,
+    "mean": 0.0056
+   },
+   "backEdges": 4
+  },
+  {
+   "method": "name-token (anchored)",
+   "kind": "baseline",
+   "clusters": 156,
+   "mojoFm": 49.61,
+   "ari": 0.254,
+   "c2cCvg": 0.426,
+   "clusterCountRatio": 2.91,
+   "mojoFmHard": 30.59,
+   "turboMq": {
+    "sum": 9.7462,
+    "mean": 0.0625
+   },
+   "backEdges": 95
+  },
+  {
+   "method": "export-token (anchored)",
+   "kind": "baseline",
+   "clusters": 252,
+   "mojoFm": 26.37,
+   "ari": 0.08,
+   "c2cCvg": 0.085,
+   "clusterCountRatio": 4.96,
+   "mojoFmHard": 29.22,
+   "turboMq": {
+    "sum": 3.3214,
+    "mean": 0.0132
+   },
+   "backEdges": 61
+  },
+  {
+   "method": "seeds draft (file names)",
+   "kind": "draft",
+   "clusters": 114,
+   "mojoFm": 50.13,
+   "ari": 0.236,
+   "c2cCvg": 0.404,
+   "clusterCountRatio": 2.23,
+   "mojoFmHard": 31.96,
+   "turboMq": {
+    "sum": 10.3974,
+    "mean": 0.0912
+   },
+   "backEdges": 72
+  },
+  {
+   "method": "seeds draft (export names)",
+   "kind": "baseline",
+   "clusters": 104,
+   "mojoFm": 31.07,
+   "ari": 0.078,
+   "c2cCvg": 0.064,
+   "clusterCountRatio": 1.96,
+   "mojoFmHard": 30.59,
+   "turboMq": {
+    "sum": 6.2988,
+    "mean": 0.0606
+   },
+   "backEdges": 104
+  },
+  {
+   "method": "Louvain r=1 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 11.2,
+   "mojoFm": 29.45,
+   "ari": 0.213,
+   "c2cCvg": 0.021,
+   "clusterCountRatio": 0.19,
+   "mojoFmHard": 37.35,
+   "turboMq": {
+    "sum": 4.9184,
+    "mean": 0.4381
+   },
+   "backEdges": 16.2,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=2 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 23,
+   "mojoFm": 51.02,
+   "ari": 0.389,
+   "c2cCvg": 0.094,
+   "clusterCountRatio": 0.45,
+   "mojoFmHard": 49.5,
+   "turboMq": {
+    "sum": 10.0081,
+    "mean": 0.4351
+   },
+   "backEdges": 43.4,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "Louvain r=4 (mean of seeds 1-5)",
+   "kind": "baseline",
+   "clusters": 39.6,
+   "mojoFm": 66.9,
+   "ari": 0.465,
+   "c2cCvg": 0.311,
+   "clusterCountRatio": 0.8,
+   "mojoFmHard": 64.48,
+   "turboMq": {
+    "sum": 16.0516,
+    "mean": 0.4053
+   },
+   "backEdges": 60.8,
+   "note": "mean of seeds 1-5"
+  },
+  {
+   "method": "planner (Super VL, thinking off) #1",
+   "kind": "planner",
+   "clusters": 51,
+   "mojoFm": 64.75,
+   "ari": 0.51,
+   "c2cCvg": 0.319,
+   "clusterCountRatio": 0.94,
+   "mojoFmHard": 59.82,
+   "turboMq": {
+    "sum": 11.8696,
+    "mean": 0.2327
+   },
+   "backEdges": 47
+  },
+  {
+   "method": "planner (Super VL, thinking off) #2",
+   "kind": "planner",
+   "clusters": 48,
+   "mojoFm": 43.34,
+   "ari": 0.174,
+   "c2cCvg": 0.234,
+   "clusterCountRatio": 0.89,
+   "mojoFmHard": 41.55,
+   "turboMq": {
+    "sum": 8.5492,
+    "mean": 0.1781
+   },
+   "backEdges": 45
+  },
+  {
+   "method": "planner (Super VL, thinking off) #3",
+   "kind": "planner",
+   "clusters": 44,
+   "mojoFm": 60.31,
+   "ari": 0.36,
+   "c2cCvg": 0.362,
+   "clusterCountRatio": 0.87,
+   "mojoFmHard": 49.32,
+   "turboMq": {
+    "sum": 10.6751,
+    "mean": 0.2426
+   },
+   "backEdges": 38,
+   "note": "invalid plan: 1 validator error"
+  }
+ ],
+ "bestBaseline": {
+  "method": "Louvain r=4 (mean of seeds 1-5)",
+  "mojoFm": 66.9,
+  "turboMq": 16.0516
+ },
+ "planner": {
+  "cassette": "cassettes/s8b-bench.jsonl",
+  "recordedCostUsd": 0.058439,
+  "spentUsd": 0.058439,
+  "replayed": false,
+  "calls": {
+   "replayed": 0,
+   "recorded": 2
+  },
+  "rules": 2,
+  "groups": 51,
+  "modules": 40,
+  "change": {
+   "draftGroups": 114,
+   "samePartition": false,
+   "filesMoved": 126,
+   "groupsMerged": 68,
+   "winner": {
+    "label": "super-vl#1",
+    "groupEntries": 114,
+    "moves": 447,
+    "movesById": 0,
+    "issues": {
+     "banned-name": 9
+    }
+   },
+   "critic": {
+    "suggestions": 14,
+    "kept": 5
+   }
+  },
+  "planSha256": "6ae8b1e9dd7415c846e5871ad082f4188e9c8e0d15543d4fc0362c2f960361ca"
+ },
+ "louvainMojoFmByResolution": {
+  "1": [
+   27.15,
+   31.85,
+   27.68,
+   32.9,
+   27.68
+  ],
+  "2": [
+   51.44,
+   50.13,
+   48.3,
+   52.22,
+   53
+  ],
+  "4": [
+   63.97,
+   65.8,
+   68.15,
+   68.15,
+   68.41
+  ]
+ },
+ "draft": {
+  "method": "seeds draft (file names)",
+  "source": "file names",
+  "contested": {
+   "fileNames": 29,
+   "exportNames": 125
+  }
+ },
+ "notes": [
+  "The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 125 against 29 (no ground truth is read).",
+  "Run 1 of 3: The planner's plan moves 126 of 454 files out of their draft group and merges 68 draft groups into others (114 draft groups, 51 plan groups). The winning edit, super-vl#1, had 114 group entries and 447 moves; the validator found 9 problems with it (banned-name 9) and dropped or repaired each before applying it. The critic made 14 suggestions and its gate kept 5.",
+  "Run 2 of 3: The planner's plan moves 92 of 454 files out of their draft group and merges 68 draft groups into others (114 draft groups, 48 plan groups). The winning edit, super-vl#2, had 114 group entries and 433 moves; the validator found 119 problems with it (banned-name 115, unknown-file 3, duplicate-move 1) and dropped or repaired each before applying it. The critic made 85 suggestions and its gate kept 39.",
+  "Run 3 of 3: The validator rejects the planner's plan (banned-name: \"middleware\" is a junk drawer or a type word, not a feature); it is scored as it came back.",
+  "Run 3 of 3: The planner's plan moves 87 of 454 files out of their draft group and merges 72 draft groups into others (114 draft groups, 44 plan groups). The winning edit, super-vl#1, had 114 group entries and 447 moves; the validator found 34 problems with it (banned-name 34) and dropped or repaired each before applying it. The critic made 38 suggestions and its gate kept 18.",
+  "Leakage, over the 454 movable files every method sees: 54 give their feature away in their path (1 still in a feature folder; 53 leaky renames; 0 in a sub-folder that only files of their feature share). 4 more leaky files are pinned or not read by the facts, so no method sees them: not counted."
+ ],
+ "plannerConfiguration": "super-vl-direct",
+ "repeats": {
+  "runs": [
+   {
+    "repeat": 1,
+    "method": "planner (Super VL, thinking off) #1",
+    "valid": true,
+    "validatorErrors": 0,
+    "fromEdit": true,
+    "criticRan": true,
+    "editChoices": {
+     "asked": 3,
+     "returned": 3,
+     "parsed": 3,
+     "truncated": 0
+    },
+    "groups": 51,
+    "modules": 40,
+    "samePartition": false,
+    "planSha256": "6ae8b1e9dd7415c846e5871ad082f4188e9c8e0d15543d4fc0362c2f960361ca",
+    "recordedCostUsd": 0.058439,
+    "spentUsd": 0.058439,
+    "calls": {
+     "replayed": 0,
+     "recorded": 2
+    },
+    "tokens": {
+     "prompt": 48747,
+     "completion": 48683,
+     "reasoning": 0
+    }
+   },
+   {
+    "repeat": 2,
+    "method": "planner (Super VL, thinking off) #2",
+    "valid": true,
+    "validatorErrors": 0,
+    "fromEdit": true,
+    "criticRan": true,
+    "editChoices": {
+     "asked": 3,
+     "returned": 3,
+     "parsed": 3,
+     "truncated": 0
+    },
+    "groups": 48,
+    "modules": 45,
+    "samePartition": false,
+    "planSha256": "f67a2db32e331aa5d794aab73a5b079322dbe9435cbd98534749092c86ed15e1",
+    "recordedCostUsd": 0.074866,
+    "spentUsd": 0.074866,
+    "calls": {
+     "replayed": 0,
+     "recorded": 2
+    },
+    "tokens": {
+     "prompt": 50983,
+     "completion": 66190,
+     "reasoning": 0
+    }
+   },
+   {
+    "repeat": 3,
+    "method": "planner (Super VL, thinking off) #3",
+    "valid": false,
+    "validatorErrors": 1,
+    "fromEdit": true,
+    "criticRan": true,
+    "editChoices": {
+     "asked": 3,
+     "returned": 3,
+     "parsed": 3,
+     "truncated": 0
+    },
+    "groups": 44,
+    "modules": 39,
+    "samePartition": false,
+    "planSha256": "22c4cbb01c5ebf2efd15104bf06a042ef2177c788b7b53deb944eb230fdf3e6d",
+    "recordedCostUsd": 0.075966,
+    "spentUsd": 0.075966,
+    "calls": {
+     "replayed": 0,
+     "recorded": 2
+    },
+    "tokens": {
+     "prompt": 49119,
+     "completion": 68034,
+     "reasoning": 0
+    }
+   }
+  ],
+  "mean": {
+   "mojoFm": 56.13,
+   "ari": 0.348,
+   "c2cCvg": 0.305,
+   "clusterCountRatio": 0.9,
+   "mojoFmHard": 50.23,
+   "turboMq": 10.3646,
+   "backEdges": 43.3,
+   "groups": 47.7,
+   "modules": 41.3,
+   "recordedCostUsd": 0.069757,
+   "promptTokens": 49616,
+   "completionTokens": 60969,
+   "reasoningTokens": 0
+  },
+  "min": {
+   "mojoFm": 43.34,
+   "ari": 0.174,
+   "c2cCvg": 0.234,
+   "clusterCountRatio": 0.87,
+   "mojoFmHard": 41.55,
+   "turboMq": 8.5492,
+   "backEdges": 38,
+   "groups": 44,
+   "modules": 39,
+   "recordedCostUsd": 0.058439,
+   "promptTokens": 48747,
+   "completionTokens": 48683,
+   "reasoningTokens": 0
+  },
+  "max": {
+   "mojoFm": 64.75,
+   "ari": 0.51,
+   "c2cCvg": 0.362,
+   "clusterCountRatio": 0.94,
+   "mojoFmHard": 59.82,
+   "turboMq": 11.8696,
+   "backEdges": 47,
+   "groups": 51,
+   "modules": 45,
+   "recordedCostUsd": 0.075966,
+   "promptTokens": 50983,
+   "completionTokens": 68034,
+   "reasoningTokens": 0
+  }
+ }
+}
