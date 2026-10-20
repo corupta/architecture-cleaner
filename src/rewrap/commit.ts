@@ -1,6 +1,7 @@
-// Where the re-wrap reads head's files and how its commit is made: in the checkout itself when it is clean at head,
-// else in a temporary worktree of head (the environment's node_modules linked in, so a prettier config's plugins and
-// shared configs resolve); the commit is built with git plumbing on a private index, so the checkout's own branch,
+// Where the re-wrap reads head's files and how its commit is made: in the checkout itself when it is clean at head
+// and resolves packages as the environment does, else in a temporary worktree of head with the environment's
+// node_modules linked in (so a prettier config's shared config, or a module a JS config imports, resolves from the
+// config's directory); the commit is built with git plumbing on a private index, so the checkout's own branch,
 // index and files are never touched unless the caller names its current branch.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -15,26 +16,42 @@ function git(repo: string, args: string[], { input, env }: { input?: string; env
 
 export const resolveCommit = (repo: string, revision: string) => git(repo, ['rev-parse', '--verify', '--end-of-options', `${revision}^{commit}`]).trim();
 
+/** The working tree's top level: a package directory names its repository. */
+export const topLevelOf = (repo: string) => git(repo, ['rev-parse', '--show-toplevel']).trim();
+
+/** The real path of `<root>/<directory>/node_modules`, or null when there is none. */
+function installedIn(root: string, directory: string): string | null {
+  try {
+    return fs.realpathSync(path.join(root, directory, 'node_modules'));
+  } catch {
+    return null;
+  }
+}
+
 const isCleanAt = (repo: string, commit: string) => {
   const head = spawnSync('git', ['-C', repo, 'rev-parse', '--verify', 'HEAD'], { encoding: 'utf8' });
   return head.status === 0 && head.stdout.trim() === commit && git(repo, ['status', '--porcelain', '--untracked-files=no']).trim() === '';
 };
 
-/** A directory holding `head`'s files: the checkout when it is clean at head, else a temporary worktree. */
-export function headCheckout(repo: string, head: string, environment: string): { directory: string; temporary: boolean; cleanup(): void } {
-  const topLevel = git(repo, ['rev-parse', '--show-toplevel']).trim();
-  if (isCleanAt(topLevel, head)) return { directory: topLevel, temporary: false, cleanup: () => {} };
+/**
+ * A directory holding `head`'s files where packages resolve as in the environment: the checkout when it is clean at
+ * head and the node_modules of the root and of every package directory are the environment's (it is the environment,
+ * or links to it), else a temporary worktree of head with the environment's linked in.
+ */
+export function headCheckout(repo: string, head: string, environment: string): { directory: string; cleanup(): void } {
+  const topLevel = topLevelOf(repo);
+  const manifests = git(repo, ['ls-tree', '-r', '-z', '--name-only', head]).split('\0').filter((file) => path.posix.basename(file) === 'package.json');
+  const packages = [...new Set(['.', ...manifests.map((file) => path.posix.dirname(file))])];
+  if (isCleanAt(topLevel, head) && packages.every((directory) => installedIn(topLevel, directory) === installedIn(environment, directory))) return { directory: topLevel, cleanup: () => {} };
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-rewrap-'));
   git(repo, ['worktree', 'add', '--detach', '--force', directory, head]);
-  const packages = git(repo, ['ls-tree', '-r', '-z', '--name-only', head]).split('\0').filter((file) => path.posix.basename(file) === 'package.json').map((file) => path.posix.dirname(file));
-  for (const directoryOfPackage of [...new Set(packages)]) {
+  for (const directoryOfPackage of packages) {
     const installed = path.join(path.resolve(environment), directoryOfPackage, 'node_modules');
     const link = path.join(directory, directoryOfPackage, 'node_modules');
     if (fs.existsSync(installed) && !fs.existsSync(link)) fs.symlinkSync(installed, link);
   }
   return {
     directory,
-    temporary: true,
     cleanup() {
       spawnSync('git', ['-C', repo, 'worktree', 'remove', '--force', directory], { stdio: 'ignore' });
       fs.rmSync(directory, { recursive: true, force: true });

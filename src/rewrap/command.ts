@@ -3,7 +3,7 @@
 // what it skipped, with the reasons. Certify it with `ac certify <repo> <head>..<commit>`: K2 checks it is layout only.
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { branchMode, commitOnto, headCheckout, placeBranch, resolveCommit } from './commit.js';
+import { branchMode, commitOnto, placeBranch, resolveCommit, topLevelOf } from './commit.js';
 import { planRewrap, type RewrapPlan, rewrapSubject, rewrapSummary } from './rewrap.js';
 
 export const rewrapUsage = `ac rewrap <repo> <base>..<head> --env <checkout with node_modules> [--root <package-dir>] [--branch <name>]
@@ -31,21 +31,21 @@ export async function rewrapCommand(argv: string[]): Promise<number> {
     return 2;
   }
   const { positionals, values } = parsed;
-  const [repo, range] = positionals;
+  const [given, range] = positionals;
   const [baseRevision, headRevision] = range?.split('..') ?? [];
-  if (!repo || !baseRevision || !headRevision || positionals.length > 2 || !values.env) {
+  if (!given || !baseRevision || !headRevision || positionals.length > 2 || !values.env) {
     console.error(`usage: ${rewrapUsage}`);
     return 2;
   }
   const root = (values.root ?? '').replace(/^\.\/?/, '').replace(/\/$/, '');
-  let checkout: ReturnType<typeof headCheckout> | undefined;
   try {
+    // A package directory names its repository: every path below is the repository's.
+    const repo = topLevelOf(given);
     const base = resolveCommit(repo, baseRevision);
     const head = resolveCommit(repo, headRevision);
     const branch = values.branch ?? `ac/rewrap-${head.slice(0, 10)}`;
     const mode = branchMode(repo, branch, head);
-    checkout = headCheckout(repo, head, values.env);
-    const plan = await planRewrap({ repo, base, head, checkout: checkout.directory, environment: values.env, packageRoot: root });
+    const plan = await planRewrap({ repo, base, head, checkout: repo, environment: values.env, packageRoot: root });
     for (const declaration of plan.declarations) console.log(`  re-wrapped ${declaration.file}:${declaration.line}  ${declaration.before.split('\n')[0]!.slice(0, 100)}`);
     for (const skip of plan.skips) console.log(`  skipped ${skip.file}${skip.line ? `:${skip.line}` : ''}: ${skip.reason}`);
     console.log(`${rewrapSummary(plan)}; ${plan.examined} changed source files examined, ${plan.skips.length} skips`);
@@ -61,7 +61,5 @@ export async function rewrapCommand(argv: string[]): Promise<number> {
   } catch (error) {
     console.error(`ac rewrap: ${(error as Error).message}`);
     return 2;
-  } finally {
-    checkout?.cleanup();
   }
 }

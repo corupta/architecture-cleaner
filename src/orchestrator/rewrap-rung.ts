@@ -28,7 +28,8 @@ async function rewrapStep(runner: Runner, step: StepRecord): Promise<void> {
     let phase = performance.now();
     let plan;
     try {
-      // The branch's checkout is head (clean): the files' prettier configs are read there.
+      // The run's checkout is clean at head: the files' prettier configs are read there when its node_modules are the
+      // environment's, else in a temporary worktree of head with the environment's node_modules linked in.
       plan = await runner.dependencies.rewrap({ repo: state.repo, base: state.base, head: parent, checkout: state.repo, environment: state.environment, packageRoot: state.packageRoot });
     } catch (error) {
       attempt.detail = `the re-wrap crashed: ${(error as Error).message}`;

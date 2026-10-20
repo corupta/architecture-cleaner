@@ -44,6 +44,27 @@ function repoOf(base: Tree, head: Tree) {
   return repo;
 }
 
+/** A repo whose two commits hold raw bytes, with `executable` files at mode 100755 (twoCommits writes text only). */
+function rawRepo(base: Record<string, string | Buffer>, head: Record<string, string | Buffer>, executable: string[] = []) {
+  const root = scratch('ac-rewrap-raw-');
+  const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+  git('init', '-q');
+  git('config', 'user.email', 'rewrap@ac.invalid');
+  git('config', 'user.name', 'rewrap');
+  const commit = (tree: Record<string, string | Buffer>, message: string) => {
+    git('rm', '-rq', '--ignore-unmatch', '.');
+    for (const [file, content] of Object.entries(tree)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), content);
+      if (executable.includes(file)) fs.chmodSync(path.join(root, file), 0o755);
+    }
+    git('add', '-A');
+    git('commit', '-qm', message);
+    return git('rev-parse', 'HEAD');
+  };
+  return { root, base: commit(base, 'base'), head: commit(head, 'head') };
+}
+
 async function plan(base: Tree, head: Tree, overrides: Partial<RewrapInput> = {}) {
   const repo = repoOf(base, head);
   const result = await planRewrap({ repo: repo.root, base: repo.base, head: repo.head, checkout: repo.root, environment: environment(), packageRoot: '', ...overrides });
@@ -124,6 +145,19 @@ describe('the re-wrap plan', () => {
     expect(result.skips).toEqual(['src/x/twin-a.ts', 'src/x/twin-b.ts'].map((file) => ({ file, reason: 'added since base: no file it moved from (the same text up to its module specifiers)' })));
   });
 
+  it('skips a touched file that is not valid UTF-8 (R4): re-written as text, its other bytes would change', async () => {
+    const latin1 = (text: string) => Buffer.from(text, 'latin1');
+    const label = "export const label = 'caf\u00e9';\n";
+    const config = { '.prettierrc': prettierrc, 'package.json': '{ "name": "fixture" }\n', 'src/letters.ts': letters };
+    const repo = rawRepo(
+      { ...config, 'src/latin.ts': latin1(`${short}${label}${use}`), 'src/utf.ts': `${short}${label}${use}` },
+      { ...config, 'src/latin.ts': latin1(`${moved}${label}${use}`), 'src/utf.ts': `${moved}${label}${use}` },
+    );
+    const result = await planRewrap({ repo: repo.root, base: repo.base, head: repo.head, checkout: repo.root, environment: environment(), packageRoot: '' });
+    expect(result.skips).toEqual([{ file: 'src/latin.ts', reason: 'not valid UTF-8: written back as text, its other bytes would change' }]);
+    expect(result.files).toEqual(new Map([['src/utf.ts', `${wrapped}${label}${use}`]]));
+  });
+
   it('makes a commit that certifies: K2 reports the file as layout only', async () => {
     const { repo, result } = await plan({ 'src/all.ts': `${short}${use}`, 'src/letters.ts': letters }, { 'src/all.ts': `${moved}${use}`, 'src/modules/letters/letters.ts': letters });
     const commit = commitOnto(repo.root, repo.head, result.files, 'style(fixture): re-wrap\n');
@@ -199,6 +233,23 @@ describe('ac rewrap', () => {
     expect(fromWorktree.code).toBe(0);
     expect(git(repo.root, 'show', 'from-worktree:src/all.ts')).toBe(`${wrapped}${use}`.trim());
     expect(git(repo.root, 'worktree', 'list').split('\n')).toHaveLength(1);
+  });
+
+  it('takes a package directory as <repo> for its repository (R3): that package\'s .prettierignore holds, file modes stay', async () => {
+    const both = {
+      '.prettierrc': prettierrc, 'package.json': '{ "name": "root" }\n', 'pkg/package.json': '{ "name": "pkg" }\n', 'pkg/.prettierignore': 'src/generated.ts\n',
+    };
+    const repo = rawRepo(
+      { ...both, 'pkg/src/all.ts': `${short}${use}`, 'pkg/src/generated.ts': `${short}${use}`, 'pkg/src/letters.ts': letters },
+      { ...both, 'pkg/src/all.ts': `${moved}${use}`, 'pkg/src/generated.ts': `${moved}${use}`, 'pkg/src/modules/letters/letters.ts': letters },
+      ['pkg/src/all.ts'],
+    );
+    const { code, lines } = await run([path.join(repo.root, 'pkg'), `${repo.base}..${repo.head}`, '--env', environment(), '--branch', 'from-pkg']);
+    expect(code).toBe(0);
+    expect(lines).toContain('  skipped pkg/src/generated.ts: prettier ignores it (.prettierignore or .gitignore)');
+    expect(git(repo.root, 'diff', '--name-only', repo.head, 'from-pkg')).toBe('pkg/src/all.ts');
+    expect(git(repo.root, 'ls-tree', 'from-pkg', 'pkg/src/all.ts')).toMatch(/^100755 /);
+    expect(lines.at(-1)).toContain(`certify it: ac certify ${fs.realpathSync(repo.root)} ${repo.head.slice(0, 12)}..`);
   });
 
   it('makes no commit when nothing needs a re-wrap, and prints the usage without --env', async () => {

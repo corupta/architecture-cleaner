@@ -1,6 +1,8 @@
 // S3 in `ac run`: off unless --rungs names it (the run, its run.json and the re-wrap untouched); when on, one step
 // after R3 re-wraps the import line the moves lengthened, certified statically (K2: layout only) and as a rung with
-// the oracles, before R4; nothing to re-wrap skips it; a re-wrap K2 rejects is rolled back and pinned.
+// the oracles, before R4; nothing to re-wrap skips it; a re-wrap K2 rejects is rolled back and pinned. A re-wrap
+// inside a file R1 moved certifies as part of the whole PR (base..final head), and a prettier config whose shared
+// config and plugins only the environment holds is read as prettier reads it (the run's checkout has no node_modules).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -35,6 +37,14 @@ const lengthened: Files = {
   'server/.prettierrc': '{ "singleQuote": true, "trailingComma": "all", "printWidth": 82 }\n',
   'server/src/controllers/album.controller.ts': `${sources['server/src/controllers/album.controller.ts']}export const albumRoutes = ['albums'];\n`,
   'server/src/main.ts': "import { AlbumController, albumRoutes } from './controllers/album.controller.js';\nimport { UserController } from './controllers/user.controller.js';\nexport const controllers = [AlbumController, UserController, albumRoutes];\n",
+};
+
+/** The fixture where user.service.ts (moved by R1) imports two bindings of format.ts (moved by R2): 50 → 54 columns, printWidth 52. */
+const movedImporter: Files = {
+  ...sources,
+  'server/.prettierrc': '{ "singleQuote": true, "trailingComma": "all", "printWidth": 52 }\n',
+  'server/src/utils/format.ts': 'export const title = (text: string) => text.toUpperCase();\nexport const upper = title;\n',
+  'server/src/services/user.service.ts': sources['server/src/services/user.service.ts']!.replace("import { title } from '../utils/format.js';", "import { title, upper } from '../utils/format.js';"),
 };
 
 function setup(files: Files) {
@@ -105,6 +115,50 @@ describe('ac run: S3, the import re-wrap', () => {
     expect(state.steps.find((step) => step.rung === 'S3')).toMatchObject({ status: 'skipped', attempts: [expect.objectContaining({ state: 'declined' })] });
     expect(state.findings).toContainEqual(expect.objectContaining({ kind: 'step-skipped', rung: 'S3', detail: expect.stringMatching(/^no import line needs a re-wrap/) }));
     expect(state.rungs.find((rung) => rung.id === 'R4')!.status).toBe('certified');
+  });
+
+  it('re-wraps an import inside a file R1 moved, and the whole PR (base..final head) certifies PASS', async () => {
+    const run = setup(movedImporter);
+    const outcome = await startRun(run.options(), withPrettier);
+    expect(outcome.state.error).toBeUndefined();
+    expect(outcome.exitCode).toBe(0);
+    const state = run.state();
+    expect(state.status).toBe('completed');
+    expect(state.rungs.map((rung) => [rung.id, rung.status])).toEqual([['R0', 'passed'], ['R1', 'certified'], ['R2', 'certified'], ['R3', 'skipped'], ['S3', 'certified'], ['R4', 'certified']]);
+    const step = state.steps.find((candidate) => candidate.rung === 'S3')!;
+    expect(run.git('diff', '--name-only', step.parent!, step.commit!)).toBe('server/src/modules/user/user.service.ts');
+    expect(run.git('show', `${step.commit}:server/src/modules/user/user.service.ts`)).toContain("import {\n  title,\n  upper,\n} from '../../shared/format.js';\n");
+    const whole = JSON.parse(run.read('certificate.json')) as Certificate;
+    expect(whole).toMatchObject({ verdict: 'pass', scope: 'full', base: run.base, head: state.head });
+    expect(whole.checks.find((check) => check.id === 'K2')!.findings).toContainEqual(expect.objectContaining({ kind: 'layout-only', file: 'server/src/modules/user/user.service.ts' }));
+  });
+
+  it('reads a shared config and its plugin from the environment, though the run\'s checkout has no node_modules (R2)', async () => {
+    // The environment: this package's prettier, a shared config naming a plugin, and the plugin, which logs its loads.
+    const environment = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-rewrap-shared-'));
+    scratches.push(environment);
+    const modules = path.join(environment, 'node_modules');
+    const install = (name: string, exported: string) => {
+      fs.mkdirSync(path.join(modules, name), { recursive: true });
+      fs.writeFileSync(path.join(modules, name, 'package.json'), `${JSON.stringify({ name, main: 'index.js' })}\n`);
+      fs.writeFileSync(path.join(modules, name, 'index.js'), `require('node:fs').appendFileSync(require('node:path').join(__dirname, 'loads'), '1');\nmodule.exports = ${exported};\n`);
+    };
+    fs.mkdirSync(modules);
+    fs.symlinkSync(path.resolve('node_modules/prettier'), path.join(modules, 'prettier'));
+    install('fake-prettier-config', JSON.stringify({ singleQuote: true, trailingComma: 'all', printWidth: 82, plugins: ['prettier-plugin-fake'] }));
+    install('prettier-plugin-fake', '{ languages: [] }');
+    const withoutConfig = Object.fromEntries(Object.entries(lengthened).filter(([file]) => file !== 'server/.prettierrc'));
+    const run = setup({ ...withoutConfig, 'server/package.json': '{ "name": "fixture", "private": true, "type": "module", "prettier": "fake-prettier-config" }\n' });
+    const outcome = await startRun(run.options(), { ...noRenames, rewrap: (input) => planRewrap({ ...input, environment }) });
+    expect(outcome.exitCode).toBe(0);
+    const state = run.state();
+    expect(state.findings.filter((finding) => finding.kind === 'rewrap-error' || finding.kind === 'rewrap-skipped')).toEqual([]);
+    const step = state.steps.find((candidate) => candidate.rung === 'S3')!;
+    expect(step.status).toBe('certified');
+    expect(run.git('show', `${step.commit}:server/src/main.ts`)).toContain("import {\n  AlbumController,\n  albumRoutes,\n} from './modules/album/album.controller.js';\n");
+    expect(fs.existsSync(path.join(modules, 'fake-prettier-config', 'loads'))).toBe(true);
+    expect(fs.existsSync(path.join(modules, 'prettier-plugin-fake', 'loads'))).toBe(true);
+    expect(run.git('worktree', 'list').split('\n')).toHaveLength(1);
   });
 
   it('rolls back and pins a re-wrap that K2 rejects (more than layout), and certifies the rest of the ladder', async () => {
