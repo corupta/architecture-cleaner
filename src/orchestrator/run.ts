@@ -137,16 +137,25 @@ async function guarded(runner: Runner, body: () => Promise<void>): Promise<RunOu
   return await finish(runner);
 }
 
-export async function startRun(options: StartOptions, overrides: Partial<RunDependencies> = {}): Promise<RunOutcome> {
-  const dependencies = { ...defaultDependencies, ...overrides };
+/**
+ * The refusals that don't need the plan: a run directory that holds a run or isn't hermetic, a repo with tracked
+ * changes, a branch that exists. `ac run` checks them before it plans (the planner may spend); returns the repo's top level.
+ */
+export function requireStartable(options: Pick<StartOptions, 'repo' | 'runDirectory' | 'branch'>): string {
   const repo = topLevelOf(options.repo);
-  const planFile = readPlanYaml(options.plan.text);
-  const groupIssues = checkGroupKeys(planFile).filter((issue) => issue.severity === 'error');
-  if (groupIssues.length) throw new RunError(`the plan is invalid: ${groupIssues.map((issue) => `${issue.code}: ${issue.detail}`).join('; ')}`);
   if (fs.existsSync(path.join(options.runDirectory, 'run.json'))) throw new RunError(`${path.resolve(options.runDirectory)} already holds a run: continue it with --resume, or pick another --out`);
   requireHermeticRun(options.runDirectory, 'Pick an --out with neither on its path.');
   if (!isClean(repo)) throw new RunError(`${repo} has tracked changes: commit or stash them first`);
   if (branchExists(repo, options.branch)) throw new RunError(`branch ${options.branch} already exists in ${repo}`);
+  return repo;
+}
+
+export async function startRun(options: StartOptions, overrides: Partial<RunDependencies> = {}): Promise<RunOutcome> {
+  const dependencies = { ...defaultDependencies, ...overrides };
+  const repo = requireStartable(options);
+  const planFile = readPlanYaml(options.plan.text);
+  const groupIssues = checkGroupKeys(planFile).filter((issue) => issue.severity === 'error');
+  if (groupIssues.length) throw new RunError(`the plan is invalid: ${groupIssues.map((issue) => `${issue.code}: ${issue.detail}`).join('; ')}`);
   let base: string;
   try {
     base = resolveRevision(repo, planFile.sha);

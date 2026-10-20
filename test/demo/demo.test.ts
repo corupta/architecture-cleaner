@@ -2,6 +2,7 @@
 // into a cassette, then `ac run` R0–R4), and the demo reproduces it: the plan replayed byte for byte, every step's tree
 // equal, R3 and R4 recomputed, a sample certified again, the findings replayed; a tampered recording is caught; --live
 // refuses without a key and plans through its own budget; --full runs `ac run` again.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -388,6 +389,44 @@ describe('the work dir', () => {
       errors.mockRestore();
     }
     expect(fs.existsSync(below)).toBe(false);
+  });
+
+  it('refuses a work dir another user owns or this user can\'t write, naming --work, and one another demo is using', async () => {
+    // <tmp>/ac-demo, the fallback every clone of the tool shares, left by an earlier demo.
+    const shared = path.join(planted('tmp'), 'tmp', 'ac-demo');
+    fs.mkdirSync(shared);
+    fs.writeFileSync(path.join(shared, '.ac-demo'), 'made by ac demo\n');
+    fs.writeFileSync(path.join(shared, 'demo.md'), 'theirs\n');
+    const remedy = 'pick another with --work <dir> (one with neither node_modules nor package.json on its path)';
+    const otherUser = process.getuid!() + 1;
+    const uid = vi.spyOn(process, 'getuid').mockReturnValue(otherUser);
+    try {
+      expect(() => openWorkDir(shared, 'fixture')).toThrow(`the work dir ${shared} belongs to another user (uid ${fs.statSync(shared).uid}): ${remedy}`);
+    } finally {
+      uid.mockRestore();
+    }
+    fs.chmodSync(shared, 0o000);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(() => openWorkDir(shared, 'fixture')).toThrow(`the work dir ${shared} can't be written by this user (EACCES: permission denied, scandir '${shared}'): ${remedy}`);
+      expect(await demoCommand(['--work', shared])).toBe(2);
+      expect(errors.mock.calls.flat().join('\n')).toBe(`ac demo: the work dir ${shared} can't be written by this user (EACCES: permission denied, scandir '${shared}'): ${remedy}`);
+    } finally {
+      errors.mockRestore();
+      fs.chmodSync(shared, 0o755);
+    }
+    expect(fs.readFileSync(path.join(shared, 'demo.md'), 'utf8')).toBe('theirs\n');
+
+    // A demo whose process still runs (here: the test's parent) holds it; one whose process exited doesn't.
+    const lock = path.join(shared, '.ac-demo.lock');
+    fs.writeFileSync(lock, `${process.ppid}\n`);
+    expect(() => openWorkDir(shared, 'fixture')).toThrow(`another ac demo (process ${process.ppid}) is using the work dir ${shared}: wait for it to finish, or pick another --work`);
+    expect(fs.readFileSync(path.join(shared, 'demo.md'), 'utf8')).toBe('theirs\n');
+    const exited = spawnSync(process.execPath, ['-e', '']).pid!;
+    fs.writeFileSync(lock, `${exited}\n`);
+    expect(openWorkDir(shared, 'fixture')).toBe(shared);
+    expect(fs.readdirSync(shared).sort()).toEqual(['.ac-demo', '.ac-demo.lock']);
+    expect(fs.readFileSync(lock, 'utf8')).toBe(`${process.pid}\n`);
   });
 
   it('says when the environment checkout has node_modules above it, and still compares the digests', () => {

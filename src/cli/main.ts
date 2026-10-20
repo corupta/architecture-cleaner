@@ -36,7 +36,7 @@ import { readPlanYaml } from '../planner/plan-file.js';
 import { checkGroupKeys, stepFileName, stepJson, stepsOf, type Step } from '../planner/steps.js';
 import { operatorIds } from '../orchestrator/fault.js';
 import { planFromFile, planInProcess } from '../orchestrator/plan-source.js';
-import { resumeRun, RunError, startRun } from '../orchestrator/run.js';
+import { requireStartable, resumeRun, RunError, startRun } from '../orchestrator/run.js';
 import { ladderRungIds, rungIds, type RungId } from '../orchestrator/types.js';
 
 const usage = `usage:
@@ -298,6 +298,10 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
       if (!['replay', 'record', 'auto'].includes(mode)) return fail('--mode is replay, record or auto');
       if (mode !== 'replay' && !flags.run) return fail('--run <id from budget/runs.json> is required for record and auto modes');
       if (!flags.plan && !flags.cassette && !flags.run) return fail('give the plan: --plan <plan.yaml>, or --cassette <file.jsonl> to plan in-process');
+      const branch = flags.branch ?? `ac/run-${timestamp()}`;
+      const runDirectory = flags.out ?? path.join('ac-runs', branch.replace(/[^\w.-]+/g, '-'));
+      // Before the planner, which may spend: a run that can't start doesn't get a plan.
+      requireStartable({ repo, runDirectory, branch });
       let planned;
       try {
         planned = flags.plan
@@ -306,14 +310,13 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
       } catch (error) {
         return fail(`no plan: ${error instanceof Error ? error.message : String(error)}`);
       }
-      const branch = flags.branch ?? `ac/run-${timestamp()}`;
       outcome = await startRun({
         repo,
         environment: flags.env ?? repo,
         profile,
         plan: planned.plan,
         cost: planned.cost,
-        runDirectory: flags.out ?? path.join('ac-runs', branch.replace(/[^\w.-]+/g, '-')),
+        runDirectory,
         branch,
         rungs,
         maxSteps,
@@ -376,14 +379,27 @@ function parseFlags(argv: string[]) {
   }
 }
 
+/** The sub-commands with their own parser and usage. */
+const subCommands: Record<string, { run(argv: string[]): number | Promise<number>; usage: string }> = {
+  rewrap: { run: rewrapCommand, usage: rewrapUsage },
+  scramble: { run: scrambleCommand, usage: scrambleUsage },
+  bench: { run: benchCommand, usage: benchUsage },
+  demo: { run: demoCommand, usage: demoUsage },
+  report: { run: reportCommand, usage: reportUsage },
+  site: { run: siteCommand, usage: siteUsage },
+};
+
+/** --help or -h among the flags (an argument after `--` is a positional). */
+const asksForHelp = (argv: string[]) => argv.slice(0, argv.includes('--') ? argv.indexOf('--') : argv.length).some((argument) => argument === '--help' || argument === '-h');
+
 async function main(argv: string[]): Promise<number> {
-  if (argv[0] === 'rewrap') return rewrapCommand(argv.slice(1));
-  if (argv[0] === 'scramble') return scrambleCommand(argv.slice(1));
-  if (argv[0] === 'bench') return benchCommand(argv.slice(1));
-  if (argv[0] === 'demo') return demoCommand(argv.slice(1));
-  if (argv[0] === 'report') return reportCommand(argv.slice(1));
-  if (argv[0] === 'site') return siteCommand(argv.slice(1));
-  if (argv.includes('--help') || argv.includes('-h')) {
+  const subCommand = Object.hasOwn(subCommands, argv[0] ?? '') ? subCommands[argv[0]!]! : null;
+  if (subCommand && asksForHelp(argv.slice(1))) {
+    console.log(subCommand.usage);
+    return 0;
+  }
+  if (subCommand) return subCommand.run(argv.slice(1));
+  if (asksForHelp(argv)) {
     console.log(usage);
     return 0;
   }

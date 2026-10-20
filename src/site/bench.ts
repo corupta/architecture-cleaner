@@ -41,6 +41,19 @@ function plannerCalls(planner: NonNullable<BenchResult['planner']>): string {
   return `${calls.replayed} of ${callCount} replayed from ${cassette} and ${calls.recorded} recorded into it`;
 }
 
+/** The note `ac bench` adds when the validator rejects the planner's plan, with the validator's errors. */
+const rejectionNote = /^The validator rejects the planner's plan \((.+)\); it is scored as it came back\.$/;
+
+/**
+ * Why our validator rejects the planner's plan (its errors, from the results' notes), or null when it accepts it. `ac run`
+ * refuses such a plan; the bench scores it as it came back.
+ */
+export function plannerRejection(result: BenchResult): string | null {
+  const planner = plannerScore(result);
+  if (!planner?.note?.startsWith('invalid plan')) return null;
+  return result.notes?.map((note) => rejectionNote.exec(note)?.[1]).find((reason) => reason !== undefined) ?? planner.note;
+}
+
 /** One line per entry for the overview: the best deterministic method, the seeds draft and the planner. */
 export interface BenchOverviewRow {
   entry: string;
@@ -49,6 +62,8 @@ export interface BenchOverviewRow {
   best: { method: string; value: number } | null;
   draft: number | null;
   planner: number | null;
+  /** Why the validator rejects the planner's plan (plannerRejection), or null. */
+  plannerRejection: string | null;
 }
 
 export function benchOverview(results: readonly BenchResult[]): BenchOverviewRow[] {
@@ -56,7 +71,9 @@ export function benchOverview(results: readonly BenchResult[]): BenchOverviewRow
     const metric = result.kind === 'scramble' ? 'MoJoFM' : 'TurboMQ';
     const value = (method: MethodScore | undefined | null) => (method ? (metric === 'MoJoFM' ? method.mojoFm : method.turboMq.sum) : null);
     const best = result.bestBaseline ? { method: result.bestBaseline.method, value: (metric === 'MoJoFM' ? result.bestBaseline.mojoFm : result.bestBaseline.turboMq) ?? 0 } : null;
-    return { entry: result.entry, kind: result.kind, metric, best, draft: value(result.methods.find((method) => method.kind === 'draft')), planner: value(plannerScore(result)) };
+    return {
+      entry: result.entry, kind: result.kind, metric, best, draft: value(result.methods.find((method) => method.kind === 'draft')), planner: value(plannerScore(result)), plannerRejection: plannerRejection(result),
+    };
   });
 }
 
@@ -135,15 +152,26 @@ export function scrambleCertificatesLine(results: readonly BenchResult[]): strin
   return `Each scramble is one commit by our own executor, then checked by our own certifier as a pure move: ${parts.join('; ')}. Each entry below shows its verdict; a scramble is scored whatever its verdict, since the ground truth is its original folders.`;
 }
 
-/** How the planner did against the best deterministic method, entry by entry, from the overview. */
+/**
+ * How the planner did against the best deterministic method, entry by entry, from the overview. A plan our validator
+ * rejects is scored as it came back, so the tally says which plans those are, why, and the wins without them.
+ */
 export function plannerTally(overview: readonly BenchOverviewRow[]): string {
   const compared = overview.filter((row) => row.planner !== null && row.best);
   if (!compared.length) return '';
-  const wins = compared.filter((row) => row.planner! > row.best!.value).map((row) => row.entry);
+  const won = (row: BenchOverviewRow) => row.planner! > row.best!.value;
+  const wins = compared.filter(won).map((row) => row.entry);
   const losses = compared.filter((row) => row.planner! < row.best!.value).map((row) => row.entry);
   const ties = compared.filter((row) => row.planner === row.best!.value).map((row) => row.entry);
   const clause = (names: string[], verb: string) => (names.length ? `${verb} on ${names.length} (${list(names)})` : '');
-  return `In these results the planner beats the best deterministic method (on the entry's metric, MoJoFM or TurboMQ) on ${wins.length} of ${compared.length} entries${wins.length ? ` (${list(wins)})` : ''}${[clause(ties, 'ties it'), clause(losses, 'and loses')].filter(Boolean).map((part) => `, ${part}`).join('')}.`;
+  const tally = `In these results the planner beats the best deterministic method (on the entry's metric, MoJoFM or TurboMQ) on ${wins.length} of ${compared.length} entries${wins.length ? ` (${list(wins)})` : ''}${[clause(ties, 'ties it'), clause(losses, 'and loses')].filter(Boolean).map((part) => `, ${part}`).join('')}.`;
+  const rejected = compared.filter((row) => row.plannerRejection);
+  if (!rejected.length) return tally;
+  const validWins = compared.filter((row) => won(row) && !row.plannerRejection).map((row) => row.entry);
+  const reasons = list(rejected.map((row) => `${row.entry} (${row.plannerRejection})`));
+  const withoutRejected = rejected.some(won)
+    ? ` Counting only the plans the validator accepts, the planner wins on ${validWins.length} of ${compared.length}${validWins.length ? ` (${list(validWins)})` : ''}.` : '';
+  return `${tally} Our own validator rejects the ${rejected.length === 1 ? 'plan' : 'plans'} of ${reasons}. ac run refuses such a plan; the bench scores it as it came back.${withoutRejected}`;
 }
 
 export function renderBenchBody(results: readonly BenchResult[]): string {
@@ -153,7 +181,8 @@ export function renderBenchBody(results: readonly BenchResult[]): string {
   const overview = benchOverview(results);
   const overviewTable = table([{ label: 'Entry' }, { label: 'Metric' }, { label: 'Best deterministic method' }, { label: 'Best', numeric: true }, { label: 'Seeds draft', numeric: true }, { label: 'Planner', numeric: true }, { label: 'Planner − best', numeric: true }],
     overview.map((row) => [
-      link(`#entry-${row.entry}`, row.entry), row.metric, escapeHtml(row.best?.method ?? dash), row.best ? row.best.value.toFixed(2) : dash, fixed(row.draft, 2), fixed(row.planner, 2),
+      link(`#entry-${row.entry}`, row.entry), row.metric, escapeHtml(row.best?.method ?? dash), row.best ? row.best.value.toFixed(2) : dash, fixed(row.draft, 2),
+      `${fixed(row.planner, 2)}${row.plannerRejection ? ' <span class="muted small">(plan rejected)</span>' : ''}`,
       row.planner !== null && row.best ? `${row.planner - row.best.value >= 0 ? '+' : ''}${(row.planner - row.best.value).toFixed(2)}` : dash,
     ]));
   const tally = plannerTally(overview);

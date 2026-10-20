@@ -9,7 +9,7 @@
 // back as entries too (`quarantined`), so that they follow the moves into later ranges like the flaky ones.
 import fs from 'node:fs';
 import path from 'node:path';
-import { addWorktree, removeWorktrees } from './certify.js';
+import { addWorktree, openWorkDir, removeWorktrees } from './certify.js';
 import { createEnvironment } from './commit-fs.js';
 import { readCommitTree } from './git-tree.js';
 import { requireHermetic } from './hermetic.js';
@@ -170,7 +170,7 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
   validateOracles(specs);
   // Its runs seed K8's base runs and quarantine: made where a certificate could be.
   const workDir = requireHermetic(options.workDir, 'the baseline\'s work dir', 'Run it in a directory with neither on its path.');
-  fs.mkdirSync(workDir, { recursive: true });
+  const removeWhatWasMade = openWorkDir(options.workDir, workDir);
   const tree = readCommitTree(options.repo, options.commit);
   const environment = createEnvironment(options.environment, [tree], path.join(workDir, 'shadow'));
   const root = addWorktree(options.repo, tree.commit, path.join(workDir, 'worktree'), environment);
@@ -243,6 +243,6 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
     };
   } finally {
     removeWorktrees(options.repo, [root]);
-    if (!options.keep) fs.rmSync(workDir, { recursive: true, force: true });
+    if (!options.keep) removeWhatWasMade();
   }
 }

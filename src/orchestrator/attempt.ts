@@ -6,7 +6,7 @@ import { analyzeRepo } from '../analyzer/analyze.js';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
 import type { Analysis } from '../analyzer/types.js';
 import { trailers } from '../certificate/report.js';
-import type { Certificate } from '../certificate/types.js';
+import type { Certificate, Violation } from '../certificate/types.js';
 import type { MoveResult } from '../executor/execute.js';
 import { type MessageInput, scopeOf, stepMessage } from './commit-message.js';
 import { buildFault } from './fault.js';
@@ -34,17 +34,23 @@ function executorOffenders(result: MoveResult): { offenders: Offender[]; detail:
   return { offenders: [], detail: '' };
 }
 
+const markedError = (violation: Violation) => violation.detail.startsWith('error: ');
+
 /**
  * What a failed certificate's violations name, files mapped back to the base through its pathMap: the failed checks'
  * violations without the errors they list (marked `error: `), which are about a runner or an oracle, not the change.
- * `detail` reads every check that didn't pass, errors included.
+ * `detail` reads every check that didn't pass, its first three entries with the violations before the errors (K3b and
+ * K6 list errors first), so the evidence behind a pin is always shown.
  */
 export function certificateOffenders(certificate: Certificate): { offenders: Offender[]; detail: string } {
   const inverse = new Map(Object.entries(certificate.pathMap.entries).map(([from, to]) => [to, from]));
   const failing = certificate.checks.filter((check) => check.status === 'fail' || check.status === 'error');
-  const offenders = failing.filter((check) => check.status === 'fail').flatMap((check) => check.violations.filter((violation) => !violation.detail.startsWith('error: '))
+  const offenders = failing.filter((check) => check.status === 'fail').flatMap((check) => check.violations.filter((violation) => !markedError(violation))
     .map((violation) => ({ ...(violation.file ? { file: inverse.get(violation.file) ?? violation.file } : {}), detail: violation.detail })));
-  const detail = failing.map((check) => `${check.id} ${check.violations.slice(0, 3).map((violation) => `${violation.file ? `${violation.file}: ` : ''}${violation.detail.split('\n')[0]}`).join('; ')}`).join('; ');
+  const detail = failing.map((check) => {
+    const shown = [...check.violations.filter((violation) => !markedError(violation)), ...check.violations.filter(markedError)].slice(0, 3);
+    return `${check.id} ${shown.map((violation) => `${violation.file ? `${violation.file}: ` : ''}${violation.detail.split('\n')[0]}`).join('; ')}`;
+  }).join('; ');
   return { offenders, detail };
 }
 

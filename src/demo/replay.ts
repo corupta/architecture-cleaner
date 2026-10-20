@@ -105,19 +105,53 @@ export function defaultWorkDir(currentDirectory: string = process.cwd(), tempora
   return { directory: temporary, below };
 }
 
+/** The process id of the demo using a work dir: <tmp>/ac-demo is every clone's fallback, and a second demo would empty it. */
+const workDirLock = '.ac-demo.lock';
+const heldLocks = new Set<string>();
+
+const running = (processId: number) => {
+  try {
+    process.kill(processId, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+
+/** Takes the work dir for this process until it exits; refused while another demo's process holds it. */
+function lockWorkDir(workDir: string): void {
+  const lock = path.join(workDir, workDirLock);
+  const holder = fs.existsSync(lock) ? Number(fs.readFileSync(lock, 'utf8')) : null;
+  if (holder && holder !== process.pid && running(holder)) throw new Error(`another ac demo (process ${holder}) is using the work dir ${workDir}: wait for it to finish, or pick another --work`);
+  fs.writeFileSync(lock, `${process.pid}\n`);
+  if (!heldLocks.size) process.once('exit', () => heldLocks.forEach((held) => fs.rmSync(held, { force: true })));
+  heldLocks.add(lock);
+}
+
 /**
  * The work dir (its real path), emptied except for the target's clone (reused when it has the commit): a new directory,
  * or one a previous demo made. Anything else is refused, so a mistyped --work never deletes a user's files; so is a
- * directory that isn't hermetic, before anything is written there.
+ * directory that isn't hermetic, before anything is written there, one another user owns (a shared <tmp>/ac-demo) or
+ * this user can't write, and one another demo is using.
  */
 export function openWorkDir(directory: string, keep: string): string {
   const workDir = requireHermetic(directory, 'the work dir', 'Pick a --work with neither on its path.');
-  if (fs.existsSync(workDir) && fs.readdirSync(workDir).length && !fs.existsSync(path.join(workDir, workDirMarker))) {
-    throw new Error(`${workDir} is not empty and no earlier demo made it: pick a new --work directory`);
+  const unusable = (reason: string) => new Error(`the work dir ${workDir} ${reason}: pick another with --work <dir> (one with neither node_modules nor package.json on its path)`);
+  try {
+    const existing = fs.statSync(workDir, { throwIfNoEntry: false });
+    if (existing && process.getuid && existing.uid !== process.getuid()) throw unusable(`belongs to another user (uid ${existing.uid})`);
+    if (existing && fs.readdirSync(workDir).length && !fs.existsSync(path.join(workDir, workDirMarker))) {
+      throw new Error(`${workDir} is not empty and no earlier demo made it: pick a new --work directory`);
+    }
+    fs.mkdirSync(workDir, { recursive: true });
+    fs.writeFileSync(path.join(workDir, workDirMarker), 'made by ac demo: emptied by the next ac demo with this --work\n');
+    lockWorkDir(workDir);
+    for (const entry of fs.readdirSync(workDir)) if (![keep, workDirMarker, workDirLock].includes(entry)) fs.rmSync(path.join(workDir, entry), { recursive: true, force: true });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'EACCES' || code === 'EPERM') throw unusable(`can't be written by this user (${(error as Error).message})`);
+    throw error;
   }
-  fs.mkdirSync(workDir, { recursive: true });
-  for (const entry of fs.readdirSync(workDir)) if (entry !== keep && entry !== workDirMarker) fs.rmSync(path.join(workDir, entry), { recursive: true, force: true });
-  fs.writeFileSync(path.join(workDir, workDirMarker), 'made by ac demo: emptied by the next ac demo with this --work\n');
   return workDir;
 }
 

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { BenchResult } from '../../src/bench/types.js';
-import { benchOverview, plannerScore, plannerTally, readBenchResults, renderBenchBody, scrambleCertificatesLine } from '../../src/site/bench.js';
+import { benchOverview, plannerRejection, plannerScore, plannerTally, readBenchResults, renderBenchBody, scrambleCertificatesLine } from '../../src/site/bench.js';
 import { buildSite, committedRuns, siteMarker } from '../../src/site/build.js';
 import { siteCommand } from '../../src/site/command.js';
 import { pitchLine } from '../../src/site/pages.js';
@@ -73,6 +73,12 @@ describe('ac site on a package with one run, the A/B and bench results', () => {
     const verify = fs.readFileSync(path.join(out, 'verify', 'index.html'), 'utf8');
     expect(verify).toContain('npx ac demo --replay');
     expect(verify).toContain('git clone https://github.com/example/architecture-cleaner architecture-cleaner');
+    // S8's demo: the work dir is <tmp>/ac-demo from a clone, and --env compares every digest; S7's status-only fallback is gone.
+    const verifyText = pageText(verify);
+    expect(verifyText).toContain('It works in /tmp/ac-demo/ (your system\'s temporary directory)');
+    expect(verifyText).toContain('each check\'s content and each certificate\'s digest are compared with the recording, byte for byte');
+    expect(verifyText).toContain('No --work is needed.');
+    for (const stale of ['statuses only', 'outside this clone', '--work <']) expect(verifyText).not.toContain(stale);
 
     const again = path.join(temporary('fixture-again'), '_site');
     buildSite({ packageDirectory: root, out: again, sourceUrl: 'https://github.com/example/architecture-cleaner' });
@@ -111,13 +117,38 @@ describe('the benchmarks page', () => {
       .toBe('In these results the planner beats the best deterministic method (on the entry\'s metric, MoJoFM or TurboMQ) on 1 of 2 entries (kaneo), and loses on 1 (shop).');
   });
 
+  it('says which plans the validator rejects and why, and doesn\'t count a rejected plan as a win without saying so', () => {
+    const fixture = benchResultFixture() as unknown as BenchResult;
+    /** `entry` with the planner at `mojoFm`, its plan rejected for `reason` as `ac bench` records it (a row note and a note). */
+    const rejected = (entry: string, mojoFm: number, reason: string) => ({
+      ...fixture, entry,
+      methods: fixture.methods.map((method) => (method.kind === 'planner' ? { ...method, mojoFm, note: 'invalid plan: 1 validator error' } : method)),
+      notes: [...(fixture.notes ?? []), `The validator rejects the planner's plan (${reason}); it is scored as it came back.`],
+    } as BenchResult);
+    const app = 'banned-name: "app" is a junk drawer or a type word, not a feature';
+    const middleware = 'banned-name: "middleware" is a junk drawer or a type word, not a feature';
+    const won = { ...fixture, entry: 'won', methods: fixture.methods.map((method) => (method.kind === 'planner' ? { ...method, mojoFm: 90 } : method)) } as BenchResult;
+    const results = [rejected('ghostfolio', 90, app), won, rejected('kaneo', 50, middleware), fixture];
+    expect(results.map(plannerRejection)).toEqual([app, null, middleware, null]);
+    const tally = 'In these results the planner beats the best deterministic method (on the entry\'s metric, MoJoFM or TurboMQ) on 2 of 4 entries (ghostfolio and won), and loses on 2 (kaneo and shop).';
+    expect(plannerTally(benchOverview(results))).toBe(`${tally} Our own validator rejects the plans of ghostfolio (${app}) and kaneo (${middleware}). ac run refuses such a plan; the bench scores it as it came back. `
+      + 'Counting only the plans the validator accepts, the planner wins on 1 of 4 (won).');
+    // A rejected plan that loses doesn't change the count of wins.
+    expect(plannerTally(benchOverview([rejected('kaneo', 50, middleware), fixture])))
+      .toBe(`In these results the planner beats the best deterministic method (on the entry's metric, MoJoFM or TurboMQ) on 0 of 2 entries, and loses on 2 (kaneo and shop). Our own validator rejects the plan of kaneo (${middleware}). ac run refuses such a plan; the bench scores it as it came back.`);
+    const overview = pageText(renderBenchBody(results)).split('summary.md')[0]!;
+    expect(overview).toContain('90.00 (plan rejected)');
+    expect(overview).toContain('50.00 (plan rejected)');
+    expect(overview.match(/plan rejected\)/g)).toHaveLength(2);
+  });
+
   it('reads results, picks the planner\'s best row and shows the planner against the best deterministic method', () => {
     const directory = temporary('results');
     fs.writeFileSync(path.join(directory, 'shop.json'), JSON.stringify(benchResultFixture()));
     const results = readBenchResults(directory);
     expect(results.map((result) => result.entry)).toEqual(['shop']);
     expect(plannerScore(results[0]!)?.method).toBe('planner (Ultra)');
-    expect(benchOverview(results)).toEqual([{ entry: 'shop', kind: 'scramble', metric: 'MoJoFM', best: { method: 'name-token (anchored)', value: 81.5 }, draft: 80, planner: 78.25 }]);
+    expect(benchOverview(results)).toEqual([{ entry: 'shop', kind: 'scramble', metric: 'MoJoFM', best: { method: 'name-token (anchored)', value: 81.5 }, draft: 80, planner: 78.25, plannerRejection: null }]);
     const body = renderBenchBody(results);
     expect(body).toContain('<td class="num">-3.25</td>');
     expect(body).toContain('The planner loses to name-token here by 3.25 MoJoFM.');
@@ -128,7 +159,7 @@ describe('the benchmarks page', () => {
     const real = { ...benchResultFixture(), entry: 'immich', kind: 'real', scramble: null, featureFiles: null, groundTruthModules: null, hardFiles: null, leakyFiles: null, planner: null, louvainMojoFmByResolution: null,
       methods: benchResultFixture().methods.filter((method) => method.kind !== 'planner').map((method) => ({ ...method, mojoFm: null, ari: null, c2cCvg: null, clusterCountRatio: null, mojoFmHard: null })),
       bestBaseline: { method: 'B0 type folders', mojoFm: null, turboMq: 2.5 } } as unknown as BenchResult;
-    expect(benchOverview([real])).toEqual([{ entry: 'immich', kind: 'real', metric: 'TurboMQ', best: { method: 'B0 type folders', value: 2.5 }, draft: 2, planner: null }]);
+    expect(benchOverview([real])).toEqual([{ entry: 'immich', kind: 'real', metric: 'TurboMQ', best: { method: 'B0 type folders', value: 2.5 }, draft: 2, planner: null, plannerRejection: null }]);
     const body = renderBenchBody([real]);
     expect(body).toContain('no ground truth');
     expect(body).toContain('Planner: not recorded yet.');
@@ -169,6 +200,12 @@ describe('ac site on this package', () => {
     const bench = pageText(fs.readFileSync(path.join(out, 'bench', 'index.html'), 'utf8'));
     expect(bench).not.toContain('a certified move');
     expect(bench).toContain('ghostfolio, hoppscotch-H1 and hoppscotch pass (static checks); kaneo (failing K3c, K4) fails (static checks).');
+    // S8's results: ghostfolio's win and kaneo's loss are plans the validator rejects (bench/results/*.json notes).
+    expect(bench).toContain('on 3 of 5 entries (ghostfolio, hoppscotch-H1 and hoppscotch), and loses on 2 (immich and kaneo). Our own validator rejects the plans of '
+      + 'ghostfolio (banned-name: "app" is a junk drawer or a type word, not a feature) and kaneo (banned-name: "middleware" is a junk drawer or a type word, not a feature). '
+      + 'ac run refuses such a plan; the bench scores it as it came back. Counting only the plans the validator accepts, the planner wins on 2 of 5 (hoppscotch-H1 and hoppscotch).');
+    expect(bench).toContain('86.81 (plan rejected)');
+    expect(bench).toContain('50.65 (plan rejected)');
     const again = path.join(temporary('package-again'), '_site');
     buildSite({ packageDirectory, out: again });
     expect(snapshot(again)).toEqual(snapshot(out));

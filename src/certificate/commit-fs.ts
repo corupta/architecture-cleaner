@@ -20,19 +20,21 @@ export interface Environment {
 
 /** Links every `<dir>/node_modules` of `checkout` for directories that exist in any of the trees. */
 export function createEnvironment(checkout: string, trees: readonly CommitTree[], shadowRoot: string): Environment {
+  // Resolved once: a relative link target would resolve against the link's own directory, not the cwd.
+  const root = path.resolve(checkout);
   const linked: string[] = [];
   fs.mkdirSync(shadowRoot, { recursive: true });
   const directories = new Set<string>();
   for (const tree of trees) for (const directory of tree.directories) directories.add(directory);
   for (const directory of [...directories].sort()) {
     if (directory.split('/').includes('node_modules')) continue;
-    const installed = path.join(checkout, directory, 'node_modules');
+    const installed = path.join(root, directory, 'node_modules');
     if (!fs.existsSync(installed)) continue;
     fs.mkdirSync(path.join(shadowRoot, directory), { recursive: true });
     fs.symlinkSync(installed, path.join(shadowRoot, directory, 'node_modules'));
     linked.push(directory);
   }
-  return { checkout: path.resolve(checkout), shadowRoot: path.resolve(shadowRoot), linked };
+  return { checkout: root, shadowRoot: path.resolve(shadowRoot), linked };
 }
 
 const isEnvironmentPath = (relativePath: string) => relativePath.startsWith('..') || path.isAbsolute(relativePath) || relativePath.split('/').includes('node_modules');

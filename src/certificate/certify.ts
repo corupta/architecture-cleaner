@@ -80,12 +80,28 @@ export function removeWorktrees(repo: string, directories: string[]): void {
   if (directories.length) execFileSync('git', ['-C', repo, 'worktree', 'prune'], { stdio: 'ignore' });
 }
 
+/**
+ * Makes the work dir `given` (real path `directory`) when it is missing, and returns what removes the certifier's leftovers
+ * there. What the work dir held when opened is the user's: only the entries added since are deleted, then the directory
+ * itself when that leaves it empty, unless it was given as a symlink (the link and its target are the user's too).
+ */
+export function openWorkDir(given: string, directory: string): () => void {
+  const linked = fs.lstatSync(path.resolve(given), { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
+  const held = new Set(fs.existsSync(directory) ? fs.readdirSync(directory) : []);
+  fs.mkdirSync(directory, { recursive: true });
+  return () => {
+    if (!fs.existsSync(directory)) return;
+    for (const entry of fs.readdirSync(directory)) if (!held.has(entry)) fs.rmSync(path.join(directory, entry), { recursive: true, force: true });
+    if (!linked && !fs.readdirSync(directory).length) fs.rmdirSync(directory);
+  };
+}
+
 export function createContext(given: CertifyOptions): { context: CertifyContext; cleanup(): void } {
   // Probes run from inside a worktree: a relative work dir would name another directory there. Its real path, refused
   // before anything is written when a node_modules or package.json above it would reach the trees certified in it.
   const workDir = requireHermetic(given.workDir, 'the work dir', 'Certify in a directory with neither on its path.');
+  const removeWhatWasMade = openWorkDir(given.workDir, workDir);
   const options = { ...given, workDir, ...(given.cacheDir ? { cacheDir: path.resolve(given.cacheDir) } : {}) };
-  fs.mkdirSync(options.workDir, { recursive: true });
   const base = readCommitTree(options.repo, options.base);
   const head = readCommitTree(options.repo, options.head);
   const views = { base: spanViews(base), head: spanViews(head) };
@@ -136,7 +152,7 @@ export function createContext(given: CertifyOptions): { context: CertifyContext;
   };
   const cleanup = () => {
     removeWorktrees(options.repo, [...worktrees.values()]);
-    if (!options.keep) fs.rmSync(options.workDir, { recursive: true, force: true });
+    if (!options.keep) removeWhatWasMade();
   };
   return { context, cleanup };
 }
