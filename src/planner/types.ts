@@ -74,14 +74,16 @@ export interface Draft {
 export type GroupKind = 'module' | 'shared' | 'platform';
 
 /**
- * How the planner reads Nemotron's answers and ranks the edits, by version (a target profile's `plan.rules` pins one
- * for the replay of its recording: src/planner/edit.ts editSettingsFor).
- * - 1 (S5 to S7): a move names its file by path only, and the ranking starts with validity. The committed immich plan
- *   was made with it.
+ * How the planner reads the target and Nemotron's answers and ranks the edits, by version (a target profile's
+ * `plan.rules` pins one for the replay of its recording: src/planner/edit.ts editSettingsFor).
+ * - 1 (S5 to S7): a move names its file by path only, the ranking starts with validity, and the facts read every
+ *   Kysely `selectFrom`/join literal as a table. The committed immich plan was made with it.
  * - 2 (S8): a move may also name its file by an id the prompt showed for it (the S7 bench: Ultra named kaneo's and
  *   ghostfolio's moves by id, and the validator dropped every one of them) and its target by a draft group's id or key
- *   (`G8`, `G8:custom-field`: kaneo's moves did), a name two files share names neither, and a plan without feature
- *   modules never ranks first while another candidate has one (ghostfolio's 0-module plan won).
+ *   (`G8`, `G8:custom-field`: kaneo's moves did), a name two files share names neither, a plan without feature
+ *   modules never ranks first while another candidate has one (ghostfolio's 0-module plan won), and the facts leave
+ *   out the reads of a Kysely common table expression's alias inside the query that declares it (immich's facts read
+ *   10 such aliases as tables: src/planner/facts-scan.ts scanTables).
  */
 export const plannerRulesVersions = [1, 2] as const;
 

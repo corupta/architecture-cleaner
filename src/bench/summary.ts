@@ -42,9 +42,10 @@ const header = (results: readonly BenchResult[]) => `# ac bench results
 ${results.some((result) => result.planner?.rules !== undefined) ? plannerRulesNote : ''}`;
 
 /** Said once results record the planner rules (S8 on). */
-const plannerRulesNote = `- Planner rules (src/planner/types.ts) say how the planner reads Nemotron's answers and ranks its edits. Rules 2 (S8)
-  read a move that names its file by the id the prompt showed, or its target by a draft group's id or key, and never
-  rank a plan without feature modules first while another candidate has one. Rules 1 (S5 to S7) dropped such moves.
+const plannerRulesNote = `- Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron's answers and ranks its
+  edits. Rules 2 (S8) read a move that names its file by the id the prompt showed, or its target by a draft group's id
+  or key, never rank a plan without feature modules first while another candidate has one, and leave a Kysely common
+  table expression's alias out of the facts' tables (no scramble entry has one). Rules 1 (S5 to S7) dropped such moves.
   A replay uses the rules its profile pins for its recording; each entry says which it used.
 `;
 

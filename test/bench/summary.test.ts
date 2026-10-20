@@ -71,6 +71,6 @@ describe('bench summary', () => {
     // An auto run replays the edit and records the critic, whose request changed with the winner.
     expect(planner({ replayed: 1, recorded: 1 }, 0.0612)).toContain('- Planner: 1 of 2 calls replayed from `cassettes/s6-immich.jsonl` and 1 recorded into it for $0.0612 (the plan\'s calls cost $0.1683 when recorded); 59 groups;');
     expect(planner({ replayed: 0, recorded: 2 }, 0.1683)).toContain('- Planner: recorded into `cassettes/s6-immich.jsonl` (2 calls) for $0.1683; 59 groups;');
-    expect(planner({ replayed: 2, recorded: 0 }, 0)).toContain('- Planner rules (src/planner/types.ts) say how the planner reads Nemotron\'s answers and ranks its edits. Rules 2 (S8)\n');
+    expect(planner({ replayed: 2, recorded: 0 }, 0)).toContain('- Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron\'s answers and ranks its\n');
   });
 });

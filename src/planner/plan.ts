@@ -49,12 +49,13 @@ export interface PlanRun {
   criticRun: (CriticRun & { suggestions: Suggestion[] }) | null;
   plan: Plan;
   validation: Validation;
-  /** The planner rules the answers were read and ranked with (options.edit.rules). */
+  /** The planner rules the facts were scanned and the answers read and ranked with (options.edit.rules). */
   rules: PlannerRules;
 }
 
 export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOptions): Promise<PlanRun> {
-  const facts = buildFacts(repo, { packageRoot: options.packageRoot, moduleRoot: options.moduleRoot, pins: options.pins });
+  const { rules } = options.edit;
+  const facts = buildFacts(repo, { packageRoot: options.packageRoot, moduleRoot: options.moduleRoot, pins: options.pins, rules });
   // Nothing movable means a wrong root, not an empty plan: fail before the n=K edit and the critic spend anything.
   if (!facts.files.length) {
     const where = `${facts.packageRoot ? `${facts.packageRoot}/` : ''}${facts.moduleRoot || '.'}/`;
@@ -65,7 +66,6 @@ export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOpti
   const summaryRun = options.summaries ? await runSummaries(gateway, repo, facts, draft, options.summaries) : null;
   const prompt = editPrompt(facts, draft, summaryRun?.purposes);
   const { groupIds } = prompt;
-  const { rules } = options.edit;
   const asCandidate = (label: string, edit: PlanEdit, extra: Partial<Candidate> = {}): Candidate => {
     const { accepted, issues } = checkEdit(facts, draft, edit, groupIds, rules);
     const plan = applyEdit(facts, draft, accepted, groupIds);

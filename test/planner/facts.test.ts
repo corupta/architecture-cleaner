@@ -164,7 +164,7 @@ const pin = (file: string) => facts.pins.find((candidate) => candidate.path === 
 
 beforeAll(() => {
   root = gitRepo(files);
-  facts = buildFacts(gitRepoFs(root), { packageRoot: 'server', pins: ['src/legacy/**'] });
+  facts = buildFacts(gitRepoFs(root), { packageRoot: 'server', pins: ['src/legacy/**'], rules: 2 });
 });
 
 describe('inventory', () => {
@@ -301,12 +301,12 @@ describe('pins', () => {
 describe('any RepoFs', () => {
   it('builds the same facts from an in-memory RepoFs, with sha unknown', () => {
     const virtualRoot = path.join(os.tmpdir(), 'ac-facts-virtual-does-not-exist');
-    const fromMemory = buildFacts(memoryRepoFs(virtualRoot, files), { packageRoot: 'server', pins: ['src/legacy/**'] });
+    const fromMemory = buildFacts(memoryRepoFs(virtualRoot, files), { packageRoot: 'server', pins: ['src/legacy/**'], rules: 2 });
     expect(fromMemory.sha).toBe('unknown');
     expect({ ...fromMemory, sha: facts.sha }).toEqual(facts);
   });
 
   it('is deterministic', () => {
-    expect(buildFacts(gitRepoFs(root), { packageRoot: 'server', pins: ['src/legacy/**'] })).toEqual(facts);
+    expect(buildFacts(gitRepoFs(root), { packageRoot: 'server', pins: ['src/legacy/**'], rules: 2 })).toEqual(facts);
   });
 });

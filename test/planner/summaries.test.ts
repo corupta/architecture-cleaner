@@ -43,7 +43,7 @@ git('init', '-q');
 git('add', '-A');
 git('commit', '-q', '-m', 'fixture');
 const repo = gitRepoFs(repoRoot);
-const facts = buildFacts(repo, { packageRoot: 'server', moduleRoot: 'src' });
+const facts = buildFacts(repo, { packageRoot: 'server', moduleRoot: 'src', rules: defaultEditSettings.rules });
 const draft = seedDraft(facts);
 
 /** A Gateway that answers each file's purpose from its FILE line and records the requests. */

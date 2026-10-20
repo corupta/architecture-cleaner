@@ -13,6 +13,7 @@ import { loadProfile, type Profile } from '../certificate/profile.js';
 import { packageDirectory } from '../certificate/toolchain.js';
 import { GatewayError, type CassetteMode, type Gateway } from '../gateway/types.js';
 import { branchExists, git, resolveRevision } from '../orchestrator/git.js';
+import { editSettingsFor } from '../planner/edit.js';
 import { buildFacts } from '../planner/facts.js';
 import type { Facts, FileFact } from '../planner/types.js';
 import { readScrambleManifest, scrambleRepo } from '../scramble/index.js';
@@ -301,7 +302,9 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
     }
     const repoFs = gitRepoFs(scramble?.worktree ?? worktree);
     const roots = { packageRoot: target.packageRoot, moduleRoot: target.moduleRoot };
-    const facts = buildFacts(repoFs, { ...roots, pins: profile?.plan?.pins ?? [] });
+    // The facts under the planner rules the entry's planner reads with (planPartition): the baselines and the planner
+    // are scored on one set of facts.
+    const facts = buildFacts(repoFs, { ...roots, pins: profile?.plan?.pins ?? [], rules: editSettingsFor(profile, options.mode).rules });
     log(`facts: ${facts.files.length} movable files, ${facts.edges.length} edges, ${facts.pins.length} pinned`);
     const groundTruth = scramble ? groundTruthOf(scramble, facts, defaultPaths) : null;
     if (groundTruth?.pinnedFeatureFiles) {

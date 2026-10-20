@@ -1,15 +1,102 @@
 // Per-file syntactic scans for the planner facts: table access (Kysely, Prisma, Drizzle call shapes), route prefixes,
 // generated-code banners and pre-existing re-export barrels. Text and AST only, no type checker.
 import ts from 'typescript';
+import type { PlannerRules } from './types.js';
 
-export function scanTables(text: string): { reads: string[]; writes: string[] } {
+/** The Kysely calls whose first argument scanTables reads as a table read. */
+const kyselyReads = new Set(['selectFrom', 'innerJoin', 'leftJoin', 'rightJoin', 'fullJoin']);
+
+/** The name a Kysely table literal starts with: `'asset as a'` → asset, `'tree(id, parent)'` → tree. */
+const leadingName = (literal: string) => /^\s*([\w.]+)/.exec(literal)?.[1];
+
+/** `x.selectFrom(…)` → selectFrom; a bare call (a destructured `selectFrom(…)`) → its identifier. */
+const calledName = (call: ts.CallExpression) =>
+  ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : ts.isIdentifier(call.expression) ? call.expression.text : undefined;
+
+/**
+ * The name a `with` or `withRecursive` call gives its common table expression: a literal (`'tree(id)'` → tree), or the
+ * builder form `(cte) => cte('mapping').materialized()` (the literal its parameter is called with).
+ */
+function cteNameOf(argument: ts.Expression | undefined): string | undefined {
+  if (argument && ts.isStringLiteralLike(argument)) return leadingName(argument.text);
+  if (!argument || !(ts.isArrowFunction(argument) || ts.isFunctionExpression(argument))) return undefined;
+  const factory = argument.parameters[0]?.name;
+  if (!factory || !ts.isIdentifier(factory)) return undefined;
+  let name: string | undefined;
+  const visit = (node: ts.Node): void => {
+    if (name !== undefined) return;
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === factory.text && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) name = leadingName(node.arguments[0].text);
+    else ts.forEachChild(node, visit);
+  };
+  visit(argument.body);
+  return name;
+}
+
+/** The outermost expression of the call chain `node` sits in: `db.with(…).selectFrom(…).where(…)`, awaited or not. */
+function chainTop(node: ts.Node): ts.Node {
+  let current = node;
+  for (;;) {
+    const parent = current.parent;
+    const continues = ((ts.isPropertyAccessExpression(parent) || ts.isCallExpression(parent)) && parent.expression === current) || ts.isNonNullExpression(parent) || ts.isAwaitExpression(parent);
+    if (!continues) return current;
+    current = parent;
+  }
+}
+
+/**
+ * Where Kysely reads a common table expression, not a table: the offsets of the literals of `selectFrom('<alias>')`
+ * and joins inside the query that declares `.with('<alias>', …)` or `.withRecursive('<alias>', …)` (the call chain
+ * holding the declaration, nested callbacks included), except inside a non-recursive `with`'s own body, where the
+ * name is still the table it may shadow (immich: `.with('asset', (db) => db.selectFrom('asset'))`). A query built
+ * across statements isn't one chain: its later reads of the alias stay table reads.
+ */
+function cteAliasReads(text: string): Set<number> {
+  const offsets = new Set<number>();
+  if (!/\.\s*with(?:Recursive)?\s*\(/.test(text)) return offsets;
+  const sourceFile = ts.createSourceFile('scan.ts', text, ts.ScriptTarget.Latest, true);
+  const ctes: { name: string; query: ts.Node; body: ts.Node | undefined }[] = [];
+  const reads: { name: string; literal: ts.Node }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const method = calledName(node);
+      const first = node.arguments[0];
+      if (method === 'with' || method === 'withRecursive') {
+        const name = cteNameOf(first);
+        if (name) ctes.push({ name, query: chainTop(node), body: method === 'with' ? node.arguments[1] : undefined });
+      } else if (method && kyselyReads.has(method) && first && ts.isStringLiteralLike(first)) {
+        const name = leadingName(first.text);
+        if (name) reads.push({ name, literal: first });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  const within = (node: ts.Node, outer: ts.Node | undefined) => outer !== undefined && node.getStart(sourceFile) >= outer.getStart(sourceFile) && node.getEnd() <= outer.getEnd();
+  for (const read of reads) {
+    if (ctes.some((cte) => cte.name === read.name && within(read.literal, cte.query) && !within(read.literal, cte.body))) offsets.add(read.literal.getStart(sourceFile));
+  }
+  return offsets;
+}
+
+/**
+ * Table names a file reads and writes, from query call shapes, sorted. Planner rules 1 read every Kysely
+ * `selectFrom`/join literal as a table; rules 2 leave out the reads of a common table expression's alias
+ * (cteAliasReads). The Prisma and Drizzle shapes are the same under both.
+ */
+export function scanTables(text: string, rules: PlannerRules): { reads: string[]; writes: string[] } {
   const reads = new Set<string>();
   const writes = new Set<string>();
+  const aliasReads = rules === 1 ? new Set<number>() : cteAliasReads(text);
+  // Where a match's literal starts (its opening quote): the regexes end on the name, right after that quote.
+  const literalAt = (match: RegExpMatchArray, name: string) => match.index! + match[0].length - name.length - 1;
   // Kysely (immich): selectFrom('album'), insertInto('asset'), updateTable(...), deleteFrom(...), joins read.
   for (const match of text.matchAll(/\b(selectFrom|insertInto|updateTable|deleteFrom|replaceInto|mergeInto)\(\s*['"`]([\w.]+)/g)) {
+    if (match[1] === 'selectFrom' && aliasReads.has(literalAt(match, match[2]!))) continue;
     (match[1] === 'selectFrom' ? reads : writes).add(match[2]!);
   }
-  for (const match of text.matchAll(/\b(?:innerJoin|leftJoin|rightJoin|fullJoin)\(\s*['"`]([\w.]+)/g)) reads.add(match[1]!);
+  for (const match of text.matchAll(/\b(?:innerJoin|leftJoin|rightJoin|fullJoin)\(\s*['"`]([\w.]+)/g)) {
+    if (!aliasReads.has(literalAt(match, match[1]!))) reads.add(match[1]!);
+  }
   // Prisma (hoppscotch, ghostfolio): prisma.team.findMany(...); `prisma.$transaction` is not a table.
   for (const match of text.matchAll(/\bprisma(?:Service)?\.(\w+)\.(\w+)\(/g)) {
     if (match[1]!.startsWith('$')) continue;

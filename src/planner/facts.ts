@@ -21,6 +21,8 @@ export interface BuildFactsOptions {
   moduleRoot?: string;
   /** Extra pins from a target profile: package-relative globs. */
   pins?: string[];
+  /** The planner rules the facts are read under: they decide what the table scan counts (facts-scan.ts scanTables). */
+  rules: PlannerRules;
 }
 
 /** A file importing value symbols from at least this many movable files of one role is a registry (DI/route table). */
@@ -130,7 +132,7 @@ export function buildFacts(repo: RepoFs, options: BuildFactsOptions): Facts {
       loc: text.split('\n').length,
       exports: result?.exports ?? [],
       primaryExport: result?.primaryExport ?? null,
-      tables: scanTables(text),
+      tables: scanTables(text, options.rules),
       routes: sourceFile ? scanRoutes(sourceFile) : [],
       tests: (testsOf.get(file) ?? []).sort(),
     };

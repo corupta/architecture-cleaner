@@ -14,7 +14,7 @@ import { buildFacts } from '../planner/facts.js';
 import { declarationExtension, sourceExtension, testPattern, testSupportPattern } from '../planner/facts-roles.js';
 import { readPlanYaml, type PlanFile } from '../planner/plan-file.js';
 import { seedDraft } from '../planner/seeds.js';
-import type { Draft, Facts, GroupKind, Placement, Plan } from '../planner/types.js';
+import { latestPlannerRules, type Draft, type Facts, type GroupKind, type Placement, type Plan } from '../planner/types.js';
 
 export interface Target {
   repo: RepoFs;
@@ -70,8 +70,10 @@ export function loadTarget(input: TargetInput): Target {
   try {
     const environment = createEnvironment(input.environment, [tree], shadowRoot);
     const repo = commitRepoFs(tree, environment.shadowRoot, environment.checkout);
-    // buildFacts asks git for the root's HEAD; the shadow root has none, so the facts name the commit read here.
-    const facts = { ...buildFacts(repo, { packageRoot: input.packageRoot, moduleRoot: input.moduleRoot, pins: input.pins }), sha: tree.commit };
+    // buildFacts asks git for the root's HEAD; the shadow root has none, so the facts name the commit read here. The
+    // findings read the code, not a model's answer, so they take the latest planner rules' scan whatever rules the
+    // run's plan was made with (a Kysely CTE alias is no table under rules 2; immich's pinned plan has rules 1).
+    const facts = { ...buildFacts(repo, { packageRoot: input.packageRoot, moduleRoot: input.moduleRoot, pins: input.pins, rules: latestPlannerRules }), sha: tree.commit };
     const draft = seedDraft(facts);
     const planFile = readPlanYaml(input.planText);
     const prefix = facts.packageRoot ? `${facts.packageRoot}/` : '';
