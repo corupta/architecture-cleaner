@@ -61,7 +61,9 @@ export function planMarkdown(run: PlanRun, context: ReportContext): string {
     const warnings = candidate.validation.issues.filter((issue) => issue.severity === 'warning').length;
     lines.push(`| ${candidate.label}${mark} | ${candidate.validation.valid ? 'yes' : 'no'} | ${m.groups} | ${edit} | ${dropped} | ${warnings} | ${m.turboMqSum.toFixed(2)} | ${m.crossEdgeRatio} | ${m.groupsInCycles} | ${m.movedFromDraft} | ${code(candidateFileName(candidate.label))} |`);
   }
-  lines.push('', `Ranking: valid first, then fewer errors; among plans that keep at least ${Math.round(turboMqFloor * 100)}% of the draft's TurboMQ sum, fewer validator warnings (the layout rules), then a higher TurboMQ sum and fewer groups in cycles. TurboMQ alone ranks the least-edited plan first (G1, and again here), and picking a plan without ground truth is still open, so every candidate is listed, and each one's full plan (before the critic) sits next to plan.yaml: \`ac steps <plan dir>/candidates/<file>.yaml --out <dir>\` makes steps from any of them.`, '');
+  // Planner rules 1 rendered the ranking without the module key; a replay under them writes their plan.md byte for byte.
+  const modulesFirst = run.rules === 1 ? '' : 'plans with at least one feature module first (a plan of platform and shared groups only moves nothing into a feature); then ';
+  lines.push('', `Ranking: ${modulesFirst}valid first, then fewer errors; among plans that keep at least ${Math.round(turboMqFloor * 100)}% of the draft's TurboMQ sum, fewer validator warnings (the layout rules), then a higher TurboMQ sum and fewer groups in cycles. TurboMQ alone ranks the least-edited plan first (G1, and again here), and picking a plan without ground truth is still open, so every candidate is listed, and each one's full plan (before the critic) sits next to plan.yaml: \`ac steps <plan dir>/candidates/<file>.yaml --out <dir>\` makes steps from any of them.`, '');
 
   if (summaryRun) {
     lines.push(`## Low-confidence file purposes (${summaryRun.purposes.size} of ${summaryRun.calls})`, '');

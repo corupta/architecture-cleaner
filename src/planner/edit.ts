@@ -2,9 +2,9 @@
 // only misplaced files, each with a rationale. It never lists every file, so coverage holds by construction.
 // The evaluate round stays off (G1: it hurt 6 of 17 samples). K candidates come from one call with n=K.
 import { z } from 'zod';
-import { GatewayError, type Gateway, type ModelKey, type TemplateKwargs } from '../gateway/types.js';
-import { displayPath } from './facts.js';
-import type { Draft, Facts, PlanEdit } from './types.js';
+import { GatewayError, type CassetteMode, type Gateway, type ModelKey, type TemplateKwargs } from '../gateway/types.js';
+import { displayPath, lowConfidenceName } from './facts.js';
+import { latestPlannerRules, plannerRulesVersions, type Draft, type Facts, type PlanEdit, type PlannerRules, type RecordingPins } from './types.js';
 import { bannedModuleNames, bannedWords, sharedGroupName } from './validate.js';
 
 
@@ -149,7 +149,7 @@ export function draftText(facts: Facts, draft: Draft, groupIds: Map<string, stri
     members.set(label, [...(members.get(label) ?? []), file.id]);
   }
   const groups = [...groupIds].map(([label, id]) => `${id} "${label}": ${members.get(label)!.join(',')}`);
-  const lowConfidence = draft.contested.map((path) => `${idOf.get(path)}(${draft.confidence.get(path)})`);
+  const lowConfidence = draft.contested.map((path) => lowConfidenceName(idOf.get(path)!, draft.confidence.get(path)!));
   const hints = subFeatureHints(facts, draft, groupIds);
   const purposeLines = draft.contested.filter((path) => purposes.has(path)).map((path) => `${idOf.get(path)} ${displayPath(facts, path)}: ${purposes.get(path)}`);
   return [
@@ -177,10 +177,26 @@ export interface EditSettings {
   templateKwargs: TemplateKwargs;
   samples: number;
   maxTokens: number;
+  /** How the planner reads the edits (and the critic's moves) and ranks them; no part of any request (types.ts PlannerRules). */
+  rules: PlannerRules;
 }
 
-/** Ultra on medium_effort (G1's best editor), thinking on, K=3. */
-export const defaultEditSettings: EditSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, samples: 3, maxTokens: 64_000 };
+/** Ultra on medium_effort (G1's best editor), thinking on, K=3, the latest planner rules. */
+export const defaultEditSettings: EditSettings = { model: 'ultra', templateKwargs: { medium_effort: true }, samples: 3, maxTokens: 64_000, rules: latestPlannerRules };
+
+/**
+ * The edit settings for a target and the cassette mode its calls go through, like criticSettingsFor: a replay reads
+ * the answers with the planner rules the profile pins (`plan.rules`), so a plan recorded under older rules replays
+ * from its cassette as it was made (profiles/immich.json pins 1, the S6 recording's). Anything that may record (record,
+ * and auto) uses the latest rules: the pin belongs to the recording, not to the target.
+ */
+export function editSettingsFor(profile: RecordingPins | null | undefined, mode: CassetteMode): EditSettings {
+  const pinned = profile?.plan?.rules;
+  if (pinned === undefined) return defaultEditSettings;
+  const version = plannerRulesVersions.find((candidate) => candidate === pinned);
+  if (version === undefined) throw new Error(`no planner rules version ${pinned} (versions: ${plannerRulesVersions.join(', ')})`);
+  return mode === 'replay' ? { ...defaultEditSettings, rules: version } : defaultEditSettings;
+}
 
 export interface EditCandidate {
   label: string;

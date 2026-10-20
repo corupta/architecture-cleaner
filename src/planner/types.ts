@@ -6,7 +6,7 @@ export type Role = string;
 
 export interface FileFact {
   path: string;
-  /** 1-based id in path order; the only way the model names a file. */
+  /** 1-based id in path order: how the prompts list the files and their edges. */
   id: number;
   role: Role;
   loc: number;
@@ -74,8 +74,33 @@ export interface Draft {
 export type GroupKind = 'module' | 'shared' | 'platform';
 
 /**
- * Nemotron's edit of the draft (json_schema strict). Group ids are the draft's G1..Gn. Moves name files by path (as the
- * prompt lists them, under the module root): with numeric ids, samples attached rationales to neighbouring files.
+ * How the planner reads Nemotron's answers and ranks the edits, by version (a target profile's `plan.rules` pins one
+ * for the replay of its recording: src/planner/edit.ts editSettingsFor).
+ * - 1 (S5 to S7): a move names its file by path only, and the ranking starts with validity. The committed immich plan
+ *   was made with it.
+ * - 2 (S8): a move may also name its file by an id the prompt showed for it (the S7 bench: Ultra named kaneo's and
+ *   ghostfolio's moves by id, and the validator dropped every one of them) and its target by a draft group's id or key
+ *   (`G8`, `G8:custom-field`: kaneo's moves did), a name two files share names neither, and a plan without feature
+ *   modules never ranks first while another candidate has one (ghostfolio's 0-module plan won).
+ */
+export const plannerRulesVersions = [1, 2] as const;
+
+export type PlannerRules = (typeof plannerRulesVersions)[number];
+
+export const latestPlannerRules: PlannerRules = 2;
+
+/**
+ * What a target profile pins for the replay of its recorded plan (the `plan` section of src/certificate/profile.ts's
+ * Profile): the critic prompt version and the planner rules the recording was made with.
+ */
+export interface RecordingPins {
+  plan?: { criticPrompt?: number; rules?: number };
+}
+
+/**
+ * Nemotron's edit of the draft (json_schema strict). Group ids are the draft's G1..Gn. The prompt asks moves to name
+ * files by path (as FILES lists them, under the module root): with numeric ids, samples attached rationales to
+ * neighbouring files. Planner rules 2 also read the ids the prompt showed (fileNamesOf), since samples use them anyway.
  */
 export interface PlanEdit {
   groups: { draft: string; name: string; kind: GroupKind }[];

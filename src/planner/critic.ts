@@ -3,9 +3,9 @@
 import { z } from 'zod';
 import type { CassetteMode, Gateway, ModelKey, TemplateKwargs } from '../gateway/types.js';
 import { factsText, layoutText, placementRules } from './edit.js';
-import { displayPath, fileNamed } from './facts.js';
+import { displayPath, fileResolver } from './facts.js';
 import { canonicalGroup, mergeEvidence, moveEvidence, registryGroup, validatePlan } from './validate.js';
-import { groupKey, type Draft, type Facts, type Issue, type Placement, type Plan, type Validation } from './types.js';
+import { groupKey, latestPlannerRules, type Draft, type Facts, type Issue, type Placement, type Plan, type PlannerRules, type RecordingPins, type Validation } from './types.js';
 
 const groupKinds = ['module', 'shared', 'platform'] as const;
 
@@ -101,7 +101,7 @@ export const defaultCriticSettings: CriticSettings = { model: 'ultra', templateK
  * cassette misses) uses the current prompt: the pin belongs to the recording, not to the target, so a re-recorded plan
  * never keeps a stale prompt.
  */
-export function criticSettingsFor(profile: { plan?: { criticPrompt?: number } } | null | undefined, mode: CassetteMode): CriticSettings {
+export function criticSettingsFor(profile: RecordingPins | null | undefined, mode: CassetteMode): CriticSettings {
   const pinned = profile?.plan?.criticPrompt;
   if (pinned === undefined) return defaultCriticSettings;
   if (!Object.hasOwn(criticPrompts, pinned)) throw new Error(`no critic prompt version ${pinned} (versions: ${Object.keys(criticPrompts).join(', ')})`);
@@ -199,8 +199,8 @@ export function addedIssues(before: Issue[], after: Issue[], renamed?: { from: s
 }
 
 /** One review through the gate; see applyCritiques. */
-export function applyCritique(facts: Facts, draft: Draft, plan: Plan, critique: Critique): { plan: Plan; suggestions: Suggestion[] } {
-  return applyCritiques(facts, draft, plan, [critique]);
+export function applyCritique(facts: Facts, draft: Draft, plan: Plan, critique: Critique, rules: PlannerRules = latestPlannerRules): { plan: Plan; suggestions: Suggestion[] } {
+  return applyCritiques(facts, draft, plan, [critique], rules);
 }
 
 /**
@@ -212,10 +212,12 @@ export function applyCritique(facts: Facts, draft: Draft, plan: Plan, critique: 
  * leave its controller and repository for module/album, linked to it by nothing). A registry needs none to join the
  * composition root. A later review never overrides an earlier kept suggestion: one that touches a group or file a
  * kept suggestion already changed is rejected. Suggestions that change nothing (a repeat of a kept one included) are
- * dropped silently.
+ * dropped silently. A move names its file as the planner `rules` read it (fileResolver: rules 2 also read the ids
+ * FILES shows); one that names no file, or more than one, is rejected.
  */
-export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques: Critique[]): { plan: Plan; suggestions: Suggestion[] } {
+export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques: Critique[], rules: PlannerRules = latestPlannerRules): { plan: Plan; suggestions: Suggestion[] } {
   const suggestions: Suggestion[] = [];
+  const filesNamed = fileResolver(facts, rules);
   let current = plan;
   let currentValidation = validatePlan(facts, draft, plan);
   const changedGroups = new Map<string, number>();
@@ -291,11 +293,13 @@ export function applyCritiques(facts: Facts, draft: Draft, plan: Plan, critiques
     }
     for (const move of critique.moves) {
       const target = canonicalGroup(bareName(move.to), move.kind);
-      const file = fileNamed(facts, move.file);
+      const named = filesNamed(move.file);
+      const file = named.length === 1 ? named[0] : undefined;
       const summary = `move ${file?.path ?? move.file} → ${groupKey(target)}`;
       const placement = file && current.placements.find((candidate) => candidate.path === file.path);
       if (!placement) {
-        suggestions.push(numbered({ summary, accepted: false, reason: 'no such movable file', rationale: move.rationale }));
+        const reason = named.length > 1 ? `names ${named.length} movable files` : 'no such movable file';
+        suggestions.push(numbered({ summary, accepted: false, reason, rationale: move.rationale }));
         continue;
       }
       if (groupKey(placement) === groupKey(target)) continue;

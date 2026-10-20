@@ -60,5 +60,17 @@ describe('bench summary', () => {
     expect(summary).toContain('| **planner (Ultra) (invalid plan: 2 validator errors)** | **59** |');
     expect(summary).toContain('\n- A note in plain words.\n');
     expect(benchSummary([real])).toBe(summary);
+    // Results written before S8 record no planner rules: the header doesn't explain them.
+    expect(summary).not.toContain('Planner rules');
+  });
+
+  it('says where the planner\'s answers came from, call by call, and which planner rules read them (S8)', () => {
+    const planner = (calls: { replayed: number; recorded: number }, spentUsd: number) =>
+      benchSummary([{ ...real, planner: { ...real.planner!, calls, rules: 1, spentUsd, replayed: spentUsd === 0, recordedCostUsd: 0.1683 } }]);
+    expect(planner({ replayed: 2, recorded: 0 }, 0)).toContain('- Planner: replayed from `cassettes/s6-immich.jsonl` (2 calls, recorded cost $0.1683, this run spent $0); 59 groups; planner rules 1; plan.yaml sha256 `b4c7c548883c`.');
+    // An auto run replays the edit and records the critic, whose request changed with the winner.
+    expect(planner({ replayed: 1, recorded: 1 }, 0.0612)).toContain('- Planner: 1 of 2 calls replayed from `cassettes/s6-immich.jsonl` and 1 recorded into it for $0.0612 (the plan\'s calls cost $0.1683 when recorded); 59 groups;');
+    expect(planner({ replayed: 0, recorded: 2 }, 0.1683)).toContain('- Planner: recorded into `cassettes/s6-immich.jsonl` (2 calls) for $0.1683; 59 groups;');
+    expect(planner({ replayed: 2, recorded: 0 }, 0)).toContain('- Planner rules (src/planner/types.ts) say how the planner reads Nemotron\'s answers and ranks its edits. Rules 2 (S8)\n');
   });
 });

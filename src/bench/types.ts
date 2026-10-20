@@ -88,9 +88,11 @@ export interface BenchPlannerChange {
   groupsMerged: number;
   /**
    * The winning candidate's edit and the validator's issues with it by code (each issue is an entry or move it dropped,
-   * or one it repaired, before applying the edit); null when the draft itself won.
+   * or one it repaired, before applying the edit); null when the draft itself won. `movesById`: its moves that name their
+   * file by an id the prompt showed, not by path (planner rules 2 read them, rules 1 drop them as unknown files); absent
+   * in results written before S8.
    */
-  winner: { label: string; groupEntries: number; moves: number; issues: Record<string, number> } | null;
+  winner: { label: string; groupEntries: number; moves: number; movesById?: number; issues: Record<string, number> } | null;
   /** The critic's suggestions and how many its gate kept; null when the critic didn't run. */
   critic: { suggestions: number; kept: number } | null;
 }
@@ -134,6 +136,10 @@ export interface BenchResult {
     recordedCostUsd: number;
     spentUsd: number;
     replayed: boolean;
+    /** The planner's calls answered from the cassette and recorded into it by this run (absent before S8). */
+    calls?: { replayed: number; recorded: number };
+    /** The planner rules the answers were read and ranked with (src/planner/types.ts PlannerRules; absent before S8: 1). */
+    rules?: number;
     groups: number;
     /** Feature modules among the groups (0: every group is platform or shared). Absent before the S7 fix round, like `change`. */
     modules?: number;

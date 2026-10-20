@@ -161,18 +161,27 @@ export function leakageNote(leakage: BenchLeakage, leakyFiles: number, files: nu
   ].join(' ');
 }
 
-/** The planner's draft, and how far the plan moved from it, in plain words; the planner row's short note. */
-export function plannerNotes(planned: Pick<PlannerPartition, 'groups' | 'modules' | 'change' | 'errors'>, draft: BenchDraft, files: number): { notes: string[]; rowNote: string | null } {
+/**
+ * The planner's draft, and how far the plan moved from it, in plain words; the planner row's short note. Moves that name
+ * their file by id are said with what the rules did with them, so the text is right whether the planner kept its draft
+ * because the rules dropped them (rules 1, the S7 results) or read them (rules 2).
+ */
+export function plannerNotes(planned: Pick<PlannerPartition, 'groups' | 'modules' | 'change' | 'errors' | 'rules'>, draft: BenchDraft, files: number): { notes: string[]; rowNote: string | null } {
   const { change } = planned;
   const { winner, critic } = change;
   const issues = winner ? Object.entries(winner.issues).sort(([a, countA], [b, countB]) => countB - countA || byCodeUnit(a, b)) : [];
   const issueCount = issues.reduce((sum, [, count]) => sum + count, 0);
+  const byId = winner?.movesById ?? 0;
+  const idMoves = byId ? ` (${byId === 1 ? '1 names its file' : `${byId} name their file`} by its id, not its path)` : '';
+  const idRules = !byId ? '' : planned.rules === 1
+    ? " Planner rules 1 read a move's file by its path only, so a move that names it by id is an unknown file."
+    : ' Planner rules 2 read a file by the id the prompt showed for it.';
   const sentences = [
     change.samePartition
       ? `The planner's plan keeps the partition of its draft, the ${draft.method}: every file stays in its draft group, so the planner row scores the draft.`
       : `The planner's plan moves ${change.filesMoved} of ${files} files out of their draft group and merges ${counted(change.groupsMerged, 'draft group')} into others (${change.draftGroups} draft groups, ${planned.groups} plan groups).`,
     winner
-      ? `The winning edit, ${winner.label}, had ${counted(winner.groupEntries, 'group entry', 'group entries')} and ${counted(winner.moves, 'move')}; ${issueCount ? `the validator found ${counted(issueCount, 'problem')} with it (${issues.map(([code, count]) => `${code} ${count}`).join(', ')}) and dropped or repaired each before applying it.` : 'the validator found no problem with it.'}`
+      ? `The winning edit, ${winner.label}, had ${counted(winner.groupEntries, 'group entry', 'group entries')} and ${counted(winner.moves, 'move')}${idMoves}; ${issueCount ? `the validator found ${counted(issueCount, 'problem')} with it (${issues.map(([code, count]) => `${code} ${count}`).join(', ')}) and dropped or repaired each before applying it.` : 'the validator found no problem with it.'}${idRules}`
       : 'No edit came back, so the draft is the plan.',
     ...(critic ? [critic.suggestions ? `The critic made ${counted(critic.suggestions, 'suggestion')} and its gate kept ${critic.kept || 'none'}.` : 'The critic made no suggestion.'] : []),
   ];
@@ -322,8 +331,8 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
         const described = plannerNotes(planned, draft, facts.files.length);
         methods.push({ ...methodScore(planned.method, 'planner', planned.assignment, facts, groundTruth), ...(described.rowNote ? { note: described.rowNote } : {}) });
         planner = {
-          cassette: entry.cassette, recordedCostUsd: round(planned.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, groups: planned.groups,
-          modules: planned.modules, change: planned.change, planSha256: planned.planSha256,
+          cassette: entry.cassette, recordedCostUsd: round(planned.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, calls: planned.calls, rules: planned.rules,
+          groups: planned.groups, modules: planned.modules, change: planned.change, planSha256: planned.planSha256,
         };
         if (planned.errors.length) notes.push(`The validator rejects the planner's plan (${planned.errors.slice(0, 3).join('; ')}); it is scored as it came back.`);
         notes.push(...described.notes);

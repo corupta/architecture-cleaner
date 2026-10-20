@@ -7,7 +7,7 @@ import type { Profile } from '../certificate/profile.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode, Gateway } from '../gateway/types.js';
 import { criticSettingsFor } from '../planner/critic.js';
-import { defaultEditSettings } from '../planner/edit.js';
+import { editSettingsFor } from '../planner/edit.js';
 import { planOutputs } from '../planner/outputs.js';
 import { planRepo } from '../planner/plan.js';
 import type { RunPlanInput } from './run.js';
@@ -46,12 +46,14 @@ export async function planInProcess(options: PlannerOptions): Promise<PlannedRun
   const gateway = options.gateway ?? createGateway({ runId, mode: options.mode, cassettePath: path.resolve(options.cassette) });
   const spentBefore = gateway.spent().run;
   const packageRoot = options.profile.packageRoot.replace(/^\.\/?/, '').replace(/\/$/, '');
+  // A replay reads the answers with the critic prompt and planner rules the profile pins for its recording.
   const critic = criticSettingsFor(options.profile, options.mode);
+  const edit = editSettingsFor(options.profile, options.mode);
   const run = await planRepo(gitRepoFs(options.repo), gateway, {
-    packageRoot, moduleRoot: options.profile.plan?.moduleRoot ?? 'src', pins: options.profile.plan?.pins ?? [], edit: defaultEditSettings, critic,
+    packageRoot, moduleRoot: options.profile.plan?.moduleRoot ?? 'src', pins: options.profile.plan?.pins ?? [], edit, critic,
   });
   if (!run.validation.valid) throw new Error('the planner produced an invalid plan (no steps); run `ac plan` to see the validator errors');
-  const outputs = planOutputs(run, { name: options.profile.name }, { edit: defaultEditSettings, critic });
+  const outputs = planOutputs(run, { name: options.profile.name }, { edit, critic });
   return {
     plan: {
       text: outputs.get('plan.yaml')!,

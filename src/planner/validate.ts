@@ -1,10 +1,10 @@
 // The deterministic validator between Nemotron and the plan (plan §3.5 items 4–6): the repo's own vocabulary and the
 // group-name rules, checkEdit (drops or repairs what the model got wrong), applyEdit (edit → Plan), validatePlan
 // (issues + graph metrics) and rankCandidates. Nothing here calls a model, and every list comes out sorted.
-import { displayPath, fileNamed } from './facts.js';
+import { displayPath, fileResolver, lowConfidenceNames } from './facts.js';
 import { attestedSingular, naiveSingular, repoWords, wordsOf } from './facts-words.js';
 import { planMetrics, plannedEdges } from './metrics.js';
-import { groupKey, type Confidence, type Draft, type Facts, type GroupKind, type Issue, type Placement, type Plan, type PlanEdit, type Validation } from './types.js';
+import { groupKey, latestPlannerRules, type Confidence, type Draft, type Facts, type GroupKind, type Issue, type Placement, type Plan, type PlanEdit, type PlannerRules, type Validation } from './types.js';
 
 const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -114,11 +114,14 @@ function sortIssues(issues: Issue[]): Issue[] {
 /**
  * Filters a model's draft edit. Dropped: entries for unknown draft ids, repeated entries for one id (the first wins),
  * moves of unknown or pinned files, repeated moves of one file (the first wins), and every entry or move whose name
- * fails checkName. Repaired: one kind per name, taken from the first group entry carrying it in draft-id order, else
+ * fails checkName. A move names its file as the planner `rules` read it (fileResolver: rules 2 also read the ids the
+ * edit prompt showed, `13` and `56(contested)`); a name of no movable file, or of more than one, is an unknown file.
+ * Under rules 2 a move's target may also be a draft group's id or key (`G8`, `G8:custom-field`): that group's name and
+ * kind in this edit. Repaired: one kind per name, taken from the first group entry carrying it in draft-id order, else
  * the first move. `accepted` is the edit as applied: one entry per draft group in draft-id order (unnamed or dropped
  * groups keep their draft label) and the surviving moves by path, each naming its file by package path.
  */
-export function checkEdit(facts: Facts, draft: Draft, edit: PlanEdit, draftGroupIds: Map<string, string>): { accepted: PlanEdit; issues: Issue[] } {
+export function checkEdit(facts: Facts, draft: Draft, edit: PlanEdit, draftGroupIds: Map<string, string>, rules: PlannerRules = latestPlannerRules): { accepted: PlanEdit; issues: Issue[] } {
   const vocabulary = vocabularyOf(facts);
   const issues: Issue[] = [];
   const labelOf = new Map([...draftGroupIds].map(([label, id]) => [id, label]));
@@ -152,10 +155,20 @@ export function checkEdit(facts: Facts, draft: Draft, edit: PlanEdit, draftGroup
 
 
   const pinned = new Set(facts.pins.map((pin) => pin.path));
+  const filesNamed = fileResolver(facts, rules, lowConfidenceNames(draft));
+  // Rules 2: a move's target may be a draft group as the prompt showed it, by its id (`G8`, as DRAFT GROUPS lists it) or
+  // by its key (`G8:custom-field`, as the answer's own groups name it): that group as this edit names it (S7 bench:
+  // kaneo's winning edit wrote 23 of its moves' targets as keys).
+  const groupNamed = new Map(rules === 1 ? [] : groups.flatMap((group) => [[group.draft, group], [`${group.draft}:${labelOf.get(group.draft)}`, group]] as const));
   const movedFiles = new Set<string>();
   const moves: PlanEdit['moves'] = [];
   for (const move of edit.moves) {
-    const filePath = fileNamed(facts, move.file)?.path ?? facts.pins.find((pin) => [pin.path, displayPath(facts, pin.path)].includes(move.file.trim()))?.path;
+    const named = filesNamed(move.file);
+    if (named.length > 1) {
+      issues.push({ severity: 'warning', code: 'unknown-file', detail: `${move.file} names ${named.length} movable files (${named.map((file) => file.path).join(', ')}); its move to "${move.to}" dropped` });
+      continue;
+    }
+    const filePath = named[0]?.path ?? facts.pins.find((pin) => [pin.path, displayPath(facts, pin.path)].includes(move.file.trim()))?.path;
     if (filePath === undefined) {
       issues.push({ severity: 'warning', code: 'unknown-file', detail: `no movable file ${move.file}; its move to "${move.to}" dropped` });
       continue;
@@ -169,13 +182,15 @@ export function checkEdit(facts: Facts, draft: Draft, edit: PlanEdit, draftGroup
       continue;
     }
     movedFiles.add(filePath);
-    const { name } = canonicalGroup(bareName(move.to), move.kind);
-    const problems = checkName(name, move.kind, vocabulary);
+    const group = groupNamed.get(move.to.trim());
+    const kind = group?.kind ?? move.kind;
+    const { name } = group ?? canonicalGroup(bareName(move.to), kind);
+    const problems = checkName(name, kind, vocabulary);
     if (problems.length) {
       issues.push(...problems.map((issue) => ({ ...issue, file: filePath, detail: `move of ${filePath} dropped: ${issue.detail}` })));
       continue;
     }
-    moves.push({ file: filePath, to: name, kind: move.kind, rationale: move.rationale });
+    moves.push({ file: filePath, to: name, kind, rationale: move.rationale });
   }
 
   const kindOfName = new Map<string, GroupKind>();
@@ -406,11 +421,19 @@ export function moveEvidence(facts: Facts, plan: Plan, file: string, target: str
  * outside platform, one-file platform concerns and shared files that one group alone uses), so among valid plans that
  * keep at least `turboMqFloor` of the baseline's TurboMQ (a guard against one merged lump), the plan with the fewest
  * warnings wins; then TurboMQ, cycles and label. plan.md lists every candidate.
+ *
+ * Planner rules 2 put one key before all of these: a plan with at least one feature module before a plan with none.
+ * A plan of platform and shared groups only moves nothing into a feature, so it is no answer to the task, and no
+ * validity, warning count or TurboMQ can make it win while another candidate has a module (S7: ghostfolio's winner had
+ * 44 groups and 0 modules). The key goes before validity too: an invalid plan with modules fails closed (it has no
+ * steps, so `ac run` stops on it, and plan.md lists its errors in an editable plan.yaml), while a valid plan without
+ * modules would be executed and certified as if it were the answer.
  */
-export function rankCandidates<T extends { label: string; validation: Validation }>(candidates: T[], baselineTurboMqSum = 0): T[] {
+export function rankCandidates<T extends { label: string; validation: Validation }>(candidates: T[], baselineTurboMqSum = 0, rules: PlannerRules = latestPlannerRules): T[] {
   const count = (candidate: T, severity: Issue['severity']) => candidate.validation.issues.filter((issue) => issue.severity === severity).length;
   const cohesive = (candidate: T) => Number(candidate.validation.metrics.turboMqSum >= turboMqFloor * baselineTurboMqSum);
-  return [...candidates].sort((a, b) => Number(b.validation.valid) - Number(a.validation.valid) || count(a, 'error') - count(b, 'error')
+  const featured = (candidate: T) => Number(rules !== 1 && candidate.validation.metrics.modules > 0);
+  return [...candidates].sort((a, b) => featured(b) - featured(a) || Number(b.validation.valid) - Number(a.validation.valid) || count(a, 'error') - count(b, 'error')
     || cohesive(b) - cohesive(a) || count(a, 'warning') - count(b, 'warning')
     || b.validation.metrics.turboMqSum - a.validation.metrics.turboMqSum || a.validation.metrics.groupsInCycles - b.validation.metrics.groupsInCycles
     || byCodeUnit(a.label, b.label));

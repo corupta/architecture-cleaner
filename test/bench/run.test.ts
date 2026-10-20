@@ -111,16 +111,20 @@ function fakeGateway(): Gateway & { calls(): number } {
   };
 }
 
-/** Answers like ghostfolio's winning Ultra edit: every group re-kinded platform, every move naming a file by its bare id. */
+/**
+ * Answers like ghostfolio's winning Ultra edit: every group re-kinded platform, every move naming a file by its bare id
+ * (file i to the next draft group's label).
+ */
 function byIdGateway(): Gateway {
   return {
     async structured<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>> {
       const schema = request.schema as { properties: { groups: { properties?: Record<string, unknown> } } };
       const keys = request.schemaName === 'plan_edit' ? Object.keys(schema.properties.groups.properties!) : [];
+      const labelOf = (key: string) => key.slice(key.indexOf(':') + 1);
       const answers = request.schemaName === 'plan_edit'
         ? Array.from({ length: request.n ?? 1 }, () => ({
-          groups: Object.fromEntries(keys.map((key) => [key, { name: key.slice(key.indexOf(':') + 1), kind: 'platform' }])),
-          moves: keys.map((key, index) => ({ file: String(index + 1), to: key.split(':')[0]!, kind: 'platform', rationale: 'by id' })),
+          groups: Object.fromEntries(keys.map((key) => [key, { name: labelOf(key), kind: 'platform' }])),
+          moves: keys.map((key, index) => ({ file: String(index + 1), to: labelOf(keys[(index + 1) % keys.length]!), kind: 'platform', rationale: 'by id' })),
         }))
         : [{ review: 'Two ideas.', groups: [{ group: 'platform/user', name: 'user-core', kind: 'module', rationale: 'a guess' }], moves: [] }];
       return {
@@ -190,9 +194,9 @@ describe('ac bench on a fixture', async () => {
     expect(scrambled.bestBaseline).toEqual({ method: best.method, mojoFm: best.mojoFm, turboMq: best.turboMq.sum });
   });
 
-  it('records the planner row: groups, plan sha256, the recorded cost, nothing spent', () => {
+  it('records the planner row: groups, plan sha256, the recorded cost, nothing spent, every call replayed', () => {
     expect(gateway.calls()).toBe(2);
-    expect(scrambled.planner).toMatchObject({ cassette: 'cassettes/fixture.jsonl', recordedCostUsd: 0.01, spentUsd: 0, replayed: true, modules: 3 });
+    expect(scrambled.planner).toMatchObject({ cassette: 'cassettes/fixture.jsonl', recordedCostUsd: 0.01, spentUsd: 0, replayed: true, calls: { replayed: 2, recorded: 0 }, rules: 2, modules: 3 });
     expect(scrambled.planner!.planSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(scrambled.planner!.groups).toBe(scrambled.methods.at(-1)!.clusters);
   });
@@ -200,7 +204,7 @@ describe('ac bench on a fixture', async () => {
   it('says when the planner row is its draft: the edit kept every draft group as it was', () => {
     expect(scrambled.planner!.change).toEqual({
       draftGroups: 3, samePartition: true, filesMoved: 0, groupsMerged: 0,
-      winner: { label: 'ultra#1', groupEntries: 3, moves: 0, issues: {} }, critic: { suggestions: 0, kept: 0 },
+      winner: { label: 'ultra#1', groupEntries: 3, moves: 0, movesById: 0, issues: {} }, critic: { suggestions: 0, kept: 0 },
     });
     expect(scrambled.methods.at(-1)).toMatchObject({ method: 'planner (Ultra)', note: "its draft's partition" });
     expect(scrambled.notes).toEqual([
@@ -229,7 +233,7 @@ describe('ac bench on a fixture', async () => {
     expect(summary).toContain(`| **${scrambled.bestBaseline!.method}** |`);
     expect(summary).toContain("| **planner (Ultra) (its draft's partition)** |");
     expect(summary).toContain('Scored: 8 feature files in 2 modules (2 hard), of 9 movable files. 0 of the movable files give their feature away in their path (the leakage note below).');
-    expect(summary).toContain('; 3 groups (3 modules), from the seeds draft (file names); plan.yaml sha256 ');
+    expect(summary).toContain('; 3 groups (3 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 ');
     expect(summary).toContain('certificate PASS (static), digest `ffffffffffff`.');
   });
 
@@ -242,18 +246,37 @@ describe('ac bench on a fixture', async () => {
     }
   });
 
-  it('discloses a winning edit whose moves were all dropped and whose plan has no modules (ghostfolio, S7)', async () => {
+  /** The fixture entry under a profile that pins planner rules 1 (the S7 bench's), as a replay of its recording reads it. */
+  const pinnedToRules1 = (): BenchManifest => {
+    const profile = path.join(temporary, 'fixture-rules-1.json');
+    fs.writeFileSync(profile, JSON.stringify({ name: 'fixture', packageRoot: 'pkg', node: 'system', plan: { moduleRoot: 'src', rules: 1 } }));
+    return { entries: [{ ...manifest.entries[0]!, profile }] };
+  };
+
+  it('discloses a winning edit whose moves were all dropped and whose plan has no modules (ghostfolio, S7: planner rules 1)', async () => {
     const byId = { ...optionsFor('by-id', () => byIdGateway()), only: ['fixture'] };
-    const [result] = (await runBench(manifest, byId, { scramble: fakeScramble })).results as [BenchResult];
-    expect(result.planner).toMatchObject({ groups: 3, modules: 0 });
+    const [result] = (await runBench(pinnedToRules1(), byId, { scramble: fakeScramble })).results as [BenchResult];
+    expect(result.planner).toMatchObject({ groups: 3, modules: 0, rules: 1, calls: { replayed: 2, recorded: 0 } });
     expect(result.planner!.change).toEqual({
       draftGroups: 3, samePartition: true, filesMoved: 0, groupsMerged: 0,
-      winner: { label: 'ultra#1', groupEntries: 3, moves: 3, issues: { 'unknown-file': 3 } }, critic: { suggestions: 1, kept: 0 },
+      winner: { label: 'ultra#1', groupEntries: 3, moves: 3, movesById: 3, issues: { 'unknown-file': 3 } }, critic: { suggestions: 1, kept: 0 },
     });
     expect(result.methods.at(-1)).toMatchObject({ method: 'planner (Ultra)', note: "its draft's partition; 0 modules" });
     expect(result.notes).toContain("The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. "
-      + 'The winning edit, ultra#1, had 3 group entries and 3 moves; the validator found 3 problems with it (unknown-file 3) and dropped or repaired each before applying it. The critic made 1 suggestion and its gate kept none.');
+      + 'The winning edit, ultra#1, had 3 group entries and 3 moves (3 name their file by its id, not its path); the validator found 3 problems with it (unknown-file 3) and dropped or repaired each before applying it. '
+      + "Planner rules 1 read a move's file by its path only, so a move that names it by id is an unknown file. The critic made 1 suggestion and its gate kept none.");
     expect(result.notes).toContain('The plan has no feature modules: all 3 groups are platform or shared.');
+    const summary = fs.readFileSync(path.join(byId.out, 'summary.md'), 'utf8');
+    expect(summary).toContain('; 3 groups (0 modules), from the seeds draft (file names); planner rules 1; plan.yaml sha256 ');
+    expect(summary).toContain('- Planner rules (src/planner/types.ts) say how the planner reads');
+  });
+
+  it('reads the same moves by their ids under planner rules 2, the default', async () => {
+    const byId = { ...optionsFor('by-id-rules-2', () => byIdGateway()), only: ['fixture'] };
+    const [result] = (await runBench(manifest, byId, { scramble: fakeScramble })).results as [BenchResult];
+    expect(result.planner).toMatchObject({ modules: 0, rules: 2 });
+    expect(result.planner!.change).toMatchObject({ samePartition: false, winner: { label: 'ultra#1', moves: 3, movesById: 3, issues: {} } });
+    expect(result.notes!.join('\n')).toContain('had 3 group entries and 3 moves (3 name their file by its id, not its path); the validator found no problem with it. Planner rules 2 read a file by the id the prompt showed for it.');
   });
 
   it('skips the planner row with --no-llm and keeps the worktree with --keep', async () => {
@@ -352,7 +375,7 @@ describe('planner notes', () => {
 
   it("says how far a plan moved from its draft (hoppscotch's recorded plan)", () => {
     const change = { draftGroups: 43, samePartition: false, filesMoved: 7, groupsMerged: 14, winner: { label: 'ultra#1', groupEntries: 43, moves: 7, issues: { 'foreign-name': 2 } }, critic: { suggestions: 9, kept: 8 } };
-    expect(plannerNotes({ groups: 29, modules: 22, change, errors: [] }, draft, 186)).toEqual({
+    expect(plannerNotes({ groups: 29, modules: 22, change, errors: [], rules: 2 }, draft, 186)).toEqual({
       notes: [
         'The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 10 (no ground truth is read).',
         "The planner's plan moves 7 of 186 files out of their draft group and merges 14 draft groups into others (43 draft groups, 29 plan groups). "
@@ -362,9 +385,27 @@ describe('planner notes', () => {
     });
   });
 
+  it('says what the rules did with moves that name their file by id: rules 1 dropped them (ghostfolio, S7), rules 2 read them', () => {
+    const winner = { label: 'ultra#1', groupEntries: 44, moves: 154, movesById: 154, issues: { 'unknown-file': 154, 'banned-name': 1 } };
+    const kept = { draftGroups: 44, samePartition: true, filesMoved: 0, groupsMerged: 0, winner, critic: { suggestions: 2, kept: 0 } };
+    expect(plannerNotes({ groups: 44, modules: 0, change: kept, errors: [], rules: 1 }, draft, 154).notes.slice(1)).toEqual([
+      "The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. "
+        + 'The winning edit, ultra#1, had 44 group entries and 154 moves (154 name their file by its id, not its path); the validator found 155 problems with it (unknown-file 154, banned-name 1) and dropped or repaired each before applying it. '
+        + "Planner rules 1 read a move's file by its path only, so a move that names it by id is an unknown file. The critic made 2 suggestions and its gate kept none.",
+      'The plan has no feature modules: all 44 groups are platform or shared.',
+    ]);
+    const read = { ...kept, samePartition: false, filesMoved: 20, groupsMerged: 4, winner: { ...winner, moves: 1, movesById: 1, issues: { 'banned-name': 1 } } };
+    expect(plannerNotes({ groups: 40, modules: 30, change: read, errors: [], rules: 2 }, draft, 154).notes[1]).toContain(
+      'had 44 group entries and 1 move (1 names its file by its id, not its path); the validator found 1 problem with it (banned-name 1) and dropped or repaired each before applying it. '
+        + 'Planner rules 2 read a file by the id the prompt showed for it. The critic');
+    // Results written before S8 carry no count: the sentence is the one they were written with.
+    const before = { ...kept, winner: { label: 'ultra#2', groupEntries: 3, moves: 2, issues: {} } };
+    expect(plannerNotes({ groups: 3, modules: 3, change: before, errors: [], rules: 1 }, draft, 9).notes[1]).toContain('had 3 group entries and 2 moves; the validator found no problem with it. The critic');
+  });
+
   it('says when no edit came back, and keeps the invalid-plan note on the row', () => {
     const change = { draftGroups: 5, samePartition: true, filesMoved: 0, groupsMerged: 0, winner: null, critic: null };
-    const { notes, rowNote } = plannerNotes({ groups: 5, modules: 4, change, errors: ['singleton-group: x'] }, draft, 20);
+    const { notes, rowNote } = plannerNotes({ groups: 5, modules: 4, change, errors: ['singleton-group: x'], rules: 2 }, draft, 20);
     expect(notes[1]).toBe("The planner's plan keeps the partition of its draft, the seeds draft (file names): every file stays in its draft group, so the planner row scores the draft. No edit came back, so the draft is the plan.");
     expect(rowNote).toBe("invalid plan: 1 validator error; its draft's partition");
   });

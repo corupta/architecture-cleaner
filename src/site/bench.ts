@@ -29,6 +29,18 @@ export function plannerScore(result: BenchResult): MethodScore | null {
   return planners.sort((left, right) => score(right) - score(left) || compare(left.method, right.method))[0] ?? null;
 }
 
+/** Where the planner's calls came from: the cassette, this run's recordings into it, or both (call counts since S8). */
+function plannerCalls(planner: NonNullable<BenchResult['planner']>): string {
+  const cassette = code(planner.cassette);
+  const { calls } = planner;
+  if (!calls) return planner.replayed ? `replayed from ${cassette}` : `recorded into ${cassette}`;
+  const total = calls.replayed + calls.recorded;
+  const callCount = `${total} ${total === 1 ? 'call' : 'calls'}`;
+  if (!calls.recorded) return `${callCount} replayed from ${cassette}`;
+  if (!calls.replayed) return `${callCount} recorded into ${cassette}`;
+  return `${calls.replayed} of ${callCount} replayed from ${cassette} and ${calls.recorded} recorded into it`;
+}
+
 /** One line per entry for the overview: the best deterministic method, the seeds draft and the planner. */
 export interface BenchOverviewRow {
   entry: string;
@@ -89,7 +101,7 @@ function entryBlock(result: BenchResult): string {
     facts.push('A real type-sliced target: no ground truth, so TurboMQ (higher is more modular) and back-edges (lower is better) only.');
   }
   facts.push(result.planner
-    ? `Planner: ${result.planner.groups} groups${result.planner.modules === undefined ? '' : ` (${count(result.planner.modules)} modules)`}${result.draft ? `, from the ${escapeHtml(result.draft.method)}` : ''}, plan sha256 ${code(result.planner.planSha256.slice(0, 12))}, ${usd(result.planner.recordedCostUsd)} when recorded${result.planner.replayed ? ', replayed from ' : ', recorded into '}${code(result.planner.cassette)} (${usd(result.planner.spentUsd)} spent by this run).`
+    ? `Planner: ${result.planner.groups} groups${result.planner.modules === undefined ? '' : ` (${count(result.planner.modules)} modules)`}${result.draft ? `, from the ${escapeHtml(result.draft.method)}` : ''}, plan sha256 ${code(result.planner.planSha256.slice(0, 12))}, ${usd(result.planner.recordedCostUsd)} when recorded, ${plannerCalls(result.planner)} (${usd(result.planner.spentUsd)} spent by this run).`
     : 'Planner: not recorded yet.');
   const louvain = result.louvainMojoFmByResolution
     ? details('Louvain MoJoFM by resolution, seeds 1–5', table([{ label: 'Resolution' }, { label: 'MoJoFM per seed' }], Object.entries(result.louvainMojoFmByResolution).map(([resolution, values]) => [escapeHtml(resolution), escapeHtml(values.map((entry) => entry.toFixed(2)).join(', '))])), { className: 'more' })

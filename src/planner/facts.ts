@@ -12,7 +12,7 @@ import { checkFiles, createEdgeCollector, createProgram, sourcePathMapper, type 
 import { choosePin, directoryPins, directoryPrefix, entrypointPins, scriptPins, type PinCandidate } from './facts-pins.js';
 import { declarationExtension, roleOf, sourceExtension, testedStem, testPattern, testSupportPattern } from './facts-roles.js';
 import { isBarrel, isGenerated, scanRoutes, scanTables } from './facts-scan.js';
-import type { Facts, FileFact, Pin } from './types.js';
+import type { Confidence, Draft, Facts, FileFact, Pin, PlannerRules } from './types.js';
 
 export interface BuildFactsOptions {
   /** Repo-relative package directory ('' or '.' for the repo root). */
@@ -161,8 +161,34 @@ function headSha(root: string): string {
 /** Paths as the model sees them: relative to the module root (`controllers/album.controller.ts`). */
 export const displayPath = (facts: Facts, path: string) => (facts.moduleRoot && path.startsWith(`${facts.moduleRoot}/`) ? path.slice(facts.moduleRoot.length + 1) : path);
 
-/** The movable file a model named, by its displayed path or its package path. */
-export function fileNamed(facts: Facts, named: string): FileFact | undefined {
-  const text = named.trim();
-  return facts.files.find((file) => file.path === text || displayPath(facts, file.path) === text);
+/** A low-confidence file as the edit prompt's DRAFT LOW-CONFIDENCE FILES lists it: `56(contested)`. */
+export const lowConfidenceName = (id: number, confidence: Confidence) => `${id}(${confidence})`;
+
+/** The edit prompt's other names for a file: its entry in DRAFT LOW-CONFIDENCE FILES, if the draft lists it there. */
+export function lowConfidenceNames(draft: Draft): (file: FileFact) => string[] {
+  const contested = new Set(draft.contested);
+  return (file) => (contested.has(file.path) ? [lowConfidenceName(file.id, draft.confidence.get(file.path)!)] : []);
+}
+
+/**
+ * The movable files a model's name denotes, under the planner rules: one, and the name resolves; none, and it is
+ * unknown; more, and it is ambiguous. Rules 1 read a package or displayed path (the first file that has it). Rules 2
+ * read exactly the names the prompt showed: those paths, the bare id (FILES lines, the draft's group lists and the
+ * edges show it; the `~` before an edge's id marks the edge, it isn't part of a name) and `shownNames(file)` (the
+ * edit's low-confidence list). Trimmed, never fuzzy; a name two files share (one's displayed path is the other's
+ * package path) names neither.
+ */
+export function fileResolver(facts: Facts, rules: PlannerRules, shownNames: (file: FileFact) => string[] = () => []): (named: string) => FileFact[] {
+  if (rules === 1) {
+    return (named) => {
+      const text = named.trim();
+      const file = facts.files.find((candidate) => candidate.path === text || displayPath(facts, candidate.path) === text);
+      return file ? [file] : [];
+    };
+  }
+  const filesByName = new Map<string, FileFact[]>();
+  for (const file of facts.files) {
+    for (const name of new Set([file.path, displayPath(facts, file.path), String(file.id), ...shownNames(file)])) filesByName.set(name, [...(filesByName.get(name) ?? []), file]);
+  }
+  return (named) => filesByName.get(named.trim()) ?? [];
 }

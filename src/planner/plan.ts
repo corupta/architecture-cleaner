@@ -8,7 +8,7 @@ import { editPrompt, runEdit, type EditRun, type EditSettings } from './edit.js'
 import { buildFacts } from './facts.js';
 import { plannerDraft } from './seeds.js';
 import { runSummaries, type SummaryRun, type SummarySettings } from './summaries.js';
-import type { Draft, Facts, Issue, Plan, PlanEdit, Validation } from './types.js';
+import type { Draft, Facts, Issue, Plan, PlanEdit, PlannerRules, Validation } from './types.js';
 import { applyEdit, checkEdit, rankCandidates, validatePlan } from './validate.js';
 
 export interface PlanOptions {
@@ -49,6 +49,8 @@ export interface PlanRun {
   criticRun: (CriticRun & { suggestions: Suggestion[] }) | null;
   plan: Plan;
   validation: Validation;
+  /** The planner rules the answers were read and ranked with (options.edit.rules). */
+  rules: PlannerRules;
 }
 
 export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOptions): Promise<PlanRun> {
@@ -63,8 +65,9 @@ export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOpti
   const summaryRun = options.summaries ? await runSummaries(gateway, repo, facts, draft, options.summaries) : null;
   const prompt = editPrompt(facts, draft, summaryRun?.purposes);
   const { groupIds } = prompt;
+  const { rules } = options.edit;
   const asCandidate = (label: string, edit: PlanEdit, extra: Partial<Candidate> = {}): Candidate => {
-    const { accepted, issues } = checkEdit(facts, draft, edit, groupIds);
+    const { accepted, issues } = checkEdit(facts, draft, edit, groupIds, rules);
     const plan = applyEdit(facts, draft, accepted, groupIds);
     return { label, edit, dropped: issues, plan, validation: validatePlan(facts, draft, plan), reasoningChars: 0, ...extra };
   };
@@ -76,16 +79,16 @@ export async function planRepo(repo: RepoFs, gateway: Gateway, options: PlanOpti
     candidate.edit
       ? asCandidate(candidate.label, candidate.edit, { reasoningChars: candidate.reasoningChars })
       : { ...draftCandidate, label: candidate.label, error: candidate.error ?? 'no edit', reasoningChars: candidate.reasoningChars });
-  const ranked = rankCandidates(candidates.filter((candidate) => !candidate.error), draftCandidate.validation.metrics.turboMqSum);
+  const ranked = rankCandidates(candidates.filter((candidate) => !candidate.error), draftCandidate.validation.metrics.turboMqSum, rules);
   const winner = ranked[0] ?? draftCandidate;
 
   let criticRun: PlanRun['criticRun'] = null;
   let plan = winner.plan;
   if (options.critic && winner !== draftCandidate) {
     const run = await runCritic(gateway, facts, winner.plan, winner.validation, options.critic);
-    const applied = applyCritiques(facts, draft, winner.plan, run.critiques);
+    const applied = applyCritiques(facts, draft, winner.plan, run.critiques, rules);
     criticRun = { ...run, suggestions: applied.suggestions };
     plan = applied.plan;
   }
-  return { facts, draft, groupIds, summaryRun, draftCandidate, candidates, winner, editRun, criticRun, plan, validation: validatePlan(facts, draft, plan) };
+  return { facts, draft, groupIds, summaryRun, draftCandidate, candidates, winner, editRun, criticRun, plan, validation: validatePlan(facts, draft, plan), rules };
 }

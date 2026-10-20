@@ -39,6 +39,13 @@ const header = (results: readonly BenchResult[]) => `# ac bench results
   edges that point backwards in the partition's own DAG order.
 - Louvain rows are the mean of seeds 1 to 5. **Bold**: the best deterministic method (baselines and the seeds draft)
   and the planner.
+${results.some((result) => result.planner?.rules !== undefined) ? plannerRulesNote : ''}`;
+
+/** Said once results record the planner rules (S8 on). */
+const plannerRulesNote = `- Planner rules (src/planner/types.ts) say how the planner reads Nemotron's answers and ranks its edits. Rules 2 (S8)
+  read a move that names its file by the id the prompt showed, or its target by a draft group's id or key, and never
+  rank a plan without feature modules first while another candidate has one. Rules 1 (S5 to S7) dropped such moves.
+  A replay uses the rules its profile pins for its recording; each entry says which it used.
 `;
 
 function row(score: MethodScore, bold: boolean): string {
@@ -54,6 +61,19 @@ function row(score: MethodScore, bold: boolean): string {
     Number.isInteger(score.backEdges) ? String(score.backEdges) : score.backEdges.toFixed(1),
   ];
   return `| ${cells.map((cell) => (bold && cell !== dash ? `**${cell}**` : cell)).join(' | ')} |`;
+}
+
+/** Where the planner's answers came from: the cassette, this run's calls, or both (a run in auto mode records only the misses). */
+function plannerSpend(planner: NonNullable<BenchResult['planner']>): string {
+  const cassette = code(planner.cassette);
+  const recordedCost = `$${planner.recordedCostUsd.toFixed(4)}`;
+  const { calls } = planner;
+  if (!calls) return planner.replayed ? `replayed from ${cassette} (recorded cost ${recordedCost}, this run spent $0)` : `recorded into ${cassette} for $${planner.spentUsd.toFixed(4)}`;
+  const total = calls.replayed + calls.recorded;
+  const callCount = `${total} ${total === 1 ? 'call' : 'calls'}`;
+  if (!calls.recorded) return `replayed from ${cassette} (${callCount}, recorded cost ${recordedCost}, this run spent $0)`;
+  if (!calls.replayed) return `recorded into ${cassette} (${callCount}) for $${planner.spentUsd.toFixed(4)}`;
+  return `${calls.replayed} of ${callCount} replayed from ${cassette} and ${calls.recorded} recorded into it for $${planner.spentUsd.toFixed(4)} (the plan's calls cost ${recordedCost} when recorded)`;
 }
 
 function entrySection(result: BenchResult): string {
@@ -77,9 +97,9 @@ function entrySection(result: BenchResult): string {
   }
   if (result.planner) {
     const { planner } = result;
-    const spend = planner.replayed ? `replayed from ${code(planner.cassette)} (recorded cost $${planner.recordedCostUsd.toFixed(4)}, this run spent $0)` : `recorded into ${code(planner.cassette)} for $${planner.spentUsd.toFixed(4)}`;
     const groups = `${planner.groups} groups${planner.modules === undefined ? '' : ` (${planner.modules} modules)`}${result.draft ? `, from the ${result.draft.method}` : ''}`;
-    lines.push(`- Planner: ${spend}; ${groups}; plan.yaml sha256 ${code(short(planner.planSha256))}.`);
+    const rules = planner.rules === undefined ? '' : `; planner rules ${planner.rules}`;
+    lines.push(`- Planner: ${plannerSpend(planner)}; ${groups}${rules}; plan.yaml sha256 ${code(short(planner.planSha256))}.`);
   } else {
     lines.push('- Planner: no row (see the notes).');
   }
