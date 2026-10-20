@@ -377,7 +377,7 @@ const globalDiagnosticLine = /^(?:error|warning) (TS\d+): (.*)$/;
 
 /**
  * Diagnostics of `tsc --pretty false` output. Positions are dropped: specifier edits shift columns on their line,
- * and line numbers can't change under K2, so a diagnostic is file + code + message. Messages lose the worktree
+ * and K2's layout class (S3) moves lines, so a diagnostic is file + code + message. Messages lose the worktree
  * root and say `{artifacts}` for the run directory (`artifacts`), which differs between runs.
  */
 export function parseTscDiagnostics(output: string, cwd: string, root: string, artifacts?: string): Diagnostic[] {

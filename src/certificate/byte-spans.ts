@@ -7,16 +7,21 @@
 // K2 and K3 alike. A `vi` or `jest` imported from another package is the runner's only when the environment proves
 // that package re-exports it (genuine-loaders.ts). Unmoved files may not reach a moved file through a loader call the
 // extractor can't read, nor through an import in a file it doesn't read at all (a .vue component importing `@/services/user`).
+// One more class of change is accepted (plan §2.3 S3): a source file whose bytes outside the spans differ in layout
+// only (layout.ts: equal tokens and syntax trees, no directive near a changed line break), unless a source map maps its
+// lines or a coverage gate measures its line totals. Each such file is a finding; without one the result is as before.
 import path from 'node:path';
 import ts from 'typescript';
 import { isSourceFile } from '../analyzer/analyze.js';
+import { coverageGates } from '../analyzer/coverage-settings.js';
 import { scriptKindOf } from '../analyzer/reference-sites.js';
 import type { ReferenceSite } from '../analyzer/types.js';
 import { unwrapExpression } from './path-expressions.js';
 import type { CommitTree } from './git-tree.js';
 import { genuineReExports } from './genuine-loaders.js';
+import { compareLayout, specifierPlaceholder } from './layout.js';
 import type { SpanView } from './spans.js';
-import { type Check, type CertifyContext, result, type Violation } from './types.js';
+import { type Check, type CertifyContext, type Finding, result, type Violation } from './types.js';
 
 const title = 'Byte-span confinement';
 const unsafeSpan = /['"`\\\r\n\u2028\u2029]|\$\{/;
@@ -241,12 +246,34 @@ function unreadComponentImports(context: CertifyContext): Violation[] {
   return violations;
 }
 
-export function checkByteSpans(context: CertifyContext): { violations: Violation[]; metrics: Record<string, number> } {
+// Configs whose coverage settings a gate can measure (analyzer/coverage-settings.ts decides whether one does).
+const coverageConfig = /(^|\/)(package\.json|(jest|vitest|vite)([.-][^/]*)?\.(config|workspace)([.-][^/]*)?\.[cm]?[jt]s|jest([.-][^/]*)?\.json|\.nycrc(\.(json|ya?ml))?|\.c8rc(\.json)?)$/;
+
+/** Where a coverage gate over a head file is (a threshold, a CLI flag), from the configs in its directory and above. */
+function coverageGateOver(context: CertifyContext): (file: string) => string | null {
+  let gate: ((config: string) => string | null) | undefined;
+  const configs = [...context.head.entries.keys()].filter((file) => coverageConfig.test(file) && !file.split('/').includes('node_modules')).sort();
+  return (file) => {
+    gate ??= coverageGates(context.fs.head);
+    for (const config of configs) {
+      const directory = path.posix.dirname(config);
+      if (directory !== '.' && !file.startsWith(`${directory}/`)) continue;
+      const where = gate(config);
+      if (where) return `${where} (over ${config})`;
+    }
+    return null;
+  };
+}
+
+export function checkByteSpans(context: CertifyContext): { violations: Violation[]; metrics: Record<string, number>; findings: Finding[] } {
   const { base, head, pathMap, views } = context;
   const violations: Violation[] = [];
+  const findings: Finding[] = [];
   let compared = 0;
   let changedSpans = 0;
   let editedFiles = 0;
+  let layoutOnlyFiles = 0;
+  const gateOver = coverageGateOver(context);
   const reExports = genuineReExports(context.environment.checkout, reExportable);
   const loaderCheck = (file: string, view: SpanView | undefined) => {
     const text = view?.source ? head.text(file) : undefined;
@@ -283,8 +310,28 @@ export function checkByteSpans(context: CertifyContext): { violations: Violation
     }
     const differentChunk = before.chunks.findIndex((chunk, index) => chunk !== after.chunks[index]);
     if (differentChunk !== -1) {
-      violations.push({ file: to, detail: `bytes outside specifier spans changed, ${firstDifference(before, after)}` });
-      continue;
+      const layout = compareLayout(to, before.chunks.join(specifierPlaceholder), after.chunks.join(specifierPlaceholder));
+      if (!layout.layoutOnly) {
+        violations.push({ file: to, detail: `bytes outside specifier spans changed, ${firstDifference(before, after)}; not layout only: ${layout.problem}` });
+        continue;
+      }
+      if (head.entries.has(`${to}.map`)) {
+        violations.push({ file: to, detail: `layout only, but ${to}.map maps its lines and columns` });
+        continue;
+      }
+      const gate = layout.changedBreaks ? gateOver(to) : null;
+      if (gate) {
+        violations.push({ file: to, detail: `layout only, but its line breaks changed and a coverage gate measures its line totals: ${gate}` });
+        continue;
+      }
+      layoutOnlyFiles++;
+      findings.push({
+        kind: 'layout-only',
+        file: to,
+        detail: layout.changedBreaks
+          ? `layout only: line breaks changed in ${layout.changedBreaks} places from line ${layout.firstLine}, ${layout.lineDelta >= 0 ? '+' : ''}${layout.lineDelta} lines; stack traces name its later lines by their new numbers`
+          : 'layout only: spaces between tokens or a trailing comma changed, no line break',
+      });
     }
     let edited = false;
     before.sites.forEach((site, index) => {
@@ -300,17 +347,19 @@ export function checkByteSpans(context: CertifyContext): { violations: Violation
   }
   violations.push(...unreadLoadersOfMovedFiles(context, unchanged));
   violations.push(...unreadComponentImports(context));
-  return { violations, metrics: { comparedFiles: compared, editedFiles, changedSpans } };
+  // The layout-only count only when there is one: a result without one is byte for byte what it was before S3.
+  return { violations, metrics: { comparedFiles: compared, editedFiles, changedSpans, ...(layoutOnlyFiles ? { layoutOnlyFiles } : {}) }, findings };
 }
 
 export const byteSpanConfinement: Check = {
   id: 'K2',
   title,
   run(context) {
-    const { violations, metrics } = checkByteSpans(context);
+    const { violations, metrics, findings } = checkByteSpans(context);
+    const layout = metrics.layoutOnlyFiles ? `; ${metrics.layoutOnlyFiles} files changed in layout only (equal tokens and syntax trees)` : '';
     const summary = violations.length
       ? `${violations.length} violations: bytes outside specifier spans, or loader calls whose spans can't be checked`
-      : `${metrics.changedSpans} specifier spans changed in ${metrics.editedFiles} files; every other byte identical`;
-    return result('K2', title, { summary, violations, metrics });
+      : `${metrics.changedSpans} specifier spans changed in ${metrics.editedFiles} files${layout}; every other byte identical`;
+    return result('K2', title, { summary, violations, metrics, findings });
   },
 };

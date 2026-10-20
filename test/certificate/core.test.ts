@@ -405,7 +405,7 @@ describe('K2 byte-span confinement', () => {
     ].join('\n');
     const config = 'export const config = 1;\n';
     const moved = withContext({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/modules/user/user.ts': user('../../config'), 'src/config.ts': config }, checkByteSpans);
-    expect(moved).toEqual({ violations: [], metrics: { comparedFiles: 1, editedFiles: 1, changedSpans: 8 } });
+    expect(moved).toEqual({ violations: [], metrics: { comparedFiles: 1, editedFiles: 1, changedSpans: 8 }, findings: [] });
     expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/services/user.ts': user('../lib/config'), 'src/lib/config.ts': config })).toEqual([]);
     // Bytes outside the spans still may not change: the wrappers are part of the file, not of the specifier.
     expect(violations({ 'src/services/user.ts': user('../config'), 'src/config.ts': config }, { 'src/services/user.ts': user('../lib/config').replace('(require as any)', 'require'), 'src/lib/config.ts': config }))
