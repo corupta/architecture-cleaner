@@ -26,7 +26,7 @@ function scrambleVerdicts(results: readonly BenchResult[]): string {
   return ` Our certifier checks that commit as a pure move: ${parts.join('; ')}. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.`;
 }
 
-const header = (results: readonly BenchResult[]) => `# ac bench results
+const header = (results: readonly BenchResult[], rulesStated: boolean) => `# ac bench results
 
 \`ac bench\` writes one JSON file per entry next to this summary (format \`ac-bench/1\`, src/bench/types.ts).
 
@@ -39,14 +39,18 @@ const header = (results: readonly BenchResult[]) => `# ac bench results
   edges that point backwards in the partition's own DAG order.
 - Louvain rows are the mean of seeds 1 to 5. **Bold**: the best deterministic method (baselines and the seeds draft)
   and the planner.
-${results.some((result) => result.planner?.rules !== undefined) ? plannerRulesNote : ''}`;
+${rulesStated ? plannerRulesNote : ''}`;
 
-/** Said once results record the planner rules (S8 on). */
+/**
+ * Said once a result records its planner rules (S8 on). From then on every entry with a planner row states its rules,
+ * a result from before S8 included (entrySection), so the note's last sentence holds for any mix of results.
+ */
 const plannerRulesNote = `- Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron's answers and ranks its
   edits. Rules 2 (S8) read a move that names its file by the id the prompt showed, or its target by a draft group's id
-  or key, never rank a plan without feature modules first while another candidate has one, and leave a Kysely common
-  table expression's alias out of the facts' tables (no scramble entry has one). Rules 1 (S5 to S7) dropped such moves.
-  A replay uses the rules its profile pins for its recording; each entry says which it used.
+  or key, never rank a plan without feature modules first while another candidate has one, and leave out of the facts'
+  tables a Kysely common table expression's alias and any query call in a comment or a string. Rules 1 (S5 to S7)
+  dropped such moves. A replay uses the rules its profile pins for its recording; each entry with a planner row says
+  which it used.
 `;
 
 function row(score: MethodScore, bold: boolean): string {
@@ -77,7 +81,7 @@ function plannerSpend(planner: NonNullable<BenchResult['planner']>): string {
   return `${calls.replayed} of ${callCount} replayed from ${cassette} and ${calls.recorded} recorded into it for $${planner.spentUsd.toFixed(4)} (the plan's calls cost ${recordedCost} when recorded)`;
 }
 
-function entrySection(result: BenchResult): string {
+function entrySection(result: BenchResult, rulesStated: boolean): string {
   const lines = [`## ${result.entry} (${result.kind}${result.kind === 'scramble' ? `, ${result.variant}` : ''})`, ''];
   const where = [result.packageRoot, result.moduleRoot].filter(Boolean).join('/') || '.';
   lines.push(`- Target: ${code(result.repo)} ${code(where)} @ ${code(short(result.sha))}.`);
@@ -99,7 +103,8 @@ function entrySection(result: BenchResult): string {
   if (result.planner) {
     const { planner } = result;
     const groups = `${planner.groups} groups${planner.modules === undefined ? '' : ` (${planner.modules} modules)`}${result.draft ? `, from the ${result.draft.method}` : ''}`;
-    const rules = planner.rules === undefined ? '' : `; planner rules ${planner.rules}`;
+    // A result written before S8 has no rules field: it used rules 1, said once the header explains rules.
+    const rules = planner.rules !== undefined ? `; planner rules ${planner.rules}` : rulesStated ? "; planner rules 1 (from before S8, which didn't record them)" : '';
     lines.push(`- Planner: ${plannerSpend(planner)}; ${groups}${rules}; plan.yaml sha256 ${code(short(planner.planSha256))}.`);
   } else {
     lines.push('- Planner: no row (see the notes).');
@@ -115,6 +120,7 @@ function entrySection(result: BenchResult): string {
 }
 
 export function benchSummary(results: readonly BenchResult[]): string {
-  if (!results.length) return `${header(results)}\nNo results recorded yet.\n`;
-  return `${header(results)}\n${results.map(entrySection).join('\n\n')}\n`;
+  const rulesStated = results.some((result) => result.planner?.rules !== undefined);
+  if (!results.length) return `${header(results, rulesStated)}\nNo results recorded yet.\n`;
+  return `${header(results, rulesStated)}\n${results.map((result) => entrySection(result, rulesStated)).join('\n\n')}\n`;
 }

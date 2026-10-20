@@ -132,7 +132,7 @@ export function buildFacts(repo: RepoFs, options: BuildFactsOptions): Facts {
       loc: text.split('\n').length,
       exports: result?.exports ?? [],
       primaryExport: result?.primaryExport ?? null,
-      tables: scanTables(text, options.rules),
+      tables: scanTables(text, options.rules, file),
       routes: sourceFile ? scanRoutes(sourceFile) : [],
       tests: (testsOf.get(file) ?? []).sort(),
     };

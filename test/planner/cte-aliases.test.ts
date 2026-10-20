@@ -19,6 +19,8 @@ import { planRepo } from '../../src/planner/plan.js';
 /** A Kysely-style file: `body` is the method bodies of a repository class over an untyped `db`. */
 const repository = (...body: string[]) => ['declare const db: any;', 'export class Repository {', ...body.map((line) => `  ${line}`), '}', ''].join('\n');
 const scanned = (text: string) => ({ rules1: scanTables(text, 1), rules2: scanTables(text, 2) });
+/** JSX text holding backticks and a call's shape around a real query: parsed as TS, the backticks would make a template. */
+const view = "declare const db: any;\nexport const View = () => <p>Press ` to open</p>;\nexport const load = () => db.selectFrom('album').execute();\nexport const Help = () => <p>or ` again, selectFrom('draft')</p>;\n";
 
 describe('scanTables: Kysely common table expressions', () => {
   it('a plain alias read is no table under rules 2, a table under rules 1', () => {
@@ -91,6 +93,62 @@ describe('scanTables: Kysely common table expressions', () => {
     expect(scanned(text)).toEqual({ rules1: { reads: ['asset', 'cte'], writes: [] }, rules2: { reads: ['asset', 'cte'], writes: [] } });
   });
 
+  it("a with that isn't on a Kysely query declares nothing: ts-pattern's handlers read real tables (review P1)", () => {
+    const text = repository(
+      "byKind(kind: string) { return match(kind).with('album', () => db.selectFrom('asset').selectAll().execute()).with('asset', () => db.selectFrom('album').selectAll().execute()).exhaustive(); }",
+      "joined(kind: string) { return match(kind).with('user', () => 1).with('other', () => db.selectFrom('asset').innerJoin('user', 'user.id', 'asset.ownerId').execute()).otherwise(() => 0); }",
+    );
+    expect(scanned(text)).toEqual({ rules1: { reads: ['album', 'asset', 'user'], writes: [] }, rules2: { reads: ['album', 'asset', 'user'], writes: [] } });
+  });
+
+  it("a later declaration's name is the table inside an earlier one's body, unless the list is recursive (review P2)", () => {
+    const earlier = repository(
+      "recent() { return db.with('recent', (qb) => qb.selectFrom('asset').select('id')).with('asset', (qb) => qb.selectFrom('recent').select('id')).selectFrom('asset').selectAll().execute(); }",
+    );
+    expect(scanned(earlier)).toEqual({ rules1: { reads: ['asset', 'recent'], writes: [] }, rules2: { reads: ['asset'], writes: [] } });
+    const joined = repository(
+      "faces() { return db.with('recent', (qb) => qb.selectFrom('person').innerJoin('asset', 'asset.id', 'person.assetId')).with('asset', (qb) => qb.selectFrom('recent')).selectFrom('asset').selectAll().execute(); }",
+    );
+    expect(scanned(joined).rules2).toEqual({ reads: ['asset', 'person'], writes: [] });
+    // Control: declared first, the alias is what a later body reads.
+    const reversed = repository(
+      "faces() { return db.with('asset', (qb) => qb.selectFrom('person')).with('recent', (qb) => qb.selectFrom('asset')).selectFrom('recent').selectAll().execute(); }",
+    );
+    expect(scanned(reversed).rules2).toEqual({ reads: ['person'], writes: [] });
+    // Kysely: the first call decides whether the whole list is recursive; in a recursive list every name is visible.
+    const recursiveFirst = repository("tree() { return db.withRecursive('a', (qb) => qb.selectFrom('b')).with('b', (qb) => qb.selectFrom('tag')).selectFrom('a').selectAll().execute(); }");
+    expect(scanned(recursiveFirst).rules2).toEqual({ reads: ['tag'], writes: [] });
+    const recursiveLater = repository("tree() { return db.with('a', (qb) => qb.selectFrom('b')).withRecursive('b', (qb) => qb.selectFrom('tag')).selectFrom('a').selectAll().execute(); }");
+    expect(scanned(recursiveLater).rules2).toEqual({ reads: ['b', 'tag'], writes: [] });
+  });
+
+  it('rules 2 count no match in a comment, a string or a template text; rules 1 count them all (review P3)', () => {
+    const query = "export const q = (db: any) => db.with('cte', (qb: any) => qb.selectFrom('asset').select('id')).selectFrom('cte').selectAll().execute();";
+    const mentions = [
+      "// db.selectFrom('cte') is how we used to read it",
+      "/* db.selectFrom('cte') */",
+      "export const doc = \"db.selectFrom('cte')\";",
+      "export const snippet = `db.selectFrom('cte')`;",
+      "// .innerJoin('cte', 'cte.id', 'x.id')",
+      '/** @example db.selectFrom(\'cte\') */',
+    ];
+    for (const mention of mentions) expect(scanned(`${mention}\n${query}\n`), mention).toEqual({ rules1: { reads: ['asset', 'cte'], writes: [] }, rules2: { reads: ['asset'], writes: [] } });
+    // Every shape: a commented-out Kysely write, Prisma call or Drizzle call is no table under rules 2.
+    const commented = [
+      "// db.insertInto('audit')",
+      "declare const prisma: any;\n// prisma.team.findMany()\nexport const drop = () => prisma.member.delete({});",
+      "declare const db: any;\ndeclare const taskTable: unknown;\nexport const tasks = () => db.select().from(taskTable); // db.delete(userTable)",
+    ].join('\n');
+    expect(scanned(commented)).toEqual({ rules1: { reads: ['task', 'team'], writes: ['audit', 'member', 'user'] }, rules2: { reads: ['task'], writes: ['member'] } });
+    // A call inside a template's substitution is code.
+    expect(scanTables("declare const db: any;\nexport const s = `${db.selectFrom('album')}`;\n", 2).reads).toEqual(['album']);
+  });
+
+  it("parses a .tsx file as TSX: a backtick in JSX text starts no template that hides a call", () => {
+    expect(scanTables(view, 2, 'src/views/album.view.tsx')).toEqual({ reads: ['album'], writes: [] });
+    expect(scanTables(view, 1, 'src/views/album.view.tsx')).toEqual({ reads: ['album', 'draft'], writes: [] });
+  });
+
   it('a file without with() and the Prisma and Drizzle shapes scan the same under both rules', () => {
     const texts = [
       repository("find() { return db.selectFrom('album').innerJoin('album_asset', 'a', 'b'); }", "add() { return db.insertInto('album_asset'); }"),
@@ -112,6 +170,7 @@ const sources: Record<string, string> = {
     "recent() { return db.with('recent', (qb) => qb.selectFrom('album').selectAll()).selectFrom('recent').innerJoin('album_asset', 'a', 'b').selectAll().execute(); }",
     "add() { return db.insertInto('album_asset'); }",
   ),
+  'server/src/views/album.view.tsx': view,
 };
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-cte-aliases-'));
@@ -132,6 +191,8 @@ describe('the planner rules decide the facts', () => {
   it('buildFacts scans under the rules it is given', () => {
     expect(tablesUnder(1)).toEqual({ reads: ['album', 'album_asset', 'recent'], writes: ['album_asset'] });
     expect(tablesUnder(2)).toEqual({ reads: ['album', 'album_asset'], writes: ['album_asset'] });
+    // buildFacts hands the scan the file's name, so a .tsx file is parsed as TSX.
+    expect(buildFacts(gitRepoFs(repoRoot), { packageRoot: 'server', moduleRoot: 'src', rules: 2 }).files.find((file) => file.path === 'src/views/album.view.tsx')?.tables).toEqual({ reads: ['album'], writes: [] });
   });
 
   it("planRepo reads the facts under its edit settings' rules: the edit prompt shows what they scanned", async () => {

@@ -73,4 +73,20 @@ describe('bench summary', () => {
     expect(planner({ replayed: 0, recorded: 2 }, 0.1683)).toContain('- Planner: recorded into `cassettes/s6-immich.jsonl` (2 calls) for $0.1683; 59 groups;');
     expect(planner({ replayed: 2, recorded: 0 }, 0)).toContain('- Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron\'s answers and ranks its\n');
   });
+
+  it('once the header explains planner rules, every entry with a planner row states its own, a result from before S8 included (review P4)', () => {
+    // `ac bench --only immich` into a results directory that still holds S7's kaneo.json: the summary reads both.
+    const s7 = scramble('kaneo', certificate('fail', ['K3c', 'K4']));
+    const s8 = { ...real, planner: { ...real.planner!, calls: { replayed: 2, recorded: 0 }, rules: 1 } };
+    const noRow = scramble('ghostfolio', certificate('pass'), { planner: null });
+    const summary = benchSummary([s7, noRow, s8]);
+    expect(summary).toContain('each entry with a planner row says\n  which it used.\n');
+    expect(summary).not.toContain('no scramble entry has one');
+    const plannerLines = summary.split('\n').filter((line) => line.startsWith('- Planner: '));
+    expect(plannerLines).toEqual([
+      "- Planner: replayed from `cassettes/s6-immich.jsonl` (recorded cost $0.1998, this run spent $0); 59 groups, from the seeds draft (file names); planner rules 1 (from before S8, which didn't record them); plan.yaml sha256 `b4c7c548883c`.",
+      '- Planner: no row (see the notes).',
+      '- Planner: replayed from `cassettes/s6-immich.jsonl` (2 calls, recorded cost $0.1998, this run spent $0); 59 groups; planner rules 1; plan.yaml sha256 `b4c7c548883c`.',
+    ]);
+  });
 });

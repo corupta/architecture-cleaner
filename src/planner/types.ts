@@ -82,8 +82,9 @@ export type GroupKind = 'module' | 'shared' | 'platform';
  *   ghostfolio's moves by id, and the validator dropped every one of them) and its target by a draft group's id or key
  *   (`G8`, `G8:custom-field`: kaneo's moves did), a name two files share names neither, a plan without feature
  *   modules never ranks first while another candidate has one (ghostfolio's 0-module plan won), and the facts leave
- *   out the reads of a Kysely common table expression's alias inside the query that declares it (immich's facts read
- *   10 such aliases as tables: src/planner/facts-scan.ts scanTables).
+ *   out the reads of a Kysely common table expression's alias where SQL sees the alias (immich's facts read 10 such
+ *   aliases as tables) and every query call shape in a comment, a string or a template's text
+ *   (src/planner/facts-scan.ts scanTables).
  */
 export const plannerRulesVersions = [1, 2] as const;
 

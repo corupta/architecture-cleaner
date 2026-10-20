@@ -6,6 +6,12 @@ import type { PlannerRules } from './types.js';
 /** The Kysely calls whose first argument scanTables reads as a table read. */
 const kyselyReads = new Set(['selectFrom', 'innerJoin', 'leftJoin', 'rightJoin', 'fullJoin']);
 
+/**
+ * The QueryCreator calls that start the query a `with` list belongs to. A `with` call is a common table expression
+ * only when one of them follows it in its chain: ts-pattern's `match(x).with('album', …).exhaustive()` has none.
+ */
+const kyselyQueryStarts = new Set(['selectFrom', 'selectNoFrom', 'insertInto', 'replaceInto', 'updateTable', 'deleteFrom', 'mergeInto']);
+
 /** The name a Kysely table literal starts with: `'asset as a'` → asset, `'tree(id, parent)'` → tree. */
 const leadingName = (literal: string) => /^\s*([\w.]+)/.exec(literal)?.[1];
 
@@ -43,26 +49,39 @@ function chainTop(node: ts.Node): ts.Node {
   }
 }
 
+/** The calls of the chain chainTop gave, first link first: `db.with(…).selectFrom(…).where(…)` → with, selectFrom, where. */
+function chainCalls(top: ts.Node): ts.CallExpression[] {
+  const calls: ts.CallExpression[] = [];
+  let current = top;
+  while (ts.isCallExpression(current) || ts.isPropertyAccessExpression(current) || ts.isNonNullExpression(current) || ts.isAwaitExpression(current)) {
+    if (ts.isCallExpression(current)) calls.unshift(current);
+    current = current.expression;
+  }
+  return calls;
+}
+
 /**
  * Where Kysely reads a common table expression, not a table: the offsets of the literals of `selectFrom('<alias>')`
- * and joins inside the query that declares `.with('<alias>', …)` or `.withRecursive('<alias>', …)` (the call chain
- * holding the declaration, nested callbacks included), except inside a non-recursive `with`'s own body, where the
- * name is still the table it may shadow (immich: `.with('asset', (db) => db.selectFrom('asset'))`). A query built
- * across statements isn't one chain: its later reads of the alias stay table reads.
+ * and joins that a `.with('<alias>', …)` or `.withRecursive('<alias>', …)` declaration is visible to. A declaration
+ * is one of the `with` calls before the query start of a Kysely chain (kyselyQueryStarts). As in SQL, the first call
+ * decides whether the whole list is recursive (Kysely's QueryCreator sets `recursive` only when it starts the list):
+ * - not recursive: the name applies after its declaration, in later declarations' bodies and in the query (nested
+ *   callbacks included), never in its own body or an earlier one's, where it is still the table it may shadow
+ *   (immich: `.with('asset', (db) => db.selectFrom('asset'))`);
+ * - recursive: the name applies in every declaration's body and in the query.
+ * A query built across statements isn't one chain: a `with` with no query start after it declares nothing, and later
+ * reads of its alias stay table reads.
  */
-function cteAliasReads(text: string): Set<number> {
+function cteAliasReads(sourceFile: ts.SourceFile): Set<number> {
   const offsets = new Set<number>();
-  if (!/\.\s*with(?:Recursive)?\s*\(/.test(text)) return offsets;
-  const sourceFile = ts.createSourceFile('scan.ts', text, ts.ScriptTarget.Latest, true);
-  const ctes: { name: string; query: ts.Node; body: ts.Node | undefined }[] = [];
+  const chains = new Set<ts.Node>();
   const reads: { name: string; literal: ts.Node }[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node)) {
       const method = calledName(node);
       const first = node.arguments[0];
       if (method === 'with' || method === 'withRecursive') {
-        const name = cteNameOf(first);
-        if (name) ctes.push({ name, query: chainTop(node), body: method === 'with' ? node.arguments[1] : undefined });
+        chains.add(chainTop(node));
       } else if (method && kyselyReads.has(method) && first && ts.isStringLiteralLike(first)) {
         const name = leadingName(first.text);
         if (name) reads.push({ name, literal: first });
@@ -71,40 +90,72 @@ function cteAliasReads(text: string): Set<number> {
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  const within = (node: ts.Node, outer: ts.Node | undefined) => outer !== undefined && node.getStart(sourceFile) >= outer.getStart(sourceFile) && node.getEnd() <= outer.getEnd();
+  const scopes: { name: string; start: number; end: number }[] = [];
+  for (const top of chains) {
+    const calls = chainCalls(top);
+    const queryStart = calls.findIndex((call) => kyselyQueryStarts.has(calledName(call) ?? ''));
+    const declarations = calls.slice(0, Math.max(queryStart, 0)).filter((call) => calledName(call) === 'with' || calledName(call) === 'withRecursive');
+    const recursive = declarations[0] !== undefined && calledName(declarations[0]) === 'withRecursive';
+    for (const declaration of declarations) {
+      const name = cteNameOf(declaration.arguments[0]);
+      if (name) scopes.push({ name, start: recursive ? declarations[0]!.arguments.pos : declaration.getEnd(), end: top.getEnd() });
+    }
+  }
   for (const read of reads) {
-    if (ctes.some((cte) => cte.name === read.name && within(read.literal, cte.query) && !within(read.literal, cte.body))) offsets.add(read.literal.getStart(sourceFile));
+    const start = read.literal.getStart(sourceFile);
+    if (scopes.some((scope) => scope.name === read.name && start >= scope.start && read.literal.getEnd() <= scope.end)) offsets.add(start);
   }
   return offsets;
 }
 
+/** Where the AST has an identifier: a regex match that starts anywhere else is in a comment, a string or a template's text. */
+function identifierStarts(sourceFile: ts.SourceFile): Set<number> {
+  const starts = new Set<number>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node)) starts.add(node.getStart(sourceFile));
+    else ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return starts;
+}
+
 /**
- * Table names a file reads and writes, from query call shapes, sorted. Planner rules 1 read every Kysely
- * `selectFrom`/join literal as a table; rules 2 leave out the reads of a common table expression's alias
- * (cteAliasReads). The Prisma and Drizzle shapes are the same under both.
+ * Table names a file reads and writes, from query call shapes, sorted. Planner rules 1 count every match of the
+ * shapes' regexes on the raw text as a table. Rules 2 count a match only where the AST has the call's name, so not
+ * in a comment, a string or a template's text, and leave out the reads of a common table expression's alias
+ * (cteAliasReads). `fileName` picks the parser's script kind (`.tsx`, `.js`).
  */
-export function scanTables(text: string, rules: PlannerRules): { reads: string[]; writes: string[] } {
+export function scanTables(text: string, rules: PlannerRules, fileName = 'scan.ts'): { reads: string[]; writes: string[] } {
   const reads = new Set<string>();
   const writes = new Set<string>();
-  const aliasReads = rules === 1 ? new Set<number>() : cteAliasReads(text);
+  let code: { identifiers: Set<number>; aliasReads: Set<number> } | undefined;
+  const codeOf = () => {
+    if (!code) {
+      const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true);
+      code = { identifiers: identifierStarts(sourceFile), aliasReads: cteAliasReads(sourceFile) };
+    }
+    return code;
+  };
+  /** Whether a match counts: its call's name at `nameAt` is code, and (a Kysely read) its literal at `readAt` reads no alias. */
+  const counts = (nameAt: number, readAt?: number) => rules === 1 || (codeOf().identifiers.has(nameAt) && (readAt === undefined || !codeOf().aliasReads.has(readAt)));
   // Where a match's literal starts (its opening quote): the regexes end on the name, right after that quote.
   const literalAt = (match: RegExpMatchArray, name: string) => match.index! + match[0].length - name.length - 1;
   // Kysely (immich): selectFrom('album'), insertInto('asset'), updateTable(...), deleteFrom(...), joins read.
   for (const match of text.matchAll(/\b(selectFrom|insertInto|updateTable|deleteFrom|replaceInto|mergeInto)\(\s*['"`]([\w.]+)/g)) {
-    if (match[1] === 'selectFrom' && aliasReads.has(literalAt(match, match[2]!))) continue;
-    (match[1] === 'selectFrom' ? reads : writes).add(match[2]!);
+    const read = match[1] === 'selectFrom';
+    if (counts(match.index!, read ? literalAt(match, match[2]!) : undefined)) (read ? reads : writes).add(match[2]!);
   }
   for (const match of text.matchAll(/\b(?:innerJoin|leftJoin|rightJoin|fullJoin)\(\s*['"`]([\w.]+)/g)) {
-    if (!aliasReads.has(literalAt(match, match[1]!))) reads.add(match[1]!);
+    if (counts(match.index!, literalAt(match, match[1]!))) reads.add(match[1]!);
   }
   // Prisma (hoppscotch, ghostfolio): prisma.team.findMany(...); `prisma.$transaction` is not a table.
   for (const match of text.matchAll(/\bprisma(?:Service)?\.(\w+)\.(\w+)\(/g)) {
-    if (match[1]!.startsWith('$')) continue;
+    if (match[1]!.startsWith('$') || !counts(match.index!)) continue;
     (/^(find|count|aggregate|groupBy)/.test(match[2]!) ? reads : writes).add(match[1]!);
   }
   // Drizzle (kaneo): db.select().from(taskTable), db.insert(taskTable), db.update(taskTable), db.delete(taskTable).
   for (const match of text.matchAll(/\.(from|innerJoin|leftJoin|insert|update|delete)\(\s*(\w+Table)\b/g)) {
-    (match[1] === 'from' || match[1] === 'innerJoin' || match[1] === 'leftJoin' ? reads : writes).add(match[2]!.replace(/Table$/, ''));
+    if (counts(match.index! + 1)) (match[1] === 'from' || match[1] === 'innerJoin' || match[1] === 'leftJoin' ? reads : writes).add(match[2]!.replace(/Table$/, ''));
   }
   return { reads: [...reads].sort(), writes: [...writes].sort() };
 }
