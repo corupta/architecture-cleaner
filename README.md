@@ -17,13 +17,14 @@ Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineerin
 - **The moves.** An executor built on the TypeScript compiler API moves the files and rewrites only the import
   specifiers that point at them. Every other byte stays identical. No model writes code.
 - **The ladder.** R0 preflight and a baseline of the target's own tests. R1 moves one feature module per commit. R2
-  moves platform code and `shared/`. R3 normalizes file names. R4 adds dependency-cruiser boundary rules with a frozen
-  baseline of today's violations.
+  moves platform code and `shared/`. R3 normalizes file names. An optional S3 re-wraps the import lines the moves
+  made too long for the target's prettier. R4 adds dependency-cruiser boundary rules with a frozen baseline of today's
+  violations.
 - **The certificate.** `ac certify` is a separate program that never imports the executor, and it certifies any
   diff: ours, an agent's, a human's. It reads the two git trees and checks, among other things:
   - K0: the support envelope;
   - K1: that the move set is complete;
-  - K2: that only specifier bytes changed;
+  - K2: that only specifier bytes changed, or the layout only (equal tokens and syntax trees);
   - K3: that every import resolves to the same file under TypeScript, the test runner and the runtime;
   - K4: that no path string, config or CI file still names an old path;
   - K6: that the test inventory is the same, file by file;
@@ -65,7 +66,10 @@ npx ac demo --replay    # --replay is the default
 ```
 
 You need Node ≥ 22.12, git, and network access for npm and for one shallow fetch of immich at the pinned commit
-(`02063972e8`). The demo writes `./ac-demo/`, and its summary goes to `ac-demo/demo.md`.
+(`02063972e8`). The demo works in `/tmp/ac-demo/` (your system's temporary directory) and ends by printing where its
+summary is: `/tmp/ac-demo/demo.md`. It doesn't use `./ac-demo` inside this clone, because the clone's `node_modules`
+and `package.json` are above it: TypeScript and Node look both up from every tree the certifier checks, so a
+certificate made there would depend on them. The certifier refuses such a directory, and so does the demo's `--work`.
 
 What the replay does, and what it proves:
 1. **It replays the plan.** The planner's deterministic code runs again on a fresh clone of immich. Nemotron's two
@@ -80,8 +84,9 @@ What the replay does, and what it proves:
    status. K3b, K3c and K6 skip, and the demo reports them as not compared. So are the checks' content and the
    digests: those are compared only in the recorded environment (`--env`, below).
 5. **It replays the findings narration** from the cassette and compares the findings log with the committed one.
-   There is one allowed difference, and the demo says so: the committed log records that its narration was live, and
-   the replay records that it was replayed.
+   The committed log was itself regenerated from that cassette in S8 (when the renderer started counting
+   narrations the model never returned apart from ones the guard dropped), so the two match byte for byte. A log
+   narrated live differs from its replay in one flag, `replayed`; the demo allows that one difference and says so.
 
 The command exits 0 when everything it compared matches the recorded run, and 1 otherwise, listing each difference.
 Its summary also lists what it did not compare.
@@ -120,16 +125,17 @@ corepack pnpm --filter @immich/sdk --filter @immich/plugin-sdk build
 cd -
 ```
 
-Then, from this repository, with a work dir outside it. TypeScript's `@types` lookup and Node's module resolution
-walk up from the checkout, so under this clone's own `node_modules` K3a, K3c and K7 see more than the recording did.
-The demo checks for that: below a `node_modules` it compares only the statuses, and says so.
+Then, from this repository. With `--env`, each check's content and each certificate's digest are compared with the
+recording, byte for byte. No `--work` is needed: the work dir is `/tmp/ac-demo`, as above. If the immich checkout
+has a `node_modules` above it (`~/node_modules`, say), the demo says so in its summary: an import inside an installed
+package that immich's own install doesn't satisfy is then looked up there.
 
 | Command | What it adds | Cost |
 |---|---|---|
-| `npx ac demo --replay --env ~/immich --work /tmp/ac-demo` | K3b, K3c and K6 on the sample: every check runs, so each certificate's digest must equal the recorded one. A check that still skips (an environment without node_modules) is a difference. | $0 |
-| `npx ac demo --replay --env ~/immich --oracles --work /tmp/ac-demo` | the whole PR certified with the oracles (tsc, the unit suite, the OpenAPI spec on base and head), its digest compared with `runs/immich-ladder/certificate.json`. K8 skipping (a missing SDK build) is a difference. | $0 |
-| `npx ac demo --full --env ~/immich --work /tmp/ac-demo` | `ac run` end to end on the replayed plan: baseline, 63 certified commits, rung and whole-PR certificates, findings. 1 h 55 m on a quiet machine (S6). | $0 |
-| `NEBIUS_API_KEY=… npx ac demo --live` | a new plan from Nemotron (Ultra edit and critic) on **your** Token Factory key, then its steps executed and a sample certified. The key is read from the environment only, never from a `.env` file, so setting it is the opt-in, and the demo refuses to run without it. It keeps its own ledger and cassette in `ac-demo/`, capped at $1. | about $0.20 on your key |
+| `npx ac demo --replay --env ~/immich` | K3b, K3c and K6 on the sample: every check runs, so each certificate's digest must equal the recorded one. A check that still skips (an environment without node_modules) is a difference. | $0 |
+| `npx ac demo --replay --env ~/immich --oracles` | the whole PR certified with the oracles (tsc, the unit suite, the OpenAPI spec on base and head), its digest compared with `runs/immich-ladder/certificate.json`. K8 skipping (a missing SDK build) is a difference. | $0 |
+| `npx ac demo --full --env ~/immich` | `ac run` end to end on the replayed plan: baseline, 63 certified commits, rung and whole-PR certificates, findings. 1 h 55 m on a quiet machine (S6). | $0 |
+| `NEBIUS_API_KEY=… npx ac demo --live` | a new plan from Nemotron (Ultra edit and critic) on **your** Token Factory key, then its steps executed and a sample certified. The key is read from the environment only, never from a `.env` file, so setting it is the opt-in, and the demo refuses to run without it. It keeps its own ledger and cassette in its work dir (`/tmp/ac-demo/`), capped at $1. | about $0.20 on your key |
 
 On 2026-10-17 we ran `--env --oracles` on our machine. All 62 trees and the R4 tree matched. The three sample
 certificates (steps 1, 4 and 60) and the whole-PR certificate came out with **the recorded digests, byte for byte**:
@@ -179,26 +185,60 @@ of its arms fail certification.
 certificate fails K3a, K3b and K3c on that import, the attempt is rolled back, the file it names (`album.dto.ts`) is
 pinned, and the step is replanned and passes. The R1 rung certificate (3 steps, with the oracles) passes. 13 m 37 s.
 
+## Re-wrapping the import lines the moves lengthened (stretch S3)
+
+A move can push an import past the target's prettier `printWidth`. On immich, 20 server files that pass
+`prettier --check` at base fail it at the head of the recorded ladder: 22 imports grew longer than 120 columns.
+`ac rewrap <repo> <base>..<head> --env <checkout>` re-wraps those declarations in one commit on a new branch. It runs
+the target's own prettier with each file's own config, and only on declarations whose specifier the moves changed,
+whose formatting at base was already prettier's, and that have no directive comment such as `@ts-expect-error` next
+to them. Every other byte stays the same.
+
+K2 certifies such a commit as layout only: the two files' tokens (comments included) and syntax trees are equal.
+The one allowed difference is a trailing comma in an import or export list (immich's `trailingComma: "all"`). A line
+break that changes semicolon insertion, a space inside a string, template or JSX text, a line break moved past a
+directive, or an edited comment fails K2. The mutation harness's layout operators (M34–M38) make exactly those
+changes: 101 mutants on the fixtures and synthetic subjects, all killed by K2, with a genuine re-wrap as the
+passing control.
+
+On immich, `ac rewrap` re-wraps 22 declarations in 20 files with immich's prettier 3.9.9, and skips 5 migration
+files that immich's `.prettierignore` excludes. `prettier --check .` in `server/` passes again, and `ac certify` on
+the commit gives PASS with every check, oracles included: K2 reports 20 files changed in layout only, tsc reports 0
+errors, 105/105 test files and 2,337/2,337 cases equal base, and the OpenAPI spec is byte-identical
+(`runs/immich-rewrap/certificate.json`, digest `sha256:39a44461b5a5…`; immich branch `ac/s8-rewrap`). In `ac run` the same step is an optional rung, S3, after R3 and before R4
+(`--rungs R0,R1,R2,R3,S3,R4`). It is off by default, and the recorded run doesn't use it.
+
 ## Benchmarks (bench/results)
 
 `ac scramble` flattens a feature-modular repo into type folders with our executor, in one commit our certifier
 checks; the original folders are the ground truth. `ac bench` scores the planner next to deterministic baselines
 (plan §7). MoJoFM, 0–100, planner vs the best deterministic method:
 
-| Entry | Scramble certificate | Best deterministic | Planner (Nemotron 3 Ultra) |
-|---|---|---|---|
-| hoppscotch | PASS (static) | 81.38, seeds draft (export names) | **87.59** |
-| hoppscotch-H1 (opaque file names) | PASS (static) | **81.38**, seeds draft (export names) | 79.31 |
-| kaneo | FAIL (static: K3c, K4) | **66.90**, Louvain r=4 | 49.61 |
-| ghostfolio | PASS (static) | **84.72**, seeds draft (file names) | 82.64 |
-| immich (real target, TurboMQ) | – | **10.50**, Louvain r=4 | 10.07 |
+| Entry | Scramble certificate | Best deterministic | Planner (Nemotron 3 Ultra), S7 | Planner, S8 |
+|---|---|---|---|---|
+| hoppscotch | PASS (static) | 81.38, seeds draft (export names) | **87.59** | **87.59** |
+| hoppscotch-H1 (opaque file names) | PASS (static) | 81.38, seeds draft (export names) | 79.31 | **83.45** |
+| kaneo | FAIL (static: K3c, K4) | **66.90**, Louvain r=4 | 49.61 | 50.65 (plan rejected: `middleware`) |
+| ghostfolio | PASS (static) | 84.72, seeds draft (file names) | 82.64 | **86.81** (plan rejected: `app`) |
+| immich (real target, TurboMQ) | – | **10.50**, Louvain r=4 | 10.07 | 10.07 (replayed under its pin) |
 
-The planner wins on 1 of 5. That matches the literature (classic methods beat LLM decompositions, ICSA 2026) and our
-G1 gate, which is why ac uses Nemotron to edit a deterministic draft, not to draw the map from nothing, and why the
-certificate, not the plan, carries the proof. On ghostfolio and kaneo the winning edit named files by id, so the
-validator dropped every move and the planner kept its draft. kaneo's scramble certificate fails closed: its API runs
-an esbuild bundle that K3c doesn't model, and two URL templates K4 can't prove aren't paths. The recordings cost
-$1.12 (`cassettes/s7-bench.jsonl`); `ac bench bench/manifest.json` replays them for $0.
+In S7 the planner won on 1 of 5. That matches the literature (classic methods beat LLM decompositions, ICSA 2026)
+and our G1 gate, which is why ac uses Nemotron to edit a deterministic draft, not to draw the map from nothing, and
+why the certificate, not the plan, carries the proof.
+
+The S7 bench also showed two planner defects, and S8 fixed them in the tool, not by hand. Ultra named the files of
+its moves by the ids the prompt showed, and their targets by draft group keys, so the validator dropped every one
+of those moves (29 on kaneo, 154 on ghostfolio); and on ghostfolio a plan with no feature module won the ranking.
+Planner rules 2 read exactly the forms the prompt shows, never fuzzily, and rank plans with feature modules first.
+immich's recorded plan keeps rules 1 through its profile's pin, so it replays byte for byte. Re-planning the
+scramble entries re-recorded three critic calls for $0.11; the edit calls replayed. The planner now wins on 3 of 5.
+
+Two of those plans are rejected by our own validator. On kaneo and ghostfolio, Ultra's name for one group was
+banned and dropped, and the group fell back to its draft label, which is banned too (`middleware` is a file type,
+`app` is not a feature). `ac run` refuses such a plan until `plan.yaml` is fixed; the bench scores it as it came
+back. kaneo's scramble certificate fails closed: its API runs an esbuild bundle that K3c doesn't model, and two URL
+templates K4 can't prove aren't paths. The recordings cost $1.23 in all (`cassettes/s7-bench.jsonl`, S7 and S8);
+`ac bench bench/manifest.json` replays them for $0.
 
 ## Our own misses
 
@@ -221,6 +261,15 @@ We show these because the checker exists to catch them:
 - **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored 57.24
   because its draft read only file names; G1 had picked the seed source without ground truth. Restoring that rule
   lifted H1 to 79.31, and on ghostfolio it chose the export names, which cost 3.5 points there (86.11 → 82.64).
+- **Certificates that depended on our own install (S7, fixed in S8).** TypeScript's `@types` walk and Node's module
+  resolution look up `node_modules` (and the nearest `package.json`) from every tree the certifier checks. On the
+  judges' default path, `./ac-demo` sat inside this clone, below its `node_modules`, so a certificate made there could
+  see packages immich never installed; S7's demo noticed and compared only the checks' statuses. Now the certifier
+  refuses such a work dir, the demo defaults to one outside the clone, and the digests are compared byte for byte.
+- **The planner read files by path only (S7 bench, fixed in S8).** Ultra named moves by the ids its prompt showed,
+  and the validator dropped them all; a plan with no feature module won ghostfolio. See the benchmarks above.
+- **A miscount in our own findings log (S7, fixed in S8).** The log said "5 dropped by the guard" on immich: the
+  guard dropped 4, and the model never returned the fifth. The log now counts them apart.
 - **Reviews.** Adversarial reviews confirmed 18 defects in S7, 17 in S6 and 16 in S5. All were fixed with
   regression tests.
 
@@ -232,9 +281,9 @@ We show these because the checker exists to catch them:
 | `ac plan <repo> --profile <name>` | the plan: facts, seeds draft, Ultra edit, critic, validator (replays a cassette by default) |
 | `ac steps <plan.yaml>` | step files from a plan (edit `plan.yaml` first, if you like) |
 | `ac move <repo> --map <step.json>` | one step through the executor |
-| `ac certify <repo> <base>..<head> [--profile <name>] [--oracles]` | the certificate of any diff |
-| `ac run <repo> --profile <name>` | the ladder R0–R4, unattended, with rollback, replan and `--resume` |
-| `ac normalize`, `ac boundaries`, `ac findings` | R3, R4 and the findings log on their own |
+| `ac certify <repo> <base>..<head> [--profile <name>] [--oracles]` | the certificate of any diff, made in a new directory under the system's temporary directory (`--work-dir`: one with no `node_modules` or `package.json` on its path) |
+| `ac run <repo> --profile <name> --out <run dir>` | the ladder R0–R4, unattended, with rollback, replan and `--resume`; the run dir must have no `node_modules` or `package.json` on its path |
+| `ac normalize`, `ac rewrap`, `ac boundaries`, `ac findings` | R3, S3, R4 and the findings log on their own |
 | `ac report <run-dir>`, `ac site` | the HTML report of a run, and the static replay site |
 | `ac scramble`, `ac bench <manifest>` | the benchmarks: type-sliced scrambles of feature-sliced repos, scored against their truth |
 
@@ -243,8 +292,8 @@ Run `npx ac` for every flag. Profiles of the targets live in `profiles/`.
 ## Repository layout
 
 `src/` is feature-foldered: `analyzer/`, `planner/`, `gateway/`, `executor/`, `certificate/`, `orchestrator/`,
-`filename-normalization/`, `boundaries/`, `findings/`, `report/`, `site/`, `scramble/`, `bench/`, `demo/`. Tests are
-in `test/` (`npm test`). The plan, the gate results and the session reports are in `docs/`.
+`filename-normalization/`, `rewrap/`, `boundaries/`, `findings/`, `report/`, `site/`, `scramble/`, `bench/`, `demo/`,
+`mutation/`. Tests are in `test/` (`npm test`). The plan, the gate results and the session reports are in `docs/`.
 
 ## License
 
