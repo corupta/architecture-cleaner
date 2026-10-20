@@ -4,7 +4,21 @@
 ac_repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ac_node_version=${1:-system}
 if [ "$ac_node_version" != system ]; then
-  export PATH="$HOME/ac-targets/.node/node-v$ac_node_version-linux-arm64/bin:$PATH"
+  # Node's Linux builds: node-v<version>-linux-x64 or -linux-arm64, unpacked under ~/ac-targets/.node.
+  case "$(uname -s)/$(uname -m)" in
+    Linux/x86_64) ac_node_arch=x64 ;;
+    Linux/aarch64 | Linux/arm64) ac_node_arch=arm64 ;;
+    *)
+      echo "target-env.sh: no Node build for $(uname -s) $(uname -m): the targets' Node is linux-x64 (x86_64) or linux-arm64 (aarch64, arm64)" >&2
+      return 1 2>/dev/null || exit 1
+      ;;
+  esac
+  ac_node_directory="$HOME/ac-targets/.node/node-v$ac_node_version-linux-$ac_node_arch"
+  if [ ! -x "$ac_node_directory/bin/node" ]; then
+    echo "target-env.sh: Node $ac_node_version is not installed: no $ac_node_directory/bin/node" >&2
+    return 1 2>/dev/null || exit 1
+  fi
+  export PATH="$ac_node_directory/bin:$PATH"
 fi
 export COREPACK_HOME="$HOME/ac-targets/.corepack"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0

@@ -20,13 +20,18 @@ export function packageDirectory(): string {
 
 const targetsDirectory = () => path.join(os.homedir(), 'ac-targets');
 
+/** The Node release builds the targets' pinned versions come from, by this machine's platform and arch. */
+const nodeBuilds: Record<string, string> = { 'linux-x64': 'linux-x64', 'linux-arm64': 'linux-arm64' };
+
 /** Absolute path of the `node` binary for a version installed under ~/ac-targets/.node, or the system node. */
 export function nodeBinary(version: string): string {
   if (version === 'system') {
     const which = spawnSync('which', ['node'], { encoding: 'utf8' });
     return which.status === 0 ? which.stdout.trim() : process.execPath;
   }
-  const binary = path.join(targetsDirectory(), '.node', `node-v${version}-linux-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, 'bin', 'node');
+  const build = nodeBuilds[`${process.platform}-${process.arch}`];
+  if (!build) throw new Error(`no Node build for ${process.platform} ${process.arch}: the targets' Node is linux-x64 or linux-arm64`);
+  const binary = path.join(targetsDirectory(), '.node', `node-v${version}-${build}`, 'bin', 'node');
   if (!fs.existsSync(binary)) throw new Error(`Node ${version} is not installed at ${binary}`);
   return binary;
 }
