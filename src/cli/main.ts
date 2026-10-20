@@ -11,6 +11,7 @@ import { benchCommand, benchUsage } from '../bench/command.js';
 import { boundariesCommand } from '../boundaries/command.js';
 import { demoCommand, demoUsage } from '../demo/command.js';
 import { certify } from '../certificate/certify.js';
+import { hermeticProblem } from '../certificate/hermetic.js';
 import { loadProfile } from '../certificate/profile.js';
 import { summarize, trailers } from '../certificate/report.js';
 import { cacheDirFromEnvironment } from '../certificate/tree-cache.js';
@@ -26,7 +27,7 @@ import { scrambleCommand, scrambleUsage } from '../scramble/command.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode, Gateway } from '../gateway/types.js';
 import { criticSettingsFor, defaultCriticSettings } from '../planner/critic.js';
-import { defaultEditSettings } from '../planner/edit.js';
+import { defaultEditSettings, editSettingsFor } from '../planner/edit.js';
 import { defaultSummarySettings } from '../planner/summaries.js';
 import { planRepo } from '../planner/plan.js';
 import { planOutputs } from '../planner/outputs.js';
@@ -129,7 +130,7 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const runId = flags.run ?? 'replay';
   const out = path.resolve(flags.out ?? 'ac-plan');
   const gateway = createGateway({ runId, mode, cassettePath: path.resolve(flags.cassette ?? path.join(packageDirectory(), 'cassettes', `${runId}.jsonl`)) });
-  const edit = { ...defaultEditSettings, samples: Number(flags.samples ?? defaultEditSettings.samples) };
+  const edit = { ...editSettingsFor(profile, mode), samples: Number(flags.samples ?? defaultEditSettings.samples) };
   const critic = flags['no-critic'] ? null : criticSettingsFor(profile, mode);
   const summaries = flags.summaries ? defaultSummarySettings : null;
   let run;
@@ -150,6 +151,7 @@ async function planCommand(repo: string, flags: PlanFlags): Promise<number> {
   const spent = gateway.spent();
   console.log(`plan: ${run.validation.metrics.groups} groups, ${run.facts.files.length} files, ${run.facts.pins.length} pinned, ${steps.length} steps → ${out}`);
   if (critic) console.log(`critic prompt: version ${critic.prompt}${critic.prompt === defaultCriticSettings.prompt ? '' : ` (pinned by the profile for the replay of its recording; a recording uses version ${defaultCriticSettings.prompt})`}`);
+  console.log(`planner rules: version ${edit.rules}${edit.rules === defaultEditSettings.rules ? '' : ` (pinned by the profile for the replay of its recording; a recording uses version ${defaultEditSettings.rules})`}`);
   const cost = `cost of this plan: $${(run.editRun.costUsd + (run.criticRun?.costUsd ?? 0)).toFixed(4)}`;
   console.log(mode === 'replay' ? `${cost} when recorded; this replay spent $0` : `${cost}; ledger: run ${runId} $${spent.run.toFixed(4)}, global $${spent.global.toFixed(4)}`);
   if (run.validation.valid) return 0;
@@ -193,6 +195,14 @@ async function certifyCommand(repo: string, range: string, flags: CertifyFlags):
   const profile = flags.profile ? loadProfile(flags.profile) : null;
   if (flags.oracles && !profile?.oracles?.length) {
     console.error('--oracles needs a --profile with oracle commands');
+    return 2;
+  }
+  // The default work dir is a new directory in the system's temporary directory: both checked before anything is made.
+  const notHermetic = flags['work-dir']
+    ? hermeticProblem(flags['work-dir'], 'the work dir', 'Pick a --work-dir with neither on its path.')
+    : hermeticProblem(os.tmpdir(), 'the temporary directory', 'Give a --work-dir with neither on its path.');
+  if (notHermetic) {
+    console.error(`ac certify: ${notHermetic}`);
     return 2;
   }
   const certificate = await certify({
@@ -321,46 +331,65 @@ async function runCommand(repo: string | undefined, flags: RunFlags): Promise<nu
   return outcome.exitCode;
 }
 
+/** The shared flags, or the parser's complaint (an unknown flag, a missing value) as one line. */
+function parseFlags(argv: string[]) {
+  try {
+    return parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: {
+        map: { type: 'string' },
+        'dry-run': { type: 'boolean', default: false },
+        json: { type: 'boolean', default: false },
+        root: { type: 'string' },
+        env: { type: 'string' },
+        profile: { type: 'string' },
+        oracles: { type: 'boolean', default: false },
+        only: { type: 'string' },
+        out: { type: 'string' },
+        'work-dir': { type: 'string' },
+        keep: { type: 'boolean', default: false },
+        'module-root': { type: 'string' },
+        mode: { type: 'string' },
+        run: { type: 'string' },
+        cassette: { type: 'string' },
+        samples: { type: 'string' },
+        'no-critic': { type: 'boolean', default: false },
+        summaries: { type: 'boolean', default: false },
+        plan: { type: 'string' },
+        branch: { type: 'string' },
+        rungs: { type: 'string' },
+        resume: { type: 'boolean', default: false },
+        jobs: { type: 'string' },
+        'inject-fault': { type: 'string' },
+        'max-steps': { type: 'string' },
+        'no-narration': { type: 'boolean', default: false },
+        check: { type: 'boolean', default: false },
+        repo: { type: 'string' },
+      },
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code?.startsWith('ERR_PARSE_ARGS_')) return (error as Error).message.split('\n')[0]!;
+    throw error;
+  }
+}
+
 async function main(argv: string[]): Promise<number> {
   if (argv[0] === 'scramble') return scrambleCommand(argv.slice(1));
   if (argv[0] === 'bench') return benchCommand(argv.slice(1));
   if (argv[0] === 'demo') return demoCommand(argv.slice(1));
   if (argv[0] === 'report') return reportCommand(argv.slice(1));
   if (argv[0] === 'site') return siteCommand(argv.slice(1));
-  const { positionals, values } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      map: { type: 'string' },
-      'dry-run': { type: 'boolean', default: false },
-      json: { type: 'boolean', default: false },
-      root: { type: 'string' },
-      env: { type: 'string' },
-      profile: { type: 'string' },
-      oracles: { type: 'boolean', default: false },
-      only: { type: 'string' },
-      out: { type: 'string' },
-      'work-dir': { type: 'string' },
-      keep: { type: 'boolean', default: false },
-      'module-root': { type: 'string' },
-      mode: { type: 'string' },
-      run: { type: 'string' },
-      cassette: { type: 'string' },
-      samples: { type: 'string' },
-      'no-critic': { type: 'boolean', default: false },
-      summaries: { type: 'boolean', default: false },
-      plan: { type: 'string' },
-      branch: { type: 'string' },
-      rungs: { type: 'string' },
-      resume: { type: 'boolean', default: false },
-      jobs: { type: 'string' },
-      'inject-fault': { type: 'string' },
-      'max-steps': { type: 'string' },
-      'no-narration': { type: 'boolean', default: false },
-      check: { type: 'boolean', default: false },
-      repo: { type: 'string' },
-    },
-  });
+  if (argv.includes('--help') || argv.includes('-h')) {
+    console.log(usage);
+    return 0;
+  }
+  const parsed = parseFlags(argv);
+  if (typeof parsed === 'string') {
+    console.error(`${parsed}\n${usage}`);
+    return 2;
+  }
+  const { positionals, values } = parsed;
   const [command, repo, range] = positionals;
   if (command === 'analyze' && repo) {
     analyzeCommand(repo, values.json);

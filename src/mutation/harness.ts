@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { certify } from '../certificate/certify.js';
 import { resolveCommit } from '../certificate/git-tree.js';
+import { requireHermetic } from '../certificate/hermetic.js';
 import { loadProfile, type Profile } from '../certificate/profile.js';
 import { packageDirectory } from '../certificate/toolchain.js';
 import type { Certificate, CheckId, CheckStatus } from '../certificate/types.js';
@@ -400,8 +401,11 @@ function pick(subject: Subject, operator: Operator, candidates: Candidate[], cap
   return picked;
 }
 
-export async function runHarness(options: HarnessOptions): Promise<HarnessResult> {
+export async function runHarness(given: HarnessOptions): Promise<HarnessResult> {
   const started = performance.now();
+  // Every control and mutant is certified under the work dir (its real path: violations are normalized by it), so a
+  // work dir the certifier would refuse fails here, before the first subject.
+  const options = { ...given, workDir: requireHermetic(given.workDir, 'the work dir', 'Pick a --work-dir with neither on its path.') };
   const result: HarnessResult = {
     startedAt: new Date().toISOString(), checks: options.checks, staged: options.staged, cap: options.cap, mutants: [], controls: [], capped: [], notApplicable: [], issues: [], durationMs: 0,
   };

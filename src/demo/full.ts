@@ -3,6 +3,7 @@
 // log with its narration replayed. About 2 h on immich; it needs an environment with the target's node_modules.
 // Every step's tree and the whole-PR digest are compared with the recorded run's.
 import path from 'node:path';
+import { nodeModulesAbove } from '../certificate/hermetic.js';
 import { loadProfile } from '../certificate/profile.js';
 import { runFindings } from '../findings/index.js';
 import { branchExists, git } from '../orchestrator/git.js';
@@ -12,7 +13,7 @@ import { rungIds, type StepRecord } from '../orchestrator/types.js';
 import { startRun } from '../orchestrator/run.js';
 import { prepareCheckout } from './checkout.js';
 import type { CertifiedEntry, DemoReport, ModelCall, StepEntry } from './report.js';
-import { countingGateway, nodeModulesAbove, notRerun, openWorkDir, replayGateway, type DemoOptions, type DemoResult } from './replay.js';
+import { countingGateway, notRerun, openWorkDir, replayGateway, type DemoOptions, type DemoResult } from './replay.js';
 import { compareChecks, readCertificate } from './sample.js';
 
 export const fullBranch = 'ac-demo/full';
@@ -68,7 +69,7 @@ export async function fullDemo(options: DemoOptions & { environment: string }): 
   }
   const report: DemoReport = {
     mode: 'full',
-    target: { name: target.name, sha: target.sha, packageRoot: state.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: fullBranch, nodeModulesAbove: nodeModulesAbove(workDir) },
+    target: { name: target.name, sha: target.sha, packageRoot: state.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: fullBranch, environmentNodeModulesAbove: nodeModulesAbove(environment) },
     recorded: { directory: target.recordedRun, branch: recordedState.branch, steps: recordedState.steps.length, head: recordedState.head, wholePrDigest: recordedState.certificate?.digest ?? null },
     plan: {
       outcome: state.plan.sha256 === recordedState.plan.sha256 ? 'match' : 'mismatch', sha256: state.plan.sha256, recordedSha256: recordedState.plan.sha256,

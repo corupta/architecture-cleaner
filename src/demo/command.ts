@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { fullDemo } from './full.js';
 import { liveDemo, liveKey } from './live.js';
 import { demoMarkdown, differences, type DemoReport } from './report.js';
-import { replayDemo } from './replay.js';
+import { defaultWorkDir, replayDemo } from './replay.js';
 import { immichDemo } from './target.js';
 
 export const demoUsage = `ac demo [--replay | --live | --full] [--work <dir>] [--repo <immich clone>] [--env <checkout with node_modules>]
@@ -15,7 +15,9 @@ export const demoUsage = `ac demo [--replay | --live | --full] [--work <dir>] [-
           (--replay, the default: no key, $0: the recorded immich plan replayed from cassettes/s6-immich.jsonl, every step
           executed again and its tree compared with runs/immich-ladder, a sample certified again, the findings replayed;
           --live: a new plan from Nemotron on the NEBIUS_API_KEY in your environment, about $0.20 (no .env is read);
-          --full: \`ac run\` end to end, about 2 h)`;
+          --full: \`ac run\` end to end, about 2 h;
+          --work: ./ac-demo, or <tmp>/ac-demo when a node_modules or package.json is on ./ac-demo's path, as inside
+          this tool's clone: certificates are made only where none is)`;
 
 /** --steps and --sample: a whole number, or `all`. */
 function count(value: string | undefined, flag: string): number | 'all' | undefined {
@@ -24,6 +26,13 @@ function count(value: string | undefined, flag: string): number | 'all' | undefi
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`${flag} takes a whole number or all`);
   return parsed;
+}
+
+/** The default work dir (defaultWorkDir), said when it isn't ./ac-demo. */
+function chooseWorkDir(log: (message: string) => void): string {
+  const { directory, below } = defaultWorkDir();
+  if (below.length) log(`work dir ${directory}: ./ac-demo has ${below.join(', ')} on its path, which TypeScript and Node would read from the trees certified there`);
+  return directory;
 }
 
 function finish(report: DemoReport): number {
@@ -76,7 +85,13 @@ export async function demoCommand(argv: string[]): Promise<number> {
     return 2;
   }
   const target = immichDemo();
-  const workDir = path.resolve(values.work ?? 'ac-demo');
+  let workDir: string;
+  try {
+    workDir = values.work ? path.resolve(values.work) : chooseWorkDir(log);
+  } catch (error) {
+    console.error(`ac demo: ${(error as Error).message}`);
+    return 2;
+  }
   // The certifier's commit-keyed oracle cache (used by `ac run`'s baseline) defaults to a directory in the home
   // directory: the demo keeps it in its work dir unless the caller chose one.
   process.env.AC_ORACLE_CACHE ??= path.join(workDir, 'oracle-cache');

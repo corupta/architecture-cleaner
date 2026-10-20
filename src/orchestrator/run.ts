@@ -7,6 +7,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { hermeticProblem } from '../certificate/hermetic.js';
 import type { Profile } from '../certificate/profile.js';
 import { packageDirectory } from '../certificate/toolchain.js';
 import { readPlanYaml } from '../planner/plan-file.js';
@@ -133,6 +134,7 @@ export async function startRun(options: StartOptions, overrides: Partial<RunDepe
   const groupIssues = checkGroupKeys(planFile).filter((issue) => issue.severity === 'error');
   if (groupIssues.length) throw new RunError(`the plan is invalid: ${groupIssues.map((issue) => `${issue.code}: ${issue.detail}`).join('; ')}`);
   if (fs.existsSync(path.join(options.runDirectory, 'run.json'))) throw new RunError(`${path.resolve(options.runDirectory)} already holds a run: continue it with --resume, or pick another --out`);
+  requireHermeticRun(options.runDirectory, 'Pick an --out with neither on its path.');
   if (!isClean(repo)) throw new RunError(`${repo} has tracked changes: commit or stash them first`);
   if (branchExists(repo, options.branch)) throw new RunError(`branch ${options.branch} already exists in ${repo}`);
   let base: string;
@@ -221,6 +223,15 @@ export async function startRun(options: StartOptions, overrides: Partial<RunDepe
   });
 }
 
+/**
+ * Every certificate of the run (and the baseline) is made under <run-dir>/work: a run directory that isn't hermetic
+ * fails here, not at its first certification hours later.
+ */
+function requireHermeticRun(runDirectory: string, remedy: string): void {
+  const problem = hermeticProblem(runDirectory, 'the run directory', remedy);
+  if (problem) throw new RunError(problem);
+}
+
 const topLevelOf = (repo: string) => {
   try {
     return topLevel(repo);
@@ -271,6 +282,7 @@ function reconcile(runner: Runner): void {
 
 export async function resumeRun(options: ResumeOptions, overrides: Partial<RunDependencies> = {}): Promise<RunOutcome> {
   const dependencies = { ...defaultDependencies, ...overrides };
+  requireHermeticRun(options.runDirectory, 'Move the run directory where neither is on its path, and resume it there.');
   const directory = openRunDirectory(options.runDirectory);
   const state = readRunState(directory.root);
   if (options.repo && topLevelOf(options.repo) !== state.repo) throw new RunError(`the run in ${directory.root} is on ${state.repo}, not ${options.repo}`);

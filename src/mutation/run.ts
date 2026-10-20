@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { NotHermeticError } from '../certificate/hermetic.js';
 import { cacheDirFromEnvironment } from '../certificate/tree-cache.js';
 import type { CheckId } from '../certificate/types.js';
 import { coverageSubject } from './coverage-subject.js';
@@ -74,6 +75,6 @@ async function main(): Promise<number> {
 }
 
 main().then((code) => process.exit(code), (error) => {
-  console.error(error);
+  console.error(error instanceof NotHermeticError ? error.message : error);
   process.exit(2);
 });

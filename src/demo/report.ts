@@ -91,8 +91,8 @@ export interface DemoReport {
   mode: 'replay' | 'live' | 'full';
   target: {
     name: string; sha: string; packageRoot: string; checkout: string; source: string; environment: string | null; branch: string;
-    /** node_modules directories above the work dir (nodeModulesAbove). */
-    nodeModulesAbove: string[];
+    /** node_modules above the environment checkout (hermetic.ts nodeModulesAbove; empty without one). */
+    environmentNodeModulesAbove: string[];
   };
   /** The recorded run compared with (replay and full). */
   recorded: { directory: string; branch: string; steps: number; head: string; wholePrDigest: string | null } | null;
@@ -140,17 +140,11 @@ const unexplainedSkip = (report: DemoReport, check: CheckComparison) => check.st
   && (report.target.environment !== null || !environmentChecks.includes(check.id));
 
 /**
- * The demo certified in an environment like the recording's: --env (the target's node_modules) and no node_modules above
- * the work dir. Only then can a check's content and the digest be compared. TypeScript's @types lookup and Node's
- * resolution walk up from the checkout, so K3a, K3c and K7 read whatever node_modules sit above it (on the judges'
- * path, this tool's own: other @types, another TypeScript); otherwise only the statuses are compared.
+ * The demo certified with an environment like the recording's: --env, the target's node_modules. Only then can a
+ * check's content and the digest be compared; without it, only the statuses are. The work dir is always hermetic (the
+ * certifier refuses any other), so nothing above it reaches the certificates.
  */
-const comparableEnvironment = (report: DemoReport) => report.target.environment !== null && report.target.nodeModulesAbove.length === 0;
-
-/** Why the content and digests weren't compared, for the summary. */
-const incomparableEnvironment = (report: DemoReport) => (report.target.environment === null
-  ? 'without --env (the recording had the target\'s node_modules)'
-  : `because ${report.target.nodeModulesAbove.join(', ')} above the work dir reach${report.target.nodeModulesAbove.length === 1 ? 'es' : ''} TypeScript's and Node's lookups (give a --work outside ${report.target.nodeModulesAbove.length === 1 ? 'it' : 'them'})`);
+const comparableEnvironment = (report: DemoReport) => report.target.environment !== null;
 
 /** The same checks ran on both sides (and the same ones skipped): the digests must then be equal. */
 export const digestComparable = (entry: CertifiedEntry) => entry.recordedDigest !== null
@@ -195,7 +189,7 @@ export function notCompared(report: DemoReport): string[] {
   return [
     ...[...groups.values()].map((group) => `${group.checks} on ${plural(group.certificates, 'certificate')} (${group.where})`),
     ...(!comparableEnvironment(report) && recorded.length
-      ? [`the checks' content and the digest of ${plural(recorded.length, 'certificate')}, ${incomparableEnvironment(report)}`]
+      ? [`the checks' content and the digest of ${plural(recorded.length, 'certificate')}, without --env (the recording had the target's node_modules)`]
       : digests ? [`the digest of ${plural(digests, 'certificate')}, which needs the same checks run on both sides`] : []),
   ];
 }
@@ -244,7 +238,7 @@ function certifiedLines(report: DemoReport): string[] {
         if (different.length) parts.push(`content different from the recorded: ${idList(different)}`);
       }
       if (notCompared.length) parts.push(`not compared: ${idList(notCompared)}`);
-      parts.push(!comparableEnvironment(report) ? `content and digest not compared ${report.target.environment === null ? 'without --env' : '(node_modules above the work dir)'}`
+      parts.push(!comparableEnvironment(report) ? 'content and digest not compared without --env'
         : !digestComparable(entry) ? 'digest not compared (not the same checks run)'
           : entry.digest === recordedDigest ? `digest ${entry.digest.slice(0, 19)}… identical to the recorded certificate's`
             : `digest ${entry.digest.slice(0, 19)}… differs from the recorded ${recordedDigest.slice(0, 19)}…`);
@@ -268,6 +262,11 @@ export function demoMarkdown(report: DemoReport): string {
       : `**Everything compared matches the recorded run** (\`${recorded?.directory}\`, branch \`${recorded?.branch}\`).${left.length ? ` Not compared: ${left.join('; ')}.` : ''}`, '');
   }
   lines.push(`Checkout: \`${target.checkout}\`, ${target.source}. Branch \`${target.branch}\`. Work dir: \`${report.workDir}\`.`, '');
+  const above = target.environmentNodeModulesAbove;
+  if (above.length) {
+    lines.push(`The environment \`${target.environment}\` has ${above.map((entry) => `\`${entry}\``).join(', ')} above it. Node resolves an installed package's own imports from `
+      + `the package's real path, so an import the environment doesn't satisfy is looked up there. What the target's tools load (K3b, K3c, K6, K8) can then differ from the recording.`, '');
+  }
 
   lines.push('## Re-executed on this machine', '');
   lines.push(`- **The planner's deterministic part**: facts, the seeds draft, the validator and the critic's gate on the checkout; plan.yaml${plan.sha256 ? ` sha256 \`${plan.sha256.slice(0, 12)}…\`` : ''}, ${plural(plan.groups, 'group')}, ${plural(plan.steps, 'step')}.`);

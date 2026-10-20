@@ -5,8 +5,10 @@
 // without an environment) is said, with the commands that do run it.
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { gitRepoFs } from '../analyzer/repo-fs.js';
+import { hermeticProblem, lookupEntriesOnPath, nodeModulesAbove, NotHermeticError, requireHermetic } from '../certificate/hermetic.js';
 import { loadProfile, type Profile } from '../certificate/profile.js';
 import type { CheckId } from '../certificate/types.js';
 import { runFindings } from '../findings/index.js';
@@ -14,13 +16,13 @@ import { findingsMarkdown, prBodyMarkdown } from '../findings/render.js';
 import { readRunData } from '../findings/run-data.js';
 import type { FindingsDocument } from '../findings/types.js';
 import { createGateway } from '../gateway/gateway.js';
-import type { Gateway } from '../gateway/types.js';
+import type { CassetteMode, Gateway } from '../gateway/types.js';
 import { git, headCommit } from '../orchestrator/git.js';
 import { readRunState } from '../orchestrator/run-directory.js';
 import { staticCheckIds } from '../orchestrator/runner.js';
 import type { RunState } from '../orchestrator/types.js';
-import { criticSettingsFor, type CriticSettings } from '../planner/critic.js';
-import { defaultEditSettings } from '../planner/edit.js';
+import { criticSettingsFor } from '../planner/critic.js';
+import { editSettingsFor } from '../planner/edit.js';
 import { planOutputs } from '../planner/outputs.js';
 import { readPlanYaml } from '../planner/plan-file.js';
 import { planRepo } from '../planner/plan.js';
@@ -85,28 +87,31 @@ const filesUnder = (directory: string): string[] => (fs.existsSync(directory)
   ? fs.readdirSync(directory, { recursive: true, encoding: 'utf8' }).filter((file) => fs.statSync(path.join(directory, file)).isFile()).sort()
   : []);
 
-/**
- * node_modules directories above `directory`. TypeScript's @types lookup and Node's resolution walk up from the clone and
- * from every tree certified in the work dir, so they change what K3a, K3c and K7 see: certificates made below them
- * can't be compared byte for byte with the recorded ones (on the judges' path, ./ac-demo sits below this tool's own).
- */
-export function nodeModulesAbove(directory: string): string[] {
-  const found: string[] = [];
-  for (let current = path.dirname(path.resolve(directory)); ; current = path.dirname(current)) {
-    if (fs.existsSync(path.join(current, 'node_modules'))) found.push(path.join(current, 'node_modules'));
-    if (path.dirname(current) === current) return found;
-  }
-}
-
 /** Marks a directory as a demo's work dir: only such a directory is ever emptied. */
 const workDirMarker = '.ac-demo';
 
 /**
- * The work dir, emptied except for the target's clone (reused when it has the commit): a new directory, or one a
- * previous demo made. Anything else is refused, so a mistyped --work never deletes a user's files.
+ * The demo's work dir without --work: ./ac-demo when it is hermetic, else <tmp>/ac-demo. From a clone of this tool,
+ * ./ac-demo sits below the tool's own node_modules and package.json, which the certificates made there would read.
+ * `below` lists what ./ac-demo has on its path (empty when it is the one chosen).
+ */
+export function defaultWorkDir(currentDirectory: string = process.cwd(), temporaryDirectory: string = os.tmpdir()): { directory: string; below: string[] } {
+  const local = path.resolve(currentDirectory, 'ac-demo');
+  const below = lookupEntriesOnPath(local);
+  if (!below.length) return { directory: local, below };
+  const temporary = path.resolve(temporaryDirectory, 'ac-demo');
+  const problem = hermeticProblem(temporary, 'the work dir', `./ac-demo isn't either (it has ${below.join(', ')} on its path): pick a --work with neither on its path.`);
+  if (problem) throw new NotHermeticError(problem);
+  return { directory: temporary, below };
+}
+
+/**
+ * The work dir (its real path), emptied except for the target's clone (reused when it has the commit): a new directory,
+ * or one a previous demo made. Anything else is refused, so a mistyped --work never deletes a user's files; so is a
+ * directory that isn't hermetic, before anything is written there.
  */
 export function openWorkDir(directory: string, keep: string): string {
-  const workDir = path.resolve(directory);
+  const workDir = requireHermetic(directory, 'the work dir', 'Pick a --work with neither on its path.');
   if (fs.existsSync(workDir) && fs.readdirSync(workDir).length && !fs.existsSync(path.join(workDir, workDirMarker))) {
     throw new Error(`${workDir} is not empty and no earlier demo made it: pick a new --work directory`);
   }
@@ -117,10 +122,11 @@ export function openWorkDir(directory: string, keep: string): string {
 }
 
 /** Plans the checkout and writes the planner's outputs to <work>/plan/. */
-export async function planInto(checkout: string, profile: Profile, gateway: Gateway, calls: ModelCall[], critic: CriticSettings, workDir: string) {
+export async function planInto(checkout: string, profile: Profile, gateway: Gateway, calls: ModelCall[], mode: CassetteMode, workDir: string) {
   const directory = path.join(workDir, 'plan');
   fs.rmSync(directory, { recursive: true, force: true });
-  const edit = defaultEditSettings;
+  const edit = editSettingsFor(profile, mode);
+  const critic = criticSettingsFor(profile, mode);
   const run = await planRepo(gitRepoFs(checkout), countingGateway(gateway, calls), {
     packageRoot: normalizeRoot(profile.packageRoot), moduleRoot: profile.plan?.moduleRoot ?? 'src', pins: profile.plan?.pins ?? [], edit, critic,
   });
@@ -143,7 +149,7 @@ export async function replayPlan(checkout: string, profile: Profile, state: RunS
   const calls: ModelCall[] = [];
   const recordedText = fs.readFileSync(path.join(recordedRun, state.plan.file), 'utf8');
   try {
-    const { run, outputs, directory } = await planInto(checkout, profile, gateway, calls, criticSettingsFor(profile, 'replay'), workDir);
+    const { run, outputs, directory } = await planInto(checkout, profile, gateway, calls, 'replay', workDir);
     const text = outputs.get('plan.yaml')!;
     const recordedPlanDirectory = path.join(recordedRun, path.dirname(state.plan.file));
     // The run directory keeps the planner's outputs but writes its own step files (R3's included).
@@ -252,8 +258,6 @@ export async function replayDemo(options: ReplayOptions): Promise<DemoResult> {
   const environment = options.environment ? path.resolve(options.environment) : null;
   const environmentOrCheckout = environment ?? checkout.directory;
   const gateway = (options.gateway ?? replayGateway(target.cassette, workDir))();
-  const above = nodeModulesAbove(workDir);
-  if (environment && above.length) log(`${above.join(', ')} above the work dir ${above.length === 1 ? 'changes' : 'change'} what K3a, K3c and K7 see: the certificates' content and digests are compared only with a --work outside ${above.length === 1 ? 'it' : 'them'}`);
 
   log(`plan: replaying ${path.basename(target.cassette)}`);
   const planned = await replayPlan(checkout.directory, profile, state, target.recordedRun, gateway, workDir);
@@ -293,7 +297,7 @@ export async function replayDemo(options: ReplayOptions): Promise<DemoResult> {
 
   const report: DemoReport = {
     mode: 'replay',
-    target: { name: target.name, sha: target.sha, packageRoot: planFile.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: demoBranch, nodeModulesAbove: above },
+    target: { name: target.name, sha: target.sha, packageRoot: planFile.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: demoBranch, environmentNodeModulesAbove: environment ? nodeModulesAbove(environment) : [] },
     recorded: { directory: target.recordedRun, branch: state.branch, steps: state.steps.length, head: state.head, wholePrDigest: state.certificate?.digest ?? null },
     plan: planned.phase,
     ...ladder,

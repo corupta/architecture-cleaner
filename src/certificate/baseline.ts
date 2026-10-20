@@ -12,6 +12,7 @@ import path from 'node:path';
 import { addWorktree, removeWorktrees } from './certify.js';
 import { createEnvironment } from './commit-fs.js';
 import { readCommitTree } from './git-tree.js';
+import { requireHermetic } from './hermetic.js';
 import { effectiveExit, excludeTests, fileFails, flakyFileCount, flakyFileLimit, flakyTests, selectTests, sha256, shortReports, type TestReport, totalsOf } from './oracle-reports.js';
 import {
   cacheDirectory, describeStep, type OracleRun, oracleCacheRoot, oracleRunKey, oracleRunKind, outsideScratch, readCachedRun, runOracle, stepBroken, stepOk, storeRun,
@@ -167,10 +168,12 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
   if (!Number.isInteger(options.runs) || options.runs < 1) throw new Error(`runBaseline: runs must be a positive integer (got ${options.runs})`);
   const specs = profile.oracles ?? [];
   validateOracles(specs);
-  fs.mkdirSync(options.workDir, { recursive: true });
+  // Its runs seed K8's base runs and quarantine: made where a certificate could be.
+  const workDir = requireHermetic(options.workDir, 'the baseline\'s work dir', 'Run it in a directory with neither on its path.');
+  fs.mkdirSync(workDir, { recursive: true });
   const tree = readCommitTree(options.repo, options.commit);
-  const environment = createEnvironment(options.environment, [tree], path.join(options.workDir, 'shadow'));
-  const root = addWorktree(options.repo, tree.commit, path.join(options.workDir, 'worktree'), environment);
+  const environment = createEnvironment(options.environment, [tree], path.join(workDir, 'shadow'));
+  const root = addWorktree(options.repo, tree.commit, path.join(workDir, 'worktree'), environment);
   const links = linksOf(environment.linked);
   try {
     const missing = new Map(specs.map((oracle) => [oracle.name, (oracle.requires ?? []).filter((file) => !fs.existsSync(path.join(root, file)))]));
@@ -182,7 +185,7 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
       resetWorktree(root, links);
       const index = runs.get(oracle.name)!.length + 1;
       log(`${oracle.name}: run ${index}${label}`);
-      const directory = path.join(options.workDir, 'runs', String(index), oracle.name);
+      const directory = path.join(workDir, 'runs', String(index), oracle.name);
       runs.get(oracle.name)!.push(await runOracle({ profile, oracle, side: 'base', root, directory, quarantine: runnerQuarantine(oracle.quarantine ?? [], (file) => file) }));
     };
     for (let index = 0; index < options.runs; index++) {
@@ -240,6 +243,6 @@ export async function runBaseline(options: BaselineOptions): Promise<BaselineRes
     };
   } finally {
     removeWorktrees(options.repo, [root]);
-    if (!options.keep) fs.rmSync(options.workDir, { recursive: true, force: true });
+    if (!options.keep) fs.rmSync(workDir, { recursive: true, force: true });
   }
 }

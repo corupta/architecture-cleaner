@@ -13,7 +13,7 @@ import { demoCommand } from '../../src/demo/command.js';
 import { fullDemo } from '../../src/demo/full.js';
 import { liveDemo, liveKey } from '../../src/demo/live.js';
 import { demoMarkdown, differences, type CertifiedEntry, type CheckComparison, type DemoReport, type StepEntry } from '../../src/demo/report.js';
-import { nodeModulesAbove, notRerun, openWorkDir, replayDemo } from '../../src/demo/replay.js';
+import { defaultWorkDir, notRerun, openWorkDir, replayDemo } from '../../src/demo/replay.js';
 import { compareChecks, readCertificate, sampleSteps } from '../../src/demo/sample.js';
 import type { DemoTarget } from '../../src/demo/target.js';
 import { runFindings } from '../../src/findings/index.js';
@@ -243,7 +243,7 @@ describe('the sample', () => {
 describe('the summary', () => {
   it('lists every difference: a plan mismatch, a step that did not commit, a FAIL, a check that disagrees with the recording', () => {
     const report = {
-      mode: 'replay', target: { name: 't', sha: 'a'.repeat(40), packageRoot: '', checkout: '/c', source: 'fetched', environment: null, branch: 'b', nodeModulesAbove: [] },
+      mode: 'replay', target: { name: 't', sha: 'a'.repeat(40), packageRoot: '', checkout: '/c', source: 'fetched', environment: null, branch: 'b', environmentNodeModulesAbove: [] },
       recorded: { directory: 'runs/x', branch: 'ac/x', steps: 2, head: 'h', wholePrDigest: null },
       plan: { outcome: 'mismatch', sha256: 'b'.repeat(64), recordedSha256: 'c'.repeat(64), groups: 2, steps: 2, files: [{ file: 'plan.md', identical: false }], calls: [], recordedCostUsd: 0, directory: '/p' },
       steps: [{ index: 1, rung: 'R1', group: 'module/a', moves: 2, outcome: 'declined', parent: 'p', detail: 'location-sensitive', durationMs: 0 }],
@@ -266,7 +266,7 @@ describe('the summary', () => {
 
   /** A replay that matched everywhere but in its certificates; `checks` are the one sample certificate's. */
   const certifiedReport = (environment: string | null, entries: Partial<CertifiedEntry>[]): DemoReport => ({
-    mode: 'replay', target: { name: 't', sha: 'a'.repeat(40), packageRoot: '', checkout: '/c', source: 'fetched', environment, branch: 'b', nodeModulesAbove: [] },
+    mode: 'replay', target: { name: 't', sha: 'a'.repeat(40), packageRoot: '', checkout: '/c', source: 'fetched', environment, branch: 'b', environmentNodeModulesAbove: [] },
     recorded: { directory: 'runs/x', branch: 'ac/x', steps: 1, head: 'h', wholePrDigest: null },
     plan: { outcome: 'match', sha256: 'b'.repeat(64), recordedSha256: 'b'.repeat(64), groups: 1, steps: 1, files: [], calls: [], recordedCostUsd: 0, directory: '/p' },
     steps: [], plannedSteps: 1, stoppedAfter: null, renames: null, boundaries: null,
@@ -336,28 +336,74 @@ describe('the summary', () => {
   });
 });
 
-describe('node_modules above the work dir', () => {
-  it('are found up to the root, and make content and digests incomparable even under --env', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-demo-above-'));
+describe('the work dir', () => {
+  /** A scratch tree: `<root>/<path>` for each planted path (a directory, or a file when it ends in .json). */
+  const planted = (...paths: string[]) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-demo-work-'));
     scratches.push(root);
-    fs.mkdirSync(path.join(root, 'node_modules'));
-    fs.mkdirSync(path.join(root, 'tool', 'node_modules'), { recursive: true });
-    expect(nodeModulesAbove(path.join(root, 'tool', 'ac-demo'))).toEqual(expect.arrayContaining([path.join(root, 'tool', 'node_modules'), path.join(root, 'node_modules')]));
-    expect(nodeModulesAbove(path.join(root, 'tool', 'ac-demo'))[0]).toBe(path.join(root, 'tool', 'node_modules'));
+    for (const entry of paths) {
+      fs.mkdirSync(path.join(root, entry.endsWith('.json') ? path.dirname(entry) : entry), { recursive: true });
+      if (entry.endsWith('.json')) fs.writeFileSync(path.join(root, entry), '{"type":"module"}\n');
+    }
+    return root;
+  };
 
+  it('defaults to ./ac-demo when it is hermetic, else to <tmp>/ac-demo (inside a clone of this tool), and refuses when neither is', () => {
+    const root = planted('elsewhere', 'tool/node_modules/@types/node', 'tool/package.json', 'tmp', 'bad-tmp/node_modules');
+    expect(defaultWorkDir(path.join(root, 'elsewhere'), path.join(root, 'tmp'))).toEqual({ directory: path.join(root, 'elsewhere', 'ac-demo'), below: [] });
+    expect(defaultWorkDir(path.join(root, 'tool'), path.join(root, 'tmp'))).toEqual({
+      directory: path.join(root, 'tmp', 'ac-demo'), below: [path.join(root, 'tool', 'node_modules'), path.join(root, 'tool', 'package.json')],
+    });
+    // A package.json alone is enough: the nearest one above a file sets its module format.
+    const packageOnly = planted('tool/package.json', 'tmp');
+    expect(defaultWorkDir(path.join(packageOnly, 'tool'), path.join(packageOnly, 'tmp')).directory).toBe(path.join(packageOnly, 'tmp', 'ac-demo'));
+    expect(() => defaultWorkDir(path.join(root, 'tool'), path.join(root, 'bad-tmp'))).toThrow(
+      `the work dir ${path.join(root, 'bad-tmp', 'ac-demo')} is not hermetic: ${path.join(root, 'bad-tmp', 'node_modules')} is on its path`);
+    expect(() => defaultWorkDir(path.join(root, 'tool'), path.join(root, 'bad-tmp'))).toThrow(
+      `./ac-demo isn't either (it has ${path.join(root, 'tool', 'node_modules')}, ${path.join(root, 'tool', 'package.json')} on its path): pick a --work with neither on its path.`);
+    expect(fs.existsSync(path.join(root, 'tmp', 'ac-demo'))).toBe(false);
+  });
+
+  it('refuses a --work below a node_modules or a package.json before writing anything, a symlink to one too', async () => {
+    const root = planted('tool/node_modules', 'other/package.json', 'outside');
+    const below = path.join(root, 'tool', 'ac-demo');
+    expect(() => openWorkDir(below, 'fixture')).toThrow(`the work dir ${below} is not hermetic: ${path.join(root, 'tool', 'node_modules')} is on its path`);
+    expect(() => openWorkDir(path.join(root, 'other', 'work'), 'fixture')).toThrow(`${path.join(root, 'other', 'package.json')} is on its path`);
+    // A link from a hermetic directory into the tool's clone is followed: its real path is what the certifier walks up from.
+    fs.mkdirSync(path.join(root, 'tool', 'work'));
+    fs.symlinkSync(path.join(root, 'tool', 'work'), path.join(root, 'outside', 'link'));
+    expect(() => openWorkDir(path.join(root, 'outside', 'link', 'demo'), 'fixture')).toThrow(`the work dir ${path.join(root, 'tool', 'work', 'demo')} is not hermetic`);
+    expect(fs.existsSync(below)).toBe(false);
+    expect(fs.existsSync(path.join(root, 'tool', 'work', 'demo'))).toBe(false);
+    // A hermetic --work opens at its real path.
+    fs.symlinkSync(path.join(root, 'outside'), path.join(root, 'outside-link'));
+    expect(openWorkDir(path.join(root, 'outside-link', 'demo'), 'fixture')).toBe(path.join(root, 'outside', 'demo'));
+
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await demoCommand(['--work', below])).toBe(2);
+      expect(errors.mock.calls.flat().join('\n')).toContain(`ac demo: the work dir ${below} is not hermetic: ${path.join(root, 'tool', 'node_modules')} is on its path, `
+        + 'and TypeScript and Node look node_modules and package.json up from every tree certified there, so the certificate would depend on it. Pick a --work with neither on its path.');
+    } finally {
+      errors.mockRestore();
+    }
+    expect(fs.existsSync(below)).toBe(false);
+  });
+
+  it('says when the environment checkout has node_modules above it, and still compares the digests', () => {
     const report: DemoReport = {
-      mode: 'replay', target: { name: 't', sha: 'a'.repeat(40), packageRoot: '', checkout: '/c', source: 'fetched', environment: '/env', branch: 'b', nodeModulesAbove: ['/tool/node_modules'] },
+      mode: 'replay', target: { name: 't', sha: 'a'.repeat(40), packageRoot: '', checkout: '/c', source: 'fetched', environment: '/home/me/immich', branch: 'b', environmentNodeModulesAbove: ['/home/me/node_modules'] },
       recorded: { directory: 'runs/x', branch: 'ac/x', steps: 1, head: 'h', wholePrDigest: null },
       plan: { outcome: 'match', sha256: 'b'.repeat(64), recordedSha256: 'b'.repeat(64), groups: 1, steps: 1, files: [], calls: [], recordedCostUsd: 0, directory: '/p' },
       steps: [], plannedSteps: 1, stoppedAfter: null, renames: null, boundaries: null,
       certified: [{ subject: 1, rung: 'R1', group: 'module/a', reason: 'the first step', verdict: 'pass', scope: 'static', digest: `sha256:${'2'.repeat(64)}`, recordedDigest: `sha256:${'1'.repeat(64)}`,
-        file: 'certificates/x.json', durationMs: 0, checks: [{ id: 'K0', status: 'pass', recorded: 'pass', identical: true }, { id: 'K3a', status: 'pass', recorded: 'pass', identical: false }] }],
-      findings: null, spentUsd: 0, notRerun: [], workDir: '/tool/ac-demo', durationMs: 0,
+        file: 'certificates/x.json', durationMs: 0, checks: [{ id: 'K0', status: 'pass', recorded: 'pass', identical: true }, { id: 'K3c', status: 'pass', recorded: 'pass', identical: false }] }],
+      findings: null, spentUsd: 0, notRerun: [], workDir: '/tmp/ac-demo', durationMs: 0,
     };
-    expect(differences(report)).toEqual([]);
-    expect(demoMarkdown(report)).toContain('Not compared: the checks\' content and the digest of 1 certificate, because /tool/node_modules above the work dir reaches TypeScript\'s and Node\'s lookups (give a --work outside it).');
-    expect(demoMarkdown(report)).toContain('status as recorded: K0, K3a; content and digest not compared (node_modules above the work dir).');
-    expect(differences({ ...report, target: { ...report.target, nodeModulesAbove: [] } })).toEqual(['step 1: K3a pass as recorded, but its content differs from the recorded check\'s']);
+    expect(demoMarkdown(report)).toContain('The environment `/home/me/immich` has `/home/me/node_modules` above it. Node resolves an installed package\'s own imports from the package\'s real path, '
+      + 'so an import the environment doesn\'t satisfy is looked up there. What the target\'s tools load (K3b, K3c, K6, K8) can then differ from the recording.');
+    expect(differences(report)).toEqual(['step 1: K3c pass as recorded, but its content differs from the recorded check\'s']);
+    expect(demoMarkdown({ ...report, target: { ...report.target, environmentNodeModulesAbove: [] } })).not.toContain('above it');
   });
 });
 

@@ -6,18 +6,18 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { nodeModulesAbove } from '../certificate/hermetic.js';
 import { loadProfile } from '../certificate/profile.js';
 import { createGateway } from '../gateway/gateway.js';
 import type { Gateway } from '../gateway/types.js';
 import { git, headCommit } from '../orchestrator/git.js';
 import { readRunState } from '../orchestrator/run-directory.js';
 import { staticCheckIds } from '../orchestrator/runner.js';
-import { criticSettingsFor } from '../planner/critic.js';
 import { readPlanYaml } from '../planner/plan-file.js';
 import { prepareCheckout } from './checkout.js';
 import { executeLadder } from './ladder.js';
 import type { DemoReport, ModelCall, PlanPhase } from './report.js';
-import { nodeModulesAbove, notRerun, openWorkDir, planInto, type DemoOptions, type DemoResult } from './replay.js';
+import { notRerun, openWorkDir, planInto, type DemoOptions, type DemoResult } from './replay.js';
 import { certifySample } from './sample.js';
 
 export const liveBranch = 'ac-demo/live';
@@ -58,7 +58,7 @@ export async function liveDemo(options: LiveOptions): Promise<DemoResult> {
   let plan: PlanPhase;
   let planText: string | null = null;
   try {
-    const { run, outputs, directory } = await planInto(checkout.directory, profile, gateway, calls, criticSettingsFor(profile, 'record'), workDir);
+    const { run, outputs, directory } = await planInto(checkout.directory, profile, gateway, calls, 'record', workDir);
     planText = run.validation.valid ? outputs.get('plan.yaml')! : null;
     const recordedGroups = new Set(readPlanYaml(fs.readFileSync(path.join(target.recordedRun, readRunState(target.recordedRun).plan.file), 'utf8')).groups.keys());
     const groups = [...readPlanYaml(outputs.get('plan.yaml')!).groups.keys()];
@@ -87,7 +87,7 @@ export async function liveDemo(options: LiveOptions): Promise<DemoResult> {
 
   const report: DemoReport = {
     mode: 'live',
-    target: { name: target.name, sha: target.sha, packageRoot: profile.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: liveBranch, nodeModulesAbove: nodeModulesAbove(workDir) },
+    target: { name: target.name, sha: target.sha, packageRoot: profile.packageRoot, checkout: checkout.directory, source: checkout.source, environment, branch: liveBranch, environmentNodeModulesAbove: environment ? nodeModulesAbove(environment) : [] },
     recorded: null,
     plan,
     ...ladder,

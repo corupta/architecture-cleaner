@@ -13,6 +13,7 @@ import { commitRepoFs, createEnvironment, type Environment } from './commit-fs.j
 import { emitLayout } from './emit-layout.js';
 import { envelope } from './envelope.js';
 import { type CommitTree, readCommitTree } from './git-tree.js';
+import { requireHermetic } from './hermetic.js';
 import { locationScan } from './location-scan.js';
 import { moveSetIntegrity } from './move-set-integrity.js';
 import { oracles } from './oracles.js';
@@ -80,8 +81,10 @@ export function removeWorktrees(repo: string, directories: string[]): void {
 }
 
 export function createContext(given: CertifyOptions): { context: CertifyContext; cleanup(): void } {
-  // Probes run from inside a worktree: a relative work dir would name another directory there.
-  const options = { ...given, workDir: path.resolve(given.workDir), ...(given.cacheDir ? { cacheDir: path.resolve(given.cacheDir) } : {}) };
+  // Probes run from inside a worktree: a relative work dir would name another directory there. Its real path, refused
+  // before anything is written when a node_modules or package.json above it would reach the trees certified in it.
+  const workDir = requireHermetic(given.workDir, 'the work dir', 'Certify in a directory with neither on its path.');
+  const options = { ...given, workDir, ...(given.cacheDir ? { cacheDir: path.resolve(given.cacheDir) } : {}) };
   fs.mkdirSync(options.workDir, { recursive: true });
   const base = readCommitTree(options.repo, options.base);
   const head = readCommitTree(options.repo, options.head);
@@ -192,7 +195,7 @@ export async function certify(options: CertifyOptions): Promise<Certificate> {
       packageRoot: options.packageRoot,
       profile: options.profile?.name ?? null,
       environment: { checkout: context.environment.checkout, node: process.version, linkedNodeModules: context.environment.linked },
-      workDir: path.resolve(options.workDir),
+      workDir: context.options.workDir,
       pathMap: {
         moves: pathMap.moves.size,
         unchanged: pathMap.forward.size - pathMap.moves.size - editedInPlace,
