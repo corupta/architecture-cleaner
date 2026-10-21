@@ -76,8 +76,9 @@ and TurboMQ (immich), mean over 3 runs (min to max):
 - Run-to-run spread matters for our headline numbers too. The committed bench (`bench/results`, S7 and S8) is one
   earlier draw of the same Ultra edit request on each scramble, and hoppscotch's 87.59 there is above all three fresh
   Ultra runs (81.38 to 84.83). Single-run planner numbers are one draw, and three-run ranges understate the spread.
-- **Decision:** the demo's planner stays Nemotron 3 Ultra; the recorded immich plan and run are unchanged. Super VL
-  with thinking off is a configuration of the tool (`--planner super-vl-direct`), at a fifth of the cost.
+- **Decision (S8b, revisited in S8d below):** the demo's planner stays Nemotron 3 Ultra; the recorded immich plan and
+  run are unchanged. Super VL with thinking off is a configuration of the tool (`--planner super-vl-direct`), at a
+  fifth of the cost.
 
 ## S8c: thinking on with room to finish (2026-10-21)
 
@@ -89,26 +90,83 @@ hoppscotch, one run ([super-vl-long](super-vl-long/summary.md)):
 
 | Edit choice | Tokens | Ended | |
 |---|---|---|---|
-| 2 (the winner) | ~44k: 41k reasoning, 3k answer | finished | 95% of its reasoning lines distinct |
-| 1 | ~68k: 66k reasoning, 2k answer | finished | 98% distinct |
-| 3 | ~514k, all reasoning | the 512k cap | a loop: 12% distinct, 1% in its last 400 lines ("Let me pick. Let me go. Let me write.") |
+| 2 (the winner) | ~45k: 42k reasoning, 3k answer | finished | 95% of its reasoning lines distinct |
+| 1 | ~69k: 67k reasoning, 2k answer | finished | 98% distinct |
+| 3 | 512k, all reasoning | the 512k cap | a loop: 12% distinct, 1% in its last 400 lines ("Let me pick. Let me go. Let me write.") |
 
 - The critic reasoned 28k tokens and finished: 11 suggestions, its gate kept 9. The plan is valid, 30 groups, and
-  scores **MoJoFM 88.28**: above the best deterministic method (81.38), every fresh Ultra run (81.38 to 84.83) and the
-  committed single Ultra run (87.59). It is one run.
-- The edit call streamed for 19 m 36 s and the critic for 1 m 18 s; the run cost $0.60, of which the looping choice
-  cost about $0.46.
-- So, on hoppscotch: with room, thinking on finishes its deliberation in about 40k to 70k tokens, just around the old
-  64k cap (which cut 11 of 12 choices in S8b), and some choices fall into a loop that only a cap stops.
+  scores MoJoFM 88.28. The edit call streamed for 19 m 36 s and the critic for 1 m 18 s; the run cost $0.60, of which
+  the looping choice cost $0.46.
+- In this one run the two choices that finished took about 45k and 69k tokens. That was a short draw: S8d's three
+  runs of the same request finished at about 62k to 164k, and 2 of their 9 choices were still reasoning at 256k.
+
+## S8d: thinking on at 256k/128k, three runs per entry (2026-10-21)
+
+After the 512k probe, corupta asked for the full comparison with thinking on at 256k-token edit choices and a 128k
+critic (both streamed): three runs on each of the five entries, like Ultra's and thinking off's
+([super-vl-256k](super-vl-256k/summary.md)). It took 3 h 31 min and cost $6.42. The requests match Ultra's in every
+field (system prompts, per-entry prompt, response format, n=3, sampling, planner rules) except three: the caps
+(256k/128k against 64k/32k), streaming, and the reasoning mode (Super VL's full default thinking against Ultra's
+`medium_effort`).
+
+| Entry | Best deterministic | Ultra (`medium_effort`) | Super VL, thinking off | **Super VL, thinking on, 256k** |
+|---|---|---|---|---|
+| hoppscotch | 81.38 | 83.22 (81.38 to 84.83) | 81.84 (76.55 to 90.34) | **91.26** (88.97 to 94.48) |
+| hoppscotch-H1 | 81.38 | 85.06 (80.00 to 90.34) | 79.77 (77.24 to 82.76) | **90.80** (88.97 to 93.10) |
+| kaneo | **66.90** | 50.74 (50.39 to 50.91) | 56.13 (43.34 to 64.75) | 55.27 (49.61 to 58.75) |
+| ghostfolio | 84.72 | 82.18 (76.39 to 87.50) | 82.18 (80.56 to 83.33) | **86.11** (83.33 to 87.50) |
+| immich (TurboMQ) | **10.50** | 10.20 (10.03 to 10.42) | 9.84 (9.76 to 9.98) | 10.26 (10.08 to 10.35) |
+
+- Runs that beat the best deterministic method: 8 of 15 (hoppscotch 3, hoppscotch-H1 3, ghostfolio 2), against Ultra's
+  5 and thinking off's 2. Plans from an edit that our validator accepts: 14 of 15 (Ultra 11, thinking off 13).
+- Cost per planner run: $0.428, 2.5 times Ultra's $0.170. Model time per run (the ledger's latencies, edit and critic):
+  13.7 minutes, against Ultra's 2.1, 6.4 times as long.
+- How much it thinks: 37 of 45 edit choices finished on their own, after a median of about 118k tokens (about 42k to
+  247k, estimated per choice from each call's usage); only 5 of them would have fit S8b's 64k cap. 8 reached the 256k
+  cap: 7 still reasoning (their text compresses like the finished ones), 1 in a loop. The critic finished 14 of 15
+  times, after 13k to 75k tokens; the 15th was still reasoning at its 128k cap.
+- Ultra at `medium_effort` never needed more room: its finished edit choices peak near 25k tokens and its critics near
+  19k, and its only two cap hits in S8b were loops.
+- Loops: 2 of the 64 choices in the 256k and 512k runs (3%), both in n=3 edit calls and outvoted by the other choices.
+  Ultra: 4 of its 95 recorded planner choices (4%): whitespace, repeated chat-template tokens and a repeated module
+  list in edit calls, each outvoted, and an off-task critic, which was its call's only choice, so that run's critic
+  made no suggestion.
+
+Reading it:
+
+- Against Ultra at `medium_effort`, its mean is higher on all four scrambles. Pairwise over the runs that is 28 wins, 3
+  ties and 5 losses in 36 pairs; a permutation test stratified by entry gives p ≈ 0.0007 (still at most 0.011 with any
+  one entry left out). Entry by entry only hoppscotch is clear on its own (every run above every Ultra run, p = 0.05);
+  hoppscotch-H1 (p 0.15), ghostfolio and kaneo (p 0.20) are not.
+- It is the best planner we have measured on hoppscotch, hoppscotch-H1 and ghostfolio. On kaneo thinking off is a
+  little better (MoJoFM 56.13 against 55.27, and on ARI and c2c too); thinking on merges kaneo heavily (about 26
+  modules against 47 in the ground truth), and every configuration stays below Louvain (66.90).
+- On immich, the demo's target and the one entry that isn't a scramble, it is not distinguishable from Ultra: TurboMQ
+  10.26 against 10.20, p 0.45, both below Louvain.
+- Caveat: the scrambles are public projects, and in 11 of its 30 calls Super VL's long reasoning names them and tries
+  to recall their real structure ("I recall ghostfolio has modules…", "the actual Immich module list (from memory of
+  the codebase)"); some of what it recalls is wrong. Ultra's calls show no such recall. How much this inflates the
+  scramble scores is unmeasured; the scramble whose upstream it recalls most, ghostfolio, gains 3.9 points over Ultra,
+  and immich, which isn't scored against its upstream, gains nothing.
+- The lead is over Ultra at `medium_effort`, the configuration the tool uses, not over Ultra at full thinking, which we
+  never measured with room to finish. It costs 2.5 times as much and takes 6.4 times as long per plan. At our earlier
+  64k cap the same model looked like a failure.
+- **Not decided yet:** whether the demo should plan with it. That is corupta's call for S9, and it is more than a new
+  plan (about $0.30 and 10 minutes of model time on immich): the demo and `ac run` can't take a planner configuration
+  today (`planInto` and `plan-source` plan with the default, and `--planner` is refused outside `ac plan` and
+  `ac bench`), so it needs that code plus a pin in the immich profile; then the ladder run, the fault run and the
+  re-wrap are recorded again, and the site, report and README numbers rebuilt, before the numbers freeze on Oct 22.
+  On immich itself it shows no gain.
 
 ## Cost and reproduction
 
-S8c (budget run s8c): the 504 probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown),
-and the 512k probe cost $0.60, $1.30 in all; the ledger stands at $15.84 recorded. Budget run s8b recorded $4.00 of its $7 cap: Ultra $2.55, Super VL thinking off $0.54, thinking on $0.70 (3 runs on
-hoppscotch, 1 edit call on hoppscotch-H1), low effort $0.19, the probes $0.02. The hoppscotch-H1 critic call that was
-in flight when we stopped thinking on was never recorded; its $0.04 reservation stays open in the ledger, so the
-gateway and `ac report`, which count open reservations, show s8b at $4.04 and the ledger at $14.58 ($14.54 recorded)
-of the $50 cap.
+Budget run s8b recorded $4.00 of its $7 cap: Ultra $2.55, Super VL thinking off $0.54, thinking on at 64k $0.70 (3
+runs on hoppscotch, 1 edit call on hoppscotch-H1), low effort $0.19, the probes $0.02. S8c (budget run s8c): the 504
+probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown), and the 512k probe cost $0.60,
+$1.30 in all. S8d (budget run s8d): $6.42 for the 15 runs at 256k/128k. The ledger stands at $22.26 recorded. The
+hoppscotch-H1 critic call that was in flight when we stopped thinking on at 64k was never recorded; its $0.04
+reservation stays open in the ledger, so the gateway and `ac report`, which count open reservations, show s8b at $4.04
+and the ledger at $22.30 of the $50 cap.
 
 Every recorded run here replays from the cassette for $0, for example:
 
@@ -116,4 +174,7 @@ Every recorded run here replays from the cassette for $0, for example:
 npx ac bench bench/manifest.json --planner super-vl-direct --repeats 3 --cassette cassettes/s8b-bench.jsonl \
   --no-certify --out /tmp/super-vl-direct
 npx ac bench compare bench/experiments/s8b-super-vl/ultra /tmp/super-vl-direct
+# the streamed 256k runs replay the same way (about 5 minutes, $0):
+npx ac bench bench/manifest.json --planner super-vl-256k --repeats 3 --cassette cassettes/s8b-bench.jsonl \
+  --no-certify --out /tmp/super-vl-256k
 ```
