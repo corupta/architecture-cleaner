@@ -144,6 +144,21 @@ describe('cassette keys', () => {
   it('are pinned for a known request, so recorded cassettes stay valid', () => {
     // Cross-checked with Python: sha256(json.dumps(doc, sort_keys=True, separators=(',', ':'))).
     expect(requestHash(buildRequestBody(ask() as StructuredRequest<unknown>))).toBe('3bf7bec51b15c8bac41f22e7f1a96a2823bcda9cb2415319ec0199260d53364e');
+    // At the 64k cap, the largest that never streams: the hash the build before S8c gave it.
+    expect(requestHash(buildRequestBody(ask({ model: 'super-vl', maxTokens: 64_000, n: 3 }) as StructuredRequest<unknown>))).toBe('58d8edfa8dce56cbda17c8d090336f3fbe42b25c49ef28c8ee71b13fc1793be2');
+  });
+
+  it("match every committed record's request, none of which streams; only S8c's 504 probe asked for more than 64k", () => {
+    const above64k: string[] = [];
+    for (const file of fs.readdirSync(path.join(repoRoot, 'cassettes')).filter((name) => name.endsWith('.jsonl'))) {
+      for (const record of loadCassette(path.join(repoRoot, 'cassettes', file)).values()) {
+        const request = record.request as RequestBody;
+        expect(requestHash(request), `${file} ${record.key}`).toBe(record.hash);
+        expect([request.stream, request.stream_options, record.streamed], `${file} ${record.key}`).toEqual([undefined, undefined, undefined]);
+        if (request.max_tokens > 64_000) above64k.push(`${file} ${record.runId} ${record.response.status} ${request.max_tokens}`);
+      }
+    }
+    expect(above64k).toEqual(['s8b-bench.jsonl s8c 504 256000']);
   });
 
   it('count occurrences per hash, so identical sequential requests get distinct records, and replay them in order', async () => {
@@ -621,6 +636,15 @@ describe('request rules', () => {
     expect(plain.model).toBe('nvidia/nemotron-3-super-120b-a12b');
   });
 
+  it('stream above 64k max_tokens only, with usage in the last chunk; both fields are in the body, so in the hash', () => {
+    const atCap = buildRequestBody(ask({ model: 'super-vl', maxTokens: 64_000, n: 3 }) as StructuredRequest<unknown>);
+    expect(Object.keys(atCap)).toEqual(['model', 'messages', 'max_tokens', 'temperature', 'top_p', 'n', 'response_format', 'store']);
+    const above = buildRequestBody(ask({ model: 'super-vl', maxTokens: 64_001, n: 3 }) as StructuredRequest<unknown>);
+    expect(above).toEqual({ ...atCap, max_tokens: 64_001, stream: true, stream_options: { include_usage: true } });
+    const { stream: _stream, stream_options: _options, ...unstreamed } = above;
+    expect(requestHash(above)).not.toBe(requestHash(unstreamed));
+  });
+
   const refusals: [string, Record<string, unknown>][] = [
     ['medium_effort on super', { model: 'super', templateKwargs: { medium_effort: true } }],
     ['low_effort on ultra', { templateKwargs: { low_effort: true } }],
@@ -630,6 +654,7 @@ describe('request rules', () => {
     ['reasoning_effort smuggled in', { reasoning_effort: 'high' }],
     ['a caller-chosen temperature', { temperature: 0 }],
     ['tools', { tools: [] }],
+    ['a caller-chosen stream', { stream: true }],
     ['an unpinned model', { model: 'nano' }],
     ['no messages', { messages: [] }],
     ['a tool role', { messages: [{ role: 'tool', content: 'x' }] }],

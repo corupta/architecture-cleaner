@@ -1,6 +1,7 @@
 // Cassettes (plan §3.6): one JSONL record per call, keyed by the request hash plus the occurrence of that hash in the
 // gateway instance. A record holds only reproducible content (the exact body sent, the status, a few headers, the raw
-// body text, usage and cost); timestamps and latency go to the ledger.
+// body text, usage and cost); timestamps and latency go to the ledger. A streamed answer (S8c) is recorded as the one
+// body its events assemble into, never as the events.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,6 +25,8 @@ export interface CassetteRecord {
   /** The exact body sent. */
   request: unknown;
   response: RecordedResponse;
+  /** The response body was assembled from a stream's events (stream.ts); absent on every other record. */
+  streamed?: true;
   usage: Usage | null;
   costUsd: number;
 }

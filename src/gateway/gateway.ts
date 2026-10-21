@@ -2,8 +2,8 @@
 // serves or records a cassette record, holds the budget caps and appends the ledger. Live calls are serialized per
 // model (Super and Ultra send no rate-limit headers, so the client paces them) and retried on 429, 5xx and transport
 // errors, except those that may have been billed (a timeout, a connection lost after the whole request was sent, an
-// answer lost after its headers, a gateway timeout); only the final outcome is recorded, a non-2xx one included, so a
-// replay fails the same way.
+// answer lost after its headers, an incomplete stream, a gateway timeout); only the final outcome is recorded, a non-2xx
+// one included, so a replay fails the same way. A streamed answer is recorded as its assembled body, marked `streamed`.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { costUsd, estimateUsd, readSpent, reserve } from './budget.js';
@@ -119,7 +119,7 @@ export function createGateway(options: GatewayOptions): Gateway {
       await settle({ ...entry, status: null, costUsd: possiblyBilled ? estimate : 0, error: errorMessage(outcome.error) });
       throw new GatewayError(`${body.model} call failed in transport after ${outcome.attempts} attempt(s): ${errorMessage(outcome.error)}`, 'transport');
     }
-    const { status, headers, bodyText } = outcome.response;
+    const { status, headers, bodyText, streamed } = outcome.response;
     const usage = usageOf(bodyText);
     // A 2xx answer or a gateway timeout without usage is charged the full estimate, so the caps stay hard.
     const cost = usage ? costUsd(model, usage) : isSuccess(status) || isGatewayTimeout(status) ? estimate : 0;
@@ -135,7 +135,7 @@ export function createGateway(options: GatewayOptions): Gateway {
       finishReasons: finishReasonsOf(bodyText),
       rateLimit,
     });
-    const record: CassetteRecord = { key, hash, occurrence, runId, model: body.model, request: body, response: { status, headers: kept, body: bodyText }, usage, costUsd: cost };
+    const record: CassetteRecord = { key, hash, occurrence, runId, model: body.model, request: body, response: { status, headers: kept, body: bodyText }, ...(streamed ? { streamed } : {}), usage, costUsd: cost };
     appendCassette(cassettePath, record);
     return record;
   }

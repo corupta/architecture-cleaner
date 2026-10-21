@@ -28,8 +28,12 @@ export const plannerConfigurations: Readonly<Record<PlannerConfigurationName, Pl
   'super-vl-low': both({ model: 'super-vl', templateKwargs: { low_effort: true } }),
   /** Super VL with thinking off. With thinking on (S8b), every hoppscotch edit choice reasoned to the 64k cap before answering. */
   'super-vl-direct': both({ model: 'super-vl', templateKwargs: { enable_thinking: false } }),
-  /** Super VL with thinking on and room to finish: the edit's choices 256k tokens each, the critic 128k (S8c). */
-  'super-vl-long': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 128_000 } },
+  /**
+   * Super VL with thinking on and room to finish: the edit's choices 512k tokens each, the critic 256k (S8c). Both
+   * stream (above 64k, request.ts), and both fit its 1,048,576-token context with any prompt we send (at most 27,310
+   * tokens recorded).
+   */
+  'super-vl-long': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 512_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 } },
 };
 
 export const defaultPlannerConfiguration: PlannerConfigurationName = 'ultra';

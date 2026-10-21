@@ -1,7 +1,7 @@
 // The request rules of plan §3.6, enforced here rather than left to callers: the body is built from scratch out of a
 // validated StructuredRequest, so it can only ever carry json_schema strict output, temperature 1.0 and top_p 0.95,
-// a max_tokens cap, n when above 1, chat_template_kwargs at top level and store:false. No tools, no stream, and no
-// reasoning_effort (a partial, model-dependent alias on Token Factory).
+// a max_tokens cap, n when above 1, chat_template_kwargs at top level and store:false, plus stream with usage above
+// 64k max_tokens (S8c). No tools and no reasoning_effort (a partial, model-dependent alias on Token Factory).
 import { isModelKey, models } from './models.js';
 import type { ChatMessage, ModelKey, StructuredRequest, TemplateKwargs } from './types.js';
 
@@ -15,7 +15,17 @@ export interface RequestBody {
   response_format: { type: 'json_schema'; json_schema: { name: string; strict: true; schema: Record<string, unknown> } };
   chat_template_kwargs?: TemplateKwargs;
   store: false;
+  /** Above `streamAboveMaxTokens` only. */
+  stream?: true;
+  stream_options?: { include_usage: true };
 }
+
+/**
+ * A request whose max_tokens is above this streams (S8c): a non-streamed answer comes in one piece when it is done, and
+ * Token Factory's nginx gave a non-streamed Super VL call reasoning toward 256k a 504 after exactly 600 s. Every call
+ * recorded before S8c asked for at most 64k, so its body, hash and cassette record stay as they were.
+ */
+export const streamAboveMaxTokens = 64_000;
 
 /** A request that breaks a rule; thrown before anything is hashed, reserved or sent. */
 export class RequestRuleError extends Error {}
@@ -81,5 +91,7 @@ export function buildRequestBody(request: StructuredRequest<unknown>): RequestBo
     response_format: { type: 'json_schema', json_schema: { name: request.schemaName, strict: true, schema: request.schema } },
     ...(kwargs ? { chat_template_kwargs: kwargs } : {}),
     store: false,
+    // In the body, so in the hash: a streamed record never answers a request that was not streamed.
+    ...(request.maxTokens > streamAboveMaxTokens ? { stream: true, stream_options: { include_usage: true } } : {}),
   };
 }

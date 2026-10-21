@@ -9,14 +9,16 @@ export interface PinnedModel {
   name: string;
   inputUsdPerMillion: number;
   outputUsdPerMillion: number;
+  /** The context Token Factory serves (`max_model_len`): prompt plus max_tokens must fit (docs/research/02-token-factory.md). */
+  contextTokens: number;
 }
 
 export const models: Readonly<Record<ModelKey, PinnedModel>> = {
-  super: { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super', inputUsdPerMillion: 0.3, outputUsdPerMillion: 0.9 },
-  ultra: { id: 'nvidia/Nemotron-3-Ultra-550b-a55b', name: 'Nemotron 3 Ultra', inputUsdPerMillion: 1.0, outputUsdPerMillion: 3.0 },
-  lightning: { id: 'nvidia/Nemotron-3_5-Lightning', name: 'Nemotron 3.5 Lightning', inputUsdPerMillion: 0.06, outputUsdPerMillion: 0.24 },
+  super: { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super', inputUsdPerMillion: 0.3, outputUsdPerMillion: 0.9, contextTokens: 262_144 },
+  ultra: { id: 'nvidia/Nemotron-3-Ultra-550b-a55b', name: 'Nemotron 3 Ultra', inputUsdPerMillion: 1.0, outputUsdPerMillion: 3.0, contextTokens: 1_048_576 },
+  lightning: { id: 'nvidia/Nemotron-3_5-Lightning', name: 'Nemotron 3.5 Lightning', inputUsdPerMillion: 0.06, outputUsdPerMillion: 0.24, contextTokens: 1_048_576 },
   // Released 2026-10-15; the TF catalog read 2026-10-20 (bf16, 1M context, reasoning on by default).
-  'super-vl': { id: 'nvidia/Nemotron-3.5-Super-VL', name: 'Nemotron 3.5 Super VL', inputUsdPerMillion: 0.3, outputUsdPerMillion: 0.9 },
+  'super-vl': { id: 'nvidia/Nemotron-3.5-Super-VL', name: 'Nemotron 3.5 Super VL', inputUsdPerMillion: 0.3, outputUsdPerMillion: 0.9, contextTokens: 1_048_576 },
 };
 
 export const isModelKey = (value: unknown): value is ModelKey => typeof value === 'string' && Object.hasOwn(models, value);
