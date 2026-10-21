@@ -4,7 +4,7 @@
 // every target made with the default configuration.
 import type { ModelKey, TemplateKwargs } from '../gateway/types.js';
 
-export type PlannerConfigurationName = 'ultra' | 'super-vl' | 'super-vl-low' | 'super-vl-direct' | 'super-vl-long';
+export type PlannerConfigurationName = 'ultra' | 'super-vl' | 'super-vl-low' | 'super-vl-direct' | 'super-vl-long' | 'super-vl-256k';
 
 /** One call's model and its reasoning control (chat_template_kwargs); max tokens per choice when not the default. */
 export interface ModelSettings {
@@ -34,6 +34,12 @@ export const plannerConfigurations: Readonly<Record<PlannerConfigurationName, Pl
    * tokens recorded).
    */
   'super-vl-long': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 512_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 } },
+  /**
+   * Super VL with thinking on at half super-vl-long's caps (S8d): the 512k probe's choices that finished took about 44k
+   * and 68k tokens and its critic 28k, while one choice looped to the cap, so 256k/128k leaves room for long genuine
+   * reasoning and halves what a loop costs. Both calls stream.
+   */
+  'super-vl-256k': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 128_000 } },
 };
 
 export const defaultPlannerConfiguration: PlannerConfigurationName = 'ultra';

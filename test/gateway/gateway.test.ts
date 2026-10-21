@@ -148,17 +148,20 @@ describe('cassette keys', () => {
     expect(requestHash(buildRequestBody(ask({ model: 'super-vl', maxTokens: 64_000, n: 3 }) as StructuredRequest<unknown>))).toBe('58d8edfa8dce56cbda17c8d090336f3fbe42b25c49ef28c8ee71b13fc1793be2');
   });
 
-  it("match every committed record's request, none of which streams; only S8c's 504 probe asked for more than 64k", () => {
+  it("match every committed record's request; a record streamed exactly when it asked for more than 64k, but for S8c's 504 probe, sent before streaming existed", () => {
     const above64k: string[] = [];
     for (const file of fs.readdirSync(path.join(repoRoot, 'cassettes')).filter((name) => name.endsWith('.jsonl'))) {
       for (const record of loadCassette(path.join(repoRoot, 'cassettes', file)).values()) {
         const request = record.request as RequestBody;
         expect(requestHash(request), `${file} ${record.key}`).toBe(record.hash);
-        expect([request.stream, request.stream_options, record.streamed], `${file} ${record.key}`).toEqual([undefined, undefined, undefined]);
+        const streamed = request.max_tokens > 64_000 && !(record.runId === 's8c' && record.response.status === 504);
+        const expected = streamed ? [true, { include_usage: true }, true] : [undefined, undefined, undefined];
+        expect([request.stream, request.stream_options, record.streamed], `${file} ${record.key}`).toEqual(expected);
         if (request.max_tokens > 64_000) above64k.push(`${file} ${record.runId} ${record.response.status} ${request.max_tokens}`);
       }
     }
-    expect(above64k).toEqual(['s8b-bench.jsonl s8c 504 256000']);
+    // The 504 at 256k without streaming, then the streamed 512k probe's edit and critic.
+    expect(above64k.slice(0, 3)).toEqual(['s8b-bench.jsonl s8c 504 256000', 's8b-bench.jsonl s8c 200 512000', 's8b-bench.jsonl s8c 200 256000']);
   });
 
   it('count occurrences per hash, so identical sequential requests get distinct records, and replay them in order', async () => {

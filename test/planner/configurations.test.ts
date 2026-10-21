@@ -13,7 +13,7 @@ import { modelLabel } from '../../src/planner/outputs.js';
 
 describe('planner configurations', () => {
   it('are Ultra on medium_effort (the default), Super VL thinking on (no template kwargs) and Super VL on low_effort', () => {
-    expect(plannerConfigurationNames).toEqual(['ultra', 'super-vl', 'super-vl-low', 'super-vl-direct', 'super-vl-long']);
+    expect(plannerConfigurationNames).toEqual(['ultra', 'super-vl', 'super-vl-low', 'super-vl-direct', 'super-vl-long', 'super-vl-256k']);
     expect(defaultPlannerConfiguration).toBe('ultra');
     expect(plannerConfigurations).toEqual({
       ultra: { edit: { model: 'ultra', templateKwargs: { medium_effort: true } }, critic: { model: 'ultra', templateKwargs: { medium_effort: true } } },
@@ -21,6 +21,7 @@ describe('planner configurations', () => {
       'super-vl-low': { edit: { model: 'super-vl', templateKwargs: { low_effort: true } }, critic: { model: 'super-vl', templateKwargs: { low_effort: true } } },
       'super-vl-direct': { edit: { model: 'super-vl', templateKwargs: { enable_thinking: false } }, critic: { model: 'super-vl', templateKwargs: { enable_thinking: false } } },
       'super-vl-long': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 512_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 } },
+      'super-vl-256k': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 128_000 } },
     });
     expect([isPlannerConfigurationName('super-vl-low'), isPlannerConfigurationName('nano'), isPlannerConfigurationName('toString')]).toEqual([true, false, false]);
   });
@@ -46,20 +47,21 @@ describe('planner configurations', () => {
     expect(() => editSettingsFor({ plan: { rules: 9 } }, 'replay', 'super-vl')).toThrow('no planner rules version 9');
   });
 
-  it('gives super-vl-long room to finish its reasoning, and every other configuration the default caps', () => {
+  it('gives super-vl-long and super-vl-256k room to finish their reasoning, and every other configuration the default caps', () => {
     expect([editSettingsFor(null, 'auto', 'super-vl-long').maxTokens, criticSettingsFor(null, 'auto', 'super-vl-long').maxTokens]).toEqual([512_000, 256_000]);
+    expect([editSettingsFor(null, 'auto', 'super-vl-256k').maxTokens, criticSettingsFor(null, 'auto', 'super-vl-256k').maxTokens]).toEqual([256_000, 128_000]);
     for (const configuration of ['ultra', 'super-vl', 'super-vl-low', 'super-vl-direct'] as const) {
       expect([editSettingsFor(null, 'auto', configuration).maxTokens, criticSettingsFor(null, 'auto', configuration).maxTokens], configuration).toEqual([64_000, 32_000]);
     }
   });
 
-  it('stream the calls of super-vl-long only (above 64k max_tokens); every other configuration sends its bodies as before', () => {
+  it('stream the calls of super-vl-long and super-vl-256k only (above 64k max_tokens); every other configuration sends its bodies as before', () => {
     const streams = ({ model, templateKwargs, maxTokens }: { model: ModelKey; templateKwargs: TemplateKwargs; maxTokens: number }) => {
       const body = buildRequestBody({ model, templateKwargs, maxTokens, messages: [{ role: 'user', content: 'x' }], schemaName: 'x', schema: {}, parse: (value) => value, n: 3 });
       return [body.stream, body.stream_options];
     };
     for (const configuration of plannerConfigurationNames) {
-      const expected = configuration === 'super-vl-long' ? [true, { include_usage: true }] : [undefined, undefined];
+      const expected = configuration === 'super-vl-long' || configuration === 'super-vl-256k' ? [true, { include_usage: true }] : [undefined, undefined];
       expect(streams(editSettingsFor(null, 'auto', configuration)), configuration).toEqual(expected);
       expect(streams(criticSettingsFor(null, 'auto', configuration)), configuration).toEqual(expected);
     }
@@ -102,6 +104,6 @@ describe('planner configurations', () => {
     expect(modelLabel('super-vl', {})).toBe('Nemotron 3.5 Super VL (thinking on)');
     expect(modelLabel('super-vl', { low_effort: true })).toBe('Nemotron 3.5 Super VL (low_effort)');
     expect(modelLabel('super-vl', { enable_thinking: false })).toBe('Nemotron 3.5 Super VL (thinking off)');
-    expect(plannerConfigurationNames.map(plannerMethod)).toEqual(['planner (Ultra)', 'planner (Super VL, thinking on)', 'planner (Super VL, low_effort)', 'planner (Super VL, thinking off)', 'planner (Super VL, thinking on, 512k)']);
+    expect(plannerConfigurationNames.map(plannerMethod)).toEqual(['planner (Ultra)', 'planner (Super VL, thinking on)', 'planner (Super VL, low_effort)', 'planner (Super VL, thinking off)', 'planner (Super VL, thinking on, 512k)', 'planner (Super VL, thinking on, 256k)']);
   });
 });
