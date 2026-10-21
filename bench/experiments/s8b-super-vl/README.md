@@ -79,9 +79,32 @@ and TurboMQ (immich), mean over 3 runs (min to max):
 - **Decision:** the demo's planner stays Nemotron 3 Ultra; the recorded immich plan and run are unchanged. Super VL
   with thinking off is a configuration of the tool (`--planner super-vl-direct`), at a fifth of the cost.
 
+## S8c: thinking on with room to finish (2026-10-21)
+
+corupta asked for thinking on with a much larger budget. A first probe at 256k/128k (edit/critic) got HTTP 504 from
+Token Factory's nginx after exactly 600 s: a non-streamed request can't outlive 10 minutes there, and at about 245
+tokens/s per choice that caps a choice near 145k tokens. The gateway now streams any request above 64k max_tokens
+(every request up to 64k, and so every earlier recording, is unchanged), and the probe ran again at 512k/256k on
+hoppscotch, one run ([super-vl-long](super-vl-long/summary.md)):
+
+| Edit choice | Tokens | Ended | |
+|---|---|---|---|
+| 2 (the winner) | ~44k: 41k reasoning, 3k answer | finished | 95% of its reasoning lines distinct |
+| 1 | ~68k: 66k reasoning, 2k answer | finished | 98% distinct |
+| 3 | ~514k, all reasoning | the 512k cap | a loop: 12% distinct, 1% in its last 400 lines ("Let me pick. Let me go. Let me write.") |
+
+- The critic reasoned 28k tokens and finished: 11 suggestions, its gate kept 9. The plan is valid, 30 groups, and
+  scores **MoJoFM 88.28**: above the best deterministic method (81.38), every fresh Ultra run (81.38 to 84.83) and the
+  committed single Ultra run (87.59). It is one run.
+- The edit call streamed for 19 m 36 s and the critic for 1 m 18 s; the run cost $0.60, of which the looping choice
+  cost about $0.46.
+- So, on hoppscotch: with room, thinking on finishes its deliberation in about 40k to 70k tokens, just around the old
+  64k cap (which cut 11 of 12 choices in S8b), and some choices fall into a loop that only a cap stops.
+
 ## Cost and reproduction
 
-Budget run s8b recorded $4.00 of its $7 cap: Ultra $2.55, Super VL thinking off $0.54, thinking on $0.70 (3 runs on
+S8c (budget run s8c): the 504 probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown),
+and the 512k probe cost $0.60, $1.30 in all; the ledger stands at $15.84 recorded. Budget run s8b recorded $4.00 of its $7 cap: Ultra $2.55, Super VL thinking off $0.54, thinking on $0.70 (3 runs on
 hoppscotch, 1 edit call on hoppscotch-H1), low effort $0.19, the probes $0.02. The hoppscotch-H1 critic call that was
 in flight when we stopped thinking on was never recorded; its $0.04 reservation stays open in the ledger, so the
 gateway and `ac report`, which count open reservations, show s8b at $4.04 and the ledger at $14.58 ($14.54 recorded)
