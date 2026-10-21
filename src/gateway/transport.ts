@@ -35,6 +35,19 @@ export type SendRequest = (input: string | URL | Request, init: RequestInit | un
 export const tokenFactoryBaseUrl = 'https://api.tokenfactory.nebius.com/v1/';
 /** Ultra with n=3 and 64k max_tokens, not streamed, can run many minutes. */
 export const requestTimeoutMilliseconds = 20 * 60_000;
+/** A floor on generation speed, well under the catalog's (Super VL 282 tokens/s), for a request's own timeout. */
+const slowestTokensPerSecond = 100;
+const longestRequestTimeoutMilliseconds = 90 * 60_000;
+
+/**
+ * A request's timeout: 20 min, or longer when its max_tokens could take longer at the slowest speed we allow (Super VL
+ * reasoning toward a 256k cap, S8c), plus 5 min. A timeout is never resent and is charged, so it must not cut off an
+ * answer that is still coming.
+ */
+export function requestTimeoutFor(body: { max_tokens?: number }): number {
+  const generation = Math.ceil((body.max_tokens ?? 0) / slowestTokensPerSecond) * 1000 + 5 * 60_000;
+  return Math.min(longestRequestTimeoutMilliseconds, Math.max(requestTimeoutMilliseconds, generation));
+}
 
 export function readEnvFile(file: string): Record<string, string> {
   const values: Record<string, string> = {};
@@ -102,7 +115,7 @@ function reportingRequestSent(handler: Dispatcher.DispatchHandler, progress: Req
  */
 async function patientFetch(): Promise<SendRequest> {
   const { Agent, Dispatcher: DispatcherBase, fetch: undiciFetch } = await import('undici');
-  const patience = requestTimeoutMilliseconds + 60_000;
+  const patience = longestRequestTimeoutMilliseconds + 60_000;
   const agent = new Agent({ headersTimeout: patience, bodyTimeout: patience, pipelining: 0 });
   class ProgressDispatcher extends DispatcherBase {
     readonly #progress: RequestProgress;
@@ -143,14 +156,15 @@ export async function createSdkTransport(apiKey: string, send?: SendRequest, bas
       return response;
     };
     let response: Response;
+    const timeout = requestTimeoutFor(body as { max_tokens?: number });
     try {
       const params = body as unknown as ChatCompletionCreateParamsNonStreaming;
-      response = await client.withOptions({ fetch: fetchKeepingFailures }).chat.completions.create(params).asResponse();
+      response = await client.withOptions({ fetch: fetchKeepingFailures }).chat.completions.create(params, { timeout }).asResponse();
     } catch (error) {
       if (failure) return failure;
       // The SDK reports a connect timeout as a timeout too, but nothing was sent then: an ordinary, retryable failure.
       if (connectTimedOut) throw new Error('connect timed out, nothing was sent', { cause: error });
-      if (error instanceof APIConnectionTimeoutError) throw new PossiblyBilledError(`no answer within ${requestTimeoutMilliseconds / 60_000} min`);
+      if (error instanceof APIConnectionTimeoutError) throw new PossiblyBilledError(`no answer within ${Math.round(timeout / 60_000)} min`);
       // The server had the whole request when the connection dropped, so the generation may have run (and been billed).
       if (progress.requestSent) throw new PossiblyBilledError(`connection lost after the request was sent, before the answer's headers: ${rootMessage(error)}`);
       // DNS, a refused connect, TLS: nothing reached the server.

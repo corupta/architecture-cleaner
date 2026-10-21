@@ -1,14 +1,16 @@
 // Planner configurations (S8b): which Nemotron model edits the seeds draft and reviews the winner, and how it reasons.
-// Samples, max tokens, prompts and planner rules are the same in every configuration (edit.ts, critic.ts). A profile's
-// replay pins (rules, critic prompt) belong to its recording, which every target made with the default configuration.
+// Samples, prompts and planner rules are the same in every configuration (edit.ts, critic.ts), and so are max tokens
+// unless a configuration sets its own. A profile's replay pins (rules, critic prompt) belong to its recording, which
+// every target made with the default configuration.
 import type { ModelKey, TemplateKwargs } from '../gateway/types.js';
 
-export type PlannerConfigurationName = 'ultra' | 'super-vl' | 'super-vl-low' | 'super-vl-direct';
+export type PlannerConfigurationName = 'ultra' | 'super-vl' | 'super-vl-low' | 'super-vl-direct' | 'super-vl-long';
 
-/** One call's model and its reasoning control (chat_template_kwargs). */
+/** One call's model and its reasoning control (chat_template_kwargs); max tokens per choice when not the default. */
 export interface ModelSettings {
   model: ModelKey;
   templateKwargs: TemplateKwargs;
+  maxTokens?: number;
 }
 
 export interface PlannerConfiguration {
@@ -26,6 +28,8 @@ export const plannerConfigurations: Readonly<Record<PlannerConfigurationName, Pl
   'super-vl-low': both({ model: 'super-vl', templateKwargs: { low_effort: true } }),
   /** Super VL with thinking off. With thinking on (S8b), every hoppscotch edit choice reasoned to the 64k cap before answering. */
   'super-vl-direct': both({ model: 'super-vl', templateKwargs: { enable_thinking: false } }),
+  /** Super VL with thinking on and room to finish: the edit's choices 256k tokens each, the critic 128k (S8c). */
+  'super-vl-long': { edit: { model: 'super-vl', templateKwargs: {}, maxTokens: 256_000 }, critic: { model: 'super-vl', templateKwargs: {}, maxTokens: 128_000 } },
 };
 
 export const defaultPlannerConfiguration: PlannerConfigurationName = 'ultra';

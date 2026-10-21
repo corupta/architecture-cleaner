@@ -655,7 +655,7 @@ describe('the bench manifest and the command line', () => {
     }
     expect(errors.join('\n')).toContain('--run <id from budget/runs.json> is required for record and auto modes');
     expect(errors.join('\n')).toContain('no bench entry nope');
-    expect(errors.join('\n')).toContain('--planner is ultra, super-vl, super-vl-low, super-vl-direct');
+    expect(errors.join('\n')).toContain('--planner is ultra, super-vl, super-vl-low, super-vl-direct, super-vl-long');
     expect(errors.join('\n')).toContain('--repeats takes a whole number from 1 up');
   });
 });

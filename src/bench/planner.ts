@@ -83,9 +83,10 @@ const tallyCodes = (codes: string[]) => Object.fromEntries([...codes.reduce((tal
  * another configuration adds its edit's reasoning mode (`planner (Super VL, low_effort)`).
  */
 export function plannerMethod(configuration: PlannerConfigurationName): string {
-  const { model, templateKwargs } = plannerConfigurations[configuration].edit;
+  const { model, templateKwargs, maxTokens } = plannerConfigurations[configuration].edit;
   const shortName = models[model].name.replace(/^Nemotron [\d.]+ /, '');
-  return `planner (${shortName}${configuration === defaultPlannerConfiguration ? '' : `, ${reasoningMode(templateKwargs)}`})`;
+  const cap = maxTokens === undefined ? '' : `, ${maxTokens / 1000}k`;
+  return `planner (${shortName}${configuration === defaultPlannerConfiguration ? '' : `, ${reasoningMode(templateKwargs)}${cap}`})`;
 }
 
 /** The settings a bench entry's planner runs with: its configuration, its row's method and its edit and critic settings. */

@@ -9,7 +9,7 @@ import { errors as undiciErrors } from 'undici';
 import { describe, expect, it } from 'vitest';
 import { createGateway } from '../../src/gateway/gateway.js';
 import { buildRequestBody } from '../../src/gateway/request.js';
-import { apiKeyFrom, createSdkTransport, PossiblyBilledError, type SendRequest, type Transport } from '../../src/gateway/transport.js';
+import { apiKeyFrom, createSdkTransport, PossiblyBilledError, requestTimeoutFor, requestTimeoutMilliseconds, type SendRequest, type Transport } from '../../src/gateway/transport.js';
 import type { StructuredRequest } from '../../src/gateway/types.js';
 
 const body = buildRequestBody({
@@ -42,6 +42,17 @@ function stubFetch(next: () => Promise<Response>): FetchCall[] {
   calls = [];
   return calls;
 }
+
+describe('requestTimeoutFor', () => {
+  it('keeps 20 min for every cap up to 64k tokens, so recorded calls time out as before', () => {
+    for (const maxTokens of [undefined, 512, 32_000, 64_000]) expect(requestTimeoutFor({ max_tokens: maxTokens })).toBe(requestTimeoutMilliseconds);
+  });
+
+  it('waits for a long cap at 100 tokens/s plus 5 min (Super VL toward 256k: about 48 min), at most 90 min', () => {
+    expect(requestTimeoutFor({ max_tokens: 256_000 })).toBe(2_560_000 + 300_000);
+    expect(requestTimeoutFor({ max_tokens: 1_000_000 })).toBe(90 * 60_000);
+  });
+});
 
 describe('SDK transport', () => {
   it('posts the exact body to Token Factory and returns the raw text and headers', async () => {

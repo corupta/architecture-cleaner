@@ -57,7 +57,7 @@ describe.skipIf(!fs.existsSync(cli))('ac plan --planner', () => {
   it('refuses a configuration it doesn\'t know before anything runs, exit 2', () => {
     const run = ac('plan', fixture.repo, '--planner', 'nano', '--cassette', path.join(fixture.scratch, 'absent.jsonl'));
     expect(run.status).toBe(2);
-    expect(run.stderr).toBe('--planner is ultra, super-vl, super-vl-low, super-vl-direct\n');
+    expect(run.stderr).toBe('--planner is ultra, super-vl, super-vl-low, super-vl-direct, super-vl-long\n');
   });
 
   it('asks the configuration\'s model: a replay of an empty cassette misses on a Super VL record, spending nothing', () => {
