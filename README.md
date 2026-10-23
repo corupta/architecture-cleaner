@@ -35,7 +35,8 @@ Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineerin
 
   A failing step is rolled back and replanned.
 - **The findings log.** Bugs and smells that the new layout makes obvious are written down and never fixed, for
-  example an import cycle through 42 folders, or a base class that injects 56 members into 51 services.
+  example an import cycle through 42 folders (R4's count over 73 folders; 41 of 70 in the site's folder graph, which
+  leaves out the composition root), or a base class that injects 56 members into 51 services.
 
 ## Nemotron on Nebius Token Factory
 
@@ -58,8 +59,8 @@ Every call goes through one in-process gateway (`src/gateway/`):
 
 The ledger matched the Nebius console bill on 2026-10-14, at **$9.31**. $6.69 of it went to Nemotron 3 Super, mostly
 the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/sessions/s6.md](docs/sessions/s6.md)).
-Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 (S8b to
-S8d, Ultra's comparison runs included): the ledger stands at **$22.26** recorded of the $50 cap (2026-10-21), $22.30
+Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 recorded
+(S8b to S8d, Ultra's comparison runs included): the ledger stands at **$22.26** recorded of the $50 cap (2026-10-21), $22.30
 with one open $0.04 reservation, which the gateway and `ac report` count.
 
 ## Quick start: the replay (no key, $0)
@@ -97,8 +98,8 @@ The command exits 0 when everything it compared matches the recorded run, and 1 
 difference. It exits 2 when it can't run: a usage error, a refusal (`--oracles` without `--env`, `--live` without a
 key, a work dir it won't use) or an error that stops it, such as a failed fetch.
 Its summary also lists what it did not compare.
-From a fresh clone on our machine (12-core aarch64, 2026-10-20, an empty npm cache), `npm ci` took 16 s and the
-replay 11 m 25 s, with exit 0; `--steps <n>` stops early.
+From a fresh clone on our machine (12-core aarch64, 2026-10-23, commit `003e331`, an empty npm cache, nothing else
+running), `npm ci` took 16 s and the replay 11 m 08 s, with exit 0; `--steps <n>` stops early.
 
 What the replay does **not** re-run:
 - **The oracles (K8)**: tsc, the 105-file unit suite and the OpenAPI spec, on every rung and the whole PR. They need
@@ -144,8 +145,8 @@ package that immich's own install doesn't satisfy is then looked up there.
 | `npx ac demo --full --env ~/immich` | `ac run` end to end on the replayed plan: baseline, 63 certified commits, rung and whole-PR certificates, findings. 1 h 55 m on a quiet machine (S6). | $0 |
 | `NEBIUS_API_KEY=… npx ac demo --live` | a new plan from Nemotron (Ultra edit and critic) on **your** Token Factory key, then its steps executed and a sample certified. The key is read from the environment only, never from a `.env` file, so setting it is the opt-in, and the demo refuses to run without it. It keeps its own ledger and cassette in its work dir (`/tmp/ac-demo/`), capped at $1. | about $0.20 on your key |
 
-On 2026-10-20 we ran `npx ac demo --replay --env ~/ac-targets/immich --oracles` from a fresh clone, with no `--work`
-(20 m 57 s, exit 0). All 62 trees and the R4 tree matched. The three sample certificates (steps 1, 4 and 60) and the
+On 2026-10-23 we ran `npx ac demo --replay --env ~/ac-targets/immich --oracles` from the same fresh clone, with no
+`--work` (20 m 32 s, exit 0; 20 m 57 s on 2026-10-20 at tag `freeze`). All 62 trees and the R4 tree matched. The three sample certificates (steps 1, 4 and 60) and the
 whole-PR certificate came out with **the recorded digests, byte for byte**: `sha256:909262855d4a…`, `1b81fb81f24e…`,
 `b775e6f44ed8…` and `9a5b2404631c…`. In other words, the certificate was reproduced, not just a verdict, by a tool
 that has changed since the run was recorded (S6).
@@ -164,7 +165,7 @@ immich `server/` @ `02063972e8`, run unattended by `ac run` in S6 ([docs/session
   cases are equal to base. The OpenAPI spec is byte-identical. The whole-PR digest is `sha256:9a5b2404631c…`.
 - **R4:** 38 modules and 80 rules. Each rule fired on a synthetic violation (80/80). There are 8 back-edges, and 161
   of today's violations are frozen in the baseline.
-- **Findings:** 45, recorded and never fixed. Among them: a 42-folder import cycle; `BaseService` injects 56 members
+- **Findings:** 45, recorded and never fixed. Among them: a 42-folder import cycle (R4's count over 73 folders); `BaseService` injects 56 members
   into 51 services, which use 5.7 of them on average; 3 tables written by several groups.
 - **Time and cost:** 1 h 55 m on a quiet machine. The plan cost $0 because it was replayed ($0.1998 when it was
   recorded); the findings narration cost $0.0010.
@@ -222,7 +223,9 @@ errors, 105/105 test files and 2,337/2,337 cases equal base, and the OpenAPI spe
 (`runs/immich-rewrap/certificate.json`, digest `sha256:39a44461b5a5…`; immich branch `ac/s8-rewrap`). In `ac run` the same step is an optional rung, S3, after R3 and before R4
 (`--rungs R0,R1,R2,R3,S3,R4`). It is off by default, and the recorded run doesn't use it. With S3 on, the whole-PR certificate pairs a file that
 was moved and then re-wrapped by its import layout, when that pairing is unique: certifying immich's base..re-wrap
-range (02063972e8..7b993adbec) gives PASS (static checks), 367 moves, K2 reporting 20 files changed in layout only.
+range (02063972e8..7b993adbec) gives PASS (static checks), 367 moves, K2 reporting 20 files changed in layout only
+(`runs/immich-rewrap/whole-range.json`, certified again on 2026-10-23 with the current tool, digest
+`sha256:892a7dfa04b1…`).
 
 ## Benchmarks (bench/results)
 
@@ -308,6 +311,11 @@ We show these because the checker exists to catch them:
   and the validator dropped them all; a plan with no feature module won ghostfolio. See the benchmarks above.
 - **A miscount in our own findings log (S7, fixed in S8).** The log said "5 dropped by the guard" on immich: the
   guard dropped 4, and the model never returned the fifth. The log now counts them apart.
+- **A narration our guard let through (found in S9, left as recorded).** The lexical guard only checks that a
+  narration names nothing its evidence doesn't contain. On immich it passed one that calls the 91 edges closing the
+  42-folder cycle "the only back-edges"; R4 counts 8 back-edges against its module order. The narration is labeled as
+  the model's, next to its evidence, and stays as recorded: changing the guard now would change the committed findings
+  log that the replay reproduces byte for byte.
 - **Reviews.** Adversarial reviews confirmed 28 defects in S8, 18 in S7, 17 in S6 and 16 in S5. All were fixed with
   regression tests.
 
