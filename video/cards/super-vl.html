@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Super VL as the planner</title><link rel="stylesheet" href="card.css">
+<main>
+<h1>A newer planner, measured: preliminary</h1>
+<p class="small muted">Mean of 3 planner runs per entry (min to max). MoJoFM against the original folders; immich, a real target, TurboMQ.</p>
+<table>
+<thead><tr><th>Entry</th><th class="num">Nemotron 3 Ultra<br><span class="small muted">medium_effort, the demo's planner</span></th><th class="num">Nemotron 3.5 Super VL<br><span class="small muted">thinking on, 256k tokens per answer</span></th></tr></thead>
+<tbody>
+<tr><td>hoppscotch</td><td class="num">83.22 <span class="small muted">(81.38–84.83)</span></td><td class="num win">91.26 <span class="small muted">(88.97–94.48)</span></td></tr>
+<tr><td>hoppscotch-H1</td><td class="num">85.06 <span class="small muted">(80.00–90.34)</span></td><td class="num win">90.80 <span class="small muted">(88.97–93.10)</span></td></tr>
+<tr><td>ghostfolio</td><td class="num">82.18 <span class="small muted">(76.39–87.50)</span></td><td class="num win">86.11 <span class="small muted">(83.33–87.50)</span></td></tr>
+<tr><td>kaneo</td><td class="num">50.74 <span class="small muted">(50.39–50.91)</span></td><td class="num win">55.27 <span class="small muted">(49.61–58.75)</span></td></tr>
+<tr><td><b>immich</b> (TurboMQ)</td><td class="num">10.20 <span class="small muted">(10.03–10.42)</span></td><td class="num">10.26 <span class="small muted">(10.08–10.35)</span></td></tr>
+</tbody></table>
+<ul class="small">
+<li>3 runs per entry; the scrambles are public projects, and its reasoning tries to recall them</li>
+<li>2.5× the cost and 6.4× the time per plan; at our earlier 64k-token cap it finished 1 answer in 12</li>
+<li>No difference on immich, the demo's target, so the demo keeps the plan Ultra made</li>
+</ul>
+<p class="source">bench/experiments/s8b-super-vl (README.md, compare.md), sessions S8b–S8d</p>
+</main></html>

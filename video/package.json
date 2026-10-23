@@ -1,0 +1,12 @@
+{
+  "name": "architecture-cleaner-video",
+  "private": true,
+  "description": "Scripted captures for the demo video: VHS tapes for the CLI, Playwright for the replay site. Not part of the ac package.",
+  "type": "module",
+  "scripts": {
+    "site": "node capture/site.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.61.1"
+  }
+}

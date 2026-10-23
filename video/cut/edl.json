@@ -1,0 +1,23 @@
+{
+  "_doc": "The rough cut's timeline: each shot's slot in the video (seconds), where it comes from in its capture, and how it fills the slot. speed 1 plays the capture and holds its last frame if the slot is longer; speed \"fit\" speeds the [from, to] range up (or down) to fill the slot exactly and shows a speed badge. Times match video/script.md and video/shots.md.",
+  "shots": [
+    { "shot": "hook", "file": "cli/hook.mp4", "start": 0, "end": 15, "from": 0.5, "speed": 1 },
+    { "shot": "g3-vitest", "file": "cli/g3-vitest.mp4", "start": 15, "end": 24, "from": 0, "speed": "fit" },
+    { "shot": "g3-certify", "file": "cli/g3-certify.mp4", "start": 24, "end": 33, "from": 0, "speed": "fit" },
+    { "shot": "site-ab", "file": "site/site-ab.mp4", "start": 33, "end": 40, "from": 0, "speed": "fit" },
+    { "shot": "site-plan", "file": "site/site-plan.mp4", "start": 40, "end": 50, "from": 0, "speed": 1 },
+    { "shot": "ours-certify", "file": "cli/ours-certify.mp4", "start": 50, "end": 60, "from": 0, "speed": "fit" },
+    { "shot": "trailer", "file": "cli/trailer.mp4", "start": 60, "end": 65, "from": 0.5, "speed": 1 },
+    { "shot": "site-ladder", "file": "site/site-ladder.mp4", "start": 65, "end": 74, "from": 0, "speed": "fit" },
+    { "shot": "site-fault", "file": "site/site-fault.mp4", "start": 74, "end": 90, "from": 0, "speed": 1 },
+    { "shot": "site-graph", "file": "site/site-graph.mp4", "start": 90, "end": 105, "from": 0, "speed": 1 },
+    { "shot": "site-findings", "file": "site/site-findings.mp4", "start": 105, "end": 113, "from": 0, "speed": 1 },
+    { "shot": "boundaries", "file": "cli/boundaries.mp4", "start": 113, "end": 125, "from": 0.5, "speed": 1 },
+    { "shot": "card-misses", "file": "site/card-misses.mp4", "start": 125, "end": 133, "from": 0, "speed": 1 },
+    { "shot": "card-mutation", "file": "site/card-mutation.mp4", "start": 133, "end": 139, "from": 0, "speed": 1 },
+    { "shot": "site-bench", "file": "site/site-bench.mp4", "start": 139, "end": 148, "from": 0, "speed": 1 },
+    { "shot": "card-super-vl", "file": "site/card-super-vl.mp4", "start": 148, "end": 162, "from": 0, "speed": 1 },
+    { "shot": "replay", "file": "cli/replay.mp4", "start": 162, "end": 169, "from": 0, "speed": "fit" },
+    { "shot": "card-close", "file": "site/card-close.mp4", "start": 169, "end": 177, "from": 0, "speed": 1 }
+  ]
+}
