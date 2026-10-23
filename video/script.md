@@ -1,92 +1,94 @@
-# Video script (≤ 3:00), draft for corupta's 15-minute OK
+# Video script (≤ 3:00), for corupta's 15-minute OK
 
-From the storyboard's beats ([docs/storyboard.md](../docs/storyboard.md), locked Oct 9, measured beats Oct 20, decision 6
-on Oct 23). Every number on screen or in the voice-over is in [docs/numbers.md](../docs/numbers.md). The shots are
-in [shots.md](shots.md); each is a scripted capture, so the cut can be re-rendered.
+From the storyboard's beats ([docs/storyboard.md](../docs/storyboard.md), locked with corupta Oct 7, measured beats
+Oct 23, decisions 1–6). Every number on screen or in the voice-over is in [docs/numbers.md](../docs/numbers.md). The
+shots are in [shots.md](shots.md); each is a scripted capture, so the cut can be re-rendered. The silent rough cut that
+times this script is `video/out/cut/rough.mp4` (`node video/cut/render.mjs`).
 
-Voice-over pace: about 130 words a minute, 350–370 words in all, leaving room to breathe. Captions are the
-voice-over, word for word; the lower-third lines (in the right column) are burned in.
+Voice-over: about 370 spoken words in 2:57 (numbers counted as spoken), about 125 words a minute. Captions are the
+voice-over, word for word; the lower thirds (right-hand column) are burned in. 3 s are left for the fades.
 
-## 0:00–0:15 Hook (32 words)
+## 0:00–0:15 Hook (33 spoken words)
 
-> In March 2024, immich's maintainers restructured their server by hand: about seventeen pull requests in two days.
-> Nobody lets a tool, or an AI, do that, because nobody can prove it didn't change behavior.
-
-| Shot | Lower third |
-|---|---|
-| `hook` (immich's own git log, Mar 20–22, 2024) | immich, March 20–22, 2024: about 17 layout PRs, by hand |
-
-Note for corupta: the same tape can go on to show immich's tree before and after. It shows they moved *from* feature
-folders under `domain/` *to* type folders, the opposite of what ac does. The voice-over doesn't say which way they went.
-Recommended: end the shot on the PR list, so the picture doesn't raise a question the 15 seconds can't answer.
-
-## 0:15–0:40 The failure (55 words)
-
-> We gave the same job to opencode, running NVIDIA Nemotron 3 Super on Nebius Token Factory. All 2,337 test cases
-> still pass. But 66 of its test files never load, and tsc reports 1,680 errors: it copied 211 files and corrupted
-> every import it rewrote. A green test count is not proof.
+> In March 2024, immich's maintainers restructured their server by hand: about seventeen pull requests over two days.
+> It stays manual because nobody can prove a tool, or an AI, didn't change behavior.
 
 | Shot | Lower third |
 |---|---|
-| `g3-vitest` (the single-shot branch: 2,337 cases pass, one an expected failure as at base; 66 of 171 files fail to load) | opencode 1.18.34 + Nemotron 3 Super, single-shot, no human input |
-| `g3-certify` (`ac certify` on that branch: FAIL K1, K3a, K4, K6, K8) | tsc: 1,680 errors · 66 of 171 test files never load |
-| `site-ab` (the A/B table: the tsc, unit-suite and verdict rows) | runs/g3/ · docs/gates.md |
+| `hook` (immich's own git log: the 17 PRs #8080–#8204 to server/src, Mar 20–22, 2024) | immich, March 20–22, 2024: 17 PRs restructuring server/, by hand |
 
-## 0:40–1:30 Ours (110 words)
+Decision for corupta: the shot ends on the PR list. immich's history also shows their direction (from feature folders
+under `domain/` to type folders, the opposite of ac); the 15 s can't explain it, so the video doesn't show the trees.
+The voice-over doesn't say which way they went.
 
-> Here's ours. Nemotron 3 Ultra draws the map: it edits a draft that deterministic code drew from the repository, and a
-> second call reviews it. A codemod moves the files, one feature per commit, and changes nothing but import paths.
-> Then a separate checker proves nothing else changed, on every commit: every import still reaches the same file under
-> the compiler, the test runner and the runtime. And on every rung: tsc, all 2,337 tests, and the OpenAPI spec, byte
-> for byte. Sixty-three commits, each one certified, unattended, in under two hours.
-> And when a step is wrong? We broke one import on purpose. The checker names the file, the commit is rolled back, and
-> the step is planned again without it.
+## 0:15–0:40 The failure (50 spoken words)
+
+> We gave the same job to opencode on NVIDIA Nemotron 3 Super, via Nebius Token Factory. When it stopped, all 2,337
+> test cases still passed. But 66 test files never load, and tsc reports 1,680 errors: every import it rewrote is
+> corrupted. A passing test count is not proof.
 
 | Shot | Lower third |
 |---|---|
-| `site-plan` (the critic's review; a placement the critic decided) | Nemotron 3 Ultra on Nebius Token Factory: $0.20 for the plan, recorded once |
-| `ours-certify` (`ac certify` on step 1, static checks: K0–K7 PASS, the recorded digest again) | K3: TypeScript, vitest and Node resolve every import to the same file |
-| `trailer` (the commit message and its `Ac-Certificate:` trailers) | every commit carries its certificate |
-| `site-ladder` (rungs R1–R4 PASS with the oracles; the 63 steps) | 63 commits · whole PR PASS · tsc 0 · 2,337/2,337 · OpenAPI byte-identical · 1 h 55 m |
-| `site-fault` (step 2: FAIL K3a, K3b, K3c; rolled back; `album.dto.ts` pinned; attempt 2 passed) | a seeded wrong move: `--inject-fault 2:M2` |
+| `g3-vitest` (the single-shot branch: Tests 2,336 passed, 1 expected fail, as at base; Test Files 66 failed) | opencode 1.18.34 + Nemotron 3 Super, single-shot: it stopped at 169 s |
+| `g3-certify` (`ac certify --oracles` on that branch: FAIL K1, K3a, K4, K6, K8) | K1: 211 files added next to the originals · K6: 66 of 171 test files fail to load |
+| `site-ab` (the A/B table: the tsc, unit-suite and verdict rows) | the 33-min persistent run ($4.63): 2 moved files lost their migration and helmet.json paths, and no test noticed |
 
-## 1:30–2:05 Result (78 words)
+## 0:40–1:32 Ours (109 spoken words)
 
-> The result: 38 feature modules, 20 platform folders and a shared one. It isn't a cleaner graph, and we don't pretend
-> it is: the largest import cycle grows from 12 folders to 41. The new layout doesn't hide the hub, it makes it obvious:
-> one base class injects 56 members into 51 services. Bugs the layout reveals are written down, never fixed. And
-> boundary rules freeze today's violations, so a new forbidden import fails.
+> Ours: Nemotron 3 Ultra, on Nebius Token Factory, draws the map. It edits a deterministic draft, and a second call
+> reviews it, for twenty cents. A codemod moves one folder per commit and edits nothing but import paths. A separate
+> checker proves, on every commit, that each import reaches the same file under the compiler, the test runner and the
+> runtime; and on every stage, that tsc, all 2,337 tests and the OpenAPI spec come out the same. Sixty-three commits,
+> each certified, unattended, in under two hours.
+> We broke one import on purpose: the checker named it, the attempt was rolled back, and the step passed on its second
+> try.
 
 | Shot | Lower third |
 |---|---|
-| `site-graph` (the tiles, then the files flow) | 14 type folders → 38 modules, 20 platform, shared/ |
+| `site-plan` (the critic's review, labeled as the model's words, and the gate's record; a placement the critic decided) | Nemotron 3 Ultra on Nebius Token Factory: $0.1998 for the plan, recorded once |
+| `ours-certify` (`ac certify` on step 1 with its step certificate's checks: K0–K4, K6, K7 PASS; the digest) | K3: TypeScript, vitest and Node resolve every import to the same file |
+| `trailer` (the commit message and its `Ac-Certificate:` trailers: the same digest) | every commit carries its certificate; the digest reproduces |
+| `site-ladder` (rungs R1–R4, each PASS with the oracles; the 63 steps) | 63 commits (R1 38, R2 21, R3 3, R4 1) · tsc 0 · 2,337/2,337 · OpenAPI byte-identical · 1 h 55 m |
+| `site-fault` (step 2: FAIL K3a, K3b, K3c; rolled back; `album.dto.ts` pinned; attempt 2 passed) | a seeded fault: one import left unrewritten (`--inject-fault 2:M2`) |
+
+## 1:32–2:06 Result (74 spoken words)
+
+> 367 of 563 files moved into 38 feature modules, 20 platform folders and a shared one. The largest import cycle grows,
+> from 12 of 14 folders to 41 of 70: the layout makes the hub obvious. One base class injects 56 members into 51
+> classes. Whatever the layout reveals is written down, never fixed. Boundary rules freeze today's violations, so a new
+> forbidden import fails the check.
+
+| Shot | Lower third |
+|---|---|
+| `site-graph` (the files flow, then the tiles: the cycle tile highlighted) | 14 type folders → 38 modules, 20 platform, shared/; 196 files stay where they were |
 | `site-findings` (the `BaseService` finding) | 45 findings, recorded and never fixed |
-| `boundaries` (a forbidden import added; `ac boundaries --check` fails) | R4: 80 rules, 161 of today's violations frozen |
+| `boundaries` (a forbidden import added at the ladder's head; `ac boundaries --check`: 2 new violations, exit 1) | R4: 80 rules; 161 of today's violations frozen in the baseline |
 
-## 2:05–2:42 Credibility (82 words)
+## 2:06–2:42 Credibility (77 spoken words)
 
-> Don't trust our tool either. The checker once caught our own executor; that's the point. We attacked the checker
-> with 831 mutants, and every one was rejected before a single test ran. On benchmarks, the map beats the best classic
-> method on 3 of 5 repos, and we show where it loses. NVIDIA's newer Nemotron 3.5 Super VL plans better on the
-> benchmarks, but not on immich, so the demo keeps Ultra. Whichever model draws the map, the certificate checks every
-> commit.
-
-| Shot | Lower third |
-|---|---|
-| `card-misses` (our own misses, each with how it was caught) | the checker caught our executor (S4) · the bench caught our planner (S7) |
-| `card-mutation` (831 of 831 killed by the static checks) | runs/mutation/report.md |
-| `site-bench` (the bench table: wins, losses, the plans our validator rejects) | MoJoFM against the original folders · bench/results |
-| `card-super-vl` (Super VL thinking on vs Ultra, with the limits) | preliminary: 3 runs per entry · public projects · 2.5× the cost, 6.4× the time |
-
-## 2:42–2:57 Close (28 words)
-
-> Nemotron draws the map. Code moves it. A checker proves nothing else changed. Replay all of it with one command: no
-> key, no cost. The links are below.
+> Don't trust our tool either. Our own misses are on the record, with what caught them. We attacked the checker with
+> 831 mutants; every one was rejected before a single test case ran. On five benchmark entries, Nemotron's map beats
+> the best classic method on three, two counting only plans our validator accepts. In a preliminary test, the newer
+> Nemotron 3.5 Super VL plans better on the scrambles, not on immich, so the demo keeps Ultra.
 
 | Shot | Lower third |
 |---|---|
-| `replay` (`npx ac demo --replay` from a fresh clone, sped up; exit 0) | `npx ac demo --replay` · no key, $0 |
+| `card-misses` (our own misses, each with what caught it) | README "Our own misses" |
+| `card-mutation` (831 of 831 rejected by K0–K4, K6, K7; tests run only in K8) | runs/mutation/report.md, 2026-10-20 |
+| `site-bench` (the bench table: wins, kaneo's loss, the two plans the validator rejects) | MoJoFM against the original folders (immich: TurboMQ) · bench/results |
+| `card-super-vl` (Super VL, thinking on, against Ultra, mean of 3 runs; immich highlighted; the limits) | preliminary: 3 runs per entry · public projects · 2.5× the cost, 6.4× the time |
+
+## 2:42–2:57 Close (27 spoken words)
+
+> Replay the run with one command: no key, no cost. Nemotron draws the map. Code moves it. A checker proves nothing
+> else changed. The links are below.
+
+| Shot | Lower third |
+|---|---|
+| `replay` (`npx ac demo --replay` typed in a fresh clone) | npx ac demo --replay · no key, $0 |
+| `replay-end` (its summary: 62 of 62 trees equal the recording; exit 0) | every tree equals the recording · ~11 min |
 | `card-close` (the pitch line, the repo and site URLs) | — |
 
-Optional, about 5 s, only if the cut has room (storyboard: stretch S3, and the future direction): "Even the formatting
-fix is proven" over `rewrap`; or "Next: from enforced boundaries to Clean Architecture."
+Not in the cut (no room in 3:00; each would need a donor): stretch S3 ("even the formatting fix is proven", over
+`ac rewrap`'s commit), and the future direction ("Next: from enforced boundaries to Clean Architecture"). The cleanest
+swap is the latter for "The links are below." if corupta wants it.

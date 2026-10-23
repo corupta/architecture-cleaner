@@ -4,6 +4,7 @@
 <p class="pitch"><span>831 mutants</span><span>831 rejected</span></p>
 <p>Each mutant is a restructure that is wrong in one small way: one importer left unrewritten, a config path left
 stale, a test moved out of the runner's test set, a line break that changes where a statement ends.</p>
-<p>Every one fails the static checks (K0–K7), before the target's own tests (K8) would run.</p>
+<p>Every one is rejected by K0–K4, K6 or K7. They read the code and load the test files, but never run a test case;
+the target's tests run only in K8, which the harness leaves out.</p>
 <p class="source">runs/mutation/report.md · 2026-10-20 · every harness target: 7 fixtures, synthetic subjects, openhab-cloud, two immich steps, the hunt corpus</p>
 </main></html>

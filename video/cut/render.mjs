@@ -48,18 +48,25 @@ function readScript() {
   return { beats, lowerThirds };
 }
 
-/** Caption chunks of at most `limit` characters (two lines of 42), split at sentence ends, then at word boundaries. */
+/**
+ * Caption chunks of at most `limit` characters (two lines of 42), split at sentence ends; a longer sentence is split
+ * into parts of about equal length at word boundaries, so no part is a one-word tail that flashes.
+ */
 function chunks(text, limit = 84) {
   const result = [];
   for (const sentence of text.split(/(?<=[.?!])\s+/)) {
-    let current = '';
-    for (const word of sentence.split(/\s+/)) {
-      if (current && `${current} ${word}`.length > limit) {
-        result.push(current);
-        current = word;
-      } else current = current ? `${current} ${word}` : word;
+    const words = sentence.split(/\s+/);
+    const parts = Math.ceil(sentence.length / limit);
+    const prefix = (end) => words.slice(0, end).join(' ').length;
+    let start = 0;
+    for (let part = 1; part < parts; part += 1) {
+      const goal = (sentence.length * part) / parts;
+      let end = start + 1;
+      while (end < words.length - 1 && Math.abs(prefix(end + 1) - goal) < Math.abs(prefix(end) - goal)) end += 1;
+      result.push(words.slice(start, end).join(' '));
+      start = end;
     }
-    if (current) result.push(current);
+    result.push(words.slice(start).join(' '));
   }
   return result;
 }
@@ -74,6 +81,10 @@ const assTime = (value) => {
 const srtTime = (value) => assTime(value).replace(/^(\d+):/, (_, hours) => `${hours.padStart(2, '0')}:`).replace('.', ',') + '0';
 
 const { beats, lowerThirds } = readScript();
+for (const card of fs.readdirSync(path.join(video, 'cards')).filter((file) => file.endsWith('.html'))) {
+  const placeholders = fs.readFileSync(path.join(video, 'cards', card), 'utf8').match(/REPO_URL|SITE_URL/g);
+  if (placeholders) console.log(`warning: cards/${card} still has ${[...new Set(placeholders)].join(' and ')}: fill them before the final cut`);
+}
 const edl = JSON.parse(fs.readFileSync(path.join(video, 'cut', 'edl.json'), 'utf8'));
 
 // 1. One segment per shot, exactly its slot long.
@@ -82,7 +93,10 @@ const segments = edl.shots.map((shot, index) => {
   const slot = shot.end - shot.start;
   const segment = path.join(work, `${String(index).padStart(2, '0')}-${shot.shot}.mp4`);
   const source = path.join(out, shot.file);
-  const fit = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x1b1b1a';
+  // A terminal's last lines sit at the bottom, where the captions go: CLI shots are scaled into the top 87% of the frame.
+  const fit = shot.file.startsWith('cli/')
+    ? 'scale=1664:936,pad=1920:1080:128:16:color=0x1b1b1a'
+    : 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x1b1b1a';
   if (!fs.existsSync(source)) {
     ffmpeg(['-f', 'lavfi', '-i', `color=c=0x3a3a37:s=1920x1080:r=${fps}:d=${slot}`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', segment]);
     events.push({ style: 'Missing', start: shot.start, end: shot.end, text: `missing capture: ${shot.shot}\\N(${shot.file})` });
@@ -91,11 +105,13 @@ const segments = edl.shots.map((shot, index) => {
   }
   const from = shot.from ?? 0;
   const to = shot.to ?? duration(source);
-  const speed = shot.speed === 'fit' ? (to - from) / slot : shot.speed ?? 1;
+  const speed = shot.speed === 'fit' ? (to - from) / (slot - (shot.hold ?? 0)) : shot.speed ?? 1;
   ffmpeg(['-ss', String(from), '-t', String(to - from), '-i', source, '-an', '-vf',
     `setpts=(PTS-STARTPTS)/${speed},fps=${fps},${fit},tpad=stop_mode=clone:stop_duration=${slot},trim=duration=${slot},setpts=PTS-STARTPTS`,
     '-r', String(fps), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', segment]);
-  if (speed > 1.2) events.push({ style: 'Badge', start: shot.start, end: shot.end, text: `×${speed >= 10 ? Math.round(speed) : speed.toFixed(1)}` });
+  // A CLI wait sped up, or left out, is marked so nobody takes the footage's speed for the tool's; a page scroll isn't.
+  const badge = shot.badge ?? (shot.file.startsWith('cli/') && speed > 1.2 ? `×${speed >= 10 ? Math.round(speed) : speed.toFixed(1)}` : null);
+  if (badge) events.push({ style: 'Badge', start: shot.start, end: shot.end, text: badge });
   const lower = lowerThirds.get(shot.shot);
   if (lower) events.push({ style: 'Lower', start: shot.start + 0.2, end: Math.min(shot.end, shot.start + 4.5), text: lower });
   console.log(`${shot.shot}: ${slot} s from ${(to - from).toFixed(1)} s of ${shot.file} at ×${speed.toFixed(2)}`);

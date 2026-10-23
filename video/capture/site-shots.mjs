@@ -85,16 +85,15 @@ export const siteShots = [
   {
     id: 'site-graph',
     page: 'runs/immich-ladder/index.html',
+    // The files flow first (367 of 563 files moved), then back to the tiles while the cycle sentence is spoken.
     steps: [
-      { jumpTo: '#graph' },
+      { jumpTo: 'figure:has-text("Files flow")' },
       { hold: 1.5 },
+      { scrollTo: 'figure:has-text("Files flow") >> text=Left: the folders at the base commit', seconds: 4, margin: 600 },
+      { hold: 0.5 },
+      { scrollTo: '#graph', seconds: 1.5 },
       { highlight: '#graph .tile:has-text("Largest import cycle")' },
-      { hold: 2.5 },
-      { clear: true },
-      { scrollTo: 'figure:has-text("Files flow")', seconds: 1.5 },
-      { hold: 1 },
-      { scrollTo: 'figure:has-text("Files flow") >> text=Left: the folders at the base commit', seconds: 5, margin: 600 },
-      { hold: 1 },
+      { hold: 5 },
     ],
   },
   {
