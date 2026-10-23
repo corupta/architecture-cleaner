@@ -1,0 +1,33 @@
+ac certify 02063972e8..7b993adbec (package root server/), profile immich
+trees: 424df72c34..092b8c9a3a
+pathMap: 367 moves, 180 edited in place, 2917 unchanged, 2 added, 0 deleted
+
+PASS  K0  Envelope: inside the envelope: 678 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 367 moved files (7.9 s)
+PASS  K1  Move-set integrity: 367 moves, 180 files edited in place, 2 inert tool configs added, nothing else added or deleted (7.6 s)
+        finding (tool-config-added) server/.dependency-cruiser-known-violations.json: added at the package root and proven inert: in no tsconfig program, loaded by no reference, packed by no published package, named or globbed by no other file, and the tool runs nowhere; CI path filters match it, so it triggers their jobs: 'server/**' in .github/workflows/docker.yml (line 45), 'server/**' in .github/workflows/test.yml (line 46)
+        finding (tool-config-added) server/.dependency-cruiser.json: added at the package root and proven inert: in no tsconfig program, loaded by no reference, packed by no published package, named or globbed by no other file, and the tool runs nowhere; CI path filters match it, so it triggers their jobs: 'server/**' in .github/workflows/docker.yml (line 45), 'server/**' in .github/workflows/test.yml (line 46)
+PASS  K2  Byte-span confinement: 2474 specifier spans changed in 515 files; 20 files changed in layout only (equal tokens and syntax trees); every other byte identical (4.0 s)
+        finding (layout-only) server/src/schema/enums.ts: layout only: line breaks changed in 7 places from line 3, +7 lines; stack traces name its later lines by their new numbers
+        finding (layout-only) server/test/medium/specs/exif/audio-video.spec.ts: layout only: line breaks changed in 5 places from line 5, +5 lines; stack traces name its later lines by their new numbers
+        finding (layout-only) server/src/platform/registry/commands/index.ts: layout only: line breaks changed in 6 places from line 3, +6 lines; stack traces name its later lines by their new numbers
+        … 17 more findings
+PASS  K3a Resolution identity under TypeScript: 6647 sites in 1100 files resolve to map(base) under every program (458 files in several); 2474 rewritten specifiers keep their form (1.4 s)
+PASS  K3b Resolution identity under the test runner: vitest 4.1.11: 4837 sites in 672 files resolve to map(base) (3.7 s)
+PASS  K3c Resolution identity under the runtime: 6192 runtime sites resolve to map(base) under nest-cli/emit (3442 rewritten by the build) (5.7 s)
+PASS  K4  Location scan: 367 moved files expose no location; no computed path reaches a change; no old path in code, config or CI (13 findings in docs, comments or ungated coverage settings) (6.3 s)
+        finding (stack-text) server/src/repositories/metadata.repository.ts: moved to server/src/platform/metadata/metadata.repository.ts; 1 stack-trace reads passed along as text (line 133); their frames now name the new path
+        finding (stack-text) server/src/repositories/websocket.repository.ts: moved to server/src/platform/websocket/websocket.repository.ts; 1 stack-trace reads passed along as text (line 95); their frames now name the new path
+        finding (stack-text) server/src/services/asset-media.service.ts: moved to server/src/modules/asset/asset-media.service.ts; 1 stack-trace reads passed along as text (line 224); their frames now name the new path
+        … 23 more findings
+PASS  K6  Test inventory: vitest 4.1.11: 105 test files, 2337 tests, per-file load status and case names equal (95.7 s)
+PASS  K7  Emit layout: 7 emitting programs keep their outDir and rootDir (1 by TypeScript's default) (0.6 s)
+        finding (default-root-dir) e2e/tsconfig.json: emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e
+skip  K8  Oracles on the commit: skipped: oracles not requested (--oracles) (0.0 s)
+
+verdict: PASS (static checks only)
+digest: sha256:892a7dfa04b1897358d4b32029a2a19211057d3926894df9a7169f954be39c6d
+
+Ac-Certificate: pass (static) K0=pass K1=pass K2=pass K3=pass K4=pass K6=pass K7=pass K8=skip
+Ac-Certificate-Base-Tree: 424df72c3407dd1e7df5ee4e81a1d5fcd85cc01c
+Ac-Certificate-Tree: 092b8c9a3a5ce8ae5525fe6d7aad0a38dfa73e2b
+Ac-Certificate-Digest: sha256:892a7dfa04b1897358d4b32029a2a19211057d3926894df9a7169f954be39c6d
