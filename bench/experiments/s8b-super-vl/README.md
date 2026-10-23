@@ -151,12 +151,18 @@ Reading it:
 - The lead is over Ultra at `medium_effort`, the configuration the tool uses, not over Ultra at full thinking, which we
   never measured with room to finish. It costs 2.5 times as much and takes 6.4 times as long per plan. At our earlier
   64k cap the same model looked like a failure.
-- **Not decided yet:** whether the demo should plan with it. That is corupta's call for S9, and it is more than a new
-  plan (about $0.30 and 10 minutes of model time on immich): the demo and `ac run` can't take a planner configuration
-  today (`planInto` and `plan-source` plan with the default, and `--planner` is refused outside `ac plan` and
-  `ac bench`), so it needs that code plus a pin in the immich profile; then the ladder run, the fault run and the
-  re-wrap are recorded again, and the site, report and README numbers rebuilt, before the numbers freeze on Oct 22.
-  On immich itself it shows no gain.
+- **Decided (corupta, 2026-10-23): the demo plans with Ultra.** The demo shows these Super VL numbers as preliminary
+  results, with their limits, and says why it keeps Ultra:
+  - On immich, the demo's target, Super VL shows no gain: TurboMQ 10.26 against 10.20, p 0.45.
+  - The recorded demo run (S6: 63 certified commits) reproduces byte for byte, digests included, from a fresh clone
+    with the frozen tool. Switching means new code after the feature freeze (the demo and `ac run` can't take a
+    planner configuration today) and recording the ladder, fault and re-wrap runs again.
+  - The results are preliminary: three runs per entry, only hoppscotch clear on its own, the scrambles are public
+    projects its reasoning tries to recall, and Ultra was compared at `medium_effort`, never at full thinking.
+  - It needs 2.5 times the cost and 6.4 times the time per plan, and calls longer than Token Factory's 10-minute limit
+    for non-streamed answers.
+  - The proof doesn't depend on the planner: the certificate checks every commit whichever model drew the map, and
+    `--planner super-vl-256k` is one flag away.
 
 ## Cost and reproduction
 

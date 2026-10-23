@@ -36,7 +36,7 @@ S8 ran on 2026-10-20; [docs/sessions/s8.md](docs/sessions/s8.md) has the report.
 
 S8b ran on 2026-10-20 evening (an addendum in [docs/sessions/s8.md](docs/sessions/s8.md)): corupta asked to try Nemotron 3.5 Super VL as the planner. With thinking on it reasoned past the 64k cap; with thinking off it costs a fifth of Ultra but scores below it on immich and, less clearly, hoppscotch-H1. The demo keeps Ultra ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)).
 
-S8c and S8d ran on 2026-10-21 (same addendum): the gateway now streams requests above 64k tokens (Token Factory cuts non-streamed calls at 600 s). With thinking on and 256k tokens per answer, Super VL reasons a median of about 118k tokens and beats Ultra `medium_effort` on all four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. Whether the demo switches planner is S9's first question. The ledger stands at $22.26.
+S8c and S8d ran on 2026-10-21 (same addendum): the gateway now streams requests above 64k tokens (Token Factory cuts non-streamed calls at 600 s). With thinking on and 256k tokens per answer, Super VL reasons a median of about 118k tokens and beats Ultra `medium_effort` on all four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. corupta decided on 2026-10-23 that the demo keeps Ultra and shows Super VL's results as preliminary, with their limits. The ledger stands at $22.26.
 
 Next is S9 (the recording session: final recorded runs, numbers frozen Oct 22, site deployed, repo public), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
 
@@ -55,6 +55,7 @@ Next is S9 (the recording session: final recorded runs, numbers frozen Oct 22, s
 - **Form factor:** CLI, a static replay site as the demo URL, and a `--replay` test build. No live endpoint on our key.
 - **Demo target:** immich `server/`, provisional until the Oct 6 gate. Backups: Dokploy, mcphub.
 - **Unattended run (2026-10-07):** the demo uses Nemotron's plan as produced, with no human edits to plan.yaml. Editing stays an optional hook. Plan quality improves in the tool (validator rules, critic gate), never by hand.
+- **Planner for the demo (2026-10-23):** Nemotron 3 Ultra (`medium_effort`), the recorded S6 run as it is. Nemotron 3.5 Super VL's bench results (thinking on, 256k: better on the scrambles, no gain on immich) are shown as preliminary, with their limits and the reasons for keeping Ultra ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)).
 - **Timeline:** freeze Oct 20, submit Oct 28.
 
 ## Hard constraints

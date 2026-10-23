@@ -260,10 +260,13 @@ it costs a fifth of Ultra and scores no better. With thinking on and room to fin
 Token Factory's 10-minute limit for non-streamed calls), it beat Ultra on all four scrambles: hoppscotch 91.26 against
 83.22 MoJoFM, hoppscotch-H1 90.80 against 85.06, ghostfolio 86.11 against 82.18, kaneo 55.27 against 50.74 (pooled
 over the four, p ≈ 0.0007), at 2.5 times the cost and 6.4 times the time per plan. On immich, the demo's target, it
-shows no difference (TurboMQ 10.26 against 10.20). Two caveats: its long reasoning recalls the public upstream
-projects the scrambles come from, and the comparison is against Ultra at `medium_effort`. The demo keeps the plan
-Ultra made. The same runs show how much one planner run varies: hoppscotch's 87.59 above is one draw, and three fresh
-Ultra runs of the same request scored 81.38 to 84.83. The experiments cost $11.72, Ultra's fresh runs included.
+shows no difference (TurboMQ 10.26 against 10.20). The demo keeps the plan Ultra made, for four reasons: immich shows
+no gain; the recorded run reproduces byte for byte and switching would mean new code after the freeze and new
+recordings; the results are preliminary (three runs per entry, possible recall of the public projects, Ultra compared
+only at `medium_effort`); and it costs 2.5 times as much and takes 6.4 times as long. The certificate checks every
+commit whichever model plans, and `--planner super-vl-256k` is one flag away. The same runs show how much one planner
+run varies: hoppscotch's 87.59 above is one draw, and three fresh Ultra runs of the same request scored 81.38 to
+84.83. The experiments cost $11.72, Ultra's fresh runs included.
 
 ## Our own misses
 

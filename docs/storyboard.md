@@ -34,6 +34,7 @@ The contrast is the video: **a green test count is not proof.** The single-shot 
 3. **Honesty, presented strongly:** show our own misses as strengths ("a failure is always an opportunity"). The R1 step's stale coverage path that K4 caught moves into the credibility beat as "the checker caught our own executor"; the red team's 26 closed false passes stay in it.
 4. **opencode is named on screen**, with its model and provider said aloud; its numbers are reproducible from our recorded cassettes.
 5. **The graph beat shows the hub, not a cleanup** (corupta, 2026-10-20): the largest import cycle grows from 12 of 14 folders to 41 of 70, the `BaseService` hub made obvious; the beat says so instead of implying a cleaner graph.
+6. **The demo plans with Ultra; Super VL is shown as preliminary** (corupta, 2026-10-23): the recorded S6 run stays the demo. Nemotron 3.5 Super VL's bench results go into the credibility beat with their limits and the reasons for keeping Ultra (below).
 
 ## Measured beats (S7–S8), for the Oct 22–23 script
 
@@ -45,4 +46,12 @@ The contrast is the video: **a green test count is not proof.** The single-shot 
   - Say what didn't: on kaneo and ghostfolio the plan keeps one banned module name (`middleware`, `app`), so our own validator rejects it and `ac run` would refuse it; the bench scores it as it came back. Nemotron edits a deterministic draft, and the certificate, not the plan, carries the proof.
 - **The mutation harness** (S8, every target, on a quiet machine, after the review's fixes): 831/831 mutants killed by the static checks, 207 of them layout mutants and 53 hunt cases (`runs/mutation/report.md`). The 561 in S4 and the 420 in S7 are older counts; quote 831.
 - **Our misses, for the credibility beat** (README "Our own misses"): the checker caught our executor (S4); the H1 bench caught a planner regression (S7); our certifier refused our own kaneo scramble (S7); review caught a false pass we introduced (S7); certificates that depended on our own `node_modules`, now refused (S8); the planner that read files by path only (S8).
+- **The newer model, honestly** (decision 6; `bench/experiments/s8b-super-vl`), about 10 s in the credibility beat:
+  - Visual: the bench table with a Super VL column (thinking on, 256k): hoppscotch 91.26 against Ultra's 83.22,
+    hoppscotch-H1 90.80 against 85.06, ghostfolio 86.11 against 82.18; immich TurboMQ 10.26 against 10.20. Then one
+    line each for the limits: three runs per entry, the scrambles are public projects its reasoning tries to recall,
+    2.5 times the cost and 6.4 times the time, and at our old 64k cap it finished 1 answer in 12.
+  - Voice-over (draft): "NVIDIA's newer Nemotron 3.5 Super VL plans better on our benchmarks, once it may think past a
+    hundred thousand tokens. On immich it doesn't, so the demo keeps Ultra. Whichever model draws the map, the
+    certificate checks every commit."
 - **Optional, 5 s, if the cut allows** (stretch S3): after the ladder, 20 immich files fail immich's own `prettier --check`; `ac rewrap` re-wraps 22 import lines in one commit, and K2 certifies it as layout only (equal tokens and syntax trees). "Even the formatting fix is proven."
