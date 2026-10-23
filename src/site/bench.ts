@@ -109,7 +109,7 @@ function entryBlock(result: BenchResult): string {
   const facts: string[] = [`Target ${code(where)} @ ${code(shortSha(result.sha))}, ${count(result.files)} movable files.`];
   if (result.scramble) {
     const certificate = result.scramble.certificate;
-    facts.push(`Scrambled by our own executor in commit ${code(shortSha(result.scramble.commit))}: ${count(result.scramble.moved)} files moved into type folders, ${count(result.scramble.declined)} declined (they stay), ${count(result.scramble.excluded)} excluded; ${certificate ? `certificate ${statusMark(certificate.verdict)} (${certificate.scope}${certificate.failing.length ? `, failing ${escapeHtml(certificate.failing.join(', '))}` : ''})` : 'not certified in this run'}.`);
+    facts.push(`Scrambled by our own executor in commit ${code(shortSha(result.scramble.commit))}: ${count(result.scramble.moved)} scored files moved into type folders (a test next to its source moves with it and isn't scored), ${count(result.scramble.declined)} declined (they stay), ${count(result.scramble.excluded)} excluded; ${certificate ? `certificate ${statusMark(certificate.verdict)} (${certificate.scope}${certificate.failing.length ? `, failing ${escapeHtml(certificate.failing.join(', '))}` : ''})` : 'not certified in this run'}.`);
     const leakage = result.leakage
       ? `${count(result.leakyFiles ?? 0)} of the movable files give their feature away in their path (${count(result.leakage.renamed)} renamed after it, ${count(result.leakage.inFeatureFolder)} still in a feature folder, ${count(result.leakage.underSubFolder)} under a sub-folder their feature kept; ${count(result.leakage.unseen)} more that no method sees are not counted)`
       : `${count(result.leakyFiles ?? 0)} leaky files`;

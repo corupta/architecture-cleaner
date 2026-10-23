@@ -61,7 +61,7 @@ export function landingPage(context: SiteContext): string {
 ${cards}
 <h2>More</h2>
 <ul>
-<li>${link('ab/index.html', 'A/B: the same task given to a generic coding agent')} (opencode with Nemotron 3 Super): green tests, broken build, and the certificate that says why.</li>
+<li>${link('ab/index.html', 'A/B: the same task given to a generic coding agent')} (opencode with Nemotron 3 Super): a green test count, a broken build, and the certificate that says why.</li>
 <li>${link('bench/index.html', 'Benchmarks')}: recovering real feature boundaries next to deterministic baselines${context.bench.length ? '' : ' (not recorded yet)'}.</li>
 <li>${link('verify/index.html', 'Verify it yourself')}: replay the run with no key and no cost, and certify any diff.</li>
 ${context.sourceUrl ? `<li>${link(context.sourceUrl, 'Source code')}</li>` : ''}
@@ -70,7 +70,7 @@ ${context.sourceUrl ? `<li>${link(context.sourceUrl, 'Source code')}</li>` : ''}
 }
 
 export function abPage(context: SiteContext, links: AbLinks): string {
-  const body = `<p>In the G3 gate (docs/gates.md) a generic coding agent, opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, got the restructure with a fixed prompt and no human input, single-shot and persistent (an automated reply asked it to continue whenever it stopped). Its branches were certified in session S4 by the same checker as ours. The gate's numbers come from its own scripts and name their source. The verdict and check rows, and each "certificate" line under a value, are read from the certificate files when this page is built; where the two count the same thing differently, the notes under the table say why.</p>
+  const body = `<p>In the G3 gate (docs/gates.md) a generic coding agent, opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, got the restructure with a fixed prompt and no human input, single-shot and persistent (an automated reply asked it to continue whenever it stopped). Its branches were certified in session S4 by our checker, the version that also certified our one-step R1 branch (certificate format 1); the full ladder's certificates come from the S6 version (format 2, which added K7). The gate's numbers come from its own scripts and name their source. The verdict and check rows, and each "certificate" line under a value, are read from the certificate files when this page is built; where the two count the same thing differently, the notes under the table say why.</p>
 ${context.ab.map((view) => renderAbTable(view, links)).join('\n')}`;
   return page({ title: 'A/B: a generic agent and ac on the same task', breadcrumbs: [['../index.html', 'home']], body });
 }

@@ -637,7 +637,7 @@ ${figure('Table access by group', `${keyLegend}${matrix(rows, columns, cells, { 
 function costSection(data: RunReportData): Section {
   const { state, ledger } = data;
   const narration = data.findings?.narration ?? null;
-  const thisRun = `<p>This run: the plan cost ${state.cost.planRecordedUsd === null ? 'an unknown amount' : usd(state.cost.planRecordedUsd)} when it was recorded${state.cost.budgetRun ? ` (budget run ${code(state.cost.budgetRun)})` : ''}; planner spend during the run ${usd(state.cost.llmUsd)}${state.cost.mode ? ` (mode ${escapeHtml(state.cost.mode)})` : ''}${narration ? `; the findings narration ${usd(narration.costUsd)} in ${narration.calls} calls of ${escapeHtml(narration.label)}${narration.replayed ? ' (replayed, $0 now)' : ''}` : ''}. Replaying ${narration ? 'the plan and the narration' : 'the plan'} from the committed cassettes costs $0.</p>`;
+  const thisRun = `<p>This run: the plan cost ${state.cost.planRecordedUsd === null ? 'an unknown amount' : usd(state.cost.planRecordedUsd)} when it was recorded; planner spend during the run ${usd(state.cost.llmUsd)}${state.cost.budgetRun || state.cost.mode ? ` (${[state.cost.budgetRun ? `budget run ${code(state.cost.budgetRun)}` : '', state.cost.mode ? `mode ${escapeHtml(state.cost.mode)}` : ''].filter(Boolean).join(', ')})` : ''}${narration ? `; the findings narration ${usd(narration.costUsd)} in ${narration.calls} calls of ${escapeHtml(narration.label)}${narration.replayed ? ' (replayed, $0 now)' : ''}` : ''}. Replaying ${narration ? 'the plan and the narration' : 'the plan'} from the committed cassettes costs $0.</p>`;
   if (!ledger) return { id: 'cost', title: 'Cost', body: `${thisRun}<p>No budget/ledger.jsonl in this package.</p>` };
   const g3Usd = ledger.runs.filter((run) => run.run.startsWith('g3-')).reduce((sum, run) => sum + run.costUsd, 0);
   const carriedRuns = ledger.runs.filter((run) => run.notes.some((note) => note.startsWith('carried over'))).map((run) => run.run);
@@ -659,7 +659,7 @@ function abSection(data: RunReportData, links: AbLinks): Section | null {
   return {
     id: 'ab',
     title: 'A/B: the same task, a generic agent',
-    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by the same checker.</p>\n${renderAbTable(data.ab, links)}`,
+    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by our checker, the version before this run's (certificate format 1; K7 came later).</p>\n${renderAbTable(data.ab, links)}`,
   };
 }
 

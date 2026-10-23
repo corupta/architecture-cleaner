@@ -1,6 +1,6 @@
 {
  "format": "ac-ab/1",
- "about": "The same restructuring task on the same pinned commits: a generic coding agent (G3: opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, a fixed prompt, no human input) and architecture-cleaner. Every typed number is measured offline and names its source. The verdict and check rows, and the certificate line under a value of a row that names a certificate count, are read from the certificate files in this directory and in runs/immich-ladder/ when the page is built; a row whose numbers the gate measured differently says why in `differs`.",
+ "about": "The same restructuring task on the same pinned commits: a generic coding agent (G3: opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory, a fixed prompt, no human input) and architecture-cleaner. Every typed number is measured on the pinned commits (the certificates and oracles offline, the agent runs on Token Factory) and names its source. The verdict and check rows, and the certificate line under a value of a row that names a certificate count, are read from the certificate files in this directory and in runs/immich-ladder/ when the page is built; a row whose numbers the gate measured differently says why in `differs`.",
  "tables": [
   {
    "id": "immich",
@@ -12,7 +12,7 @@
     "packageRoot": "server",
     "profile": "immich"
    },
-   "baseline": "Base: tsc 0 errors; vitest 105 test files, 2,337 cases; the OpenAPI spec is 947,932 bytes (docs/gates.md, G2).",
+   "baseline": "Base: tsc 0 errors; vitest 105 test files, 2,337 cases (docs/gates.md, G2); the OpenAPI spec is 947,932 bytes (the certificates' K8).",
    "arms": [
     {
      "id": "ac-ladder",
@@ -27,7 +27,7 @@
     {
      "id": "ac-r1",
      "label": "ac, one R1-style step",
-     "who": "architecture-cleaner's executor, one move of every controller, service, repository and DTO",
+     "who": "architecture-cleaner's executor, one move of 292 of the 302 controllers, services, repositories and DTOs (the 3 index.ts barrels and the barrel's spec, two process.cwd() specs, the three import.meta.dirname users and services/shared/user-methods.ts stay)",
      "branch": "ac/s3-r1",
      "session": "S3",
      "ours": true,
@@ -69,7 +69,7 @@
       "ac-ladder": "367 files moved into 38 modules, 20 platform folders and shared/; 2,474 specifier edits in 515 files; 2 boundary-rule files added and proven inert; every other byte identical",
       "ac-r1": "292 files moved into 100 modules; 1,445 specifier edits in 386 files; every other byte identical",
       "g3-single": "211 files copied into src/features/, originals kept; every rewritten import corrupted",
-      "g3-persistent": "297 moved, 562 copied (a src.backup/ tree), 68 edited, 12 Python scripts left behind"
+      "g3-persistent": "297 moved, 562 TypeScript files copied (a src.backup/ tree), 68 edited, 12 Python scripts left behind"
      },
      "source": "docs/storyboard.md (lead table); docs/gates.md (G3 table); runs/immich-ladder/certificate.txt (K1, K2)",
      "certificate": "K1",
@@ -125,7 +125,7 @@
      "values": {
       "ac-ladder": "0 (K3a, K3b, K3c: every site resolves to its base target)",
       "ac-r1": "0 (K3a, K3b, K3c)",
-      "g3-single": "0: the copies still import the originals",
+      "g3-single": "0: its 552 rewritten imports are syntax errors, not specifiers, so the analyzer counts none; the rest still import the originals",
       "g3-persistent": "2,923"
      },
      "source": "G3 arms: docs/gates.md (G3 table, the gate's TypeScript analyzer); ac arms: the certificates' K3a–K3c",
@@ -135,8 +135,8 @@
     {
      "metric": "Behavior changes no unit test catches",
      "values": {
-      "ac-ladder": "None found: K4 finds no moved file that exposes its location",
-      "ac-r1": "None found (K4)",
+      "ac-ladder": "None found: K4 finds no moved file whose location reaches behavior; 12 logged stack traces now name the new path (K4 findings)",
+      "ac-r1": "None found (K4; 11 logged stack traces now name the new path)",
       "g3-single": "0 claims survived review: the copies are dead code",
       "g3-persistent": "2 survived review: database.repository.ts and config.repository.ts moved but kept their import.meta.dirname paths (migrations, helmet.json)"
      },
@@ -158,7 +158,7 @@
      "metric": "Time",
      "values": {
       "ac-ladder": "1 h 55 m wall time on a quiet machine, certificates included",
-      "ac-r1": "executor 14 s; certificate: static checks 139 s, oracles 146 s",
+      "ac-r1": "executor 14 s; certificate: static checks 124 s, oracles 111 s",
       "g3-single": "169 s",
       "g3-persistent": "33 min"
      },
@@ -186,7 +186,7 @@
     "packageRoot": "",
     "profile": null
    },
-   "baseline": "Base: tsc 0 errors; jest 218/226 files, 1,952/1,986 cases offline (docs/gates.md, G2). ac did not run on mcphub: there is no ac arm.",
+   "baseline": "Base: tsc 0 errors; jest 218/226 files, 1,952/1,986 cases offline (docs/gates.md, G2). ac made no restructure of mcphub (it only certified the agent's branches): there is no ac arm.",
    "arms": [
     {
      "id": "g3-single",

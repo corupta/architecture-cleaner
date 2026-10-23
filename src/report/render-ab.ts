@@ -24,8 +24,10 @@ export function greenTestsLine(view: AbTableView): string {
     const diagnostics = number('K8', 'tsc.head.diagnostics');
     const unloadable = number('K6', 'headUnloadable');
     const files = number('K6', 'headFiles');
+    const quarantined = number('K8', 'unit.quarantined');
     if (!cases || equal !== cases || !diagnostics || !unloadable || files === null) continue;
-    return `<p><strong>A green test count is not proof.</strong> On ${escapeHtml(view.table.target.name)}, the branch ${code(arm.branch)} (${escapeHtml(arm.label)}) still passes all ${count(cases)} of the base's test cases, while ${count(unloadable)} of its ${count(files)} test files fail to load and tsc reports ${count(diagnostics)} errors (its certificate: K6, K8).</p>`;
+    const setAside = quarantined ? ` outside the ${count(quarantined)} network test ${quarantined === 1 ? 'file' : 'files'} K8 sets aside` : '';
+    return `<p><strong>A green test count is not proof.</strong> On ${escapeHtml(view.table.target.name)}, the branch ${code(arm.branch)} (${escapeHtml(arm.label)}) still passes all ${count(cases)} of the base's test cases${setAside}, while ${count(unloadable)} of its ${count(files)} test files fail to load and tsc reports ${count(diagnostics)} errors (its certificate: K6, K8).</p>`;
   }
   return '';
 }

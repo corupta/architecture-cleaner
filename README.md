@@ -13,7 +13,8 @@ Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineerin
 
 - **The plan.** Deterministic code reads the repository (imports, DI wiring, tables, routes) and draws a seeds draft.
   Nemotron 3 Ultra edits that draft and then reviews the result. Every change it suggests goes through a validator
-  gate, and a change without evidence (an import edge, a table, a route) is dropped.
+  gate, and a review change that joins an existing group without evidence (an import edge, a table, a route) is
+  dropped.
 - **The moves.** An executor built on the TypeScript compiler API moves the files and rewrites only the import
   specifiers that point at them. Every other byte stays identical. No model writes code.
 - **The ladder.** R0 preflight and a baseline of the target's own tests. R1 moves one feature module per commit. R2
@@ -29,7 +30,8 @@ Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineerin
   - K4: that no path string, config or CI file still names an old path;
   - K6: that the test inventory is the same, file by file;
   - K7: that the emit layout is the same;
-  - K8: the target's own oracles (tsc, the unit suite, immich's OpenAPI spec), which must agree with the base commit.
+  - K8, with `--oracles`: the target's own oracles (tsc, the unit suite, immich's OpenAPI spec), which must agree with
+    the base commit. `ac run` runs them on each rung and on the whole PR, not on each move step.
 
   A failing step is rolled back and replanned.
 - **The findings log.** Bugs and smells that the new layout makes obvious are written down and never fixed, for
@@ -41,10 +43,10 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 
 | Model (Token Factory id) | What it does here | On immich |
 |---|---|---|
-| **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate keeps only evidenced changes. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
+| **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate drops any change that adds a warning or joins an existing group without evidence. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
 | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
-| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per answer, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it. `--planner super-vl-256k` or `super-vl-direct`. | $9.16 for its runs and probes ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
+| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $9.16 for its runs and probes ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
 - strict `json_schema` answers, explicit sampling and `max_tokens` caps;
@@ -57,7 +59,8 @@ Every call goes through one in-process gateway (`src/gateway/`):
 The ledger matched the Nebius console bill on 2026-10-14, at **$9.31**. $6.69 of it went to Nemotron 3 Super, mostly
 the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/sessions/s6.md](docs/sessions/s6.md)).
 Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 (S8b to
-S8d): the ledger stands at **$22.26** of the $50 cap (2026-10-21).
+S8d, Ultra's comparison runs included): the ledger stands at **$22.26** recorded of the $50 cap (2026-10-21), $22.30
+with one open $0.04 reservation, which the gateway and `ac report` count.
 
 ## Quick start: the replay (no key, $0)
 
@@ -81,8 +84,8 @@ What the replay does, and what it proves:
    git tree must equal the recorded run's tree for that step. R3's renames are computed again from the tree after R2.
 3. **It generates R4's boundary rules again.** This works without immich's node_modules. The rules commit's tree must
    equal the recorded one.
-4. **It certifies a sample again** with `ac certify`: the first step, the largest step and an R3 rename (`--sample k`
-   for more). Without node_modules, K0, K1, K2, K3a, K4 and K7 run, and each must give the recorded certificate's
+4. **It certifies a sample again** with `ac certify`: the first step, the step that moves the most files (step 4,
+   24 files) and an R3 rename (`--sample k` for more). Without node_modules, K0, K1, K2, K3a, K4 and K7 run, and each must give the recorded certificate's
    status. K3b, K3c and K6 skip, and the demo reports them as not compared. So are the checks' content and the
    digests: those are compared only in the recorded environment (`--env`, below).
 5. **It replays the findings narration** from the cassette and compares the findings log with the committed one.
@@ -90,7 +93,9 @@ What the replay does, and what it proves:
    narrations the model never returned apart from ones the guard dropped), so the two match byte for byte. A log
    narrated live differs from its replay in one flag, `replayed`; the demo allows that one difference and says so.
 
-The command exits 0 when everything it compared matches the recorded run, and 1 otherwise, listing each difference.
+The command exits 0 when everything it compared matches the recorded run, and 1 when something differs, listing each
+difference. It exits 2 when it can't run: a usage error, a refusal (`--oracles` without `--env`, `--live` without a
+key, a work dir it won't use) or an error that stops it, such as a failed fetch.
 Its summary also lists what it did not compare.
 From a fresh clone on our machine (12-core aarch64, 2026-10-20, an empty npm cache), `npm ci` took 16 s and the
 replay 11 m 25 s, with exit 0; `--steps <n>` stops early.
@@ -171,7 +176,7 @@ We gave opencode 1.18.34 with Nemotron 3 Super on Token Factory the same task, w
 
 | immich `server/` @ `02063972e8` | ac (the demo run) | opencode + Super, single-shot | opencode + Super, persistent |
 |---|---|---|---|
-| What the diff is | 367 files moved into 38 modules, 20 platform concerns and `shared/`; 5 renamed | 211 files **copied**, originals kept: a dead tree that nothing imports | 297 moved, 562 copied, 68 edited, 12 Python scripts left behind |
+| What the diff is | 367 files moved into 38 modules, 20 platform concerns and `shared/`; 5 renamed | 211 files **copied**, originals kept: a dead tree that nothing imports | 297 moved, 562 TypeScript files copied (a `src.backup/` tree), 68 edited, 12 Python scripts left behind |
 | tsc errors (base 0) | **0** | 1,680 | 768 |
 | Unit suite (base: 105 files, 2,337 cases) | **105/105 files, 2,337/2,337 cases** | 2,337/2,337 cases pass, **but 66 of 171 spec files never load** | 5/105 files, 52 cases |
 | OpenAPI spec | **byte-identical** | byte-identical (the copies are dead code) | not produced |
@@ -179,7 +184,7 @@ We gave opencode 1.18.34 with Nemotron 3 Super on Token Factory the same task, w
 | Cost | $0.20 for the plan, once | $0.30, 169 s | $4.63, 33 min, stopped by the budget cap |
 
 A green test count is not proof: the single-shot branch passes 2,337/2,337 cases, yet its restructure is a dead copy
-tree with 1,680 type errors. The certificate says exactly why. The same comparison on mcphub is in `runs/g3/`; both
+tree with 1,680 tsc errors (syntax errors, from the imports it corrupted). The certificate says exactly why. The same comparison on mcphub is in `runs/g3/`; both
 of its arms fail certification.
 
 ## A seeded wrong move (runs/immich-fault)
@@ -256,15 +261,17 @@ bench bench/manifest.json` replays them for $0.
 measured it on ours, three planner runs per entry for Ultra, for Super VL with thinking off and for Super VL with
 thinking on at 256k ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)). At our usual
 64k-token cap, thinking on finished 1 of 12 answers: it reasons for a median of about 118k tokens. With thinking off
-it costs a fifth of Ultra and scores no better. With thinking on and room to finish (256k per answer, streamed past
-Token Factory's 10-minute limit for non-streamed calls), it beat Ultra on all four scrambles: hoppscotch 91.26 against
+it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1, with no conclusive
+difference elsewhere. With thinking on and room to finish (256k tokens per edit answer and 128k for the critic,
+streamed past Token Factory's 10-minute limit for non-streamed calls), it beat Ultra on all four scrambles: hoppscotch 91.26 against
 83.22 MoJoFM, hoppscotch-H1 90.80 against 85.06, ghostfolio 86.11 against 82.18, kaneo 55.27 against 50.74 (pooled
 over the four, p ≈ 0.0007), at 2.5 times the cost and 6.4 times the time per plan. On immich, the demo's target, it
 shows no difference (TurboMQ 10.26 against 10.20). The demo keeps the plan Ultra made, for four reasons: immich shows
 no gain; the recorded run reproduces byte for byte and switching would mean new code after the freeze and new
 recordings; the results are preliminary (three runs per entry, possible recall of the public projects, Ultra compared
 only at `medium_effort`); and it costs 2.5 times as much and takes 6.4 times as long. The certificate checks every
-commit whichever model plans, and `--planner super-vl-256k` is one flag away. The same runs show how much one planner
+commit whichever model plans, and `ac plan --planner super-vl-256k` is one flag away (`ac run --plan` executes its
+`plan.yaml`). The same runs show how much one planner
 run varies: hoppscotch's 87.59 above is one draw, and three fresh Ultra runs of the same request scored 81.38 to
 84.83. The experiments cost $11.72, Ultra's fresh runs included.
 
@@ -285,11 +292,13 @@ We show these because the checker exists to catch them:
   kaneo's scramble stays FAIL.
 - **A false pass we introduced, caught by review (S7).** One of those precision fixes cleared a string compared
   against an exact moved path (`relative(cwd, file) === 'src/services/legacy.service.ts'`). The S7 review found it
-  before it shipped; it is now a hunt case. On 2026-10-20 the mutation harness, over every target (immich
-  included), killed 831 of 831 mutants with the static checks alone (`runs/mutation/report.md`).
+  before it shipped; it is now a hunt case. On 2026-10-20 the mutation harness, over all its subjects (7
+  fixtures, 2 synthetic repositories, openhab-cloud, two immich steps and 53 hunt cases), killed 831 of 831 mutants
+  with the static checks alone (`runs/mutation/report.md`).
 - **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored 57.24
   because its draft read only file names; G1 had picked the seed source without ground truth. Restoring that rule
-  lifted H1 to 79.31, and on ghostfolio it chose the export names, which cost 3.5 points there (86.11 → 82.64).
+  lifted H1 to 79.31. On ghostfolio it chose the export names, whose draft scores 2.08 points below the file names'
+  (82.64 against 84.72); with that run's moves all dropped (below), the planner fell from 86.11 to 82.64.
 - **Certificates that depended on our own install (S7, fixed in S8).** TypeScript's `@types` walk and Node's module
   resolution look up `node_modules` (and the nearest `package.json`) from every tree the certifier checks. On the
   judges' default path, `./ac-demo` sat inside this clone, below its `node_modules`, so a certificate made there could
@@ -299,7 +308,7 @@ We show these because the checker exists to catch them:
   and the validator dropped them all; a plan with no feature module won ghostfolio. See the benchmarks above.
 - **A miscount in our own findings log (S7, fixed in S8).** The log said "5 dropped by the guard" on immich: the
   guard dropped 4, and the model never returned the fifth. The log now counts them apart.
-- **Reviews.** Adversarial reviews confirmed 18 defects in S7, 17 in S6 and 16 in S5. All were fixed with
+- **Reviews.** Adversarial reviews confirmed 28 defects in S8, 18 in S7, 17 in S6 and 16 in S5. All were fixed with
   regression tests.
 
 ## Commands
@@ -320,9 +329,9 @@ Run `npx ac` for every flag. Profiles of the targets live in `profiles/`.
 
 ## Repository layout
 
-`src/` is feature-foldered: `analyzer/`, `planner/`, `gateway/`, `executor/`, `certificate/`, `orchestrator/`,
-`filename-normalization/`, `rewrap/`, `boundaries/`, `findings/`, `report/`, `site/`, `scramble/`, `bench/`, `demo/`,
-`mutation/`. Tests are in `test/` (`npm test`). The plan, the gate results and the session reports are in `docs/`.
+`src/` is feature-foldered: `cli/`, `analyzer/`, `planner/`, `gateway/`, `executor/`, `certificate/`, `oracles/`,
+`orchestrator/`, `filename-normalization/`, `rewrap/`, `boundaries/`, `findings/`, `report/`, `site/`, `scramble/`,
+`bench/`, `demo/`, `mutation/`. Tests are in `test/` (`npm test`). The plan, the gate results and the session reports are in `docs/`.
 
 ## License
 

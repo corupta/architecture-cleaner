@@ -192,7 +192,7 @@ describe('ac site on this package', () => {
     expect(abText).toContain('nothing to compare: K1 counts the 211 added files');
     expect(abText).toContain("Where the gate's numbers and the certificates' differ");
     expect(abText).toContain("On immich, the branch g3/opencode-super (opencode + Nemotron 3 Super, single-shot) still passes all 2,337 of the base's test cases, while 66 of its 171 test files fail to load and tsc reports 1,680 errors (its certificate: K6, K8).");
-    expect(abText).toContain("On mcphub, the branch g3/opencode-super-persistent (opencode + Nemotron 3 Super, persistent) still passes all 1,934 of the base's test cases, while 35 of its 264 test files fail to load and tsc reports 101 errors (its certificate: K6, K8).");
+    expect(abText).toContain("On mcphub, the branch g3/opencode-super-persistent (opencode + Nemotron 3 Super, persistent) still passes all 1,934 of the base's test cases outside the 7 network test files K8 sets aside, while 35 of its 264 test files fail to load and tsc reports 101 errors (its certificate: K6, K8).");
     const landing = pageText(fs.readFileSync(path.join(out, 'index.html'), 'utf8'));
     expect(landing).toContain('62 step certificates with the static checks; step 63 (R4), 4 rung certificates, the whole PR with the oracles (tsc, unit, openapi)');
     expect(landing).toContain('3 step certificates with the static checks; 1 rung certificate (R1 partial) with the oracles (tsc, unit, openapi)');
@@ -206,6 +206,25 @@ describe('ac site on this package', () => {
       + 'ac run refuses such a plan; the bench scores it as it came back. Counting only the plans the validator accepts, the planner wins on 2 of 5 (hoppscotch-H1 and hoppscotch).');
     expect(bench).toContain('86.81 (plan rejected)');
     expect(bench).toContain('50.65 (plan rejected)');
+    // S9's numbers freeze: the scramble count is the scored files; the co-located tests move too and aren't counted.
+    expect(bench).toContain('156 scored files moved into type folders (a test next to its source moves with it and isn\'t scored)');
+    // S9: 2,337/2,337 cases pass on opencode's branch, but its vitest run fails (66 files don't load): a green count, not green tests.
+    expect(landing).toContain('a green test count, a broken build, and the certificate that says why');
+    expect(landing).not.toContain('green tests, broken build');
+    // S9: the G3 branches were certified by the S4 version of the checker, the ladder by the S6 version.
+    const abPage = pageText(fs.readFileSync(path.join(out, 'ab', 'index.html'), 'utf8'));
+    expect(abPage).toContain('certified in session S4 by our checker, the version that also certified our one-step R1 branch (certificate format 1)');
+    expect(abPage).not.toContain('by the same checker as ours');
+    expect(abPage).toContain('still passes all 1,934 of the base\'s test cases outside the 7 network test files K8 sets aside');
+    const ladder = pageText(fs.readFileSync(path.join(out, 'runs', 'immich-ladder', 'index.html'), 'utf8'));
+    expect(ladder).toContain('certified in session S4 by our checker, the version before this run\'s (certificate format 1; K7 came later)');
+    // S9: the plan was recorded in S5 and S6; the run's budget run names where the run's own planner spend went.
+    expect(ladder).toContain('This run: the plan cost $0.1998 when it was recorded; planner spend during the run $0.0000 (budget run s6, mode auto)');
+    // S9: the R1 arm's timings are its certificate's own: K0–K6 and K8 as recorded in runs/g3/immich-r1.full.json.
+    const r1 = JSON.parse(fs.readFileSync(path.join(packageDirectory, 'runs', 'g3', 'immich-r1.full.json'), 'utf8')) as { checks: { id: string; durationMs: number }[] };
+    const staticSeconds = Math.round(r1.checks.filter((check) => check.id !== 'K8').reduce((sum, check) => sum + check.durationMs, 0) / 1000);
+    const oracleSeconds = Math.round(r1.checks.find((check) => check.id === 'K8')!.durationMs / 1000);
+    expect(abPage).toContain(`executor 14 s; certificate: static checks ${staticSeconds} s, oracles ${oracleSeconds} s`);
     const again = path.join(temporary('package-again'), '_site');
     buildSite({ packageDirectory, out: again });
     expect(snapshot(again)).toEqual(snapshot(out));
