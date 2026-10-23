@@ -2,13 +2,11 @@
 <main>
 <h1>Our own misses, and what caught them</h1>
 <ul>
-<li><b>Our executor</b> left coverage globs naming moved files: <b>the certificate</b> caught it (K4, S4)</li>
+<li><b>Our executor</b> left coverage globs naming moved files: <b>our certificate</b> caught it (K4, S4)</li>
 <li><b>Our planner</b> lost a rule from the gates and fell to 57.24 on opaque file names: <b>a benchmark</b> caught it (S7)</li>
-<li><b>Our scramble</b> of kaneo: <b>our certifier</b> refuses it, and still does (S7)</li>
-<li><b>A false pass</b> we introduced while fixing false positives: <b>review</b> caught it before it shipped (S7)</li>
-<li><b>Certificates</b> that could see our own <code>node_modules</code>: now refused (S8)</li>
-<li><b>Five false passes</b> in our first layout rule: <b>review</b> again (S8)</li>
-<li><b>A narration</b> our lexical guard let through ("the only back-edges"; R4 counts 8): <b>the numbers check</b>, left as recorded (S9)</li>
+<li><b>Our certifier</b> had false positives on our own scrambles: fixed with proofs; kaneo's still fails closed (S7)</li>
+<li><b>A false pass</b> we introduced, and five more in our first layout rule: <b>review</b> caught them (S7, S8)</li>
+<li><b>A narration</b> our guard let through ("the only back-edges"; R4 counts 8): left as recorded, and said so (S9)</li>
 </ul>
 <p class="small muted">S4's red team closed 26 false passes; adversarial reviews confirmed 16, 17, 18 and 28 defects in sessions S5 to S8. Each is fixed with a regression test.</p>
 <p class="source">README "Our own misses" · docs/sessions/s4.md–s8.md</p>

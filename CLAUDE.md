@@ -38,7 +38,13 @@ S8b ran on 2026-10-20 evening (an addendum in [docs/sessions/s8.md](docs/session
 
 S8c and S8d ran on 2026-10-21 (same addendum): the gateway now streams requests above 64k tokens (Token Factory cuts non-streamed calls at 600 s). With thinking on and 256k tokens per answer, Super VL reasons a median of about 118k tokens and beats Ultra `medium_effort` on all four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. corupta decided on 2026-10-23 that the demo keeps Ultra and shows Super VL's results as preliminary, with their limits. The ledger stands at $22.26.
 
-Next is S9 (the recording session: final recorded runs, numbers frozen Oct 22, site deployed, repo public), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
+S9 ran on 2026-10-23; [docs/sessions/s9.md](docs/sessions/s9.md) has the report.
+- Numbers frozen (tag `freeze-numbers`): 2,000+ numbers in the README, the storyboard, the site and the video checked against their primary sources by 31 agents, listed in [docs/numbers.md](docs/numbers.md). The confirmed misstatements are fixed, the site's with regression tests. Among them: opencode's vitest run is not green (2,337 cases pass, 66 test files fail to load), its 1,680 tsc errors are syntax errors, and step certificates are static (K8 runs per rung).
+- The judges' path again from a fresh clone on a quiet machine: replay 11 m 08 s, `--env --oracles` 20 m 32 s, the four digests identical; the site byte-identical across builds.
+- Video prep in [video/](video/script.md): the script, the shot list, scripted captures (VHS, Playwright) and a silent captioned rough cut for corupta's 15-minute OK.
+- Not done: the repo is not public and the site is not deployed (no remote, `gh` not logged in); that is corupta's step.
+
+Next is S10 (the cut and the submission), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
 
 ## Decided (revisable with a reason)
 

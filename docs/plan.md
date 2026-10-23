@@ -572,6 +572,8 @@ Today is Fri Oct 2; the deadline is Fri Oct 30, 10:00 PT. Sessions are Claude se
 
 ## 9. Video storyline (≤3:00, "a pitch, not a tutorial")
 
+Superseded by [storyboard.md](storyboard.md) (locked with corupta Oct 7) and the script in [video/script.md](../video/script.md); the numbers below are from planning, and the current ones are in [numbers.md](numbers.md).
+
 1. **0:00–0:15 Hook**
    - "In March 2024, immich's maintainers restructured their server by hand: about 17 PRs over two days. Big restructures are done by hand because nobody can prove a tool, or an AI, didn't change behavior."
    - Show their tree.

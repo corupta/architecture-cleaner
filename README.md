@@ -36,7 +36,7 @@ Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineerin
   A failing step is rolled back and replanned.
 - **The findings log.** Bugs and smells that the new layout makes obvious are written down and never fixed, for
   example an import cycle through 42 folders (R4's count over 73 folders; 41 of 70 in the site's folder graph, which
-  leaves out the composition root), or a base class that injects 56 members into 51 services.
+  counts a nested folder such as `src/schema/tables/` under its top folder), or a base class that injects 56 members into 51 services.
 
 ## Nemotron on Nebius Token Factory
 
@@ -340,6 +340,8 @@ Run `npx ac` for every flag. Profiles of the targets live in `profiles/`.
 `src/` is feature-foldered: `cli/`, `analyzer/`, `planner/`, `gateway/`, `executor/`, `certificate/`, `oracles/`,
 `orchestrator/`, `filename-normalization/`, `rewrap/`, `boundaries/`, `findings/`, `report/`, `site/`, `scramble/`,
 `bench/`, `demo/`, `mutation/`. Tests are in `test/` (`npm test`). The plan, the gate results and the session reports are in `docs/`.
+Every number in this README, the storyboard, the video and the site is listed with its source in
+[docs/numbers.md](docs/numbers.md) (frozen in S9, tag `freeze-numbers`).
 
 ## License
 

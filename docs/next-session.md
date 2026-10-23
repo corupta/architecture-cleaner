@@ -1,18 +1,18 @@
-# Next session: S9 (the recording session: final recorded runs, numbers frozen Oct 22, site deployed, repo public)
+# Next session: S10 (the cut and the submission)
 
-Opening prompt for S9, from [sessions/s8.md](sessions/s8.md). Paste it as the first message.
+Opening prompt for S10, from [sessions/s9.md](sessions/s9.md). Paste it as the first message.
 
 ```
-Session S9 for architecture-cleaner: the recording session. The feature freeze held on Oct 20 (tag freeze), and main also carries the Super VL experiments S8b to S8d (tags s8b and s8d; the demo's planner is still Ultra); numbers freeze Oct 22, submission Oct 28.
+Session S10 for architecture-cleaner: the cut and the submission. Numbers are frozen (tag freeze-numbers, docs/numbers.md); submission is Wed Oct 28, the deadline Oct 30 10:00 PT; the project must stay testable, free, until Dec 15.
 
-Read CLAUDE.md, docs/sessions/s8.md, docs/storyboard.md, docs/plan.md §8 and §9, and README.md. Mode: execution, high autonomy; no feature work, only fixes for defects found while recording, each with a regression test. No LLM spend is planned; open budget run s9 (cap $1) only if corupta asks for a live recording.
+Read CLAUDE.md, docs/sessions/s9.md, video/script.md, video/shots.md, video/rough-cut.md, docs/plan.md §8 to §10 and README.md. Mode: execution, high autonomy; no feature work, only fixes for defects found, each with a regression test. No LLM spend.
 
-1. Decided by corupta on 2026-10-23: the demo is runs/immich-ladder as recorded (S6, planned by Ultra; the frozen tool reproduces it byte for byte), S3 is shown from runs/immich-rewrap, and Nemotron 3.5 Super VL's bench results are shown as preliminary, with their limits and the reasons for keeping Ultra (bench/experiments/s8b-super-vl/README.md, storyboard decision 6). No re-recording of the ladder.
-2. Final recorded runs on a quiet machine, no agents, from a frozen copy of main: the judges' path from a fresh clone (npx ac demo --replay, then --env --oracles), timings and digests into the README; ac site --out built twice, byte-identical.
-3. Going public is corupta's call: once corupta makes the GitHub repo public (or says to), fill the README's clone and site URL placeholders, deploy the site with .github/workflows/pages.yml, and check the deployed pages against the local build.
-4. Freeze the numbers (Oct 22): check every number in the README, the storyboard and the site against its source once more, and list them with their sources in docs/numbers.md.
-5. Video prep (Oct 22–23): the script from the storyboard's beats, a shot list, scripted captures (VHS tapes for the CLI, Playwright for the site), and the plan for a captioned rough cut under corupta's voiceover.
+1. Going public, if S9 couldn't: corupta's GitHub repository, pushed and public, Pages from .github/workflows/pages.yml (Settings > Pages > Source: GitHub Actions); the README's clone and site URLs and video/cards/close.html's REPO_URL and SITE_URL filled; the deployed pages checked against a local `npx ac site` build of the same commit (identical apart from the source link).
+2. The voice-over: corupta's takes in video/vo/<beat>.wav (hook, failure, ours, result, credibility, close), read against rough cut v0 (video/out/cut/rough.mp4). Render v1 with `node video/cut/render.mjs`; fix each take that overruns its slot in the text or in cut/edl.json and script.md together; captions from the script, timed to the takes.
+3. The final cut: at most 3:00 on the file, −14 LUFS, a 1 s fade at each end, the thumbnail from the close card; every number on screen in docs/numbers.md. corupta uploads it to YouTube (public) and the URL goes into the README.
+4. Devpost: the text (what it does, how Nemotron on Nebius Token Factory is used and what it cost, how it's built, the misses, what's next: Clean Architecture), Built With, the tool-feedback write-up from docs/feedback-log.md (the Most Valuable Feedback bonus), the demo URL (the site) and the test build (npx ac demo --replay). Draft it in docs/devpost.md for corupta's 30-minute review.
+5. README final: setup, the Nemotron usage, the video and site links; a last check of every number against docs/numbers.md.
 
-Exit criteria: main tagged freeze-numbers, the site live, the repo public, the script and shot list ready for corupta's 15-minute OK, and docs/sessions/s9.md ending with the next session's prompt.
+Exit criteria: the video public on YouTube; the site live and the repo public; docs/devpost.md ready, and the entry submitted by corupta; main tagged submitted; docs/sessions/s10.md.
 Log weird-but-not-blocking observations with /log-anomaly.
 ```
