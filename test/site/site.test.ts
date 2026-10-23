@@ -218,6 +218,14 @@ describe('ac site on this package', () => {
     expect(abPage).toContain('still passes all 1,934 of the base\'s test cases outside the 7 network test files K8 sets aside');
     const ladder = pageText(fs.readFileSync(path.join(out, 'runs', 'immich-ladder', 'index.html'), 'utf8'));
     expect(ladder).toContain('certified in session S4 by our checker, the version before this run\'s (certificate format 1; K7 came later)');
+    // S9: the critic's review is the model's claim; the gate's record stands next to it.
+    expect(ladder).toContain('The critic\'s review (plan.json, the model\'s own words)');
+    expect(ladder).toContain('The gate accepted 6 of the critic\'s 12 suggestions; 10 validator warnings remain on the plan (findings: plan-warning).');
+    expect(ladder).toContain('35 findings narrated of the 40 findings sent (5 more were not sent: the narration takes the first 40); 4 narrations dropped by the lexical guard');
+    expect(ladder).toContain('63 table names × the 32 groups');
+    expect(ladder).toContain('A FAIL rolls the commit back, and the step replans with the plan entries the failure names pinned in place.');
+    const verifyPage = pageText(fs.readFileSync(path.join(out, 'verify', 'index.html'), 'utf8'));
+    expect(verifyPage).toContain('On 2026-10-23 we ran npx ac demo --replay --env --oracles from a fresh clone, with no --work (20 m 32 s, exit 0)');
     // S9: the plan was recorded in S5 and S6; the run's budget run names where the run's own planner spend went.
     expect(ladder).toContain('This run: the plan cost $0.1998 when it was recorded; planner spend during the run $0.0000 (budget run s6, mode auto)');
     // S9: the R1 arm's timings are its certificate's own: K0–K6 and K8 as recorded in runs/g3/immich-r1.full.json.

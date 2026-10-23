@@ -143,6 +143,13 @@ export function planMaking(plan: PlanSummary): string {
   return `Deterministic seeds decided where files go; ${editors} (on Nebius Token Factory) edited the draft in ${plural(plan.editors.length, 'candidate')}${plan.critic ? ', and a critic call reviewed the chosen one' : ''}; the validator gates ${plan.critic ? 'both' : 'the edits'}.`;
 }
 
+/** What the gate made of the critic's review, next to the review itself: the review is the model's claim, this is the record. */
+function criticOutcome(plan: PlanSummary, findings: RunReportData['findings']): string {
+  if (!plan.criticSuggestions) return '';
+  const warnings = findings?.findings.filter((finding) => finding.kind === 'plan-warning').length;
+  return `<p class="small">The gate accepted ${count(plan.criticSuggestions.accepted)} of the critic's ${plural(plan.criticSuggestions.total, 'suggestion')}${warnings !== undefined ? `; ${plural(warnings, 'validator warning')} ${warnings === 1 ? 'remains' : 'remain'} on the plan (findings: plan-warning)` : ''}.</p>`;
+}
+
 function planSection(data: RunReportData): Section {
   const plan = data.plan;
   if (!plan) return { id: 'plan', title: 'The plan', body: '<p>The run dir has no plan.yaml.</p>' };
@@ -156,7 +163,7 @@ function planSection(data: RunReportData): Section {
     id: 'plan',
     title: 'The plan: Nemotron draws the map',
     body: `<p>${escapeHtml(planMaking(plan))} The plan has ${plan.groups.module} modules, ${plan.groups.platform} platform folders and ${plan.groups.shared} shared folder over ${count(plan.files)} planned files: ${escapeHtml(decided)}. ${count(plan.contested)} placements are marked contested.${plan.winner ? ` The chosen candidate is ${code(plan.winner)}.` : ''}</p>
-${plan.criticReview ? `<p><strong>The critic's review</strong> (plan.json): ${escapeHtml(plan.criticReview)}</p>` : ''}
+${plan.criticReview ? `<p><strong>The critic's review</strong> (plan.json, the model's own words): ${escapeHtml(plan.criticReview)}</p>${criticOutcome(plan, data.findings)}` : ''}
 ${details(`Placements the planner and the critic decided (${plan.decisions.length})`, decisions, { className: 'more' })}
 <p class="small">${[...attachmentLinks(data, [['plan/plan.yaml', 'plan.yaml'], ['plan/plan.md', 'plan.md']]), ...(plan.recordedCostUsd !== null ? [`the plan cost ${usd(plan.recordedCostUsd)} when it was recorded; a replay from the cassette costs $0`] : [])].join(' · ')}</p>`,
   };
@@ -506,7 +513,7 @@ export function ladderIntro(data: RunReportData): string {
   if (coverage.staticRungs.length) sentences.push(`The rung ${coverage.staticRungs.length === 1 ? 'certificate' : 'certificates'} of ${coverage.staticRungs.join(', ')} ${coverage.staticRungs.length === 1 ? 'has' : 'have'} the static checks only.`);
   if (coverage.whole === 'static') sentences.push('The whole-PR certificate has the static checks only.');
   if (!coverage.whole) sentences.push(`There is no whole-PR certificate (run status: ${state.status}).`);
-  sentences.push('A FAIL rolls the commit back and the step replans without the offending files.');
+  sentences.push('A FAIL rolls the commit back, and the step replans with the plan entries the failure names pinned in place.');
   return sentences.join(' ');
 }
 
@@ -566,12 +573,14 @@ ${files}<p class="small muted">Source: ${escapeHtml(finding.source)}${where ? `;
  * How many findings the narration covered and why the others have none, from findings.json: the lexical guard dropped
  * a narration (it may only restate its evidence), or the model returned none (src/findings/narrate.ts).
  */
-export function narrationOutcome(narration: Pick<NarrationRecord, 'narrated' | 'dropped' | 'notReturned'>): string {
+export function narrationOutcome(narration: Pick<NarrationRecord, 'narrated' | 'dropped' | 'notReturned'>, findings?: number): string {
+  const sent = narration.narrated + narration.dropped.length + narration.notReturned.length;
+  const unsent = findings !== undefined && findings > sent ? ` of the ${count(sent)} findings sent (${count(findings - sent)} more were not sent: the narration takes the first ${count(sent)})` : '';
   const drops = [
     narration.dropped.length ? `${plural(narration.dropped.length, 'narration')} dropped by the lexical guard (a narration may only restate its evidence)` : '',
     narration.notReturned.length ? `${plural(narration.notReturned.length, 'finding')} with no narration returned by the model` : '',
   ].filter(Boolean);
-  return `${plural(narration.narrated, 'finding')} narrated${drops.length ? `; ${drops.join(', ')}` : ''}`;
+  return `${plural(narration.narrated, 'finding')} narrated${unsent}${drops.length ? `; ${drops.join(', ')}` : ''}`;
 }
 
 function findingsSection(data: RunReportData): Section {
@@ -592,7 +601,7 @@ function findingsSection(data: RunReportData): Section {
     ...narration.notReturned.map((missing) => [code(missing.id), escapeHtml(missing.reason)]),
   ] : [];
   const narrationLine = narration
-    ? `<p class="small">Narration: ${escapeHtml(narration.label)} (${code(narration.model)}), ${narration.calls} calls, ${usd(narration.costUsd)} when recorded${narration.replayed ? ', replayed here' : ''}; ${escapeHtml(narrationOutcome(narration))}.</p>${unnarrated.length ? details('Findings sent without a narration', table([{ label: 'Finding' }, { label: 'Why' }], unnarrated), { className: 'more' }) : ''}`
+    ? `<p class="small">Narration: ${escapeHtml(narration.label)} (${code(narration.model)}), ${narration.calls} calls, ${usd(narration.costUsd)} when recorded${narration.replayed ? ', replayed here' : ''}; ${escapeHtml(narrationOutcome(narration, document.findings.length))}.</p>${unnarrated.length ? details('Findings sent without a narration', table([{ label: 'Finding' }, { label: 'Why' }], unnarrated), { className: 'more' }) : ''}`
     : '<p class="small">No narration: every finding shows its deterministic evidence only.</p>';
   const body = `<p>A good restructure makes existing bugs obvious; fixing them is never part of it. These ${count(document.findings.length)} findings were found by deterministic collectors and are left exactly as they are in the code.</p>
 ${table([{ label: 'Kind' }, { label: 'Findings', numeric: true }], kinds.map(([kind, findings]) => [link(`#kind-${kind}`, kind), count(findings.length)]))}
@@ -629,7 +638,7 @@ function heatmapSection(data: RunReportData): Section {
   ]);
   const tableView = table([{ label: 'Table' }, { label: 'Written by' }, { label: 'Read only by' }],
     heatmap.tables.map((table) => [`${table.multiWriter ? '⚠ ' : ''}${code(table.name)}`, table.writerGroups.map((group) => code(group)).join(' ') || '–', table.readerGroups.map((group) => code(group)).join(' ') || '–']));
-  const body = `<p>${count(heatmap.tables.length)} database tables × the ${count(heatmap.groups.length)} groups whose files touch them, from the planner's facts at the base commit (Kysely, Prisma and Drizzle call shapes), mapped through the plan's placements${data.state.pins.length ? '; pinned files count under `pinned`' : ''}. ${multi.length ? `${plural(multi.length, 'table is', 'tables are')} written by files of several groups: ${multi.map((table) => `${code(table.name)} (${table.writerGroups.map((group) => code(group)).join(', ')})`).join('; ')}. ${multiWriterFindings(data)}` : 'Every table is written by at most one group.'}</p>
+  const body = `<p>${count(heatmap.tables.length)} table names × the ${count(heatmap.groups.length)} groups whose files touch them, from the planner's facts at the base commit (Kysely, Prisma and Drizzle call shapes), mapped through the plan's placements${data.state.pins.length ? '; pinned files count under `pinned`' : ''}. ${multi.length ? `${plural(multi.length, 'table is', 'tables are')} written by files of several groups: ${multi.map((table) => `${code(table.name)} (${table.writerGroups.map((group) => code(group)).join(', ')})`).join('; ')}. ${multiWriterFindings(data)}` : 'Every table is written by at most one group.'}</p>
 ${figure('Table access by group', `${keyLegend}${matrix(rows, columns, cells, { cell: 13, labelWidth: 190 })}`, { caption: 'Rows are tables, ordered under the first group that writes them; columns are groups in plan order. The facts read table names from query call shapes. Under planner rules 1 (immich\'s recorded plan) a common table expression\'s alias (<code>.with(\'cte\', …)</code>) shows up as a read-only table; rules 2 (S8) leave out an alias read inside the query that declares it.', tableView })}`;
   return { id: 'tables', title: 'Table access', body };
 }

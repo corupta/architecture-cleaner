@@ -53,6 +53,8 @@ export interface PlanSummary {
   critic: boolean | null;
   /** The critic's review (plan.json), when one ran. */
   criticReview: string | null;
+  /** The critic's suggestions and how many the gate accepted (plan.json), when one ran. */
+  criticSuggestions: { total: number; accepted: number } | null;
   winner: string | null;
   recordedCostUsd: number | null;
 }
@@ -120,7 +122,7 @@ export function certificateFiles(runDirectory: string): string[] {
 export interface PlanJson {
   winner?: string;
   candidates?: { label: string; edit?: unknown }[];
-  critic?: { critiques?: { review?: string }[] } | null;
+  critic?: { critiques?: { review?: string }[]; suggestions?: { accepted?: boolean }[] } | null;
   facts?: { files: FileFact[] };
 }
 
@@ -146,6 +148,9 @@ export function planSummary(planFile: PlanFile, planJson: PlanJson | null, recor
     editors: planJson ? (planJson.candidates ?? []).filter((candidate) => candidate.edit !== undefined).map((candidate) => candidate.label) : null,
     critic: planJson ? Boolean(planJson.critic) : null,
     criticReview: planJson?.critic?.critiques?.[0]?.review ?? null,
+    criticSuggestions: planJson?.critic?.suggestions
+      ? { total: planJson.critic.suggestions.length, accepted: planJson.critic.suggestions.filter((suggestion) => suggestion.accepted === true).length }
+      : null,
     winner: planJson?.winner ?? null,
     recordedCostUsd,
   };

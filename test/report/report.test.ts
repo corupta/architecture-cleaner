@@ -154,7 +154,7 @@ describe('ac report on the committed immich run', () => {
     expect(text).toContain('Step 63 (R4) is certified with the oracles, by its rung certificate.');
     expect(text).toContain('The rung certificates of R1, R2, R3, R4 and the whole-PR certificate add the oracles (K8: tsc, unit, openapi).');
     expect(text).toContain("R4's rules freeze today's violations so they can't grow.");
-    expect(text).toContain('35 findings narrated; 4 narrations dropped by the lexical guard (a narration may only restate its evidence), 1 finding with no narration returned by the model.');
+    expect(text).toContain('35 findings narrated of the 40 findings sent (5 more were not sent: the narration takes the first 40); 4 narrations dropped by the lexical guard (a narration may only restate its evidence), 1 finding with no narration returned by the model.');
     expect(text).toContain('Findings sent without a narration');
     expect(html).toMatch(/<code>F-ab4403001c97<\/code><\/td><td>dropped by the guard: names &quot;relocated&quot;, which the evidence doesn&#39;t contain<\/td>/);
     expect(html).toMatch(/<code>F-70d9e19108a1<\/code><\/td><td>no narration returned<\/td>/);
@@ -252,7 +252,7 @@ describe('the ladder and plan prose', () => {
   });
 
   it('names who made the plan from plan.json, not from what a full run would have', () => {
-    const plan: PlanSummary = { groups: { module: 1, platform: 0, shared: 0 }, files: 2, bySource: { draft: 2 }, contested: 0, decisions: [], editors: [], critic: false, criticReview: null, winner: 'seeds draft', recordedCostUsd: 0 };
+    const plan: PlanSummary = { groups: { module: 1, platform: 0, shared: 0 }, files: 2, bySource: { draft: 2 }, contested: 0, decisions: [], editors: [], critic: false, criticReview: null, criticSuggestions: null, winner: 'seeds draft', recordedCostUsd: 0 };
     expect(planMaking(plan)).toBe('Deterministic seeds decided where files go, and no model edited the draft.');
     expect(planMaking({ ...plan, editors: null, critic: null, bySource: { draft: 259, planner: 8, critic: 2 } })).toBe("Deterministic seeds decided where files go; plan.yaml marks 8 placements by the planner and 2 by the critic. This run dir has no plan.json, so the report can't name the models that made the plan.");
     expect(planMaking({ ...plan, editors: ['ultra#1', 'ultra#2'], critic: true })).toBe('Deterministic seeds decided where files go; NVIDIA Nemotron 3 Ultra (on Nebius Token Factory) edited the draft in 2 candidates, and a critic call reviewed the chosen one; the validator gates both.');
@@ -263,6 +263,9 @@ describe('the ladder and plan prose', () => {
     expect(narrationOutcome({ narrated: 3, dropped: [{ id: 'F-1', reason: 'names "relocated", which the evidence doesn\'t contain' }], notReturned }))
       .toBe('3 findings narrated; 1 narration dropped by the lexical guard (a narration may only restate its evidence), 2 findings with no narration returned by the model');
     expect(narrationOutcome({ narrated: 1, dropped: [], notReturned: [] })).toBe('1 finding narrated');
+    // S9: the narration takes the first findings up to its cap; the ones never sent are counted apart.
+    expect(narrationOutcome({ narrated: 2, dropped: [], notReturned: [{ id: 'F-9', reason: 'no narration' }] }, 5))
+      .toBe('2 findings narrated of the 3 findings sent (2 more were not sent: the narration takes the first 3); 1 finding with no narration returned by the model');
   });
 
   it('reads a findings.json written before S8, whose not-returned findings are among the dropped', () => {
