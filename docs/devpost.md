@@ -75,8 +75,8 @@ change behavior unnoticed: the validator and the certificate are in its way.
   clustering beats an LLM drawing a decomposition from nothing. So the draft is deterministic, and Nemotron supplies
   the judgment on top of it: names, contested files, feature or platform. Our benchmarks below show where that wins
   and where it doesn't.
-- **The same model, two jobs.** In a generic agent loop, Nemotron 3 Ultra spent twelve dollars in nine minutes and
-  left every import of the files it moved dangling (1,638). In `ac` it makes two planning calls for $0.20, code does
+- **The same model, two jobs.** In a generic agent loop, Nemotron 3 Ultra read 11.6 million input tokens in nine
+  minutes and left every import of the files it moved dangling (1,638). In `ac` it makes two planning calls for $0.20, code does
   the moves, and the checker proves them.
 - **Every call goes through one gateway** over Token Factory's OpenAI-compatible API: strict schemas, reasoning set
   through `chat_template_kwargs`, hard budget caps checked before each call, and a cassette of every request and
@@ -87,7 +87,8 @@ change behavior unnoticed: the validator and the certificate are in its way.
   three candidates for the price of one prompt; and a bill that matched our ledger, so the budget caps could be
   trusted.
 
-All of it, from the gate probes to both baseline arms and the Super VL experiments, cost **$35.96** of our $50 cap.
+All of it, from the gate probes to both baseline arms and the Super VL experiments, cost **$35.96** of our $50 cap at
+the full input price (Token Factory began discounting cached input during the hackathon, so the bill may be lower).
 
 ### The same task, given to a generic agent
 
@@ -97,7 +98,8 @@ errors. Its persistent run moved 297 files, copied 562 more into a `src.backup/`
 of 105 test files loading. Is it just the better model? On Nemotron 3 Ultra, the model `ac` plans with (opencode at
 the model's default effort, with its own $2 and $12 caps): the single-shot run ran `ls` on the same two folders 38
 times in 48 tool calls and changed nothing ($1.86); the persistent run moved 374 files, rewrote not one import, and
-hit its cap after 9 min 26 s ($11.76). `ac certify` fails every one of those branches, and says exactly why; it passes
+hit its $12 cap after 9 min 26 s ($11.76 at the full input price; 90% of its input came from the prompt cache, which
+Token Factory now prices lower). `ac certify` fails every one of those branches, and says exactly why; it passes
 ours.
 
 ### Benchmarks, losses included

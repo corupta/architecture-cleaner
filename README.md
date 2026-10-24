@@ -67,7 +67,9 @@ the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/se
 Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 recorded
 (S8b to S8d, Ultra's comparison runs included), and G3's Ultra arm $13.70 (S9, its smoke test included): the ledger
 stands at **$35.96** recorded of the $50 cap (2026-10-24), $36.00 with one open $0.04 reservation, which the gateway and
-`ac report` count.
+`ac report` count. The ledger charges every input token at the full input price. Token Factory began pricing cached
+input lower between 2026-10-16 and 10-23 ([docs/feedback.md](docs/feedback.md) #37), so the bill for the runs since
+then, G3's Ultra arm above all, may be lower than recorded; we haven't seen that bill yet.
 
 ### Where Token Factory sped the work up
 
@@ -258,8 +260,12 @@ token, so $12 bought about three quarters of the Super arm's tokens:
 | `ac certify` | nothing to certify | FAIL: K1, K3a, K3b, K3c, K4, K6, K8; 1,638 imports dangling; K4 flags the same three moved `import.meta.dirname` users as on the Super branch, the two its review confirmed (migrations, `helmet.json`) among them |
 | Cost | $1.86, 111 s, stopped by its $2 cap | $11.76, 9 min 26 s, stopped by its $12 cap in turn 1, before the first automated check |
 
-The same model, two jobs: in a generic agent loop, Ultra spent twelve dollars in nine minutes and left every import of
-the files it moved dangling (1,638); in `ac` it makes two planning calls for $0.20, code does the moves, and the checker
+Costs are at the full input price, as our ledger charges them. 90% of the persistent run's input was served from
+Token Factory's prompt cache, which became cheaper during the hackathon; at the cached price, opencode's own estimate
+for that run is $2.52. The caps were enforced on the full-price figures.
+
+The same model, two jobs: in a generic agent loop, Ultra read 11.6 million input tokens in nine minutes and left every
+import of the files it moved dangling (1,638); in `ac` it makes two planning calls for $0.20, code does the moves, and the checker
 proves them
 (`runs/g3/g3-immich-opencode-ultra-persistent.full.json`; the A/B page's second table).
 
