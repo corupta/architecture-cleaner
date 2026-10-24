@@ -25,7 +25,7 @@ A running log for the required "feedback on the tools" submission field, which i
 10. **The docs read `message.refusal`,** which isn't in the response schema.
 11. **The flavors doc still describes Base vs Fast,** with a `-fast` model-ID suffix. The catalog no longer offers any `-fast` flavor.
 12. **The August deprecation notice is still worded in the future tense** after the removal date, and deprecation notices carry no publish dates.
-13. **Prompt caching isn't priced.** `usage.prompt_tokens_details.cached_tokens` exists, but no cached-input price or discount is documented. The ideas-board request has been "In Review" for about 7 months. *(2026-10-24: fixed. Cached input is priced and documented since a date between 2026-10-16 and 10-23; see feedback.md #37.)*
+13. **Prompt caching isn't priced.** `usage.prompt_tokens_details.cached_tokens` exists, but no cached-input price or discount is documented. The ideas-board request has been "In Review" for about 7 months. *(2026-10-24: fixed. Cached input is priced since a date between 2026-10-16 and 10-23, and a Cached Tokens page, absent on 2026-10-04, documents it; see feedback.md #37.)*
 14. **The `store` field's description mentions "model distillation"**, while the legal guide says content is "not used to train any models". This needs one consistent statement.
 15. **The `service_tier` enum has an undocumented `no-limit` value.**
 
@@ -50,7 +50,7 @@ Added during the gate session and the build, as we hit things.
 20. **Super defaults to greedy decoding.** Without a `temperature`, `n=3` returns `400 "n must be 1 when using greedy sampling"`, while Ultra and Lightning sample by default. The research notes say TF defaults temperature to 1, and NVIDIA recommends 1.0/0.95. Fix: default to the card's sampling, or document a per-model default.
 21. **Truncated reasoning leaks into `content` on Ultra and Lightning.** With `finish_reason: length` while thinking, `reasoning_content` is null and the raw chain of thought sits in `content`. Super handles the same case correctly (`content` null). Fix: use the same reasoning parser for all models.
 22. **Lightning with `tool_choice: "required"` loops.** It emitted 30 identical `submit_plan` calls until `max_tokens`, leaving a raw `<tool_call><function=…` fragment in `content`. Super and Ultra return a single call.
-23. **Rate-limit headers are model-dependent and partly undocumented.** *(2026-10-24: the dynamic headers are documented after all, so that clause was wrong; Ultra sends headers since 2026-10-17; see feedback.md #42.)*
+23. **Rate-limit headers are model-dependent and partly undocumented.** *(2026-10-24: the dynamic headers are documented after all, so that clause was wrong; Ultra has sent them on every call since 2026-10-17 (none through 10-08); see feedback.md #42.)*
     - Super and Ultra return no `x-ratelimit-*` headers; their catalog limits are a sentinel (item 25).
     - Lightning returns `x-ratelimit-{limit,remaining,reset}-{requests,tokens}` plus `x-ratelimit-dynamic-*` headers that the docs don't describe.
     - `x-ratelimit-over-limit`, which the docs say marks over-quota serving, never appeared in 85 chat calls.
@@ -68,19 +68,18 @@ Added during the gate session and the build, as we hit things.
 
 Written up, with the evidence and the fix for each, in [feedback.md](feedback.md), the submission's feedback field.
 Every item below was checked again by an agent told to refute it; the corrected wording is what feedback.md says.
-Items 1–17 and 25–29 were re-read against the docs, the catalog and `/v1/models` on 2026-10-24 (the table at the end
-of feedback.md).
+Items 1–17, 23 and 25–28 were re-read against the docs, the catalog and `/v1/models` on 2026-10-24; 29 needs a chat request and wasn't (the table at the end of feedback.md).
 
 30. Non-streamed requests are cut at 600 s: an nginx HTML 504, no request id, billing unknown.
-31. Nemotron 3 Super clamps output at 32,768 tokens whatever `max_tokens` says, with `finish_reason: length`.
+31. Nemotron 3 Super clamps output at 32,768 tokens even at `max_tokens` 64,000, with `finish_reason: length` (2026-10-02).
 32. Strict `json_schema` allows unbounded whitespace: three choices ran to `max_tokens` on it.
 33. Ultra's truncated reasoning leaks into `content` in production calls (extends 21); usage counts it as reasoning.
 34. `guided_json` is accepted and ignored, yet the API reference's "all supported fields" example sends it.
-35. `GET /v1/models/{id}` returns 404 for every slash id.
-36. A cut or disconnected call's billing is undocumented, and no API returns a request's usage afterwards.
+35. `GET /v1/models/{id}` returned 404 for Ultra's exact id, and every catalog id contains a slash.
+36. A cut or disconnected call's billing is undocumented, and we found no API that returns a request's usage afterwards.
 37. Cached-input prices appeared mid-hackathon with no effective date (extends 13).
-38. The serverless prompt cache is shared across organizations, and `cached_tokens` reports cross-tenant hits.
-39. The cache block size is undocumented (Ultra 4,352 tokens, Super VL 2,176), and Super never hit.
+38. The serverless prompt cache is shared across organizations, so `cached_tokens` would report cross-tenant hits (from the page's statements; not probed).
+39. The cache block size is undocumented (Ultra 4,352 tokens, Super VL 2,176), and Super never hit (2026-10-02).
 40. The Cached Tokens page contradicts itself on cache keys; `prompt_cache_key` carries OpenAI's description.
 41. Usage differs per model and per stream mode; Lightning's null details contradict the new page (extends 27).
 42. The rate-limit token counter is `floor(characters / 4) + 512 × n`; the documented over-limit behavior didn't
@@ -99,7 +98,7 @@ of feedback.md).
 54. Ultra in a generic agent at its defaults loops on one tool call (model).
 55. Super's greedy default reaches users through agents (extends 20).
 56. Long id lists come back incomplete under strict schemas; keyed objects with required keys fix it (model).
-57. Ultra named files by the prompt's id column (weak: our prompt invites it).
+57. Ultra named files by the prompt's id column; ours (the prompt lists the id first), so not in feedback.md.
 58. Super VL's long reasoning recalls public repositories (a contamination risk to disclose).
 59. Lightning's batched narration shifts ids.
 60. Positive: strict `json_schema` held on 214 of 214 finished choices.

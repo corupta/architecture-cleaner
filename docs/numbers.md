@@ -38,6 +38,7 @@ or in a text dump of the built page for the site.
 | docs/storyboard.md | 214 |
 | The video (video/) | 187 |
 | The Ultra arm in docs/gates.md, the session report and CLAUDE.md | 48 |
+| S10 additions: the README, the Devpost text and the feedback write-up (rows group related numbers) | 34 rows |
 | Site: index.html | 36 |
 | Site: verify/index.html | 15 |
 | Site: bench/index.html | 255 |
@@ -987,7 +988,7 @@ or in a text dump of the built page for the site.
 | 45 | single-shot looped on `ls` with no change ($1.86, its $2 cap) | `~/ac-work/s9/g3u/repo/spike/llm/ledger.jsonl; ~/ac-work/s9/g3u/repo/spike/llm/runs.json`: jq -s 'map(select(.runId=="g3u-immich" and .status==200)) \| {n:length, cost:(map(.costUsd)\|add), prompt:(map(.promptTokens)\|add)}' ~/ac-work/s9/g3u/repo/spike/llm/ledger.jsonl → 1.863024; cap 2 | ✓ |
 | 45 | persistent moved 374 files, rewrote no import, FAIL on K1, K3a–K3c, K4, K6, K8 | `~/ac-work/s9/g3u/cert/diff-metrics.json; /workspace/architecture-cleaner/runs/g3/g3-immich-opencode-ultra-persistent.full.json`: jq .counts; jq -r '.checks[]\|[.id,.status]\|@tsv' → 374 renamed, 0 modified; as listed | ✓ |
 | 45 | ($11.76, its $12 cap, 9 min) | `~/ac-work/s9/g3u/repo/spike/llm/ledger.jsonl; ~/ac-work/g3u/immich-persistent/run-meta.json`: jq .wallSeconds → 11.761193; 12; 566 s | ✓ |
-| 45 | It is the A/B page's second table and storyboard decision 7 | `/workspace/architecture-cleaner/runs/g3/ab.json`: jq '.tables\|map(.id)' → [immich, immich-ultra, mcphub]; not on the deployed site yet (See README line 213 (stale on the live site).) | ✓ report |
+| 45 | It is the A/B page's second table and storyboard decision 7 | `/workspace/architecture-cleaner/runs/g3/ab.json`: jq '.tables\|map(.id)' → [immich, immich-ultra, mcphub]; on the deployed site since S9's push (S10: curl https://corupta.github.io/architecture-cleaner/ab/ \| grep 'the same agent on Nemotron 3 Ultra' → 1, 2026-10-24) | ✓ |
 | 45 | The ledger stands at $35.96 | `/workspace/architecture-cleaner/budget/ledger.jsonl`: jq -s 'map(.costUsd // 0)\|add' → 35.95901 | ✓ |
 | 46 | The repo is public (github.com/corupta/architecture-cleaner) and the site is live at corupta.github.io/architecture-cleaner | `https://github.com/corupta/architecture-cleaner; https://corupta.github.io/architecture-cleaner/`: curl -s -o /dev/null -w '%{http_code}' (both) → 200; 200 | ✓ |
 | 61 | (and since S9, Ultra too, at corupta's request) | `~/ac-work/s9/g3u/repo/spike/llm/runs.json`: jq -r ._doc runs.json → 'S9 (2026-10-24): the Ultra arm of G3 (opencode + Nemotron 3 Ultra), corupta's request' | ✓ |
@@ -1035,3 +1036,52 @@ or in a text dump of the built page for the site.
 
 The site's pages are in [numbers-site.md](numbers-site.md) (one file would be too large to render).
 
+
+## S10 additions: the README, the Devpost text and the feedback write-up (2026-10-24)
+
+Numbers S10 added after the freeze, each checked by a review agent against its primary source and, where marked, by
+the main session again. "Where" names the section, since line numbers move. The feedback write-up's items
+([feedback.md](feedback.md)) were each checked first by a skeptic told to refute them (the verdicts are in
+`~/ac-work/s10/harvest/s10-verdicts.md`) and then by a reviewer; the rows below cover the numbers the README and
+the Devpost text repeat, and the ones the review corrected.
+
+<details><summary>Every number S10 added, with its source</summary>
+
+| Where | Claim | Source and how it was checked | |
+|---|---|---|---|
+| README, first screen; devpost, On immich | 63 commits unattended in 1 h 55 m; tsc, the 2,337-case unit suite and the OpenAPI spec equal to base; 1,638 imports dangling | the frozen rows for README 168–171 and 210 (`runs/immich-ladder/run.json`, `certificate.json`; `runs/g3/g3-immich-opencode-ultra-persistent.full.json`) | ✓ |
+| README, the ledger paragraph | the catalog started listing a lower price for cached input between 2026-10-16 and 10-23 | Wayback snapshots of `tokenfactory.nebius.com/api/public/models_info` (`~/ac-work/s10/harvest/scratch/wb-catalog-*.json`): count of models with `input_cached_price_per_million_tokens` → 0 of 28 at 2026-10-16 14:11 UTC, 19 of 30 at 2026-10-23 13:01 UTC | ✓ |
+| README, Where Token Factory sped the work up | the prompt billed once for three edits | `cassettes/s6-immich.jsonl` record 0: `n` 3, prompt 17,145 tokens once, $0.167277; `docs/sessions/s6.md` addendum (n>1 bills the prompt once) | ✓ |
+| README, same; devpost | $35.96 in our ledger, at the full input price | `budget/ledger.jsonl`: sum of `costUsd` → 35.95901; `src/gateway/budget.ts` prices every input token at the model's input price | ✓ |
+| README, same; devpost | On 2026-10-14 the console's $9.31 matched our ledger | the frozen row for README 65 (`docs/sessions/s6.md` addendum; ledger line 101) | ✓ report |
+| README, same; devpost | a non-streamed call ends after 10 minutes | `budget/ledger.jsonl` line 274: s8c, status 504, `latencyMs` 600,372 | ✓ |
+| README, same | 37 of Super VL's 45 edit answers finished within 256k tokens, after a median of about 118k | `bench/experiments/s8b-super-vl/README.md` lines 124–126 (37 of 45 finished, median ~118k, 8 at the cap) | ✓ |
+| README, Other Nebius services; devpost, Built with | an NVIDIA Jetson AGX Orin (CPU only); 64 GB, JetPack 6.2 (L4T R36.4.3), 12 Cortex-A78AE cores | `/etc/nv_tegra_release` → R36 REVISION 4.3; `nproc` → 12; `/proc/cpuinfo` CPU part 0xd42 (Cortex-A78AE); MemTotal 64,348,788 kB; `/dev/nvhost-*` (GPU, two DLAs, PVA) present, unused by `ac` | ✓ |
+| README, On your own repository | $50 global cap, $36.00 counted, $14 left | `budget/runs.json` `globalCap` 50; `readSpent` over `budget/ledger.jsonl` → 35.9977 (recorded spend plus the open $0.04 reservation) | ✓ |
+| README, same | `"mine": { "cap": 1 }`; $0.20 on immich's server/ | immich's reservations: edit $0.6358, critic $0.1462, each under $1 (`budget/ledger.jsonl`); `runs/immich-ladder/run.json` `cost.planRecordedUsd` 0.199784 | ✓ |
+| README, same | R0 runs the oracles twice; exit 3 | `src/orchestrator/preflight.ts` (`runs: 2`, `baseline-not-green`, `no-oracles`); `src/orchestrator/run.ts` exit code 3 for `declined` | ✓ |
+| README, G3 Ultra arm; devpost | 90% of the persistent run's input from the prompt cache | `git show spike/g3-ultra:spike/llm/ledger.jsonl`, runId `g3u-immich-persistent`: cached 10,470,912 of 11,634,617 prompt tokens = 0.900 | ✓ |
+| README, same | opencode's own estimate at the cached price: $2.52 | `~/ac-work/g3u/immich-persistent/events-1.jsonl`: sum of the step events' `cost` → 2.5202 (168 steps); session export `info.cost` 2.52017716 | ✓ |
+| README, same | the caps were enforced on the full-price figures | the same ledger: `costUsd` sum 11.761193 = 11,634,617 × $1/M + 42,192 × $3/M | ✓ |
+| README, same; devpost | Ultra read 11.6 million input tokens in nine minutes | the same ledger: prompt tokens 11,634,617 over 170 calls; `~/ac-work/g3u/immich-persistent/run-meta.json` `wallSeconds` 566 | ✓ |
+| README, Prior art; devpost, What's new | searched 2026-10-01 and 10-02; structure-sweep first published 2026-09-24; Pnueli, Siegel and Singerman 1998; Necula 2000; Schäfer et al., 2008 to 2012 | `docs/research/05c-prior-art-judge.md` (line 3, the hits table); `docs/research/05a-prior-art-academic.md` lines 24, 173, 175 | ✓ |
+| devpost, The problem | Unleash PR #4994, October 2023; "we can move it any time"; still in `src/lib/routes/` three years later; `features/` beside `services/`; n8n's `modules/` beside `controllers/` and `services/` | GitHub API, 2026-10-24: `pulls/4994` (merged 2023-10-11), its review by kwasniew ("I wouldn't worry about the remaining controller. we can move it any time"); `raw.githubusercontent.com/Unleash/unleash/main/src/lib/routes/admin-api/project/variants.ts` → 200; contents of `Unleash/unleash/src/lib` and `n8n-io/n8n/packages/cli/src` | ✓ |
+| devpost, The problem | 17 pull requests over two days (March 2024) | the frozen video rows (hook): `git log` of immich's server/src, #8080–#8204, 2024-03-20 to 03-22 | ✓ |
+| devpost, What it does | at most twice, then the whole step is pinned | `src/orchestrator/run.ts` lines 1–6; `src/orchestrator/attempt.ts` lines 1–3 | ✓ |
+| devpost, On immich | the digests of three sampled step certificates and of the whole-PR certificate | the frozen row for README 155–157 (steps 1, 4 and 60 and the whole PR, S9) | ✓ |
+| devpost, On immich | `--inject-fault 2:M2`; K3a, K3b, K3c; `album.dto.ts`; 13 m 37 s | the frozen rows for README 220–222 (`runs/immich-fault`) | ✓ |
+| devpost, Try it | all 63 certificates and the 45 findings; 62 move steps and R4's rules commit; about 11 and about 20 minutes | `runs/immich-ladder/run.json` (63 steps, each certified: 62 in `certificates/`, R4's inline, PASS `c57590c655`; `findings/findings.json` 45); `~/ac-work/s9/quiet/demo-replay.log` real 11m7.5s; `demo-env.log` real 20m31.7s | ✓ |
+| devpost, The same model | Super and Ultra dropped 10–15% of hoppscotch's 189 files and 26–45% of kaneo's 456 | `docs/gates.md` line 49 (the gate's own measurement; G1 results in `~/ac-work/g1/results/`) | ✓ report |
+| devpost, Benchmarks | three fresh Ultra runs 81.38 to 84.83, mean 83.22; Super VL 91.26; 2.5 and 6.4 times | the frozen rows for README 290–306 | ✓ |
+| devpost, Our own misses | 79 defects (16 + 17 + 18 + 28) | the frozen row for README 346–347; the sum | ✓ |
+| devpost, Our own misses | 54 of 105 test files reported, 61 quarantined | the frozen row for README 314–316 (`~/ac-work/s6/run1/baseline.json`) | ✓ |
+| devpost, Elevator pitch | ≤ 200 characters | `len()` of the pitch → 185 | ✓ |
+| feedback.md, opening | 857 chat completions, four Nemotron models, 2026-10-02 to 10-24 | `budget/ledger.jsonl` (172 status 200, 1 status 504) plus the spike ledger's 680 live chat 200s and its four other non-200s (two 404s, one 400, one client-side failure) | ✓ |
+| feedback.md #30 | 600,372 ms; `n=3`; 256,000; ~245 tokens/s per choice; ~145k; $0.70; 358 s | ledger lines 274 and 149; `cassettes/s8b-bench.jsonl` line 67; the three Super VL `n=3` calls whose choices all hit the 64k cap: 192,000 tokens in 255, 270 and 257 s | ✓ |
+| feedback.md #31 | 32,768; 65,536; 61,668, 53,157 and 42,957; 10 of 11; 262,144 | `git show spike/gates:spike/llm/ledger.jsonl`, G1's Super rows; the 2026-10-02 verbose catalog | ✓ |
+| feedback.md #32, #33, #53 | 2,892/86,202, 3,284/27,037, 204/10,688; 166,208 and 247,147 characters; 77,705 of 85,341 and 89,823 of 92,758; 5 of 128 Ultra choices at `length`; `<|message|>` 6,193 times, $0.42 | `cassettes/s7-bench.jsonl` line 7, `s8b-bench.jsonl` lines 5 and 22, `s8b-probes.jsonl`; ledger lines 88 and 149; ledger over Ultra 200s: 67 calls, 128 choices, 5 `length` | ✓ |
+| feedback.md #37 | 11,989,760 of 13,562,215 cached; $13.70; about $3.15; 80–88% cheaper | the spike/g3-ultra ledger over the `g3u*` runs; the 2026-10-23 catalog snapshot (Ultra 1.00 → 0.12, Super and Super VL 0.30 → 0.06) | ✓ |
+| feedback.md #39, #42 | 4,352 and 2,176 tokens; 262 and 41 calls; 351 calls, 19,589,035 tokens; 71 and 271 calls; 7,683; 9,642 and 9,634; 0.74M–1.84M a minute; 554; 19% to 77% | the committed cassettes and both spike ledgers (S10 skeptics' scripts, re-run by the reviewer) | ✓ |
+| feedback.md #60–#65 | 214 finished choices (90, 122, 2); 114 required keys; 156,442 prompt tokens; 580 streamed calls (548 and 32); 629,867 tokens; 17.7 and 19.6 minutes; 501 tool calls; 49% and 90%; 123 of 128 | the committed cassettes deduplicated by response id; `budget/ledger.jsonl`; the spike ledgers; opencode's event logs in `~/ac-work/g3*/` | ✓ |
+
+</details>

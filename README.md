@@ -7,6 +7,11 @@
 changing behavior. Every commit carries a certificate that says why nothing else changed. The pitch is proof, not
 trust: you don't have to believe the tool, or the model, because a separate checker certifies every diff.
 
+On immich's server, `ac run` made 63 commits unattended in 1 h 55 m, each certified; on the whole PR, tsc, the
+2,337-case unit suite and the OpenAPI spec come out equal to base. A generic coding agent given the same task on the
+same Nemotron model left 1,638 imports dangling. To check it yourself, with no key and no cost: clone, `npm ci`,
+`npx ac demo --replay` (about 11 minutes; see the quick start).
+
 Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineering track.
 
 **The replay site: [corupta.github.io/architecture-cleaner](https://corupta.github.io/architecture-cleaner/)**, every
@@ -51,7 +56,7 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 | **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate drops any change that adds a warning or joins an existing group without evidence. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
 | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
-| **Nemotron 3 Ultra**, again (opencode's default settings) | The baseline's second arm (S9): the same agent, prompt and scripts on the model `ac` plans with. | $1.86 single-shot, $11.76 persistent; both fail (below) |
+| **Nemotron 3 Ultra**, again (opencode's default settings) | The baseline's second arm (S9): the same agent, prompt and scripts on the model `ac` plans with. | $1.86 single-shot, $11.76 persistent, at the full input price; both fail (below) |
 | **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $9.16 for its runs and probes ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
@@ -67,28 +72,32 @@ the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/se
 Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 recorded
 (S8b to S8d, Ultra's comparison runs included), and G3's Ultra arm $13.70 (S9, its smoke test included): the ledger
 stands at **$35.96** recorded of the $50 cap (2026-10-24), $36.00 with one open $0.04 reservation, which the gateway and
-`ac report` count. The ledger charges every input token at the full input price. Token Factory began pricing cached
-input lower between 2026-10-16 and 10-23 ([docs/feedback.md](docs/feedback.md) #37), so the bill for the runs since
-then, G3's Ultra arm above all, may be lower than recorded; we haven't seen that bill yet.
+`ac report` count. The ledger charges every input token at the full input price. Token Factory's catalog started
+listing a lower price for cached input between 2026-10-16 and 10-23, with no effective date
+([docs/feedback.md](docs/feedback.md) #37), so the bill for the runs after 2026-10-16, G3's Ultra arm (2026-10-24)
+above all, may be lower than recorded; we haven't seen that bill yet.
 
 ### Where Token Factory sped the work up
 
 - **One endpoint and one key for every Nemotron tier.** Token Factory's API is OpenAI-compatible, so the gateway is
   one client and a model is a row in a table (`src/gateway/models.ts`). Every comparison in this repository was a
   model id, not an integration: the planner gate (G1), the generic-agent baseline on Super and then on Ultra (G3,
-  the same scripts), and the Super VL bench (S8b to S8d).
+  the same scripts), and the Super VL bench (S8b to S8d; its longest answers also needed the gateway to stream, below).
 - **Strict `json_schema` on Nemotron.** Token Factory enforces it on every Nemotron model we used, with thinking on
   and off, so the planner parses every finished answer against its schema on the first try, with no repair loop.
 - **Three candidates for one prompt.** The planner's three edits come from one `n=3` request, and the prompt (the
   repository's facts) is billed once.
 - **Cheap enough to run unattended, and to measure honestly.** immich's plan cost $0.20. Everything in this
-  repository, the gates, both baseline arms and the Super VL experiments included, cost $35.96.
-- **A bill you can budget against.** The console matched our ledger, so the gateway's hard caps hold before a call is
-  sent, not after the bill arrives.
-- **Room for long reasoning.** Token Factory ends a non-streamed call after 10 minutes; streamed, Super VL reasoned for
-  a median of about 118k tokens per answer, and finished.
+  repository, the gates, both baseline arms and the Super VL experiments included, is $35.96 in our ledger, at the
+  full input price.
+- **A bill you can budget against.** On 2026-10-14 the console's $9.31 matched our ledger, which is built only from
+  response usage and catalog prices, so the gateway's hard caps, checked before a call is sent, track what Token
+  Factory bills (since cached input got a lower price, they err high).
+- **Room for long reasoning.** Token Factory ends a non-streamed call after 10 minutes; streamed, 37 of Super VL's 45
+  edit answers finished within 256k tokens, after a median of about 118k.
 
-**Other Nebius services:** none. `ac` calls Token Factory and nothing else (the console aside, for keys and billing).
+**Other Nebius services:** none. `ac` uses no Nebius service but Token Factory (the console aside, for keys and
+billing).
 No Nebius AI Cloud compute was used: the executor, the certifier, the targets' test suites and the baseline agent all
 ran on our own machine, an NVIDIA Jetson AGX Orin (CPU only). What we hit on Token Factory and would ask it to fix,
 each with its evidence: [docs/feedback.md](docs/feedback.md).
@@ -189,25 +198,28 @@ recorded plan has too.
 `ac` works on a TypeScript backend in a git repository, sliced by type folders under one module root (`src/` by
 default). Each target has a profile: its package root, its Node version (`system`, or one installed under
 `~/ac-targets/.node/`), its test runner, and the oracles K8 runs. Copy the closest one in `profiles/` and edit it:
-`mcphub.json` is a root package with jest; `immich.json` is a sub-package (`server/`) with vitest, tsc and an
-OpenAPI spec. A live plan needs a Token Factory key (`NEBIUS_API_KEY` in the environment or in this clone's
+`mcphub.json` is a root package with tsc and jest; `immich.json` is a sub-package (`server/`) with tsc, vitest
+and an OpenAPI spec. A live plan needs a Token Factory key (`NEBIUS_API_KEY` in the environment or in this clone's
 gitignored `.env`, as in `.env.example`) and a budget run with its own cap in `budget/runs.json`, which every live
-call is charged to.
+call is charged to. The global cap in that file ($50) counts everything in `budget/ledger.jsonl`, this project's own
+$36.00 included, so $14 is left under it; with your own key, set `AC_LEDGER` to a new ledger file.
 
 ```sh
 # 1. a budget run, e.g. "mine": { "cap": 1 } under "runs" in budget/runs.json
 # 2. the plan: Nemotron edits the seeds draft and reviews it ($0.20 on immich's server/)
 npx ac plan ~/my-repo --profile ./my-repo.json --mode record --run mine --out ~/ac-work/my-plan
 # 3. read plan.md; edit plan.yaml if you like, then: npx ac steps ~/ac-work/my-plan/plan.yaml
-# 4. the ladder, unattended: one certified commit per step on a new branch, rollback and replan on a failure
+# 4. the ladder, unattended: it checks out a new branch in ~/my-repo (tracked files must be clean) and makes one
+#    certified commit per step, with rollback and replan on a failure
 npx ac run ~/my-repo --profile ./my-repo.json --plan ~/ac-work/my-plan/plan.yaml --out ~/ac-work/my-run
-npx ac report ~/ac-work/my-run --out ~/ac-work/my-run/report
+npx ac report ~/ac-work/my-run --out ~/ac-work/my-report
 ```
 
 The repository needs its dependencies installed (`--env <checkout>` points at another checkout that has them), and
 the run dir must have no `node_modules` or `package.json` on its path. R0 checks the plan and the certifier's
-envelope and runs the target's oracles on the base commit; it declines a repository it can't certify, with the
-reasons (exit 3), before any branch or commit exists. To certify a diff made by anything else, an agent or a person:
+envelope, then runs the profile's oracles twice on the base commit, and they must pass (flaky tests aside, which it
+quarantines); a profile without oracles is declined. A declined run exits 3 with the reasons, before any branch or
+commit exists. To certify a diff made by anything else, an agent or a person:
 `npx ac certify ~/my-repo <base>..<head> --profile ./my-repo.json [--oracles]`.
 
 ## The demo run (runs/immich-ladder)
@@ -406,11 +418,15 @@ Searched on 2026-10-01 and 2026-10-02 ([docs/research/05c-prior-art-judge.md](do
 Moving TypeScript files with their imports rewritten is a commodity (ts-morph, IDE refactorings and their MCP
 servers), and so is "an LLM decides, a deterministic engine moves". The closest tool we found, `@demlik/structure-sweep`
 (npm, first published 2026-09-24), asks an LLM for each file's feature, moves a file only where the import graph agrees,
-rewrites the imports with ts-morph and keeps a ledger of boundary crossings; its blind mode, which hides folder names,
-is close to our scramble benchmark. Agent skills that migrate layered code to modular architectures validate with
-tsc and the tests, and SonarQube's architecture management tracks drift from an intended architecture.
+and rewrites the imports with ts-morph; its companion `@demlik/code-graph` keeps a ledger of boundary crossings. Its
+blind mode, which hides folder names, is close to our scramble benchmark. Agent skills that migrate layered code to modular architectures validate with
+tsc and the tests, and SonarQube's architecture management tracks drift from an intended architecture. The ideas
+under our checker are old: translation validation, which checks each run's output against its input instead of
+verifying the tool (Pnueli, Siegel and Singerman 1998; Necula 2000), and refactorings that preserve name binding
+(Schäfer et al., 2008 to 2012; [docs/research/05a-prior-art-academic.md](docs/research/05a-prior-art-academic.md)). We apply them to
+repository-wide module moves in TypeScript.
 
-What we didn't find anywhere: a checker, separate from the tool that made the change, that certifies each step of a
+What we didn't find in that search (the report lists its coverage limits): a checker, separate from the tool that made the change, that certifies each step of a
 refactor by translation validation (the move set complete, only specifier bytes changed, every import resolving to
 the same file under the compiler, the test runner and the runtime, no path string left behind), and that certifies
 any diff, ours or another agent's; bugs the new layout exposes recorded as findings and never fixed, as a contract;
