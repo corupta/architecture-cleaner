@@ -1599,3 +1599,17 @@ The site's part of [numbers.md](numbers.md), which says how the list was made an
 |---|---|---|---|
 | 73 | opencode 1.18.34 with NVIDIA Nemotron 3 Super | `docs/gates.md`:  → 1.18.34 (raw run-meta not in git) | ✓ report |
 | 87 | immich at the pinned commit 02063972e8 | `runs/immich-ladder/graph.json .base.commit`:  → 02063972e82b1bfd17b6fc2e3b3ff39936229ea5 | ✓ |
+
+## S10: the run pages' Cost section after the bill's reconciliation (2026-10-24)
+
+The rows above for the Cost section of `runs/immich-ladder/` and `runs/immich-fault/` (the ledger table, "$35.9977 of
+the $50.00 hard cap", "account for $19.5082 of it", g3u at $0.0762, $1.8630 and $11.7612, s8b at $4.0378, the total
+row) describe the site before corupta's Nebius console export of 2026-10-24. Seven reconciliation lines in
+`budget/ledger.jsonl` now bring the ledger to that bill, so the same section reads:
+
+| Claim | Source and how it was checked | |
+|---|---|---|
+| $24.3980 of the $50.00 hard cap; the lines marked reconciled bring the ledger to the Nebius console bill | `readLedger` over `budget/ledger.jsonl` → 24.398025 (the open S8b reservation settled); `test/site/site.test.ts` | ✓ |
+| the G3 runs account for $8.9572 | g3-smoke, g3-immich, g3-mcphub (unchanged) and g3u-smoke $0.0570, g3u-immich $0.5456, g3u-immich-persistent $2.5468 after their reconciliation lines; `test/site/site.test.ts` | ✓ |
+| s8b $3.7268, s8c $0.5941, s8d $6.3850 | the same ledger: s8b less $0.2723 (cached input at the cached price) with its reservation settled; s8c less $0.7033 (the 504 and $0.0016 of cached input); s8d less $0.0345 | ✓ |
+| the A/B page's Ultra cost row: $0.55 and $2.55 billed, the caps counting $1.86 and $11.76 at the full input price | `runs/g3/ab.json`; `test/report/data.test.ts` | ✓ |

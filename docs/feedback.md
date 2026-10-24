@@ -2,8 +2,8 @@
 
 From architecture-cleaner (`ac`), an entry in the Nebius x NVIDIA Global AI Hackathon. From 2026-10-02 to 2026-10-24
 every model call went through Token Factory: 857 chat completions on four Nemotron models (3 Ultra, 3 Super, 3.5
-Lightning, 3.5 Super VL), $35.96 by our ledger, which charges every input token at the full input price (cached input
-became cheaper during the hackathon, #37, so the bill may be lower). Our gateway recorded each request and response (`cassettes/*.jsonl`)
+Lightning, 3.5 Super VL), $24.40 on the bill (our ledger, which charged every input token at the full price, said $35.96
+until we reconciled it with the bill line by line, #37). Our gateway recorded each request and response (`cassettes/*.jsonl`)
 and each call's usage and cost (`budget/ledger.jsonl`), so every item below cites a recording or a page, not a memory.
 Each item was checked a second time by an agent told to refute it, and the docs items were re-read on 2026-10-24.
 Each one says whose it is: Token Factory's (the API, the docs, the catalog, billing), the model's (for NVIDIA), or
@@ -29,11 +29,12 @@ at 00:31:24Z, with no id; #31's clamped Super calls (2026-10-02) `3bedbe369e6bd0
    same model by anyone. By the page's own statements (we didn't probe it), that is a cross-tenant side channel on
    prompt content. Scope the cache per organization by default, or
    offer an opt-out, and say so in the legal guide's zero-data-retention section.
-2. **Prices changed mid-hackathon with no effective date** (#37). Cached input became 80–88% cheaper between the
-   2026-10-16 and 2026-10-23 catalog snapshots, with no changelog. A client that keeps its own ledger can't know
+2. **Prices changed mid-hackathon with no effective date** (#37). Cached input became 80–88% cheaper with no changelog;
+   our bill places it between 2026-10-17 21:57 and 2026-10-20 20:01 UTC. A client that keeps its own ledger can't know
    which price applied to which call. Publish a dated pricing changelog.
 3. **Non-streamed calls die at 600 s with an HTML 504** (#30). No docs page mentions the limit, the body isn't JSON,
-   there is no request id, and nobody can say whether the cut call is billed. Document it, return a JSON error with an
+   there is no request id, and nothing says whether the cut call is billed (our
+   bill shows this one wasn't). Document it, return a JSON error with an
    id, and reject or warn on a non-streamed `max_tokens` that can't finish in time.
 4. **Super silently stops at 32,768 output tokens** (#31), even when `max_tokens` is 64,000, with `finish_reason:
    length` and no warning. We misread it as the model reasoning too long. Publish max output tokens per model, and
@@ -67,7 +68,9 @@ cassettes, 680 in the spike ledgers),
 no rate-limit headers and no `retry-after`. A non-streamed answer sends its headers only when it's done, so the client
 sees nothing for ten minutes. At Super VL's ~245 tokens/s per choice, the limit caps a non-streamed choice near 145k
 tokens, while its finished answers needed a median of ~118k and 8 of 45 reached 256k. We booked the call at our $0.70
-estimate, because nothing says whether a cut call is billed. It cost us a streaming transport, with an event
+estimate, because nothing says whether a cut call is billed. Our 2026-10-24 bill settles it for this call: Super VL's
+billed output, 9.09M tokens, matches, to the console's 0.01M, what its 200 responses returned (9,092,987), so the cut call wasn't
+billed. It cost us a streaming transport, with an event
 assembler and idle timeouts, for every request above 64k `max_tokens` (`src/gateway/request.ts`,
 `src/gateway/transport.ts`). Related trap, in Node rather than Token Factory: undici's default `headersTimeout` is
 300 s, and our longest successful non-streamed Ultra call took 358 s. *Evidence:* `budget/ledger.jsonl` line 274;
@@ -123,8 +126,9 @@ our client gave up on a non-streamed Super call after 300 s (undici's default ti
 finished it and billed it, as one would expect; we only found out on 2026-10-14, when the console showed about 58k
 more Super output tokens than our ledger. We found no API that returns a request's usage after the fact (the Cached Tokens page mentions a
 consumption report, whose granularity we didn't check), and the Observability page covers dedicated endpoints only
-("not for billing reconciliation"). The 504 in #30, and a Super VL call we killed
-mid-flight, are in the same state: billed amount unknown. *Fix:* document that generation continues and is billed
+("not for billing reconciliation"). On the 2026-10-24 bill the 504 in #30 was not billed
+and a Super VL call we killed mid-flight leaves no trace (sub-cent either way), while the call our client dropped on
+2026-10-02 was billed in full: whether a call is billed depends on how it ends, and nothing documents which. *Fix:* document that generation continues and is billed
 when a client disconnects (or cancel it); offer a per-request usage export, or accept a client-supplied request id.
 
 ## Token Factory: billing, pricing and caching
@@ -135,9 +139,13 @@ full $1.00/M. The public catalog snapshot of 2026-10-16 14:11 UTC has no cached 
 prices cached input for 19 of 30 models: Ultra $0.12/M (against $1.00), Super and Super VL $0.06/M (against $0.30),
 none for Lightning or Nano. A Cached Tokens docs page appeared too (absent from the docs index of 2026-10-04,
 present on 2026-10-24). There is no changelog entry or effective date, and the ideas-board request for cache pricing still reads
-"In Review" (last modified 2026-03-16). *Impact:* our ledger charges full price and can't tell which calls got the
-discount. G3's Ultra arm ran on 2026-10-24 with 11,989,760 of its 13,562,215 input tokens cached: $13.70 at full price
-in our ledger, about $3.15 at the cached price. Only a console bill can settle which applied. *Fix:* a dated pricing
+"In Review" (last modified 2026-03-16). The 2026-10-24 bill brackets the change: S7's cache hits (47,872 tokens, the
+last at 2026-10-17 21:56 UTC) were billed as full-price input, and every Ultra hit from 2026-10-20 20:01 UTC on at
+$0.12/M; no call in between hit the cache. *Impact:*
+our ledger charged cached input in full and couldn't know when that stopped being right: it said $35.96 against a bill
+of $24.40. G3's Ultra arm (2026-10-24, 11,989,760 of its 13,562,215 input tokens cached) was $13.70 in the ledger and
+$3.15 on the bill. We reconciled the ledger line by line; the gap is exactly the cached-input discount ($10.77 on
+Ultra, $0.09 on Super VL) and the unbilled 504 ($0.70). *Fix:* a dated pricing
 changelog with per-model effective dates.
 
 **38. The serverless prompt cache is shared across organizations.** The new Cached Tokens page says the serverless
@@ -265,7 +273,7 @@ is on, and raw completions not exported to a dataset are "deleted automatically 
 11 of 12 edit choices hit a 64k cap (99.6% of their output was reasoning); the three hoppscotch runs fell back to the
 deterministic draft. `low_effort` used 163,855 reasoning tokens over 3 choices, one still cut off, and its critic
 reasoned all 32,000 of its tokens. Streamed with 256k, 37 of 45 edit choices finished after a median of ~118k tokens
-(8 hit the cap); the experiment took 3 h 31 min and $6.42, 2.5 times Ultra's cost and 6.4 times its time per plan. We
+(8 hit the cap); the experiment took 3 h 31 min and $6.42, 2.5 times Ultra's cost (at the full input price) and 6.4 times its time per plan. We
 didn't try `medium_effort` or a reasoning budget, and no page says whether Super VL honors either. *Ask:* document the
 effort levels and any budget control Super VL honors, its expected reasoning lengths, and recommended `max_tokens`
 and streaming for thinking-on use. (#66: with that room, it plans better.)
@@ -326,7 +334,9 @@ failure impossible by construction (#56), and the planner has no repair loop.
 **61. The bill matches usage, and `n>1` bills the prompt once.** On 2026-10-14 the console showed $9.31 against
 $9.259 in our ledger, which is built only from response usage and catalog prices (Ultra 0.65M/0.66M tokens, $2.62,
 against 0.649M/0.656M, $2.618); the gap was the one call in #36. Nine `n=3` Ultra calls billed their 156,442 prompt
-tokens once, so three candidate plans cost one prompt. That made client-side hard caps exact. *Ask:* say in the `n` parameter's description that the prompt
+tokens once, so three candidate plans cost one prompt. That made client-side hard caps exact. On 2026-10-24 the
+whole hackathon's bill ($24.40) reconciled with our usage-based ledger again, per model and per line, to the cent, once
+cached input was priced (#37). *Ask:* say in the `n` parameter's description that the prompt
 is billed once for `n>1` (the new Cached Tokens page already says billing follows reported usage).
 
 **62. Reliable, and streaming holds for very long answers.** 857 chat completions over 22 days, never a 429. Of the
@@ -340,8 +350,8 @@ minutes.
 Ultra parsed, with no repair and no raw markup in text.
 
 **64. Implicit prefix caching, and the new discount.** It needed no opt-in: 49% of Ultra's planner prompt tokens (nearly half
-of those hits from our bench re-sending identical prompts) and 90% of an agent loop's were cache hits. At the new cached price, that agent loop's input bill falls by about four
-fifths: a real win for anyone building coding agents on Token Factory.
+of those hits from our bench re-sending identical prompts) and 90% of an agent loop's were cache hits. At the new cached price, G3's Ultra arm, an agent loop, was billed $3.15
+where the full price would have been $13.70: a real win for anyone building coding agents on Token Factory.
 
 **65. Ultra at `medium_effort` is a bounded, cheap planner.** 123 of the 128 Ultra choices our gateway paid for
 finished under fixed caps (64k for an edit, 32k for a critique); finished edits peaked near 25k tokens, and all 5 cap
@@ -349,8 +359,7 @@ hits were loops (#53).
 A planner run (three candidates and a critique) averaged $0.17.
 
 **66. With room to think, Super VL plans better** (preliminary). Thinking on, with 256k tokens per answer, it beat
-Ultra at `medium_effort` on all four of our scramble benchmarks (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times
-the cost and 6.4 times the time, and showed no difference on immich. Three runs per entry; on its own, only hoppscotch's lead is
+Ultra at `medium_effort` on all four of our scramble benchmarks (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost (at the full input price) and 6.4 times the time, and showed no difference on immich. Three runs per entry; on its own, only hoppscotch's lead is
 clear (p = 0.05).
 
 ## Nebius AI Cloud

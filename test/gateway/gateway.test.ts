@@ -489,15 +489,17 @@ describe('budget', () => {
     expect(ledger()[1]).toMatchObject({ refused: true, runSpent: 2.999 });
   });
 
-  it('read the committed ledger as before: lines without a callId count their costUsd, and an open reservation stays charged', () => {
+  it('read the committed ledger as before: lines without a callId count their costUsd, and a reconciliation settles a reservation', () => {
     const committed = path.join(repoRoot, 'budget/ledger.jsonl');
     const lines = readJsonLines(committed) as { runId?: string; costUsd?: number; callId?: string; reservedUsd?: number }[];
     const sum = (runId?: string) => lines.reduce((total, line) => (typeof line.costUsd === 'number' && (runId === undefined || line.runId === runId) ? total + line.costUsd : total), 0);
-    // S8b stopped a run while its critic call was in flight: that reservation was never settled.
+            // S8b stopped a run while its critic call was in flight, and that reservation stayed open until the Nebius bill of
+    // 2026-10-24 showed the call was never billed: a reconciliation line with its callId settles it at $0 (S10).
     const settled = new Set(lines.filter((line) => line.callId !== undefined && line.reservedUsd === undefined).map((line) => line.callId));
     const open = lines.filter((line) => line.callId !== undefined && typeof line.reservedUsd === 'number' && !settled.has(line.callId));
-    expect(open.map((line) => [line.runId, line.reservedUsd])).toEqual([['s8b', 0.0387213]]);
-    expect(readSpent(committed, 's5')).toEqual({ run: sum('s5'), global: sum() + 0.0387213 });
+            expect(open).toEqual([]);
+    expect(lines.some((line) => line.callId === '354c3270-bdcd-46ee-8f9b-249e466a045c' && line.reservedUsd === 0.0387213)).toBe(true);
+    expect(readSpent(committed, 's5')).toEqual({ run: sum('s5'), global: sum() });
   });
 
   it('estimate at least the worst case of every recorded call: its real prompt tokens, every choice at max_tokens', () => {

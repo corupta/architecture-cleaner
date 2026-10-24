@@ -70,7 +70,7 @@ Written up, with the evidence and the fix for each, in [feedback.md](feedback.md
 Every item below was checked again by an agent told to refute it; the corrected wording is what feedback.md says.
 Items 1–17, 23 and 25–28 were re-read against the docs, the catalog and `/v1/models` on 2026-10-24; 29 needs a chat request and wasn't (the table at the end of feedback.md).
 
-30. Non-streamed requests are cut at 600 s: an nginx HTML 504, no request id, billing unknown.
+30. Non-streamed requests are cut at 600 s: an nginx HTML 504, no request id, billing undocumented (not billed, the 2026-10-24 bill shows).
 31. Nemotron 3 Super clamps output at 32,768 tokens even at `max_tokens` 64,000, with `finish_reason: length` (2026-10-02).
 32. Strict `json_schema` allows unbounded whitespace: three choices ran to `max_tokens` on it.
 33. Ultra's truncated reasoning leaks into `content` in production calls (extends 21); usage counts it as reasoning.

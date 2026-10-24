@@ -22,24 +22,26 @@ Decision 7 (corupta, 2026-10-24): the failure beat shows opencode on Nemotron 3 
 so the comparison isn't only between models: the same model id, opencode at the model's default effort, ac's planner at
 medium_effort (runs/g3/ab.json, the Ultra table; docs/sessions/s9.md). Its persistent run hit its $12 cap in turn 1,
 before any automated check, with "update all imports" still pending on its own to-do list; the lower third and the A/B
-page say it stopped at its cap. The Super persistent
+page say it stopped at its cap. S10: the line said "twelve dollars", the cost our gateway counted at the full input
+price; Token Factory's bill (2026-10-24) priced its cached input lower, $2.55 for the run, so the voice-over gives its
+tokens instead (11.6M input, 42k output). The Super persistent
 run's two silent breaks (migrations, helmet.json) leave the cut for it; they are on the A/B page.
 
 Decision for corupta: the shot ends on the PR list. immich's history also shows their direction (from feature folders
 under `domain/` to type folders, the opposite of ac); the 14 s can't explain it, so the video doesn't show the trees.
 The voice-over doesn't say which way they went.
 
-## 0:14–0:43 The failure (66 spoken words)
+## 0:14–0:43 The failure (67 spoken words)
 
 > We asked opencode, on NVIDIA Nemotron 3 Super via Nebius Token Factory, to restructure immich's server. All 2,337
 > test cases still passed. But 66 test files never load, and tsc reports 1,680 errors: a passing test count is not
-> proof. On Ultra, our planner's model: 374 files moved, no import rewritten; twelve dollars in nine minutes.
+> proof. On Ultra, our planner's model: 374 files moved, no import rewritten; twelve million tokens in nine minutes.
 
 | Shot | Lower third |
 |---|---|
 | `g3-vitest` (the single-shot branch: Tests 2,336 passed, 1 expected fail, as at base; Test Files 66 failed) | opencode 1.18.34 + Nemotron 3 Super, single-shot: it stopped at 169 s |
 | `g3-certify` (`ac certify --oracles` on that branch: FAIL K1, K3a, K4, K6, K8) | K1: 211 files added next to the originals · K6: 66 of 171 test files fail to load |
-| `site-ab-ultra` (the A/B page's Ultra table: what the diff is, the cost, the verdict) | opencode + Nemotron 3 Ultra: $11.76 in 9 min 26 s, then its $12 cap · 1,638 imports left dangling |
+| `site-ab-ultra` (the A/B page's Ultra table: what the diff is, the cost, the verdict) | opencode + Nemotron 3 Ultra: 11.6M input tokens in 9 min 26 s, then its budget cap · 1,638 imports left dangling |
 
 ## 0:43–1:32 Ours (111 spoken words)
 

@@ -168,11 +168,13 @@ Reading it:
 
 Budget run s8b recorded $4.00 of its $7 cap: Ultra $2.55, Super VL thinking off $0.54, thinking on at 64k $0.70 (3
 runs on hoppscotch, 1 edit call on hoppscotch-H1), low effort $0.19, the probes $0.02. S8c (budget run s8c): the 504
-probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown), and the 512k probe cost $0.60,
-$1.30 in all. S8d (budget run s8d): $6.42 for the 15 runs at 256k/128k. The ledger stands at $22.26 recorded. The
+probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown; S10: the bill shows it wasn't billed), and the 512k probe cost $0.60,
+$1.30 in all. S8d (budget run s8d): $6.42 for the 15 runs at 256k/128k. The ledger stands at $22.26 recorded. (S10: the Nebius bill of 2026-10-24 priced Super VL's and Ultra's cached input
+lower from 2026-10-20 at the latest and didn't bill the 504: these experiments came to $10.71 billed against $11.72 recorded; see the
+reconciliation lines in `budget/ledger.jsonl`.) The
 hoppscotch-H1 critic call that was in flight when we stopped thinking on at 64k was never recorded; its $0.04
-reservation stays open in the ledger, so the gateway and `ac report`, which count open reservations, show s8b at $4.04
-and the ledger at $22.30 of the $50 cap.
+reservation stayed open in the ledger (the gateway and `ac report`, which count open reservations, showed s8b at $4.04
+and the ledger at $22.30) until S10's reconciliation settled it at $0.
 
 Every recorded run here replays from the cassette for $0, for example:
 

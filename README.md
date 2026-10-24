@@ -56,8 +56,8 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 | **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate drops any change that adds a warning or joins an existing group without evidence. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
 | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
-| **Nemotron 3 Ultra**, again (opencode's default settings) | The baseline's second arm (S9): the same agent, prompt and scripts on the model `ac` plans with. | $1.86 single-shot, $11.76 persistent, at the full input price; both fail (below) |
-| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $9.16 for its runs and probes ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
+| **Nemotron 3 Ultra**, again (opencode's default settings) | The baseline's second arm (S9): the same agent, prompt and scripts on the model `ac` plans with. | $0.55 single-shot, $2.55 persistent, billed (their caps counted $1.86 and $11.76 at the full input price); both fail (below) |
+| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost (at the full input price) and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $8.37 on the bill for its runs and probes ($9.16 in the gateway's ledger: the full input price, plus $0.70 booked for a cut call that wasn't billed; [bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
 - strict `json_schema` answers, explicit sampling and `max_tokens` caps;
@@ -69,13 +69,15 @@ Every call goes through one in-process gateway (`src/gateway/`):
 
 The ledger matched the Nebius console bill on 2026-10-14, at **$9.31**. $6.69 of it went to Nemotron 3 Super, mostly
 the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/sessions/s6.md](docs/sessions/s6.md)).
-Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 recorded
-(S8b to S8d, Ultra's comparison runs included), and G3's Ultra arm $13.70 (S9, its smoke test included): the ledger
-stands at **$35.96** recorded of the $50 cap (2026-10-24), $36.00 with one open $0.04 reservation, which the gateway and
-`ac report` count. The ledger charges every input token at the full input price. Token Factory's catalog started
-listing a lower price for cached input between 2026-10-16 and 10-23, with no effective date
-([docs/feedback.md](docs/feedback.md) #37), so the bill for the runs after 2026-10-16, G3's Ultra arm (2026-10-24)
-above all, may be lower than recorded; we haven't seen that bill yet.
+Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), the Super VL experiments $11.72 (S8b to S8d,
+Ultra's comparison runs included) and G3's Ultra arm $13.70 (S9, its smoke test included), as the gateway charged them
+(every input token at the full price, the 504 below at its estimate): $35.96 in all. The console's bill for the whole hackathon (2026-09-24 to 10-24) came to
+**$24.40**, and it reconciles with the ledger to the cent. Since 2026-10-20 at the latest Token Factory bills cached input at a
+lower price (Ultra $0.12/M against $1.00, Super VL $0.06/M against $0.30), which the gateway didn't price: $10.77 on Ultra,
+$0.09 on Super VL. And it didn't bill the non-streamed call cut at 600 s, which the gateway had booked at its $0.70
+estimate, and shows no sign of a call we stopped before it was answered ([docs/feedback.md](docs/feedback.md) #37, #30). Reconciliation
+lines in `budget/ledger.jsonl` record each difference, so the ledger, the gateway and `ac report` now say $24.40 of the
+$50 cap. A run's cost below is as the gateway charged it, at the full input price, unless it says "billed".
 
 ### Where Token Factory sped the work up
 
@@ -88,11 +90,12 @@ above all, may be lower than recorded; we haven't seen that bill yet.
 - **Three candidates for one prompt.** The planner's three edits come from one `n=3` request, and the prompt (the
   repository's facts) is billed once.
 - **Cheap enough to run unattended, and to measure honestly.** immich's plan cost $0.20. Everything in this
-  repository, the gates, both baseline arms and the Super VL experiments included, is $35.96 in our ledger, at the
-  full input price.
-- **A bill you can budget against.** On 2026-10-14 the console's $9.31 matched our ledger, which is built only from
-  response usage and catalog prices, so the gateway's hard caps, checked before a call is sent, track what Token
-  Factory bills (since cached input got a lower price, they err high).
+  repository, the gates, both baseline arms and the Super VL experiments included, came to $24.40 on Token Factory's
+  bill.
+- **A bill you can budget against.** Our ledger is built only from response usage and catalog prices, and the
+  console's bill matched it on 2026-10-14 ($9.31) and, once cached input was priced, reconciled with it to the cent on
+  2026-10-24 ($24.40). So the gateway's hard caps, checked before a call is sent, track what Token Factory bills (they
+  err high on cached input, which the gateway prices in full).
 - **Room for long reasoning.** Token Factory ends a non-streamed call after 10 minutes; streamed, 37 of Super VL's 45
   edit answers finished within 256k tokens, after a median of about 118k.
 
@@ -201,8 +204,7 @@ default). Each target has a profile: its package root, its Node version (`system
 `mcphub.json` is a root package with tsc and jest; `immich.json` is a sub-package (`server/`) with tsc, vitest
 and an OpenAPI spec. A live plan needs a Token Factory key (`NEBIUS_API_KEY` in the environment or in this clone's
 gitignored `.env`, as in `.env.example`) and a budget run with its own cap in `budget/runs.json`, which every live
-call is charged to. The global cap in that file ($50) counts everything in `budget/ledger.jsonl`, this project's own
-$36.00 included, so $14 is left under it; with your own key, set `AC_LEDGER` to a new ledger file.
+call is charged to. The global cap in that file ($50) counts everything in `budget/ledger.jsonl`, this project's own $24.40 included, so $25.60 is left under it; with your own key, set `AC_LEDGER` to a new ledger file.
 
 ```sh
 # 1. a budget run, e.g. "mine": { "cap": 1 } under "runs" in budget/runs.json
@@ -260,8 +262,9 @@ of its arms fail certification.
 plans with, from a fresh checkout of the same commit. opencode's default request settings were kept (the model's
 default reasoning effort; `ac`'s planner runs Ultra at `medium_effort`), and every request was recorded (the scripts and
 the gateway's ledger are on branch `spike/g3-ultra`; the cassettes stay outside the repo). Only the caps differ: $2
-single-shot and $12 persistent, where the Super arm's two immich runs shared one $5 cap. Ultra costs 3.3 times Super per
-token, so $12 bought about three quarters of the Super arm's tokens:
+single-shot and $12 persistent, where the Super arm's two immich runs shared one $5 cap. Ultra's input costs 3.3 times
+Super's per token, so the $12 cap, counted at the full input price, allowed about three quarters of the Super arm's
+tokens:
 
 | immich `server/` @ `02063972e8` | opencode + Ultra, single-shot | opencode + Ultra, persistent |
 |---|---|---|
@@ -270,11 +273,11 @@ token, so $12 bought about three quarters of the Super arm's tokens:
 | Unit suite (base: 105 files, 2,337 cases) | – | 9 of 125 test files load (20 medium-test specs moved into the unit run), 363 of 2,337 cases |
 | OpenAPI spec | – | not produced |
 | `ac certify` | nothing to certify | FAIL: K1, K3a, K3b, K3c, K4, K6, K8; 1,638 imports dangling; K4 flags the same three moved `import.meta.dirname` users as on the Super branch, the two its review confirmed (migrations, `helmet.json`) among them |
-| Cost | $1.86, 111 s, stopped by its $2 cap | $11.76, 9 min 26 s, stopped by its $12 cap in turn 1, before the first automated check |
+| Cost | $0.55 billed, 111 s; stopped by its $2 cap, which counted $1.86 at the full input price | $2.55 billed, 9 min 26 s; stopped by its $12 cap in turn 1, before the first automated check ($11.76 at the full input price; 90% of its input was cached) |
 
-Costs are at the full input price, as our ledger charges them. 90% of the persistent run's input was served from
-Token Factory's prompt cache, which became cheaper during the hackathon; at the cached price, opencode's own estimate
-for that run is $2.52. The caps were enforced on the full-price figures.
+The caps counted every input token at the full input price, as the gateway did. Token Factory has billed cached input
+at a lower price since 2026-10-20 at the latest, and 90% of the persistent run's input came from its prompt cache, so the bill for
+it is $2.55 (opencode's own estimate: $2.52).
 
 The same model, two jobs: in a generic agent loop, Ultra read 11.6 million input tokens in nine minutes and left every
 import of the files it moved dangling (1,638); in `ac` it makes two planning calls for $0.20, code does the moves, and the checker
@@ -369,7 +372,8 @@ only at `medium_effort`); and it costs 2.5 times as much and takes 6.4 times as 
 commit whichever model plans, and `ac plan --planner super-vl-256k` is one flag away (`ac run --plan` executes its
 `plan.yaml`). The same runs show how much one planner
 run varies: hoppscotch's 87.59 above is one draw, and three fresh Ultra runs of the same request scored 81.38 to
-84.83. The experiments cost $11.72, Ultra's fresh runs included.
+84.83. The experiments cost $11.72 as the gateway booked them (the full input price, and $0.70 for the unbilled 504),
+Ultra's fresh runs included ($10.71 billed).
 
 ## Our own misses
 
@@ -464,7 +468,12 @@ Run `npx ac` for every flag. Profiles of the targets live in `profiles/`.
 `orchestrator/`, `filename-normalization/`, `rewrap/`, `boundaries/`, `findings/`, `report/`, `site/`, `scramble/`,
 `bench/`, `demo/`, `mutation/`. Tests are in `test/` (`npm test`). The plan, the gate results and the session reports are in `docs/`.
 Every number in this README, the storyboard, the video and the site is listed with its source in
-[docs/numbers.md](docs/numbers.md) (frozen in S9, tag `freeze-numbers`).
+[docs/numbers.md](docs/numbers.md) (frozen in S9, tag `freeze-numbers`; S10's additions in its own section).
+
+Built by corupta with Claude Code (over Paseo, with Claude Opus 5.5 at the ultracode effort setting) doing most of the
+implementation; corupta set the direction, made the decisions and reviewed. Each session's report is in
+`docs/sessions/`. Every run, the oracles and the video were made on an NVIDIA Jetson AGX Orin 64 GB, on its CPU (the
+models ran on Token Factory).
 
 ## License
 

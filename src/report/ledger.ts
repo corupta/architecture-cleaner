@@ -16,7 +16,7 @@ export interface LedgerRun {
   completionTokens: number;
   /** Model labels of the run's call lines, sorted. */
   models: string[];
-  /** Carried-over and reconciliation lines, as written. */
+    /** Carried-over and reconciliation lines; a reconciliation line with a callId also settles that reservation. */
   notes: string[];
   /** The run's cap in budget/runs.json, when it has one. */
   capUsd: number | null;
@@ -73,7 +73,8 @@ export function summarizeLedger(ledgerText: string, runsConfig: { globalCap?: nu
       run.calls += line.paidCalls ?? 0;
       run.notes.push(`carried over from ${line.carried}: ${line.paidCalls ?? 0} paid calls, $${line.costUsd.toFixed(4)}`);
     } else if (line.reconciled) {
-      run.notes.push(`reconciled, $${line.costUsd.toFixed(4)}: ${line.reconciled}`);
+      // A bill below the ledger (a discount the ledger didn't price, a call that wasn't billed) is a negative amount.
+      run.notes.push(`reconciled, ${line.costUsd < 0 ? '−' : ''}$${Math.abs(line.costUsd).toFixed(4)}: ${line.reconciled}`);
     } else {
       run.calls++;
       run.promptTokens += line.promptTokens ?? 0;

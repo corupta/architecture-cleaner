@@ -178,7 +178,7 @@ quarters of the Super arm's tokens).
 | | immich single-shot (Ultra) | immich persistent (Ultra) |
 |---|---|---|
 | Outcome | stopped by its $2 cap after 111 s, still looping: 38 of its 48 tool calls were `ls` on the same two test folders; no change | stopped by its $12 cap in turn 1 after 566 s, before the first automated check; its own to-do list still had "update all imports" pending |
-| Cost and input | $1.86, 1.85M input tokens, 49 calls | $11.76, 11.6M input tokens, 170 calls |
+| Cost and input | $1.86 at the full input price ($0.55 billed), 1.85M input tokens, 49 calls | $11.76 at the full input price ($2.55 billed), 11.6M input tokens, 170 calls |
 | File operations | none | 374 moved with `mv` (pure moves, 337 TypeScript files; test factories and 20 medium-test specs moved into `src/features/`), 0 edited |
 | New dangling specifiers | – | 1,638 (no importer rewritten) |
 | tsc errors (base 0) | – | 3,809 |
@@ -186,5 +186,5 @@ quarters of the Super arm's tokens).
 | OpenAPI oracle | – | no spec |
 | `ac certify --oracles` (today's tool) | nothing to certify | FAIL: K1, K3a, K3b, K3c, K4, K6, K8; K4 flags the same three moved `import.meta.dirname` users as on the Super branch, the two its review confirmed among them (`runs/g3/g3-immich-opencode-ultra-persistent.full.json`) |
 
-$13.70 in all (a $0.08 smoke test included), carried into `budget/ledger.jsonl`. The cassettes are outside the tree
+$13.70 in all at the full input price (a $0.08 smoke test included), carried into `budget/ledger.jsonl`; $3.15 billed (S10: Token Factory has billed cached input at its cached price since 2026-10-20 at the latest, and 88% of this arm's input was cached; the ledger's reconciliation lines). The cassettes are outside the tree
 (`~/ac-work/cassettes/g3u-*.jsonl`), as the Super arm's are.

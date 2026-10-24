@@ -210,7 +210,7 @@
     {
      "id": "g3u-persistent",
      "label": "opencode + Nemotron 3 Ultra, persistent",
-     "who": "the same agent, prompt and automated-reply loop as the Super arm, on Nemotron 3 Ultra; a $12 cap (about three quarters of the Super arm's tokens at Ultra's price) that stopped it in turn 1, before any automated reply",
+     "who": "the same agent, prompt and automated-reply loop as the Super arm, on Nemotron 3 Ultra; a $12 cap counted at the full input price (about three quarters of the Super arm's tokens at Ultra's price), which stopped it in turn 1, before any automated reply",
      "branch": "g3/opencode-ultra-persistent",
      "session": "S9 (G3's protocol)",
      "ours": false,
@@ -305,10 +305,10 @@
      "metric": "LLM cost",
      "values": {
       "ac-ladder": "$0.1998 for the plan when recorded (Nemotron 3 Ultra) and $0.0010 for the findings narration (Nemotron 3.5 Lightning); a replay costs $0",
-      "g3u-single": "$1.86 (1.85M input tokens, 49 calls)",
-      "g3u-persistent": "$11.76 (11.6M input tokens, 170 calls)"
+      "g3u-single": "$0.55 billed; its $2 cap counted $1.86 at the full input price (1.85M input tokens, 81% from the prompt cache; 49 calls)",
+      "g3u-persistent": "$2.55 billed; its $12 cap counted $11.76 at the full input price (11.6M input tokens, 90% from the prompt cache; 170 calls)"
      },
-     "source": "ac: runs/immich-ladder/run.json (cost); Ultra arms: the gateway ledger (spike/g3-ultra), carried into budget/ledger.jsonl"
+     "source": "ac: runs/immich-ladder/run.json (cost); Ultra arms: the gateway ledger (spike/g3-ultra), carried into budget/ledger.jsonl, and the Nebius console bill of 2026-10-24, which billed cached input at the cached price (budget/ledger.jsonl, the reconciliation lines)"
     },
     {
      "metric": "Time",

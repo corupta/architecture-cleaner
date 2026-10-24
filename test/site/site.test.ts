@@ -237,7 +237,9 @@ describe('ac site on this package', () => {
     expect(verifyPage).toContain('On 2026-10-23 we ran npx ac demo --replay --env --oracles from a fresh clone, with no --work (20 m 32 s, exit 0)');
     // S9: the plan was recorded in S5 and S6; the run's budget run names where the run's own planner spend went.
     expect(ladder).toContain('This run: the plan cost $0.1998 when it was recorded; planner spend during the run $0.0000 (budget run s6, mode auto)');
-    expect(ladder).toContain('The G3 runs (opencode with Nemotron 3 Super and, in S9, with Ultra: the generic-agent baseline) account for $19.5082 of it.');
+    expect(ladder).toContain('The G3 runs (opencode with Nemotron 3 Super and, in S9, with Ultra: the generic-agent baseline) account for $8.9572 of it.');
+    // S10: the 2026-10-24 bill reconciled: cached input billed at its cached price, the 504 and a stopped call not billed.
+    expect(ladder).toContain('The whole project\'s spend on Nebius Token Factory, from the gateway\'s ledger (budget/ledger.jsonl): $24.3980 of the $50.00 hard cap. The lines marked reconciled bring the ledger to the Nebius console bill: what Token Factory billed differently from the gateway\'s count (a lost call, cached input at its cached price, calls it didn\'t bill).');
     expect(ladder).toContain('The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site\'s A/B page: its single-shot changed nothing, and its persistent run hit its $12 cap in turn 1 with every import of the moved files dangling.');
     // S9: the R1 arm's timings are its certificate's own: K0–K6 and K8 as recorded in runs/g3/immich-r1.full.json.
     const r1 = JSON.parse(fs.readFileSync(path.join(packageDirectory, 'runs', 'g3', 'immich-r1.full.json'), 'utf8')) as { checks: { id: string; durationMs: number }[] };

@@ -74,6 +74,22 @@ describe('cost ledger', () => {
     expect(ledger.globalCapUsd).toBe(50);
   });
 
+    it('subtracts a bill below the ledger and settles a reservation the bill shows was never charged (S10)', () => {
+    const lines = [
+      { runId: 'g3u-immich', carried: 'spike', paidCalls: 49, costUsd: 1.863024 },
+      { runId: 's8b', model: 'nvidia/Nemotron-3.5-Super-VL', callId: 'k', reservedUsd: 0.0387 },
+      { runId: 'g3u-immich', reconciled: 'cached input at the cached price', costUsd: -1.317437 },
+      { runId: 's8b', callId: 'k', reconciled: 'not in the bill', costUsd: 0 },
+    ];
+    const ledger = summarizeLedger(lines.map((line) => JSON.stringify(line)).join('\n'), { globalCap: 50, runs: {} });
+    expect(ledger.runs.map((run) => [run.run, run.calls, Number(run.costUsd.toFixed(6)), run.openReservationsUsd])).toEqual([
+      ['g3u-immich', 49, 0.545587, 0],
+      ['s8b', 0, 0, 0],
+    ]);
+    expect(ledger.runs[0]!.notes).toEqual(['carried over from spike: 49 paid calls, $1.8630', 'reconciled, −$1.3174: cached input at the cached price']);
+    expect(ledger.runs[1]!.notes).toEqual(['reconciled, $0.0000: not in the bill']);
+  });
+
   it('matches the committed ledger line by line', () => {
     const text = fs.readFileSync(path.join(packageDirectory, 'budget', 'ledger.jsonl'), 'utf8');
     const ledger = readLedger(path.join(packageDirectory, 'budget', 'ledger.jsonl'), path.join(packageDirectory, 'budget', 'runs.json'))!;
@@ -141,6 +157,18 @@ describe('the A/B', () => {
     expect(ultraRow('K3b')).toEqual({ 'ac-ladder': 'pass', 'g3u-single': null, 'g3u-persistent': 'fail' });
     const mcphub = abTableView(document.tables.find((table) => table.id === 'mcphub')!, packageDirectory);
     expect(Object.values(mcphub.certificates).map((certificate) => certificate?.view.verdict)).toEqual(['fail', 'fail']);
+  });
+
+    it('gives the Ultra arms\' cost as billed, with what their caps counted at the full input price (S10, the 2026-10-24 bill)', () => {
+    const document = readAbDocument(path.join(packageDirectory, 'runs', 'g3', 'ab.json'))!;
+    const cost = document.tables.find((table) => table.id === 'immich-ultra')!.rows.find((row) => row.metric === 'LLM cost')!.values;
+    expect(cost['g3u-single']).toMatch(/^\$0\.55 billed; its \$2 cap counted \$1\.86 at the full input price/);
+    expect(cost['g3u-persistent']).toMatch(/^\$2\.55 billed; its \$12 cap counted \$11\.76 at the full input price/);
+    // The ledger agrees: the carried full-price cost less the reconciliation for cached input.
+    const ledger = readLedger(path.join(packageDirectory, 'budget', 'ledger.jsonl'), path.join(packageDirectory, 'budget', 'runs.json'))!;
+    const billed = (run: string) => Number(ledger.runs.find((entry) => entry.run === run)!.costUsd.toFixed(2));
+    expect([billed('g3u-immich'), billed('g3u-immich-persistent')]).toEqual([0.55, 2.55]);
+    expect(Number(ledger.totalUsd.toFixed(2))).toBe(24.4);
   });
 
   it('shows the certificates\' own counts wherever a row cites them, and every named count exists in every certificate', () => {

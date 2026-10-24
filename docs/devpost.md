@@ -100,9 +100,9 @@ opencode 1.18.34 on Nemotron 3 Super, the same task with a fixed prompt and no h
 errors. Its persistent run moved 297 files, copied 562 more into a `src.backup/` tree, and left 768 tsc errors, with 5
 of 105 test files loading. Is it just the better model? On Nemotron 3 Ultra, the model `ac` plans with (opencode at
 the model's default effort, with its own $2 and $12 caps): the single-shot run ran `ls` on the same two folders 38
-times in 48 tool calls and changed nothing ($1.86 at the full input price, stopped by its $2 cap); the persistent run
-moved 374 files, rewrote not one import, and hit its $12 cap after 9 min 26 s ($11.76 at the full input price; 90% of
-its input came from the prompt cache, which Token Factory now prices lower). `ac certify` fails every branch that
+times in 48 tool calls and changed nothing ($0.55 billed; its $2 cap, counted at the full input price, stopped it at $1.86); the persistent run
+moved 374 files, rewrote not one import, and hit its $12 cap after 9 min 26 s ($2.55 billed: 90% of its input came from the prompt cache, which our caps counted at the full
+price). `ac certify` fails every branch that
 changed something (Ultra's single-shot run changed nothing, so there was nothing to certify), and says exactly why; it
 passes ours.
 
@@ -148,9 +148,8 @@ made from it meets the certificate.
   non-streamed calls); strict `json_schema` on every Nemotron model we used, so every finished answer parses against
   its schema on the first try, with no repair loop; and `n=3` with the prompt billed once (details in the README).
 
-All of it, from the gate probes to both baseline arms and the Super VL experiments, is **$35.96** in our ledger of
-our $50 cap, at the full input price (Token Factory began discounting cached input during the hackathon, so the bill
-may be lower).
+All of it, from the gate probes to both baseline arms and the Super VL experiments, came to **$24.40** on Token
+Factory's bill, of our $50 cap, and our ledger reconciles with that bill to the cent.
 
 ### Benchmarks, losses included
 
@@ -163,7 +162,7 @@ higher on ghostfolio (86.81 against 84.72), but our own validator rejects that p
 it wins on 2 of 5.
 
 Preliminary: Nemotron 3.5 Super VL, with thinking on and 256k tokens to reason, beat Ultra on all four scrambles
-(hoppscotch 91.26 against Ultra's 83.22 mean) at 2.5 times the cost and 6.4 times the time, and showed no difference
+(hoppscotch 91.26 against Ultra's 83.22 mean) at 2.5 times the cost (at the full input price; 2.7 times as billed) and 6.4 times the time, and showed no difference
 on immich. The limits: three runs per entry, possible recall of these public projects, and Ultra compared only at
 `medium_effort`. The demo keeps Ultra: immich shows no gain, and the recorded run reproduces byte for byte.
 
@@ -194,6 +193,10 @@ guard let through stays in the findings log as recorded, labeled as the model's 
 - A mutation harness that attacks the checker: 831 mutants over 7 fixtures, 2 synthetic repositories, openhab-cloud,
   two immich steps and 53 hunt cases, all 831 killed by the static checks alone, before a single test case runs.
 - A static replay site, rendered from the committed run artifacts, byte-identical across builds, on GitHub Pages.
+- Built by corupta with Claude Code (over Paseo, with Claude Opus 5.5 at the ultracode effort setting) doing most of
+  the implementation; corupta set the direction, made the decisions and reviewed. Every session's report is in
+  `docs/sessions/`. Every run, the oracles and the video were made on an NVIDIA Jetson AGX Orin 64 GB (JetPack 6.2), on its CPU
+  (the models ran on Token Factory).
 - Every number in the README, the storyboard, the site and the video is listed with its source and how it was checked
   ([numbers.md](https://github.com/corupta/architecture-cleaner/blob/main/docs/numbers.md)): 2,489 at the freeze, and
   an S10 section for the ones added since.
@@ -210,11 +213,10 @@ immich's OpenAPI spec), on the same ladder, under the same never-fix rule.
 
 typescript, node.js, nvidia-nemotron, nemotron-3-ultra, nemotron-3.5-lightning, nemotron-3-super,
 nemotron-3.5-super-vl, nebius-token-factory, openai-sdk, undici, zod, yaml, dependency-cruiser, graphology, vitest,
-git, github-pages, github-actions, playwright, vhs, ffmpeg
+git, github-pages, github-actions, playwright, vhs, ffmpeg, nvidia-jetson-agx-orin, claude-code, paseo
 
-For corupta to decide: `nvidia-jetson-agx-orin` (every run, the oracles and the video were made on a Jetson AGX Orin
-64 GB, JetPack 6.2 (L4T R36.4.3), on its 12 Cortex-A78AE CPU cores only; its GPU, DLA and PVA were not used) and
-`claude-code` (it did most of the building, CLAUDE.md).
+(The Jetson AGX Orin 64 GB, JetPack 6.2 (L4T R36.4.3), ran every run, the oracles and the video on its 12 Cortex-A78AE
+CPU cores; its GPU, DLA and PVA were not used.)
 
 ## Feedback on Nebius Token Factory, AI Cloud and NVIDIA tools
 
