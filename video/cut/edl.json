@@ -3,8 +3,8 @@
   "shots": [
     { "shot": "hook", "file": "cli/hook.mp4", "start": 0, "end": 14, "from": 0, "speed": 1 },
     { "shot": "g3-vitest", "file": "cli/g3-vitest.mp4", "start": 14, "end": 24, "from": 0, "speed": 10 },
-    { "shot": "g3-certify", "file": "cli/g3-certify.mp4", "start": 24, "end": 31, "from": 462, "speed": 1, "badge": "≈ 8 min later" },
-    { "shot": "site-ab-ultra", "file": "site/site-ab-ultra.mp4", "start": 31, "end": 43, "from": 0, "speed": 1 },
+    { "shot": "g3-certify", "file": "cli/g3-certify.mp4", "start": 24, "end": 33, "from": 462, "speed": 1, "badge": "≈ 8 min later" },
+    { "shot": "site-ab-ultra", "file": "site/site-ab-ultra.mp4", "start": 33, "end": 43, "from": 0, "speed": 1 },
     { "shot": "site-plan", "file": "site/site-plan.mp4", "start": 43, "end": 51, "from": 0, "speed": 1 },
     { "shot": "ours-certify", "file": "cli/ours-certify.mp4", "start": 51, "end": 61, "from": 6, "speed": "fit", "hold": 3.5 },
     { "shot": "trailer", "file": "cli/trailer.mp4", "start": 61, "end": 65, "from": 0.5, "speed": 1 },

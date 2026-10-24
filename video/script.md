@@ -1,7 +1,7 @@
 # Video script (≤ 3:00), for corupta's 15-minute OK
 
 From the storyboard's beats ([docs/storyboard.md](../docs/storyboard.md), locked with corupta Oct 7, measured beats
-Oct 23, decisions 1–6). Every number on screen or in the voice-over is in [docs/numbers.md](../docs/numbers.md). The
+Oct 23, decisions 1–7). Every number on screen or in the voice-over is in [docs/numbers.md](../docs/numbers.md). The
 shots are in [shots.md](shots.md); each is a scripted capture, so the cut can be re-rendered. The silent rough cut that
 times this script is `video/out/cut/rough.mp4` (`node video/cut/render.mjs`).
 
@@ -19,7 +19,10 @@ voice-over, word for word; the lower thirds (right-hand column) are burned in. 3
 | `hook` (immich's own git log: the 17 PRs #8080–#8204 to server/src, Mar 20–22, 2024) | immich, March 20–22, 2024: 17 PRs restructuring server/, by hand |
 
 Decision 7 (corupta, 2026-10-24): the failure beat shows opencode on Nemotron 3 Ultra too, the model ac plans with,
-so the comparison isn't between models (runs/g3/ab.json, the Ultra table; docs/sessions/s9.md). The Super persistent
+so the comparison isn't only between models: the same model id, opencode at the model's default effort, ac's planner at
+medium_effort (runs/g3/ab.json, the Ultra table; docs/sessions/s9.md). Its persistent run hit its $12 cap in turn 1,
+before any automated check, with "update all imports" still pending on its own to-do list; the lower third and the A/B
+page say it stopped at its cap. The Super persistent
 run's two silent breaks (migrations, helmet.json) leave the cut for it; they are on the A/B page.
 
 Decision for corupta: the shot ends on the PR list. immich's history also shows their direction (from feature folders
@@ -30,7 +33,7 @@ The voice-over doesn't say which way they went.
 
 > We asked opencode, on NVIDIA Nemotron 3 Super via Nebius Token Factory, to restructure immich's server. All 2,337
 > test cases still passed. But 66 test files never load, and tsc reports 1,680 errors: a passing test count is not
-> proof. On Ultra, our planner's model: twelve dollars in nine minutes, 374 files moved, no import rewritten.
+> proof. On Ultra, our planner's model: 374 files moved, no import rewritten; twelve dollars in nine minutes.
 
 | Shot | Lower third |
 |---|---|

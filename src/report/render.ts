@@ -668,7 +668,7 @@ function abSection(data: RunReportData, links: AbLinks): Section | null {
   return {
     id: 'ab',
     title: 'A/B: the same task, a generic agent',
-    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by our checker, the version before this run's (certificate format 1; K7 came later). The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site's A/B page: it failed too.</p>\n${renderAbTable(data.ab, links)}`,
+    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by our checker, the version before this run's (certificate format 1; K7 came later). The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site's A/B page: its single-shot changed nothing, and its persistent run hit its $12 cap in turn 1 with every import of the moved files dangling.</p>\n${renderAbTable(data.ab, links)}`,
   };
 }
 

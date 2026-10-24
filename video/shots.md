@@ -11,10 +11,10 @@ is sped up or cut in the edit, never re-typed.
 |---|---|---|---|---|---|---|
 | 1 | `hook` | Hook | tape `hook.tape` | immich's own `git log` of server/src: the 17 PRs #8080–#8204, Mar 20–22, 2024 (the one `fix:` commit between them left out on screen) | 14 s | 0:00–0:14 |
 | 2 | `g3-vitest` | Failure | tape `g3-vitest.tape` | immich's unit suite on opencode's single-shot branch: Test Files 66 failed, 105 passed (171); Tests 2,336 passed, 1 expected fail (2,337), as at base | 65 s | 0:14–0:24, ×10 |
-| 3 | `g3-certify` | Failure | tape `g3-certify.tape` | `ac certify --oracles` on that branch, today's tool: FAIL K1, K3a, K4, K6, K8, verdict FAIL (the checks S4's certificate in runs/g3/ failed) | 468 s | 0:24–0:31, from 462 s (the verdict prints at about 464 s), marked "≈ 8 min later" |
-| 4 | `site-ab-ultra` | Failure | site `ab/index.html`, the Ultra table | opencode + Nemotron 3 Ultra (S9): what the diff is (374 moved, no import rewritten), the cost ($11.76 in 9 min 26 s), the verdict (FAIL) | 10.7 s | 0:31–0:43 |
+| 3 | `g3-certify` | Failure | tape `g3-certify.tape` | `ac certify --oracles` on that branch, today's tool: FAIL K1, K3a, K4, K6, K8, verdict FAIL (the checks S4's certificate in runs/g3/ failed) | 468 s | 0:24–0:33, from 462 s (the verdict prints at about 464 s), marked "≈ 8 min later" |
+| 4 | `site-ab-ultra` | Failure | site `ab/index.html`, the Ultra table | opencode + Nemotron 3 Ultra (S9): what the diff is (374 moved, no import rewritten), the cost ($11.76 in 9 min 26 s), the verdict (FAIL) | 10.7 s | 0:33–0:43 |
 | 5 | `site-plan` | Ours | site `runs/immich-ladder/` #plan | the critic's review (labeled the model's words) and the gate's record, then the placements table opened on one the critic decided | 8.6 s | 0:43–0:51 |
-| 6 | `ours-certify` | Ours | tape `ours-certify.tape` | `ac certify` on step 1 with its step certificate's checks (`--only K0,…,K7`; `ac run` leaves K8 to the rungs): K0–K4, K6, K7 PASS, digest `909262855d4a…`, the one in the commit's trailer | 154 s | 0:51–1:01, ×22, the digest held 3.5 s |
+| 6 | `ours-certify` | Ours | tape `ours-certify.tape` | `ac certify` on step 1 with its step certificate's checks (`--only K0,…,K7`; `ac run` leaves K8 to the rungs): K0–K4, K6, K7 PASS, digest `909262855d4a…`, the one in the commit's trailer | 154 s | 0:51–1:01, ×23, the digest held 3.5 s |
 | 7 | `trailer` | Ours | tape `trailer.tape` | step 1's commit message: `Ac-Certificate: pass (static) …` and the same digest | 6.6 s | 1:01–1:05 |
 | 8 | `site-ladder` | Ours | site `runs/immich-ladder/` #ladder | rungs R1–R4 (each PASS with the oracles; R0, the preflight, passed), the wall time, the 63 steps scrolling by | 13 s | 1:05–1:21 |
 | 9 | `site-fault` | Ours | site `runs/immich-fault/` | step 2's failed attempt: FAIL K3a, K3b, K3c on `workflow-execution.service.ts`; `album.dto.ts` pinned; attempt 2 passed | 8.5 s | 1:21–1:32 |
@@ -28,13 +28,14 @@ is sped up or cut in the edit, never re-typed.
 | 17 | `replay`, `replay-end` | Close | tape `replay.tape` | `npx ac demo --replay` typed in a fresh clone; then its summary and exit 0 | 655 s | 2:45–2:47.5, then 2.5 s from 649.5 s (the summary is up from 650 s), marked "≈ 11 min later" |
 | 18 | `card-close` | Close | card `cards/close.html` | the pitch line, the command, the repo and site URLs | 8 s | 2:50–2:57 |
 | – | `site-landing` | spare | site `index.html` | the landing page's run cards | 4 s | – |
+| – | `site-ab` | spare | site `ab/index.html` | the Super table: the tsc, unit-suite and verdict rows (out of the cut since decision 7) | 13 s | – |
 
 "Raw" is the capture's own length (VHS records slower than the clock on long runs: the replay took 11 min 39 s by
 its own timer and 633 s of video). A CLI shot played faster than ×1.2 carries a speed badge in the cut; a long wait
 the cut leaves out carries a "≈ … later" badge with the clock time left out, rounded.
 
-`card-close` needs the repository and site URLs (placeholders `REPO_URL`, `SITE_URL` in `cards/close.html`) once the
-repository is public.
+`card-close` shows the repository and site URLs (github.com/corupta/architecture-cleaner, corupta.github.io/architecture-cleaner);
+re-capture it after any change to `cards/close.html`.
 
 ## Rendering
 

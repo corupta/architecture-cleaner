@@ -217,7 +217,11 @@ describe('ac site on this package', () => {
     expect(abPage).not.toContain('by the same checker as ours');
     expect(abPage).toContain('still passes all 1,934 of the base\'s test cases outside the 7 network test files K8 sets aside');
     // S9: the same agent on Nemotron 3 Ultra, the model ac plans with, so the A/B doesn't compare models.
-    expect(abPage).toContain('In S9 the same agent ran again on NVIDIA Nemotron 3 Ultra, the model ac plans with');
+    expect(abPage).toContain('In S9 the same agent ran again on NVIDIA Nemotron 3 Ultra, the model ac plans with, with the same prompt, scripts and pinned commit (the second table); only the caps differ');
+    expect(landing).toContain('(opencode with Nemotron 3 Super, and with Ultra, the model ac plans with)');
+    // An arm with no certificate (the Ultra single-shot changed nothing) says so in every check row.
+    expect(abPage.match(/no certificate/g)?.length).toBe(11);
+    expect(abPage).not.toContain('not in this certificate');
     expect(abPage).toContain('immich server/ @ 02063972e8: the same agent on Nemotron 3 Ultra');
     expect(abPage).toContain('3,809certificate K8: tsc exited 1 on head (3,809 diagnostics), 0 on base');
     expect(abPage).toContain('Ran `ls` on the same two test folders 38 times in 48 tool calls');
@@ -234,7 +238,7 @@ describe('ac site on this package', () => {
     // S9: the plan was recorded in S5 and S6; the run's budget run names where the run's own planner spend went.
     expect(ladder).toContain('This run: the plan cost $0.1998 when it was recorded; planner spend during the run $0.0000 (budget run s6, mode auto)');
     expect(ladder).toContain('The G3 runs (opencode with Nemotron 3 Super and, in S9, with Ultra: the generic-agent baseline) account for $19.5082 of it.');
-    expect(ladder).toContain('The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site\'s A/B page: it failed too.');
+    expect(ladder).toContain('The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site\'s A/B page: its single-shot changed nothing, and its persistent run hit its $12 cap in turn 1 with every import of the moved files dangling.');
     // S9: the R1 arm's timings are its certificate's own: K0–K6 and K8 as recorded in runs/g3/immich-r1.full.json.
     const r1 = JSON.parse(fs.readFileSync(path.join(packageDirectory, 'runs', 'g3', 'immich-r1.full.json'), 'utf8')) as { checks: { id: string; durationMs: number }[] };
     const staticSeconds = Math.round(r1.checks.filter((check) => check.id !== 'K8').reduce((sum, check) => sum + check.durationMs, 0) / 1000);

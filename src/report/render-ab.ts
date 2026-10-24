@@ -59,6 +59,7 @@ export function renderAbTable(view: AbTableView, links: AbLinks): string {
       const view = certificates[arm.id]?.view;
       const note = status && view ? checkNote(view, row.id) : null;
       if (status) return `${statusMark(status)}${note ? `<div class="small">${escapeHtml(note)}</div>` : ''}`;
+      if (!certificates[arm.id]) return '<span class="muted small">no certificate</span>';
       const predates = row.id === 'K7' && certificates[arm.id]?.view.format === 'ac-certificate/1';
       return `<span class="muted small">${predates ? 'not checked: K7 came after this certificate (S6)' : 'not in this certificate'}</span>`;
     }), '']),
