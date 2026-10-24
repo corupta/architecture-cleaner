@@ -4,6 +4,7 @@
 export PS1='$ ' PAGER=cat GIT_PAGER=cat
 export AC=${AC:-/workspace/architecture-cleaner} IMMICH=${IMMICH:-$HOME/ac-targets/immich} G3=${G3:-$HOME/ac-targets/g3/immich}
 export TARGET_NODE=${TARGET_NODE:-$HOME/ac-targets/.node/node-v24.21.0-linux-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')/bin}
-# PASS green, FAIL red: only the colors change, never the text.
-paint() { sed -u -e $'s/^PASS/\e[1;32mPASS\e[0m/' -e $'s/^FAIL/\e[1;31mFAIL\e[0m/' -e $'s/^verdict: PASS/verdict: \e[1;32mPASS\e[0m/' -e $'s/^verdict: FAIL/verdict: \e[1;31mFAIL\e[0m/'; }
+# PASS green, FAIL red, the replay's verdicts green: only the colors change, never the text.
+paint() { sed -u -e $'s/^PASS/\e[1;32mPASS\e[0m/' -e $'s/^FAIL/\e[1;31mFAIL\e[0m/' -e $'s/^verdict: PASS/verdict: \e[1;32mPASS\e[0m/' -e $'s/^verdict: FAIL/verdict: \e[1;31mFAIL\e[0m/' \
+  -e $'s/^Everything compared matches the recorded run/\e[1;32m&\e[0m/' -e $'s/62 of 62 trees equal the recorded run\x27s\./\e[1;32m&\e[0m/'; }
 clear

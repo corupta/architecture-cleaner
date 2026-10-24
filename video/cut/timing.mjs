@@ -32,6 +32,12 @@ export function chunks(text, limit = 84) {
   return result;
 }
 
+/**
+ * A duration stays on one line ("9 min 26 s", "1 h 55 m", "169 s"): libass wraps only at plain spaces, so the spaces
+ * inside one become no-break spaces.
+ */
+export const keepTogether = (text) => text.replace(/\d+ (?:h|min|m|s|ms)\b(?: \d+ (?:h|min|m|s|ms)\b)*/g, (duration) => duration.replace(/ /g, '\u00a0'));
+
 /** ffmpeg's silencedetect log → the silences, `{ start, end }`; one still open when the take ends closes at `duration`. */
 export function parseSilences(log, duration) {
   const silences = [];

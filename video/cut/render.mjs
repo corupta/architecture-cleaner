@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { alignSentences, beatCaptions, parseSilences, placeTake, seconds, sentences, wordCount } from './timing.mjs';
+import { alignSentences, beatCaptions, keepTogether, parseSilences, placeTake, seconds, sentences, wordCount } from './timing.mjs';
 
 const { values } = parseArgs({
   options: {
@@ -179,7 +179,7 @@ Style: Missing,DejaVu Sans,60,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-${events.sort((left, right) => left.start - right.start).map((event) => `Dialogue: 0,${assTime(event.start)},${assTime(event.end)},${event.style},,0,0,0,,${event.text.replace(/\n/g, '\\N')}`).join('\n')}
+${events.sort((left, right) => left.start - right.start).map((event) => `Dialogue: 0,${assTime(event.start)},${assTime(event.end)},${event.style},,0,0,0,,${keepTogether(event.text).replace(/\n/g, '\\N')}`).join('\n')}
 `;
 const assFile = path.join(work, 'cut.ass');
 fs.writeFileSync(assFile, ass);

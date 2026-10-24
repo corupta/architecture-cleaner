@@ -18,7 +18,7 @@
     { "shot": "site-bench", "file": "site/site-bench.mp4", "start": 141, "end": 151, "from": 0, "speed": 1 },
     { "shot": "card-super-vl", "file": "site/card-super-vl.mp4", "start": 151, "end": 165, "from": 0, "speed": 1 },
     { "shot": "replay", "file": "cli/replay.mp4", "start": 165, "end": 167.5, "from": 0, "to": 3.5, "speed": "fit" },
-    { "shot": "replay-end", "file": "cli/replay.mp4", "start": 167.5, "end": 170, "from": 649.5, "speed": 1, "badge": "≈ 11 min later" },
+    { "shot": "replay-end", "file": "cli/replay-end.mp4", "start": 167.5, "end": 170, "from": 4.9, "speed": 1, "badge": "≈ 11 min later" },
     { "shot": "card-close", "file": "site/card-close.mp4", "start": 170, "end": 177, "from": 0, "speed": 1 }
   ]
 }

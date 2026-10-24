@@ -25,7 +25,7 @@ is sped up or cut in the edit, never re-typed.
 | 14 | `card-mutation` | Credibility | card `cards/mutation.html` | 831 mutants, 831 rejected by K0–K4, K6, K7 before any test case runs | 5 s | 2:13–2:21 |
 | 15 | `site-bench` | Credibility | site `bench/index.html` | the bench table: 3 of 5 above the best deterministic method; kaneo's loss and the two rejected plans highlighted | 6 s | 2:21–2:31 |
 | 16 | `card-super-vl` | Credibility | card `cards/super-vl.html` | Super VL (thinking on) against Ultra, mean of 3 runs, immich highlighted; the limits | 6 s | 2:31–2:45 |
-| 17 | `replay`, `replay-end` | Close | tape `replay.tape` | `npx ac demo --replay` typed in a fresh clone; then its summary and exit 0 | 655 s | 2:45–2:47.5, then 2.5 s from 649.5 s (the summary is up from 650 s), marked "≈ 11 min later" |
+| 17 | `replay`, `replay-end` | Close | tapes `replay.tape`, `replay-end.tape` | `npx ac demo --replay` typed in a fresh clone; then the verdict lines of the summary it wrote (`/tmp/ac-demo/demo.md`) at the shots' usual font: everything compared matches the recorded run, 62 of 62 trees equal the recorded run's, R4's tree equals the recorded one (S10: the replay's own last screen, 32 lines at 18 px with its key line cut mid-word, couldn't be read in 2.5 s) | 655 s, 10.9 s | 2:45–2:47.5, then 2.5 s from 4.9 s of `replay-end` (the lines are up from 5.1 s), marked "≈ 11 min later" |
 | 18 | `card-close` | Close | card `cards/close.html` | the pitch line, the command, the repo and site URLs | 8 s | 2:50–2:57 |
 | – | `site-landing` | spare | site `index.html` | the landing page's run cards | 4 s | – |
 | – | `site-ab` | spare | site `ab/index.html` | the Super table: the tsc, unit-suite and verdict rows (out of the cut since decision 7) | 13 s | – |
@@ -42,11 +42,12 @@ re-capture it after any change to `cards/close.html`.
 ```sh
 cd video && npm ci                     # Playwright 1.61.1 (its Chromium build is 1228)
 # VHS 0.12.1, ttyd 1.7.7 and a static ffmpeg on PATH (we keep them in video/.tools/bin, not committed);
-# VHS finds Chromium as `chromium` on PATH (a symlink to Playwright's build 1228 works)
+# VHS finds Chromium as `chromium` on PATH (a symlink to Playwright's build 1228 works) and, in this container, starts it only with `VHS_NO_SANDBOX=true`
 npx ac site --out /tmp/ac-site         # from the repository root
 node capture/site.mjs --site /tmp/ac-site --out out/site
-cd tapes && for tape in hook trailer boundaries ours-certify g3-vitest g3-certify replay; do vhs $tape.tape; done
-cd .. && node cut/render.mjs          # the rough cut: out/cut/rough.mp4 and captions.srt
+cd tapes && for tape in hook trailer boundaries ours-certify g3-vitest g3-certify replay replay-end; do VHS_NO_SANDBOX=true vhs $tape.tape; done
+cd .. && node cut/render.mjs          # the rough cut: out/cut/rough.mp4, captions.srt and timing.md
+node cut/render.mjs --final            # the upload: out/cut/final.mp4, final.srt, thumbnail.png (needs every take in vo/)
 ```
 
 The tapes that run immich's tests or certify (`g3-vitest`, `g3-certify`, `ours-certify`, `replay`) need a quiet

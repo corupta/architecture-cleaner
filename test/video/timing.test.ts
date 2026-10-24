@@ -73,3 +73,10 @@ describe('beatCaptions', () => {
     expect(captions.map((caption: { text: string }) => caption.text).join(' ')).toBe(sentence);
   });
 });
+
+describe('keepTogether', () => {
+  it('keeps a duration on one line and leaves other numbers alone', () => {
+    expect(timing.keepTogether('$11.76 in 9 min 26 s, then its $12 cap; 1 h 55 m; 38 modules, 63 steps, 169 s'))
+      .toBe('$11.76 in 9\u00a0min\u00a026\u00a0s, then its $12 cap; 1\u00a0h\u00a055\u00a0m; 38 modules, 63 steps, 169\u00a0s');
+  });
+});

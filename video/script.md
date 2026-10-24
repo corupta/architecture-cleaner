@@ -95,7 +95,7 @@ The voice-over doesn't say which way they went.
 | Shot | Lower third |
 |---|---|
 | `replay` (`npx ac demo --replay` typed in a fresh clone) | npx ac demo --replay · no key, $0 |
-| `replay-end` (its summary: 62 of 62 trees equal the recording; exit 0) | every tree equals the recording · ~11 min |
+| `replay-end` (the verdict lines of the summary the replay wrote: everything compared matches the recorded run; 62 of 62 trees equal the recorded run's) | every tree equals the recording · ~11 min |
 | `card-close` (the pitch line, the repo and site URLs) | — |
 
 Not in the cut (no room in 3:00; each would need a donor): stretch S3 ("even the formatting fix is proven", over
