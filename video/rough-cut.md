@@ -17,21 +17,30 @@ caption or a timing is a re-render, not an edit session.
      after each beat.
    - Files: `video/vo/<beat>.wav` (hook, failure, ours, result, credibility, close), not committed.
    - Pace: the script's word counts fit about 130 words a minute. A beat that runs long is cut in the text, not sped up.
-5. **Rough cut v1**: the cut script lays each beat's audio at its slot, stretches or trims the beat's shots to the
-   take's length (holds and sped-up waits absorb it), and regenerates the captions from the script with the take's
-   timing (one caption line per sentence, spread over the take by word count). Burned-in captions for the video;
-   the same `.srt` uploaded to YouTube as closed captions.
-6. **Final** (Oct 25–27): music bed off or very low, loudness normalized (−14 LUFS for YouTube), a 1 s fade at each
-   end, title card frame as the thumbnail; ≤ 3:00 checked on the file, not the timeline.
+5. **Rough cut v1** (`node cut/render.mjs`): the cut script trims each take to its speech (the 1 s of room tone at
+   each end stays out), lays it so its first word falls 0.3 s into its beat, and levels each take to the same loudness
+   before the mix. It reads each sentence's end from the take's pauses (silencedetect) and times the captions by them
+   (one caption line per sentence, or two for a long one, spread over the sentence by word count), so the captions
+   follow the voice. It writes `out/cut/timing.md`: each sentence's seconds and the shots under it, the check that each
+   sentence lands on its shot. A take that runs past its beat's end is reported; it is fixed in the text, or in
+   `cut/edl.json` and script.md together, never by speeding the voice up. Burned-in captions for the video; the
+   `.srt` for YouTube's closed captions.
+6. **Final** (`node cut/render.mjs --final`, Oct 25–27): no music bed; 1 s of the first and last frames added around
+   the cut, fading from and to black, so no word is faded; the voice normalized to −14 LUFS for YouTube (two-pass
+   loudnorm, linear, true peak −1.5 dBTP), mixed as stereo before the normalization (an encoder upmix costs about
+   1 LU); the close card as the thumbnail (`out/cut/thumbnail.png`, 1280×720) and the captions 1 s later
+   (`out/cut/final.srt`). It refuses to run without all six takes and exits 1 unless the file itself is ≤ 3:00, at
+   −14 ± 1 LUFS integrated and a true peak at or below −1 dBFS.
 
 ## What the cut script does (ffmpeg only)
 
 - Per shot: trim (`-ss`/`-t`), speed up a CLI wait (`setpts=PTS/<k>`, k from the slot length), hold the last frame
   if the slot is longer (`tpad=stop_mode=clone`), scale and pad to 1920×1080.
-- Concatenate per beat, then the beats (`concat` filter), 30 fps, H.264 `yuv420p`, AAC 48 kHz.
-- Captions: an `.srt` written from the script's quoted voice-over lines and burned in with `subtitles=` (libass),
-  white text with a dark box, bottom center, at most two lines of 42 characters.
-- Lower thirds: the right-hand column of the script's tables, `drawtext` top-left in the site's colors, 3 s per line.
+- Concatenate the segments (each already 1920×1080 at 30 fps), H.264 `yuv420p`, AAC 48 kHz stereo.
+- Captions: written from the script's quoted voice-over lines, timed by the takes (above), burned in with libass
+  (`ass=`), white text with a dark box, bottom center, at most two lines of 42 characters; the same lines as `.srt`.
+- Lower thirds: the right-hand column of the script's tables, libass too, bottom left in the site's colors, the
+  first 4.3 s of each shot.
 - Sped-up CLI shots get a small "×8" (or whatever k is) badge, so nobody mistakes the speed for the tool's.
 
 ## Honesty rules for the edit
