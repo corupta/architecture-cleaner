@@ -51,6 +51,7 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 | **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`, `medium_effort`) | Edits the seeds draft: 3 candidates in one `n=3` call, strict `json_schema`, ranked by the validator. Then reviews the winning plan like a staff engineer; the gate drops any change that adds a warning or joins an existing group without evidence. | 2 calls, **$0.1998**, recorded once (`runs/immich-ladder/run.json`, `cost.planRecordedUsd`) |
 | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
+| **Nemotron 3 Ultra**, again (opencode's default settings) | The baseline's second arm (S9): the same agent and protocol on the model `ac` plans with, so the comparison isn't between models. | $1.86 single-shot, $11.76 persistent; both fail (below) |
 | **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $9.16 for its runs and probes ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
@@ -64,8 +65,9 @@ Every call goes through one in-process gateway (`src/gateway/`):
 The ledger matched the Nebius console bill on 2026-10-14, at **$9.31**. $6.69 of it went to Nemotron 3 Super, mostly
 the G3 baseline runs ($5.79); the immich plan and narration cost $0.20 ([docs/sessions/s6.md](docs/sessions/s6.md)).
 Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the Super VL experiments $11.72 recorded
-(S8b to S8d, Ultra's comparison runs included): the ledger stands at **$22.26** recorded of the $50 cap (2026-10-21), $22.30
-with one open $0.04 reservation, which the gateway and `ac report` count.
+(S8b to S8d, Ultra's comparison runs included), and G3's Ultra arm $13.70 (S9, its smoke test included): the ledger
+stands at **$35.96** recorded of the $50 cap (2026-10-24), $36.00 with one open $0.04 reservation, which the gateway and
+`ac report` count.
 
 ## Quick start: the replay (no key, $0)
 
@@ -191,6 +193,24 @@ We gave opencode 1.18.34 with Nemotron 3 Super on Token Factory the same task, w
 A green test count is not proof: the single-shot branch passes 2,337/2,337 cases, yet its restructure is a dead copy
 tree with 1,680 tsc errors (syntax errors, from the imports it corrupted). The certificate says exactly why. The same comparison on mcphub is in `runs/g3/`; both
 of its arms fail certification.
+
+**Is it just the better model?** No. In S9 we ran the same agent, prompt and protocol on Nemotron 3 Ultra, the model
+`ac` plans with, from a fresh checkout of the same commit, with opencode's default request settings and every request
+recorded (branch `spike/g3-ultra`). Ultra costs 3.3 times Super per token, so its persistent cap of $12 bought about
+three quarters of the Super arm's tokens:
+
+| immich `server/` @ `02063972e8` | opencode + Ultra, single-shot | opencode + Ultra, persistent |
+|---|---|---|
+| What it did | ran `ls` on the same two test folders 38 times in 48 tool calls and changed nothing | moved 374 files into `src/features/`, rewrote not one import |
+| tsc errors (base 0) | – | 3,809 |
+| Unit suite (base: 105 files, 2,337 cases) | – | 9 of 125 test files load (20 medium-test specs moved into the unit run), 363 of 2,337 cases |
+| OpenAPI spec | – | not produced |
+| `ac certify` | nothing to certify | FAIL: K1, K3a, K3b, K3c, K4, K6, K8; 1,638 imports dangling; K4 flags the same two `import.meta.dirname` paths as on the Super branch |
+| Cost | $1.86, 111 s, stopped by its $2 cap | $11.76, 9 min 26 s, stopped by its $12 cap in turn 1, before the first automated check |
+
+The same model, two jobs: in a generic agent loop, Ultra spent twelve dollars in nine minutes and left every import
+broken; in `ac` it makes two planning calls for $0.20, code does the moves, and the checker proves them
+(`runs/g3/g3-immich-opencode-ultra-persistent.full.json`; the A/B page's second table).
 
 ## A seeded wrong move (runs/immich-fault)
 

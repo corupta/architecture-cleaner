@@ -116,7 +116,7 @@ describe('certificates, both formats', () => {
 describe('the A/B', () => {
   it('reads runs/g3/ab.json and the arms\' certificates into check rows', () => {
     const document = readAbDocument(path.join(packageDirectory, 'runs', 'g3', 'ab.json'))!;
-    expect(document.tables.map((table) => table.id)).toEqual(['immich', 'mcphub']);
+    expect(document.tables.map((table) => table.id)).toEqual(['immich', 'immich-ultra', 'mcphub']);
     const immich = abTableFor(document, { base: '02063972e82b1bfd17b6fc2e3b3ff39936229ea5', packageRoot: 'server' })!;
     expect(immich.id).toBe('immich');
     expect(abTableFor(document, { base: '02063972e82b1bfd17b6fc2e3b3ff39936229ea5', packageRoot: '' })).toBeNull();
@@ -130,7 +130,16 @@ describe('the A/B', () => {
     // The certificates, not the prose, decide: K2 passes on both G3 branches (their edits show up as added files, K1).
     expect(row('K2')).toEqual({ 'ac-ladder': 'pass', 'ac-r1': 'pass', 'g3-single': 'pass', 'g3-persistent': 'pass' });
     expect(row('K7')).toEqual({ 'ac-ladder': 'pass', 'ac-r1': null, 'g3-single': null, 'g3-persistent': null });
-    const mcphub = abTableView(document.tables[1]!, packageDirectory);
+    // S9: the same agent on Nemotron 3 Ultra. The single-shot changed nothing (no certificate); the persistent branch only
+    // moved files, so K2 passes and every resolution check fails.
+    const ultra = abTableView(document.tables.find((table) => table.id === 'immich-ultra')!, packageDirectory);
+    expect(Object.fromEntries(Object.entries(ultra.certificates).map(([arm, certificate]) => [arm, certificate?.view.verdict ?? null]))).toEqual({
+      'ac-ladder': 'pass', 'g3u-single': null, 'g3u-persistent': 'fail',
+    });
+    const ultraRow = (id: string) => ultra.checkRows.find((check) => check.id === id)!.statuses;
+    expect(ultraRow('K2')).toEqual({ 'ac-ladder': 'pass', 'g3u-single': null, 'g3u-persistent': 'pass' });
+    expect(ultraRow('K3b')).toEqual({ 'ac-ladder': 'pass', 'g3u-single': null, 'g3u-persistent': 'fail' });
+    const mcphub = abTableView(document.tables.find((table) => table.id === 'mcphub')!, packageDirectory);
     expect(Object.values(mcphub.certificates).map((certificate) => certificate?.view.verdict)).toEqual(['fail', 'fail']);
   });
 

@@ -648,7 +648,7 @@ function costSection(data: RunReportData): Section {
   const narration = data.findings?.narration ?? null;
   const thisRun = `<p>This run: the plan cost ${state.cost.planRecordedUsd === null ? 'an unknown amount' : usd(state.cost.planRecordedUsd)} when it was recorded; planner spend during the run ${usd(state.cost.llmUsd)}${state.cost.budgetRun || state.cost.mode ? ` (${[state.cost.budgetRun ? `budget run ${code(state.cost.budgetRun)}` : '', state.cost.mode ? `mode ${escapeHtml(state.cost.mode)}` : ''].filter(Boolean).join(', ')})` : ''}${narration ? `; the findings narration ${usd(narration.costUsd)} in ${narration.calls} calls of ${escapeHtml(narration.label)}${narration.replayed ? ' (replayed, $0 now)' : ''}` : ''}. Replaying ${narration ? 'the plan and the narration' : 'the plan'} from the committed cassettes costs $0.</p>`;
   if (!ledger) return { id: 'cost', title: 'Cost', body: `${thisRun}<p>No budget/ledger.jsonl in this package.</p>` };
-  const g3Usd = ledger.runs.filter((run) => run.run.startsWith('g3-')).reduce((sum, run) => sum + run.costUsd, 0);
+  const g3Usd = ledger.runs.filter((run) => run.run.startsWith('g3-') || run.run.startsWith('g3u-')).reduce((sum, run) => sum + run.costUsd, 0);
   const carriedRuns = ledger.runs.filter((run) => run.notes.some((note) => note.startsWith('carried over'))).map((run) => run.run);
   const bars = ledger.runs.map((run) => ({
     label: run.run, value: run.costUsd, valueLabel: `${usd(run.costUsd)}${run.capUsd !== null ? ` of ${usd(run.capUsd, 2)}` : ''}`,
@@ -658,7 +658,7 @@ function costSection(data: RunReportData): Section {
     [...ledger.runs.map((run) => [code(run.run), count(run.calls), usd(run.costUsd), run.capUsd === null ? '–' : usd(run.capUsd, 2), escapeHtml(run.models.join(', ') || '–'), `<span class="small">${escapeHtml(run.notes.join(' '))}${run.openReservationsUsd ? ` open reservations ${usd(run.openReservationsUsd)}` : ''}</span>`]),
       ['<strong>total</strong>', count(ledger.runs.reduce((sum, run) => sum + run.calls, 0)), `<strong>${usd(ledger.totalUsd)}</strong>`, ledger.globalCapUsd === null ? '–' : usd(ledger.globalCapUsd, 2), '', '']]);
   const body = `${thisRun}
-<p>The whole project's spend on Nebius Token Factory, from the gateway's ledger (budget/ledger.jsonl): ${usd(ledger.totalUsd)}${ledger.globalCapUsd !== null ? ` of the ${usd(ledger.globalCapUsd, 2)} hard cap` : ''}. ${g3Usd > 0 ? `The G3 runs (opencode with Nemotron 3 Super, the generic-agent baseline) account for ${usd(g3Usd)} of it. ` : ''}${carriedRuns.length ? `${carriedRuns.length === 1 ? 'The run' : 'The runs'} ${carriedRuns.map((run) => code(run)).join(', ')} ${carriedRuns.length === 1 ? 'is' : 'are'} carried over from the gate spike as one line each.` : ''}</p>
+<p>The whole project's spend on Nebius Token Factory, from the gateway's ledger (budget/ledger.jsonl): ${usd(ledger.totalUsd)}${ledger.globalCapUsd !== null ? ` of the ${usd(ledger.globalCapUsd, 2)} hard cap` : ''}. ${g3Usd > 0 ? `The G3 runs (opencode with Nemotron 3 Super and, in S9, with Ultra: the generic-agent baseline) account for ${usd(g3Usd)} of it. ` : ''}${carriedRuns.length ? `${carriedRuns.length === 1 ? 'The run' : 'The runs'} ${carriedRuns.map((run) => code(run)).join(', ')} ${carriedRuns.length === 1 ? 'is' : 'are'} carried over from the gate spike as one line each.` : ''}</p>
 ${figure('LLM spend by budget run', horizontalBars(bars, { labelWidth: 110 }), { tableView })}`;
   return { id: 'cost', title: 'Cost', body };
 }
@@ -668,7 +668,7 @@ function abSection(data: RunReportData, links: AbLinks): Section | null {
   return {
     id: 'ab',
     title: 'A/B: the same task, a generic agent',
-    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by our checker, the version before this run's (certificate format 1; K7 came later).</p>\n${renderAbTable(data.ab, links)}`,
+    body: `<p>G3 gave opencode 1.18.34 with NVIDIA Nemotron 3 Super on Nebius Token Factory the same restructure, with a fixed prompt and no human input. Its branches were certified in session S4 by our checker, the version before this run's (certificate format 1; K7 came later). The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site's A/B page: it failed too.</p>\n${renderAbTable(data.ab, links)}`,
   };
 }
 

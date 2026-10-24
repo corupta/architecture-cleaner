@@ -177,6 +177,157 @@
    ]
   },
   {
+   "id": "immich-ultra",
+   "title": "immich server/ @ 02063972e8: the same agent on Nemotron 3 Ultra",
+   "target": {
+    "name": "immich",
+    "origin": "https://github.com/immich-app/immich",
+    "base": "02063972e82b1bfd17b6fc2e3b3ff39936229ea5",
+    "packageRoot": "server",
+    "profile": "immich"
+   },
+   "baseline": "Base: tsc 0 errors; vitest 105 test files, 2,337 cases (docs/gates.md, G2); the OpenAPI spec is 947,932 bytes (the certificates' K8).",
+   "arms": [
+    {
+     "id": "ac-ladder",
+     "label": "ac, the full ladder",
+     "who": "architecture-cleaner: Nemotron 3 Ultra plans, the executor moves, the certifier checks every commit",
+     "branch": "ac/s6-ladder",
+     "session": "S6",
+     "ours": true,
+     "certificate": "runs/immich-ladder/certificate.json",
+     "run": "immich-ladder"
+    },
+    {
+     "id": "g3u-single",
+     "label": "opencode + Nemotron 3 Ultra, single-shot",
+     "who": "the same agent and prompt on NVIDIA Nemotron 3 Ultra, the model ac plans with, on Nebius Token Factory; one `opencode run`, a $2 cap",
+     "branch": "g3/opencode-ultra",
+     "session": "S9 (G3's protocol)",
+     "ours": false,
+     "certificate": null
+    },
+    {
+     "id": "g3u-persistent",
+     "label": "opencode + Nemotron 3 Ultra, persistent",
+     "who": "the same agent and automated replies as the Super arm, on Nemotron 3 Ultra; a $12 cap, about three quarters of the Super arm's tokens at Ultra's price",
+     "branch": "g3/opencode-ultra-persistent",
+     "session": "S9 (G3's protocol)",
+     "ours": false,
+     "certificate": "runs/g3/g3-immich-opencode-ultra-persistent.full.json"
+    }
+   ],
+   "rows": [
+    {
+     "metric": "Outcome",
+     "values": {
+      "ac-ladder": "Completed unattended: 63 commits, each certified on its first attempt; every rung and the whole PR PASS with the oracles",
+      "g3u-single": "Ran `ls` on the same two test folders 38 times in 48 tool calls, changed nothing, and stopped at its $2 budget cap after 111 s",
+      "g3u-persistent": "Stopped by its $12 budget cap during turn 1, after 9 min 26 s, before the first automated check"
+     },
+     "source": "ac: docs/sessions/s6.md; Ultra arms: docs/sessions/s9.md (spike/g3-ultra: run-meta, the gateway ledger)"
+    },
+    {
+     "metric": "What the diff is",
+     "values": {
+      "ac-ladder": "367 files moved into 38 modules, 20 platform folders and shared/; 2,474 specifier edits in 515 files; 2 boundary-rule files added and proven inert; every other byte identical",
+      "g3u-single": "No change: nothing to certify",
+      "g3u-persistent": "374 files moved into src/features/ (337 TypeScript files, 20 medium-test specs among them), not one import rewritten"
+     },
+     "source": "ac: runs/immich-ladder/certificate.txt (K1, K2); Ultra arms: the persistent certificate (K1) and the measure-diff of its branch (docs/sessions/s9.md)",
+     "certificate": "K1",
+     "differs": null
+    },
+    {
+     "metric": "tsc errors (base: 0)",
+     "values": {
+      "ac-ladder": "0",
+      "g3u-single": "0 (no change)",
+      "g3u-persistent": "3,809"
+     },
+     "source": "the certificates (K8): runs/immich-ladder/certificate.txt; runs/g3/g3-immich-opencode-ultra-persistent.full.txt",
+     "certificate": "K8 tsc"
+    },
+    {
+     "metric": "Unit suite (base: 105 files, 2,337 cases)",
+     "values": {
+      "ac-ladder": "105/105 files, 2,337/2,337 cases",
+      "g3u-single": "no change",
+      "g3u-persistent": "9 of 125 test files load (20 moved in from the medium tests), 363 of 2,337 cases"
+     },
+     "source": "the certificates (K6, K8): runs/immich-ladder/certificate.txt; runs/g3/g3-immich-opencode-ultra-persistent.full.txt",
+     "certificate": "K8 unit"
+    },
+    {
+     "metric": "OpenAPI spec (base: 947,932 bytes)",
+     "values": {
+      "ac-ladder": "byte-identical",
+      "g3u-single": "no change",
+      "g3u-persistent": "not produced"
+     },
+     "source": "the certificates (K8): runs/immich-ladder/certificate.txt; runs/g3/g3-immich-opencode-ultra-persistent.full.txt",
+     "certificate": "K8 openapi"
+    },
+    {
+     "metric": "Non-specifier lines changed in moved or copied files",
+     "values": {
+      "ac-ladder": "0 (K2)",
+      "g3u-single": "–",
+      "g3u-persistent": "0: pure moves"
+     },
+     "source": "the certificates' K2; Ultra persistent: also the measure-diff of its branch (docs/sessions/s9.md)",
+     "certificate": "K2",
+     "differs": null
+    },
+    {
+     "metric": "New dangling specifiers",
+     "values": {
+      "ac-ladder": "0 (K3a, K3b, K3c: every site resolves to its base target)",
+      "g3u-single": "–",
+      "g3u-persistent": "1,638"
+     },
+     "source": "the certificates' K3a–K3c; Ultra persistent: also the measure-diff of its branch (docs/sessions/s9.md)",
+     "certificate": "K3b",
+     "differs": null
+    },
+    {
+     "metric": "Behavior changes no unit test catches",
+     "values": {
+      "ac-ladder": "None found: K4 finds no moved file whose location reaches behavior; 12 logged stack traces now name the new path (K4 findings)",
+      "g3u-single": "–",
+      "g3u-persistent": "not reviewed by hand; K4 flags the same two moved files the Super arm's review confirmed (database.repository.ts, config.repository.ts: migrations, helmet.json)"
+     },
+     "source": "the certificates' K4; the Super arm's review: docs/gates.md (Addendum: G3 review)",
+     "certificate": "K4",
+     "differs": "K4 fails closed: its counts are hazards, not confirmed breaks. On the Ultra branch it flags the same two files as on the Super branch, database.repository.ts and config.repository.ts, moved with their import.meta.dirname paths to the migrations and helmet.json."
+    },
+    {
+     "metric": "LLM cost",
+     "values": {
+      "ac-ladder": "$0.1998 for the plan when recorded (Nemotron 3 Ultra) and $0.0010 for the findings narration (Nemotron 3.5 Lightning); a replay costs $0",
+      "g3u-single": "$1.86 (1.85M input tokens, 49 calls)",
+      "g3u-persistent": "$11.76 (11.6M input tokens, 170 calls)"
+     },
+     "source": "ac: runs/immich-ladder/run.json (cost); Ultra arms: the gateway ledger (spike/g3-ultra), carried into budget/ledger.jsonl"
+    },
+    {
+     "metric": "Time",
+     "values": {
+      "ac-ladder": "1 h 55 m wall time on a quiet machine, certificates included",
+      "g3u-single": "111 s",
+      "g3u-persistent": "9 min 26 s"
+     },
+     "source": "ac: docs/sessions/s6.md; Ultra arms: docs/sessions/s9.md (run-meta)"
+    }
+   ],
+   "notes": [
+    {
+     "text": "The Ultra arms (S9, at corupta's request) answer \"isn't it just a better model?\": opencode 1.18.34 on Nemotron 3 Ultra, the model ac plans with, with the same prompt, protocol and pinned commit as the Super arms. opencode's default request settings were kept (reasoning at the model's default, max_tokens 32,000), and every request was recorded. Ultra costs 3.3 times Super per token, so its persistent cap of $12 bought about three quarters of the Super arm's tokens; both persistent arms ended at their cap.",
+     "source": "docs/sessions/s9.md; spike/g3-ultra (branch)"
+    }
+   ]
+  },
+  {
    "id": "mcphub",
    "title": "mcphub @ 70cf036c90",
    "target": {

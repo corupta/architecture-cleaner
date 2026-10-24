@@ -216,6 +216,11 @@ describe('ac site on this package', () => {
     expect(abPage).toContain('certified in session S4 by our checker, the version that also certified our one-step R1 branch (certificate format 1)');
     expect(abPage).not.toContain('by the same checker as ours');
     expect(abPage).toContain('still passes all 1,934 of the base\'s test cases outside the 7 network test files K8 sets aside');
+    // S9: the same agent on Nemotron 3 Ultra, the model ac plans with, so the A/B doesn't compare models.
+    expect(abPage).toContain('In S9 the same agent ran again on NVIDIA Nemotron 3 Ultra, the model ac plans with');
+    expect(abPage).toContain('immich server/ @ 02063972e8: the same agent on Nemotron 3 Ultra');
+    expect(abPage).toContain('3,809certificate K8: tsc exited 1 on head (3,809 diagnostics), 0 on base');
+    expect(abPage).toContain('Ran `ls` on the same two test folders 38 times in 48 tool calls');
     const ladder = pageText(fs.readFileSync(path.join(out, 'runs', 'immich-ladder', 'index.html'), 'utf8'));
     expect(ladder).toContain('certified in session S4 by our checker, the version before this run\'s (certificate format 1; K7 came later)');
     // S9: the critic's review is the model's claim; the gate's record stands next to it.
@@ -228,6 +233,8 @@ describe('ac site on this package', () => {
     expect(verifyPage).toContain('On 2026-10-23 we ran npx ac demo --replay --env --oracles from a fresh clone, with no --work (20 m 32 s, exit 0)');
     // S9: the plan was recorded in S5 and S6; the run's budget run names where the run's own planner spend went.
     expect(ladder).toContain('This run: the plan cost $0.1998 when it was recorded; planner spend during the run $0.0000 (budget run s6, mode auto)');
+    expect(ladder).toContain('The G3 runs (opencode with Nemotron 3 Super and, in S9, with Ultra: the generic-agent baseline) account for $19.5082 of it.');
+    expect(ladder).toContain('The same agent on Nemotron 3 Ultra, the model ac plans with (S9), is on the site\'s A/B page: it failed too.');
     // S9: the R1 arm's timings are its certificate's own: K0–K6 and K8 as recorded in runs/g3/immich-r1.full.json.
     const r1 = JSON.parse(fs.readFileSync(path.join(packageDirectory, 'runs', 'g3', 'immich-r1.full.json'), 'utf8')) as { checks: { id: string; durationMs: number }[] };
     const staticSeconds = Math.round(r1.checks.filter((check) => check.id !== 'K8').reduce((sum, check) => sum + check.durationMs, 0) / 1000);

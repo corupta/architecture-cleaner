@@ -39,6 +39,24 @@ export const siteShots = [
     ],
   },
   {
+    id: 'site-ab-ultra',
+    page: 'ab/index.html',
+    // The same agent on Nemotron 3 Ultra, the model ac plans with (S9): what it did, what it cost, the verdict.
+    steps: [
+      { jumpTo: 'h3:has-text("the same agent on Nemotron 3 Ultra")', margin: 16 },
+      { hold: 1 },
+      { scrollTo: 'h3:has-text("the same agent on Nemotron 3 Ultra") ~ div table.ab tr:has-text("What the diff is")', seconds: 1.2, margin: 140 },
+      { highlight: 'h3:has-text("the same agent on Nemotron 3 Ultra") ~ div table.ab tr:has-text("What the diff is")' },
+      { hold: 2.5 },
+      { clear: true },
+      { scrollTo: 'h3:has-text("the same agent on Nemotron 3 Ultra") ~ div table.ab tr:has-text("LLM cost")', seconds: 1.5, margin: 200 },
+      { highlight: 'h3:has-text("the same agent on Nemotron 3 Ultra") ~ div table.ab tr:has-text("LLM cost")' },
+      { hold: 2 },
+      { highlight: 'h3:has-text("the same agent on Nemotron 3 Ultra") ~ div table.ab tr:has-text("ac certify verdict")' },
+      { hold: 2.5 },
+    ],
+  },
+  {
     id: 'site-plan',
     page: 'runs/immich-ladder/index.html',
     steps: [

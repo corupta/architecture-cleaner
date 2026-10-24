@@ -5,7 +5,7 @@ Oct 23, decisions 1–6). Every number on screen or in the voice-over is in [doc
 shots are in [shots.md](shots.md); each is a scripted capture, so the cut can be re-rendered. The silent rough cut that
 times this script is `video/out/cut/rough.mp4` (`node video/cut/render.mjs`).
 
-Voice-over: about 385 spoken words in 2:57 (numbers read in full), about 130 words a minute; no beat above 140 over
+Voice-over: about 390 spoken words in 2:57 (numbers read in full), about 130 words a minute; no beat above 140 over
 its slot. Captions are the
 voice-over, word for word; the lower thirds (right-hand column) are burned in. 3 s are left for the fades.
 
@@ -18,23 +18,27 @@ voice-over, word for word; the lower thirds (right-hand column) are burned in. 3
 |---|---|
 | `hook` (immich's own git log: the 17 PRs #8080–#8204 to server/src, Mar 20–22, 2024) | immich, March 20–22, 2024: 17 PRs restructuring server/, by hand |
 
+Decision 7 (corupta, 2026-10-24): the failure beat shows opencode on Nemotron 3 Ultra too, the model ac plans with,
+so the comparison isn't between models (runs/g3/ab.json, the Ultra table; docs/sessions/s9.md). The Super persistent
+run's two silent breaks (migrations, helmet.json) leave the cut for it; they are on the A/B page.
+
 Decision for corupta: the shot ends on the PR list. immich's history also shows their direction (from feature folders
 under `domain/` to type folders, the opposite of ac); the 14 s can't explain it, so the video doesn't show the trees.
 The voice-over doesn't say which way they went.
 
-## 0:14–0:40 The failure (60 spoken words)
+## 0:14–0:43 The failure (66 spoken words)
 
-> We asked opencode, on NVIDIA Nemotron 3 Super via Nebius Token Factory, to restructure today's immich server. When
-> it stopped, all 2,337 test cases still passed. But 66 test files never load, tsc reports 1,680 errors, and its longer
-> run broke paths no test covers. A passing test count is not proof.
+> We asked opencode, on NVIDIA Nemotron 3 Super via Nebius Token Factory, to restructure immich's server. All 2,337
+> test cases still passed. But 66 test files never load, and tsc reports 1,680 errors: a passing test count is not
+> proof. On Ultra, our planner's model: twelve dollars in nine minutes, 374 files moved, no import rewritten.
 
 | Shot | Lower third |
 |---|---|
 | `g3-vitest` (the single-shot branch: Tests 2,336 passed, 1 expected fail, as at base; Test Files 66 failed) | opencode 1.18.34 + Nemotron 3 Super, single-shot: it stopped at 169 s |
 | `g3-certify` (`ac certify --oracles` on that branch: FAIL K1, K3a, K4, K6, K8) | K1: 211 files added next to the originals · K6: 66 of 171 test files fail to load |
-| `site-ab` (the A/B table: the tsc, unit-suite and verdict rows) | persistent run, 33 min: 2 moved files lost their migration and helmet.json paths; no test covers them, K4 flags them |
+| `site-ab-ultra` (the A/B page's Ultra table: what the diff is, the cost, the verdict) | opencode + Nemotron 3 Ultra: $11.76 in 9 min 26 s, then its $12 cap · 1,638 imports left dangling |
 
-## 0:40–1:32 Ours (111 spoken words)
+## 0:43–1:32 Ours (111 spoken words)
 
 > Ours: Nemotron 3 Ultra, on Nebius Token Factory, edits a deterministic map, and a second call reviews it, for twenty
 > cents. A codemod moves one group of files per commit and edits nothing but import paths. A separate

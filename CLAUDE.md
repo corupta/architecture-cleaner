@@ -42,7 +42,8 @@ S9 ran on 2026-10-23; [docs/sessions/s9.md](docs/sessions/s9.md) has the report.
 - Numbers frozen (tag `freeze-numbers`): 2,000+ numbers in the README, the storyboard, the site and the video checked against their primary sources by 31 agents, listed in [docs/numbers.md](docs/numbers.md). The confirmed misstatements are fixed, the site's with regression tests. Among them: opencode's vitest run is not green (2,337 cases pass, 66 test files fail to load), its 1,680 tsc errors are syntax errors, and step certificates are static (K8 runs per rung).
 - The judges' path again from a fresh clone on a quiet machine: replay 11 m 08 s, `--env --oracles` 20 m 32 s, the four digests identical; the site byte-identical across builds.
 - Video prep in [video/](video/script.md): the script, the shot list, scripted captures (VHS, Playwright) and a silent captioned rough cut for corupta's 15-minute OK.
-- Not done: the repo is not public and the site is not deployed (no remote, `gh` not logged in); that is corupta's step.
+- Addendum (2026-10-24, corupta's question "isn't it just the better model?"): G3's Ultra arm, the same agent and protocol on Nemotron 3 Ultra, fails too: single-shot looped on `ls` with no change ($1.86, its $2 cap); persistent moved 374 files, rewrote no import, FAIL on K1, K3a–K3c, K4, K6, K8 ($11.76, its $12 cap, 9 min). It is the A/B page's second table and storyboard decision 7. The ledger stands at $35.96.
+- The repo is public (github.com/corupta/architecture-cleaner) and the site is live at corupta.github.io/architecture-cleaner.
 
 Next is S10 (the cut and the submission), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
 
@@ -57,7 +58,7 @@ Next is S10 (the cut and the submission), whose prompt is in [docs/next-session.
 - **Layout:** feature-flat: `src/modules/<singular-kebab>/`, `shared/`, `platform/`.
 - **MVP ladder:** preflight → module moves → residual consolidation → filename normalization → boundary rules with a frozen baseline.
 - **Executor:** built on the TS 6 compiler API with span-only edits, not ts-morph `move()`. The certifier is a separate process and can certify any diff.
-- **Models (after G1):** Nemotron 3 Ultra (`medium_effort`) edits the deterministic seeds draft and critiques it. 3.5 Lightning fans out (it replaces Nano). Super is the G3 generic-agent baseline model, and a planner sample only with an explicit temperature and a reasoning cap.
+- **Models (after G1):** Nemotron 3 Ultra (`medium_effort`) edits the deterministic seeds draft and critiques it. 3.5 Lightning fans out (it replaces Nano). Super is the G3 generic-agent baseline model (and since S9, Ultra too, at corupta's request), and a planner sample only with an explicit temperature and a reasoning cap.
 - **Form factor:** CLI, a static replay site as the demo URL, and a `--replay` test build. No live endpoint on our key.
 - **Demo target:** immich `server/`, provisional until the Oct 6 gate. Backups: Dokploy, mcphub.
 - **Unattended run (2026-10-07):** the demo uses Nemotron's plan as produced, with no human edits to plan.yaml. Editing stays an optional hook. Plan quality improves in the tool (validator rules, critic gate), never by hand.

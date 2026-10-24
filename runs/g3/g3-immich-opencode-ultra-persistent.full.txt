@@ -1,0 +1,112 @@
+[certify] K0 Envelope
+[certify] K1 Move-set integrity
+[certify] K2 Byte-span confinement
+[certify] K3a Resolution identity under TypeScript
+[certify] K3b Resolution identity under the test runner
+[certify] K3c Resolution identity under the runtime
+[certify] K4 Location scan
+[certify] K6 Test inventory
+[certify] K7 Emit layout
+[certify] K8 Oracles on the commit
+[certify] K8 tsc on head
+[certify] K8 tsc on base
+[certify] K8 unit on head
+[certify] K8 unit on base
+[certify] K8 unit on head (run 2)
+[certify] K8 unit on base (run 2)
+[certify] K8 unit on head (run 3)
+[certify] K8 unit on base (run 3)
+[certify] K8 openapi on head
+[certify] K8 openapi on base
+[certify] K8 removed 19 untracked or ignored entries the openapi oracle left in the head worktree: server/test/factories/builder.factory.d.ts, server/test/factories/builder.factory.js, server/test/factories/builder.factory.js.map, server/test/factories/person.factory.d.ts, server/test/factories/person.factory.js
+[certify] K8 removed 1 untracked or ignored entries the openapi oracle left in the base worktree: server/dist/
+ac certify 02063972e8..ab16b0749e (package root server/), profile immich
+trees: 424df72c34..a80903b996
+pathMap: 374 moves, 0 edited in place, 3090 unchanged, 0 added, 0 deleted
+
+PASS  K0  Envelope: inside the envelope: 678 TypeScript vs 3 JavaScript sources under server; no automock, nested package scope, symlink, same-stem pair or unreadable runner config around 374 moved files (10.6 s)
+FAIL  K1  Move-set integrity: 65 violations (0 added, 0 deleted, 0 copies) (1.0 s)
+        server/test/factories/album-user.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/album/tests/album-user.factory.ts
+        server/test/factories/album.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/album/tests/album.factory.ts
+        server/test/factories/asset-edit.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/asset/tests/asset-edit.factory.ts
+        server/test/factories/asset-exif.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/asset/tests/asset-exif.factory.ts
+        server/test/factories/asset-face.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/asset/tests/asset-face.factory.ts
+        server/test/factories/asset-file.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/asset/tests/asset-file.factory.ts
+        server/test/factories/asset.factory.ts: .npmignore status changes: not ignored -> ignored at server/src/features/asset/tests/asset.factory.ts
+        server/test/medium/specs/repositories/asset-edit.repository.spec.ts: .npmignore status changes: not ignored -> ignored at server/src/features/asset/tests/asset-edit.repository.spec.ts
+        … 57 more
+PASS  K2  Byte-span confinement: 0 specifier spans changed in 0 files; every other byte identical (4.5 s)
+FAIL  K3a Resolution identity under TypeScript: 1646 violations (1638 resolution mismatches, 8 program or format changes) (2.9 s)
+        server/src/app.common.ts: line 10: import 'src/middleware/websocket.adapter.js': expected file server/src/features/websocket/middleware/websocket.adapter.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 11: import 'src/repositories/config.repository.js': expected file server/src/features/config/repository/config.repository.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 12: import 'src/repositories/logging.repository.js': expected file server/src/features/logging/repository/logging.repository.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 13: import 'src/repositories/telemetry.repository.js': expected file server/src/features/telemetry/repository/telemetry.repository.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.common.ts: line 14: import 'src/services/api.service.js': expected file server/src/features/api/service/api.service.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.module.ts: line 11: import 'src/controllers/index.js': expected file server/src/features/app/controller/index.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.module.ts: line 18: import 'src/middleware/auth.guard.js': expected file server/src/features/auth/middleware/auth.guard.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        server/src/app.module.ts: line 19: import 'src/middleware/error.interceptor.js': expected file server/src/features/shared/middleware/error.interceptor.ts (typescript), got unresolved under server/tsconfig.build.json, server/tsconfig.json
+        … 1638 more
+FAIL  K3b Resolution identity under the test runner: vitest 4.1.11: 1638 violations (1638 dangling) (6.5 s)
+        server/src/app.common.ts: site 9 'src/middleware/websocket.adapter.js' (import): base server/src/features/websocket/middleware/websocket.adapter.ts, head unresolved
+        server/src/app.common.ts: site 10 'src/repositories/config.repository.js' (import): base server/src/features/config/repository/config.repository.ts, head unresolved
+        server/src/app.common.ts: site 11 'src/repositories/logging.repository.js' (import): base server/src/features/logging/repository/logging.repository.ts, head unresolved
+        server/src/app.common.ts: site 12 'src/repositories/telemetry.repository.js' (import): base server/src/features/telemetry/repository/telemetry.repository.ts, head unresolved
+        server/src/app.common.ts: site 13 'src/services/api.service.js' (import): base server/src/features/api/service/api.service.ts, head unresolved
+        server/src/app.module.ts: site 10 'src/controllers/index.js' (import): base server/src/features/app/controller/index.ts, head unresolved
+        server/src/app.module.ts: site 17 'src/middleware/auth.guard.js' (import): base server/src/features/auth/middleware/auth.guard.ts, head unresolved
+        server/src/app.module.ts: site 18 'src/middleware/error.interceptor.js' (import): base server/src/features/shared/middleware/error.interceptor.ts, head unresolved
+        … 1630 more
+FAIL  K3c Resolution identity under the runtime: 1569 violations under nest-cli/emit (7.4 s)
+        server/src/app.common.ts: nest-cli/emit: import 'src/middleware/websocket.adapter.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/websocket/middleware/websocket.adapter.ts; base server/src/app.common.ts 'src/middleware/websocket.adapter.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/repositories/config.repository.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/config/repository/config.repository.ts; base server/src/app.common.ts 'src/repositories/config.repository.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/repositories/logging.repository.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/logging/repository/logging.repository.ts; base server/src/app.common.ts 'src/repositories/logging.repository.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/repositories/telemetry.repository.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/telemetry/repository/telemetry.repository.ts; base server/src/app.common.ts 'src/repositories/telemetry.repository.js'
+        server/src/app.common.ts: nest-cli/emit: import 'src/services/api.service.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/api/service/api.service.ts; base server/src/app.common.ts 'src/services/api.service.js'
+        server/src/app.module.ts: nest-cli/emit: import 'src/controllers/index.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/app/controller/index.ts; base server/src/app.module.ts 'src/controllers/index.js'
+        server/src/app.module.ts: nest-cli/emit: import 'src/middleware/auth.guard.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/auth/middleware/auth.guard.ts; base server/src/app.module.ts 'src/middleware/auth.guard.js'
+        server/src/app.module.ts: nest-cli/emit: import 'src/middleware/error.interceptor.js' resolves to unresolved (ERR_MODULE_NOT_FOUND), expected server/src/features/shared/middleware/error.interceptor.ts; base server/src/app.module.ts 'src/middleware/error.interceptor.js'
+        … 293 more
+FAIL  K4  Location scan: 8 path-exposing uses in moved files, 0 computed paths into changed directories, 30 old paths in code/config (0 in coverage settings) (6.7 s)
+        server/src/repositories/config.repository.ts: moved to server/src/features/config/repository/config.repository.ts; line 161: import.meta.dirname: join(import.meta.dirname, '..', '..', 'helmet.json') pointed at server/helmet.json (exists in base), now at server/src/features/helmet.json (missing in head)
+        server/src/repositories/database.repository.ts: moved to server/src/features/database/repository/database.repository.ts; line 510: import(filePath) with a computed specifier (resolved relative to this file)
+        server/src/repositories/database.repository.ts: moved to server/src/features/database/repository/database.repository.ts; line 511: import.meta.dirname: join(import.meta.dirname, '..', 'schema/migrations') pointed at server/src/schema/migrations (exists in base), now at server/src/features/database/schema/migrations (missing in head)
+        server/src/repositories/storage.repository.spec.ts: moved to server/src/features/storage/repository/storage.repository.spec.ts; line 38: process.cwd()
+        server/src/services/cli.service.ts: moved to server/src/features/cli/service/cli.service.ts; line 25: import.meta.dirname: join(import.meta.dirname, '../schema/migrations') pointed at server/src/schema/migrations (exists in base), now at server/src/features/cli/schema/migrations (missing in head)
+        server/src/services/library.service.spec.ts: moved to server/src/features/library/service/library.service.spec.ts; line 888: process.cwd()
+        server/src/services/library.service.spec.ts: moved to server/src/features/library/service/library.service.spec.ts; line 1284: process.cwd()
+        server/src/services/library.service.spec.ts: moved to server/src/features/library/service/library.service.spec.ts; line 1298: process.cwd()
+        … 30 more
+        finding (stack-text) server/src/repositories/metadata.repository.ts: moved to server/src/features/metadata/repository/metadata.repository.ts; 1 stack-trace reads passed along as text (line 133); their frames now name the new path
+        finding (stack-text) server/src/repositories/websocket.repository.ts: moved to server/src/features/websocket/repository/websocket.repository.ts; 1 stack-trace reads passed along as text (line 95); their frames now name the new path
+        finding (stack-text) server/src/services/asset-media.service.ts: moved to server/src/features/asset/service/asset-media.service.ts; 1 stack-trace reads passed along as text (line 224); their frames now name the new path
+        … 22 more findings
+FAIL  K6  Test inventory: vitest 4.1.11: 116 violations (116 of 125 test files fail to load (base: 0), 96 files that no longer load, 20 new test files, 1974 lost tests) (57.9 s)
+        server/src/features/album/tests/album.service.spec.ts: new in the vitest test list (was server/test/medium/specs/services/album.service.spec.ts, not a test file in base; fails to load: Cannot find package 'src/repositories/access.repository.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/album/tests/album.service.spec.ts)
+        server/src/features/album/tests/sync-album-user.spec.ts: new in the vitest test list (was server/test/medium/specs/sync/sync-album-user.spec.ts, not a test file in base; fails to load: Cannot find package 'src/repositories/album-user.repository.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/album/tests/sync-album-user.spec.ts)
+        server/src/features/album/tests/sync-album.spec.ts: new in the vitest test list (was server/test/medium/specs/sync/sync-album.spec.ts, not a test file in base; fails to load: Cannot find package 'src/repositories/album-user.repository.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/album/tests/sync-album.spec.ts)
+        server/src/features/asset/tests/asset-edit.repository.spec.ts: new in the vitest test list (was server/test/medium/specs/repositories/asset-edit.repository.spec.ts, not a test file in base; fails to load: Cannot find package 'src/dtos/editing.dto.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/asset/tests/asset-edit.repository.spec.ts)
+        server/src/features/asset/tests/asset-job.repository.spec.ts: new in the vitest test list (was server/test/medium/specs/repositories/asset-job.repository.spec.ts, not a test file in base; fails to load: Cannot find package 'src/repositories/asset-job.repository.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/asset/tests/asset-job.repository.spec.ts)
+        server/src/features/asset/tests/asset-media.service.spec.ts: new in the vitest test list (was server/test/medium/specs/services/asset-media.service.spec.ts, not a test file in base; fails to load: Cannot find package 'src/dtos/asset-media-response.dto.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/asset/tests/asset-media.service.spec.ts)
+        server/src/features/asset/tests/asset.repository.spec.ts: new in the vitest test list (was server/test/medium/specs/repositories/asset.repository.spec.ts, not a test file in base; fails to load: Cannot find package 'src/repositories/asset.repository.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/asset/tests/asset.repository.spec.ts)
+        server/src/features/asset/tests/asset.service.spec.ts: new in the vitest test list (was server/test/medium/specs/services/asset.service.spec.ts, not a test file in base; fails to load: Cannot find package 'src/dtos/editing.dto.js' imported from /tmp/ac-certify-hkZIpU/worktree-head/server/src/features/asset/tests/asset.service.spec.ts)
+        … 108 more
+PASS  K7  Emit layout: 7 emitting programs keep their outDir and rootDir (1 by TypeScript's default) (0.4 s)
+        finding (default-root-dir) e2e/tsconfig.json: emits into e2e/dist without a rootDir; TypeScript 6.0+ and before 6.0's default stays e2e and e2e
+FAIL  K8  Oracles on the commit: tsc exited 1 on head (3,809 diagnostics), 0 on base; unit 9/125 files and 363/2,337 cases equal to base (head: 9/125 files load, 363 passed, 0 failed, 0 skipped); openapi produced nothing (293.3 s)
+        tsc: `node_modules/.bin/tsc --noEmit --incremental false --pretty false` exited 1 on head (3,809 diagnostics), exit 0 on base (log /tmp/ac-certify-hkZIpU/oracles/head/tsc/step-1.log)
+        server/src/app.common.ts: tsc: TS2307 Cannot find module 'src/middleware/websocket.adapter.js' or its corresponding type declarations.
+        server/src/app.common.ts: tsc: TS2307 Cannot find module 'src/repositories/config.repository.js' or its corresponding type declarations.
+        server/src/app.common.ts: tsc: TS2307 Cannot find module 'src/repositories/logging.repository.js' or its corresponding type declarations.
+        server/src/app.common.ts: tsc: TS2307 Cannot find module 'src/repositories/telemetry.repository.js' or its corresponding type declarations.
+        server/src/app.common.ts: tsc: TS2307 Cannot find module 'src/services/api.service.js' or its corresponding type declarations.
+        server/src/app.module.ts: tsc: TS2307 Cannot find module 'src/controllers/index.js' or its corresponding type declarations.
+        server/src/app.module.ts: tsc: TS2307 Cannot find module 'src/middleware/auth.guard.js' or its corresponding type declarations.
+        … 126 more
+
+verdict: FAIL (static checks and oracles)
+digest: sha256:8c60837c464acbec6312f54bd78d12c3685a288372464be763de79592e5f8c3f
+
+Ac-Certificate: fail (full) K0=pass K1=fail K2=pass K3=fail K4=fail K6=fail K7=pass K8=fail
+Ac-Certificate-Base-Tree: 424df72c3407dd1e7df5ee4e81a1d5fcd85cc01c
+Ac-Certificate-Tree: a80903b996d68aae45bd05776158f681ae071fd6
+Ac-Certificate-Digest: sha256:8c60837c464acbec6312f54bd78d12c3685a288372464be763de79592e5f8c3f
