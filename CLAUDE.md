@@ -43,7 +43,7 @@ S9 ran on 2026-10-23; [docs/sessions/s9.md](docs/sessions/s9.md) has the report.
 - The judges' path again from a fresh clone on a quiet machine: replay 11 m 08 s, `--env --oracles` 20 m 32 s, the four digests identical; the site byte-identical across builds.
 - Video prep in [video/](video/script.md): the script, the shot list, scripted captures (VHS, Playwright) and a silent captioned rough cut for corupta's 15-minute OK.
 - Addendum (2026-10-24, corupta's question "isn't it just the better model?"): G3's Ultra arm, the same agent, prompt and scripts on Nemotron 3 Ultra (its own caps), fails too: single-shot looped on `ls` with no change ($1.86, its $2 cap); persistent moved 374 files, rewrote no import, FAIL on K1, K3a–K3c, K4, K6, K8 ($11.76, its $12 cap, 9 min). It is the A/B page's second table and storyboard decision 7. The ledger stands at $35.96.
-- The repo is public (github.com/corupta/architecture-cleaner) and the site is live at corupta.github.io/architecture-cleaner.
+- The repo is public (github.com/corupta/architecture-cleaner, MIT) and the site is live at corupta.github.io/architecture-cleaner; S9 closed with its exit criteria met.
 
 Next is S10 (the cut and the submission), whose prompt is in [docs/next-session.md](docs/next-session.md). Submission is **Oct 28**.
 
