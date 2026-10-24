@@ -69,6 +69,28 @@ Since then the benchmarks' recordings added $1.12 (S7) and $0.11 (S8), and the S
 stands at **$35.96** recorded of the $50 cap (2026-10-24), $36.00 with one open $0.04 reservation, which the gateway and
 `ac report` count.
 
+### Where Token Factory sped the work up
+
+- **One endpoint and one key for every Nemotron tier.** Token Factory's API is OpenAI-compatible, so the gateway is
+  one client and a model is a row in a table (`src/gateway/models.ts`). Every comparison in this repository was a
+  model id, not an integration: the planner gate (G1), the generic-agent baseline on Super and then on Ultra (G3,
+  the same scripts), and the Super VL bench (S8b to S8d).
+- **Strict `json_schema` on Nemotron.** Token Factory enforces it on every Nemotron model we used, with thinking on
+  and off, so the planner parses every finished answer against its schema on the first try, with no repair loop.
+- **Three candidates for one prompt.** The planner's three edits come from one `n=3` request, and the prompt (the
+  repository's facts) is billed once.
+- **Cheap enough to run unattended, and to measure honestly.** immich's plan cost $0.20. Everything in this
+  repository, the gates, both baseline arms and the Super VL experiments included, cost $35.96.
+- **A bill you can budget against.** The console matched our ledger, so the gateway's hard caps hold before a call is
+  sent, not after the bill arrives.
+- **Room for long reasoning.** Token Factory ends a non-streamed call after 10 minutes; streamed, Super VL reasoned for
+  a median of about 118k tokens per answer, and finished.
+
+**Other Nebius services:** none. `ac` calls Token Factory and nothing else (the console aside, for keys and billing).
+No Nebius AI Cloud compute was used: the executor, the certifier, the targets' test suites and the baseline agent all
+ran on our own machine, an NVIDIA Jetson AGX Orin (CPU only). What we hit on Token Factory and would ask it to fix,
+each with its evidence: [docs/feedback.md](docs/feedback.md).
+
 ## Quick start: the replay (no key, $0)
 
 ```sh
@@ -159,6 +181,32 @@ that has changed since the run was recorded (S6).
 
 A live plan is a new sample: it differs from the recorded one, and the demo reports how many of its groups the
 recorded plan has too.
+
+## On your own repository
+
+`ac` works on a TypeScript backend in a git repository, sliced by type folders under one module root (`src/` by
+default). Each target has a profile: its package root, its Node version (`system`, or one installed under
+`~/ac-targets/.node/`), its test runner, and the oracles K8 runs. Copy the closest one in `profiles/` and edit it:
+`mcphub.json` is a root package with jest; `immich.json` is a sub-package (`server/`) with vitest, tsc and an
+OpenAPI spec. A live plan needs a Token Factory key (`NEBIUS_API_KEY` in the environment or in this clone's
+gitignored `.env`, as in `.env.example`) and a budget run with its own cap in `budget/runs.json`, which every live
+call is charged to.
+
+```sh
+# 1. a budget run, e.g. "mine": { "cap": 1 } under "runs" in budget/runs.json
+# 2. the plan: Nemotron edits the seeds draft and reviews it ($0.20 on immich's server/)
+npx ac plan ~/my-repo --profile ./my-repo.json --mode record --run mine --out ~/ac-work/my-plan
+# 3. read plan.md; edit plan.yaml if you like, then: npx ac steps ~/ac-work/my-plan/plan.yaml
+# 4. the ladder, unattended: one certified commit per step on a new branch, rollback and replan on a failure
+npx ac run ~/my-repo --profile ./my-repo.json --plan ~/ac-work/my-plan/plan.yaml --out ~/ac-work/my-run
+npx ac report ~/ac-work/my-run --out ~/ac-work/my-run/report
+```
+
+The repository needs its dependencies installed (`--env <checkout>` points at another checkout that has them), and
+the run dir must have no `node_modules` or `package.json` on its path. R0 checks the plan and the certifier's
+envelope and runs the target's oracles on the base commit; it declines a repository it can't certify, with the
+reasons (exit 3), before any branch or commit exists. To certify a diff made by anything else, an agent or a person:
+`npx ac certify ~/my-repo <base>..<head> --profile ./my-repo.json [--oracles]`.
 
 ## The demo run (runs/immich-ladder)
 
@@ -345,6 +393,32 @@ We show these because the checker exists to catch them:
   log that the replay reproduces byte for byte.
 - **Reviews.** Adversarial reviews confirmed 28 defects in S8, 18 in S7, 17 in S6 and 16 in S5. All were fixed with
   regression tests.
+
+## Prior art
+
+Searched on 2026-10-01 and 2026-10-02 ([docs/research/05c-prior-art-judge.md](docs/research/05c-prior-art-judge.md)).
+Moving TypeScript files with their imports rewritten is a commodity (ts-morph, IDE refactorings and their MCP
+servers), and so is "an LLM decides, a deterministic engine moves". The closest tool we found, `@demlik/structure-sweep`
+(npm, first published 2026-09-24), asks an LLM for each file's feature, moves a file only where the import graph agrees,
+rewrites the imports with ts-morph and keeps a ledger of boundary crossings; its blind mode, which hides folder names,
+is close to our scramble benchmark. Agent skills that migrate layered code to modular architectures validate with
+tsc and the tests, and SonarQube's architecture management tracks drift from an intended architecture.
+
+What we didn't find anywhere: a checker, separate from the tool that made the change, that certifies each step of a
+refactor by translation validation (the move set complete, only specifier bytes changed, every import resolving to
+the same file under the compiler, the test runner and the runtime, no path string left behind), and that certifies
+any diff, ours or another agent's; bugs the new layout exposes recorded as findings and never fixed, as a contract;
+and the comparison against a generic agent scored by that checker.
+
+## What's next: Clean Architecture
+
+The hackathon version stops at feature modules with enforced boundaries, and it doesn't claim more. R4's frozen
+baseline is where the next part starts: every dependency-rule violation is known, located and listed. Next, for each
+one, a port and an adapter, proposed first as a report and then applied one port per step. Inverting a dependency
+changes call sites and wiring, so no static certificate can cover it: each step will need a behavioral oracle
+(golden-master or differential runs, the target's tests, contract diffs such as immich's OpenAPI spec), with the
+same ladder and the same never-fix rule. Where files really are framework-free, inner layers
+(`http/`, `application/`, `domain/`, `infrastructure/`) become true rather than decorative. Then JavaScript targets.
 
 ## Commands
 
