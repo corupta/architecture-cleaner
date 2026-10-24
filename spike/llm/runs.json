@@ -1,6 +1,6 @@
 {
-  "_doc": "Hard caps in USD (plan §5). The gateway refuses any call whose pre-send estimate would cross the run cap or the global cap.",
-  "globalCap": 11.25,
+  "_doc": "Hard caps in USD (plan \u00a75). The gateway refuses any call whose pre-send estimate would cross the run cap or the global cap. S9 (2026-10-24): the Ultra arm of G3 (opencode + Nemotron 3 Ultra), corupta's request; the global cap is this ledger's $7.54 plus the new runs' caps, and the main ledger (budget/ledger.jsonl, $22.30) gets the spend carried over.",
+  "globalCap": 21.85,
   "runs": {
     "tf-probes": {
       "cap": 0.25,
@@ -20,6 +20,18 @@
     },
     "g3-smoke": {
       "cap": 0.15,
+      "mode": "record"
+    },
+    "g3u-smoke": {
+      "cap": 0.3,
+      "mode": "record"
+    },
+    "g3u-immich": {
+      "cap": 2,
+      "mode": "record"
+    },
+    "g3u-immich-persistent": {
+      "cap": 12,
       "mode": "record"
     }
   }
