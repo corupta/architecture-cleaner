@@ -9,6 +9,10 @@ trust: you don't have to believe the tool, or the model, because a separate chec
 
 Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineering track.
 
+**The replay site: [corupta.github.io/architecture-cleaner](https://corupta.github.io/architecture-cleaner/)**, every
+recorded run with its certificates and findings, the A/B against a generic agent, and the benchmarks, rendered from
+the committed artifacts (nothing on it calls a model). To rebuild it, and everything it shows, see the quick start.
+
 ## How it works
 
 - **The plan.** Deterministic code reads the repository (imports, DI wiring, tables, routes) and draws a seeds draft.
@@ -66,7 +70,7 @@ with one open $0.04 reservation, which the gateway and `ac report` count.
 ## Quick start: the replay (no key, $0)
 
 ```sh
-git clone <this repository> architecture-cleaner && cd architecture-cleaner
+git clone https://github.com/corupta/architecture-cleaner.git && cd architecture-cleaner
 npm ci                  # also builds dist/ (the prepare script)
 npx ac demo --replay    # --replay is the default
 ```
