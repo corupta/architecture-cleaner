@@ -17,14 +17,16 @@ caption or a timing is a re-render, not an edit session.
      after each beat.
    - Files: `video/vo/<beat>.wav` (hook, failure, ours, result, credibility, close), not committed.
    - Pace: the script's word counts fit about 130 words a minute. A beat that runs long is cut in the text, not sped up.
-5. **Rough cut v1** (`node cut/render.mjs`): the cut script trims each take to its speech (the 1 s of room tone at
-   each end stays out), lays it so its first word falls 0.3 s into its beat, and levels each take to the same loudness
-   before the mix. It reads each sentence's end from the take's pauses (silencedetect) and times the captions by them
-   (one caption line per sentence, or two for a long one, spread over the sentence by word count), so the captions
-   follow the voice. It writes `out/cut/timing.md`: each sentence's seconds and the shots under it, the check that each
-   sentence lands on its shot. A take that runs past its beat's end is reported; it is fixed in the text, or in
-   `cut/edl.json` and script.md together, never by speeding the voice up. Burned-in captions for the video; the
-   `.srt` for YouTube's closed captions.
+5. **Rough cut v1** (`node cut/render.mjs`; `--timing` prints the timing alone, without rendering video): the cut
+   script trims each take to its speech and lays it so its first word falls 0.3 s into its beat. It finds a take's
+   pauses below its own noise floor + 12 dB (the takes weren't all recorded at one level), levels each take to the
+   same loudness, holds its peaks under −6 dBFS, and mixes in float. Each sentence starts where `edl.json`'s
+   `voice.beats.<beat>.sentences` says, read off a word-level transcript of the take (`cut/words.py`, Vosk, offline);
+   whatever comes before the first sentence (a false start) is left out. Without anchors, the sentence ends are read
+   from the take's pauses. `voice` can also shorten pauses (`maxPause`) and set a pace (`tempo`), per beat; S10's cut
+   uses neither. Captions are timed by the sentences (one line per sentence, or two for a long one, spread over the
+   sentence by word count). It writes `out/cut/timing.md`: each sentence's seconds and the shots under it, the check
+   that each sentence lands on its shot. Burned-in captions for the video; the `.srt` for YouTube's closed captions.
 6. **Final** (`node cut/render.mjs --final`, Oct 25–27): no music bed; 1 s of the first and last frames added around
    the cut, fading from and to black, so no word is faded; the voice normalized to −14 LUFS for YouTube (two-pass
    loudnorm, linear, true peak −1.5 dBTP), mixed as stereo before the normalization (an encoder upmix costs about

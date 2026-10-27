@@ -5,24 +5,26 @@
 // out/cut/captions.srt (YouTube's closed captions) and out/cut/timing.md (each sentence's time and the shots under
 // it). A shot whose capture is missing renders as a labeled placeholder, so the timing can be reviewed early.
 //
-// Each take is trimmed to its speech (the takes keep 1 s of room tone at each end), so its first word falls 0.3 s
-// into its beat, and its sentence ends are read from its pauses, so the captions follow the voice.
+// Each take is trimmed to its speech (the takes keep 1 s of room tone at each end), its pauses shortened and its tempo
+// set as edl.json's `voice` says, its first word 0.3 s into its beat; its sentence ends are read from its pauses (below
+// its own noise floor + 12 dB), so the captions follow the voice.
 //
 // --final renders the upload, out/cut/final.mp4: every take required, 1 s before and after the cut fading from and
 // to black, the voice at −14 LUFS (two-pass loudnorm, true peak −1.5 dBTP), checked on the file (≤ 3:00, −14 ± 1
 // LUFS); with final.srt (the captions 1 s later) and thumbnail.png (the close card, 1280×720). Exit 1 if a check fails.
 //
-//   node cut/render.mjs [--final] [--ffmpeg <path>] [--ffprobe <path>]
+//   node cut/render.mjs [--final | --timing] [--ffmpeg <path>] [--ffprobe <path>]
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { alignSentences, beatCaptions, keepTogether, parseSilences, placeTake, seconds, sentences, wordCount } from './timing.mjs';
+import { alignSentences, anchorSentences, beatCaptions, findSilences, frameLevels, keepTogether, pauseLevel, seconds, sentences, shapeTake, wordCount } from './timing.mjs';
 
 const { values } = parseArgs({
   options: {
-    final: { type: 'boolean', default: false },
+        final: { type: 'boolean', default: false },
+    timing: { type: 'boolean', default: false },
     ffmpeg: { type: 'string', default: process.env.FFMPEG ?? 'ffmpeg' },
     ffprobe: { type: 'string', default: process.env.FFPROBE ?? 'ffprobe' },
   },
@@ -48,7 +50,7 @@ function readScript() {
   const lowerThirds = new Map();
   let beat = null;
   for (const line of fs.readFileSync(path.join(video, 'script.md'), 'utf8').split('\n')) {
-    const heading = /^## (\d+:\d\d)–(\d+:\d\d) ([^(]+?)\s*(\(|$)/.exec(line);
+    const heading = /^## (\d+:\d\d(?:\.\d)?)–(\d+:\d\d(?:\.\d)?) ([^(]+?)\s*(\(|$)/.exec(line);
     if (heading) {
       beat = { id: heading[3].toLowerCase().replace(/^the /, '').split(' ')[0], title: heading[3], start: seconds(heading[1]), end: seconds(heading[2]), voiceOver: [] };
       beats.push(beat);
@@ -82,6 +84,11 @@ for (const card of fs.readdirSync(path.join(video, 'cards')).filter((file) => fi
 }
 const edl = JSON.parse(fs.readFileSync(path.join(video, 'cut', 'edl.json'), 'utf8'));
 const total = edl.shots.at(-1).end;
+/**
+ * How the takes are shaped to the timeline (edl.json `voice`): pauses shortened to `maxPause` s, played at `tempo`;
+ * `beats` overrides either for one beat (a slower take can be sped up more than a brisk one).
+ */
+const shapingOf = (id) => ({ maxPause: Infinity, tempo: 1, ...edl.voice, ...edl.voice?.beats?.[id] });
 if (values.final) {
   const missing = beats.filter((beat) => !takeFile(beat.id)).map((beat) => `vo/${beat.id}.wav`);
   if (missing.length) {
@@ -92,7 +99,8 @@ if (values.final) {
 
 // 1. One segment per shot, exactly its slot long.
 const events = [];
-const segments = edl.shots.map((shot, index) => {
+// (--timing: only the takes' timing, for fitting the timeline to them; no video.)
+const segments = values.timing ? [] : edl.shots.map((shot, index) => {
   const slot = shot.end - shot.start;
   const segment = path.join(work, `${String(index).padStart(2, '0')}-${shot.shot}.mp4`);
   const source = path.join(out, shot.file);
@@ -135,15 +143,26 @@ for (const beat of beats) {
   let aligned;
   let offset;
   if (take) {
-    const length = duration(take);
-    aligned = alignSentences(counts, parseSilences(analyze(take, 'silencedetect=noise=-40dB:d=0.2'), length), length);
-    const placed = placeTake(beat.start, aligned, length, lead);
-    offset = placed.offset;
+        const length = duration(take);
+    // Pauses are found below the take's own noise floor + 12 dB: the takes weren't all recorded at one level.
+    const pcm = execFileSync(values.ffmpeg, ['-v', 'error', '-i', take, '-f', 's16le', '-ac', '1', '-ar', '16000', '-'], { maxBuffer: 1 << 28 });
+        const levels = frameLevels(new Int16Array(pcm.buffer, pcm.byteOffset, pcm.length / 2), 16000);
+    const level = pauseLevel(levels);
+    const silences = findSilences(levels, level);
+        const shaping = shapingOf(beat.id);
+    // Sentence starts read off the take's transcript (edl.json voice.beats.<beat>.sentences) win over the pauses.
+    if (shaping.sentences && shaping.sentences.length !== texts.length) throw new Error(`${beat.id}: ${shaping.sentences.length} sentence anchors for ${texts.length} sentences`);
+    aligned = shaping.sentences ? anchorSentences(shaping.sentences, shaping.end ?? length, silences) : alignSentences(counts, silences, length);
+    const shaped = shapeTake(aligned, silences, length, shaping);
+    // The take's first word falls `lead` s into its beat; its sentences are mapped through the shaping.
+    const at = beat.start + lead - shaped.at(aligned.speechStart);
+    offset = at;
+    aligned = { ...aligned, spans: aligned.spans.map((span) => ({ start: shaped.at(span.start), end: shaped.at(span.end) })) };
     // Each take at −20 LUFS before the mix, so a beat recorded further from the mic isn't quieter than the others.
     const { integrated } = loudness(take);
-    takes.push({ file: take, from: placed.from, to: placed.to, at: placed.at, gain: Number.isFinite(integrated) ? -20 - integrated : 0 });
-    const end = placed.end;
-    console.log(`${beat.id}: ${path.basename(take)}, speech ${(aligned.speechEnd - aligned.speechStart).toFixed(1)} s of ${length.toFixed(1)} s, ${texts.length} sentences, ${aligned.aligned ? `ends from ${aligned.pauses} pauses` : `${aligned.pauses} pauses, too few: ends by word count`}`);
+    takes.push({ file: take, segments: shaped.segments, tempo: shaped.tempo, at, gain: Number.isFinite(integrated) ? -20 - integrated : 0 });
+    const end = at + shaped.at(aligned.speechEnd);
+    console.log(`${beat.id}: ${path.basename(take)}, speech ${(aligned.speechEnd - aligned.speechStart).toFixed(1)} s of ${length.toFixed(1)} s → ${shaped.length.toFixed(1)} s shaped (pauses at ${level.toFixed(1)} dB), ${texts.length} sentences, ${shaping.sentences ? 'starts from the transcript' : aligned.aligned ? `ends from ${aligned.pauses} pauses` : `${aligned.pauses} pauses, too few: ends by word count`}, last word at ${end.toFixed(1)} s`);
     if (end > beat.end) {
       overruns += 1;
       console.log(`${beat.id}: the take runs ${(end - beat.end).toFixed(1)} s past the beat's end (${beat.end} s)`);
@@ -162,6 +181,10 @@ for (const beat of beats) {
 }
 events.push(...captions.map((caption) => ({ style: 'Caption', ...caption })));
 fs.writeFileSync(path.join(work, 'timing.md'), `# Each sentence's time and the shots under it\n\n| Beat | Seconds | Shots | Sentence |\n|---|---|---|---|\n${timing.join('\n')}\n`);
+if (values.timing) {
+  console.log(timing.join('\n'));
+  process.exit(overruns ? 1 : 0);
+}
 
 const ass = `[Script Info]
 ScriptType: v4.00+
@@ -193,13 +216,26 @@ const silent = path.join(work, 'silent.mp4');
 ffmpeg(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', silent]);
 const voice = path.join(work, 'voice.wav');
 if (takes.length) {
-  const inputs = takes.map((take, index) =>
-    `[${index}:a]atrim=start=${take.from}:end=${take.to},asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=mono,highpass=f=80,volume=${take.gain.toFixed(2)}dB,adelay=${Math.round(take.at * 1000)}:all=1[a${index}]`);
-  ffmpeg([...takes.flatMap((take) => ['-i', take.file]), '-filter_complex',
-    `${inputs.join(';')};${takes.map((_, index) => `[a${index}]`).join('')}amix=inputs=${takes.length}:normalize=0,pan=stereo|c0=c0|c1=c0,apad=whole_dur=${total},atrim=duration=${total}[voice]`,
-    '-map', '[voice]', '-c:a', 'pcm_s16le', voice]);
+        // Clipped peaks are repaired first, one take at a time. (atrim's `duration` after amix ends ffmpeg 7.0's output at
+  // the first take's delay, with no error; `end` doesn't.)
+  const repaired = takes.map((take, index) => {
+    const file = path.join(work, `take-${index}.wav`);
+    ffmpeg(['-i', take.file, '-af', 'adeclip', file]);
+    return file;
+  });
+    // Each take: its kept parts joined (sample-exact), its tempo, leveled (and its peaks held under -6 dBFS, so a quiet
+  // take brought up to the others doesn't clip), laid at its place. The voice track is float, so the mix never clips.
+  const inputs = takes.map((take, index) => {
+    const parts = take.segments.map((_, part) => `[t${index}s${part}]`);
+    const cuts = take.segments.map(([from, to], part) => `[t${index}c${part}]atrim=start=${from.toFixed(4)}:end=${to.toFixed(4)},asetpts=PTS-STARTPTS${parts[part]}`);
+    return `[${index}:a]asplit=${take.segments.length}${take.segments.map((_, part) => `[t${index}c${part}]`).join('')};${cuts.join(';')};` +
+      `${parts.join('')}concat=n=${parts.length}:v=0:a=1,atempo=${take.tempo},aformat=sample_rates=48000:channel_layouts=mono,highpass=f=80,volume=${take.gain.toFixed(2)}dB,alimiter=limit=0.5:level=false,adelay=${Math.round(take.at * 1000)}:all=1[a${index}]`;
+  });
+  ffmpeg([...repaired.flatMap((file) => ['-i', file]), '-filter_complex',
+    `${inputs.join(';')};${takes.map((_, index) => `[a${index}]`).join('')}amix=inputs=${takes.length}:normalize=0,pan=stereo|c0=c0|c1=c0,apad=whole_dur=${total},atrim=end=${total}[voice]`,
+        '-map', '[voice]', '-c:a', 'pcm_f32le', voice]);
 } else {
-  ffmpeg(['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-t', String(total), '-c:a', 'pcm_s16le', voice]);
+  ffmpeg(['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-t', String(total), '-c:a', 'pcm_f32le', voice]);
 }
 const rough = path.join(work, 'rough.mp4');
 ffmpeg(['-i', silent, '-i', voice, '-filter_complex', `[0:v]ass=${assFile}[video]`, '-map', '[video]', '-map', '1:a',
@@ -211,7 +247,7 @@ console.log(`rough cut: ${path.relative(video, rough)} (${duration(rough).toFixe
 if (values.final) {
   const pad = 1;
   const length = total + 2 * pad;
-  const shape = `adelay=${pad * 1000}:all=1,apad=whole_dur=${length},atrim=duration=${length}`;
+  const shape = `adelay=${pad * 1000}:all=1,apad=whole_dur=${length},atrim=end=${length}`;
   const target = 'I=-14:TP=-1.5:LRA=11';
   const measured = JSON.parse(/\{[^{}]*"input_i"[^{}]*\}/.exec(analyze(voice, `${shape},loudnorm=${target}:print_format=json`))[0]);
   const loudnorm = `loudnorm=${target}:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true`;

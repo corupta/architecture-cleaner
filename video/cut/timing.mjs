@@ -38,17 +38,6 @@ export function chunks(text, limit = 84) {
  */
 export const keepTogether = (text) => text.replace(/\d+ (?:h|min|m|s|ms)\b(?: \d+ (?:h|min|m|s|ms)\b)*/g, (duration) => duration.replace(/ /g, '\u00a0'));
 
-/** ffmpeg's silencedetect log → the silences, `{ start, end }`; one still open when the take ends closes at `duration`. */
-export function parseSilences(log, duration) {
-  const silences = [];
-  for (const match of log.matchAll(/silence_(start|end): (-?[\d.]+)/g)) {
-    const at = Math.max(0, Number(match[2]));
-    if (match[1] === 'start') silences.push({ start: at, end: duration });
-    else if (silences.length) silences.at(-1).end = at;
-  }
-  return silences;
-}
-
 /**
  * Where each sentence of a take is spoken, in the take's own seconds. The speech runs from the end of a leading
  * silence to the start of a trailing one (the takes keep 1 s of room tone at each end). Of the pauses in between, the
@@ -77,16 +66,90 @@ export function alignSentences(sentenceWords, silences, duration) {
   return { speechStart, speechEnd, spans, pauses: pauses.length, aligned };
 }
 
+/** The RMS level (dBFS) of each 20 ms frame of 16-bit mono samples. */
+export function frameLevels(samples, rate) {
+  const frame = Math.round(rate * 0.02);
+  const levels = [];
+  for (let start = 0; start + frame <= samples.length; start += frame) {
+    let sum = 0;
+    for (let index = start; index < start + frame; index += 1) sum += samples[index] * samples[index];
+    const rms = Math.sqrt(sum / frame) / 32768;
+    levels.push(rms > 0 ? 20 * Math.log10(rms) : -120);
+  }
+  return levels;
+}
+
 /**
- * Where a take goes on the video's timeline: trimmed to its speech with a breath of room tone either side (`from`,
- * `to`, in the take's seconds), placed at `at` so its first word falls `lead` s into its beat. `offset` maps the take's
- * seconds to the video's; `end` is where its last word ends.
+ * The level a take's pauses sit under: 12 dB above its noise floor, the 5th percentile of its frames' levels. A fixed
+ * level misses every pause of a take recorded hot, whose room tone sits above it.
  */
-export function placeTake(beatStart, aligned, length, lead = 0.3) {
-  const offset = beatStart + lead - aligned.speechStart;
+export function pauseLevel(levels) {
+  const sorted = [...levels].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length * 0.05)] + 12;
+}
+
+/**
+ * A take's silences, `{ start, end }` in seconds: runs of 20 ms frames below `level`, at least `minimum` s long. Read
+ * from the frames' RMS, not from single samples (ffmpeg's silencedetect), whose room-tone peaks break a pause apart.
+ */
+export function findSilences(levels, level, minimum = 0.15) {
+  const silences = [];
+  let run = 0;
+  levels.forEach((value, index) => {
+    if (value < level) run += 1;
+    if ((value >= level || index === levels.length - 1) && run) {
+      const end = value < level ? index + 1 : index;
+      if (run * 0.02 >= minimum) silences.push({ start: Number(((end - run) * 0.02).toFixed(2)), end: Number((end * 0.02).toFixed(2)) });
+      run = 0;
+    }
+  });
+  return silences;
+}
+
+/**
+ * A take as the cut plays it: trimmed to its speech with a breath of room tone either side, every pause longer than
+ * `maxPause` shortened to it (half kept on each side, so no word loses its breath), then played at `tempo` (pitch
+ * kept). `segments` are the kept parts, `[from, to]` in the take's seconds; `at(t)` maps a time in the take to the
+ * shaped take's seconds; `length` is the shaped take's.
+ */
+export function shapeTake(aligned, silences, length, { maxPause = Infinity, tempo = 1 } = {}) {
   const from = Math.max(0, aligned.speechStart - 0.15);
   const to = Math.min(length, aligned.speechEnd + 0.25);
-  return { offset, from, to, at: offset + from, end: offset + aligned.speechEnd };
+  const segments = [];
+  let start = from;
+  for (const pause of silences) {
+    if (pause.start <= aligned.speechStart || pause.end >= aligned.speechEnd || pause.end - pause.start <= maxPause) continue;
+    segments.push([start, pause.start + maxPause / 2]);
+    start = pause.end - maxPause / 2;
+  }
+  segments.push([start, to]);
+  const at = (time) => {
+    let kept = 0;
+    for (const [segmentFrom, segmentTo] of segments) {
+      if (time <= segmentFrom) break;
+      kept += Math.min(time, segmentTo) - segmentFrom;
+      if (time <= segmentTo) break;
+    }
+    return kept / tempo;
+  };
+  return { segments, tempo, at, length: at(to) };
+}
+
+/**
+ * Where each sentence of a take is spoken, from where each sentence starts (`anchors`, in the take's seconds, read off
+ * a word-level transcript: cut/words.py) and where its speech ends (`end`). An anchor moves to the end of a pause that
+ * ends just before it (the transcript's word times run a little late); a sentence ends where the pause before the
+ * next begins, or where the next starts when the speaker ran on. The speech starts at the first anchor, so whatever
+ * comes before it (a false start, a breath) is left out of the cut.
+ */
+export function anchorSentences(anchors, end, silences) {
+  const starts = anchors.map((anchor) => silences.findLast((silence) => silence.end >= anchor - 0.8 && silence.end <= anchor + 0.25)?.end ?? anchor - 0.05);
+  const spans = starts.map((start, index) => {
+    if (index === starts.length - 1) return { start, end };
+    const next = starts[index + 1];
+    return { start, end: silences.find((silence) => silence.end === next && silence.start > start)?.start ?? next };
+  });
+  return { speechStart: starts[0], speechEnd: end, spans, pauses: silences.filter((silence) => silence.start > starts[0] && silence.end < end).length, aligned: true };
 }
 
 /** One pause per target, in order, minimizing the total distance from each pause's middle to its target. */

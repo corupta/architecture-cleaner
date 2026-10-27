@@ -38,7 +38,7 @@ or in a text dump of the built page for the site.
 | docs/storyboard.md | 214 |
 | The video (video/) | 187 |
 | The Ultra arm in docs/gates.md, the session report and CLAUDE.md | 48 |
-| S10 additions: the README, the Devpost text and the feedback write-up (rows group related numbers) | 42 rows |
+| S10 additions: the README, the Devpost text, the feedback write-up and the voice-over (rows group related numbers) | 44 rows |
 | Site: index.html | 36 |
 | Site: verify/index.html | 15 |
 | Site: bench/index.html | 255 |
@@ -1084,6 +1084,8 @@ the Devpost text repeat, and the ones the review corrected.
 | README, Benchmarks; bench/experiments README | the experiments: $11.72 as the gateway booked them (the full input price, the 504 at $0.70), $10.71 billed | ledger runs s8b + s8c + s8d before the reconciliation → 11.716; after → 10.706 | ✓ |
 | site, run pages' Cost section | the G3 runs account for $8.9572; $24.3980 of the $50.00 hard cap | `ac report`'s ledger table over `budget/ledger.jsonl` (g3-* and g3u-* runs after the reconciliation); test/site/site.test.ts | ✓ |
 | video, failure beat | twelve million tokens in nine minutes; 11.6M input tokens in 9 min 26 s, then its budget cap | the spike/g3-ultra ledger: g3u-immich-persistent 11,634,617 prompt + 42,192 completion tokens; run-meta `wallSeconds` 566 | ✓ |
+| video, voice-over (corupta's revision, 2026-10-27) | "All 2,000 test cases" and "all 2,000 tests" (2,337 cases); "over 1,000 errors" (1,680); "about 400 files" (374); "Two-thirds of all 600 files" (367 of 563, 65%); "800 mutants" (831) | corupta's reading, rounded as he chose; the exact figures are the frozen rows for the same sentences (README 168–171, 186–188, 205–210; video script.md rows); the shots under them show the exact ones (vitest's 2336/2337, the A/B table, the site graph, the mutation card) | ✓ |
+| video, cut/edl.json and shots.md | the cut 2:57.6 (177.6 s), the file 2:59.6 with the fades; −14 LUFS, true peak −1.1 dBFS; ×7.9, ×27, ×10, ×1.4 and ×1.20 on the sped-up shots | `node video/cut/render.mjs --final` on 2026-10-27 (its checks: ≤ 3:00 on the file, −14 ± 1 LUFS, true peak ≤ −1); the S9 rows for cut/edl.json's and shots.md's times describe the S9 timeline, superseded | ✓ |
 | feedback.md, opening | 857 chat completions, four Nemotron models, 2026-10-02 to 10-24 | `budget/ledger.jsonl` (172 status 200, 1 status 504) plus the spike ledger's 680 live chat 200s and its four other non-200s (two 404s, one 400, one client-side failure) | ✓ |
 | feedback.md #30 | 600,372 ms; `n=3`; 256,000; ~245 tokens/s per choice; ~145k; $0.70; 358 s | ledger lines 274 and 149; `cassettes/s8b-bench.jsonl` line 67; the three Super VL `n=3` calls whose choices all hit the 64k cap: 192,000 tokens in 255, 270 and 257 s | ✓ |
 | feedback.md #31 | 32,768; 65,536; 61,668, 53,157 and 42,957; 10 of 11; 262,144 | `git show spike/gates:spike/llm/ledger.jsonl`, G1's Super rows; the 2026-10-02 verbose catalog | ✓ |
