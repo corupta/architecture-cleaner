@@ -30,7 +30,7 @@ caption or a timing is a re-render, not an edit session.
 6. **Final** (`node cut/render.mjs --final`, Oct 25–27): no music bed; 1 s of the first and last frames added around
    the cut, fading from and to black, so no word is faded; the voice normalized to −14 LUFS for YouTube (two-pass
    loudnorm, linear, true peak −1.5 dBTP), mixed as stereo before the normalization (an encoder upmix costs about
-   1 LU); the close card as the thumbnail (`out/cut/thumbnail.png`, 1280×720) and the captions 1 s later
+   1 LU); its own thumbnail (`cards/thumbnail.html`, rendered by `node diagram/render.mjs`, made to be read small; `out/cut/thumbnail.png`, 1280×720) and the captions 1 s later
    (`out/cut/final.srt`). It refuses to run without all six takes and exits 1 unless the file itself is ≤ 3:00, at
    −14 ± 1 LUFS integrated and a true peak at or below −1 dBFS.
 

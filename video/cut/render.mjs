@@ -11,7 +11,8 @@
 //
 // --final renders the upload, out/cut/final.mp4: every take required, 1 s before and after the cut fading from and
 // to black, the voice at −14 LUFS (two-pass loudnorm, true peak −1.5 dBTP), checked on the file (≤ 3:00, −14 ± 1
-// LUFS); with final.srt (the captions 1 s later) and thumbnail.png (the close card, 1280×720). Exit 1 if a check fails.
+// LUFS); with final.srt (the captions 1 s later) and thumbnail.png (cards/thumbnail.html, 1280×720). Exit 1 if a
+// check fails.
 //
 //   node cut/render.mjs [--final | --timing] [--ffmpeg <path>] [--ffprobe <path>]
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -258,13 +259,14 @@ if (values.final) {
     '-map', '[video]', '-map', '[audio]', '-r', String(fps), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', final]);
   fs.writeFileSync(path.join(work, 'final.srt'), srt(captions, pad));
-  const card = path.join(out, 'site', 'card-close.last.png');
+    // The thumbnail: cards/thumbnail.html, rendered by diagram/render.mjs (made to be read small).
+  const card = path.join(out, 'thumbnail.png');
   const thumbnail = path.join(work, 'thumbnail.png');
   const failures = [];
   if (fs.existsSync(card)) {
     ffmpeg(['-i', card, '-vf', 'scale=1280:720', thumbnail]);
     if (fs.statSync(thumbnail).size >= 2 * 1024 * 1024) failures.push('the thumbnail is 2 MB or more (YouTube\'s limit)');
-  } else failures.push(`no close card capture (${path.relative(video, card)}) for the thumbnail`);
+  } else failures.push(`no ${path.relative(video, card)} for the thumbnail: node diagram/render.mjs`);
   const finalLength = duration(final);
   const { integrated, peak } = loudness(final);
   if (!(finalLength <= 180)) failures.push(`${finalLength.toFixed(2)} s on the file, over 3:00`);
