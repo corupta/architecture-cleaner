@@ -1,23 +1,38 @@
-# Next session: S10 (the cut and the submission)
+# Next session: S11 (a better demo video: research and plan)
 
-Opening prompt for S10, from [sessions/s9.md](sessions/s9.md). Paste it as the first message.
+Opening prompt for S11, from corupta's request in S10 (2026-10-27). Paste it as the first message. S10 stays open in
+its own session for the safe video (the S9 script with corupta's voice-over) and the submission.
 
 ```
-Session S10 for architecture-cleaner: the cut and the submission. Numbers are frozen (tag freeze-numbers, docs/numbers.md); the repo is public (github.com/corupta/architecture-cleaner, MIT) and the site is live (corupta.github.io/architecture-cleaner). Submission is Wed Oct 28; the deadline is Oct 30 10:00 PT; judging runs Dec 1–15, and the project must stay testable, free, until then.
+Session S11 for architecture-cleaner: a better demo video, research and plan. This is a planning session: research, design and discuss with corupta; write new docs only, and change nothing in video/, src/, runs/ or the README until corupta OKs the plan. Ultracode workflows are fine for the research; no Token Factory spend.
 
-Read CLAUDE.md, docs/sessions/s9.md (with its addendum), video/script.md, video/shots.md, video/rough-cut.md, docs/plan.md §8 to §10 and README.md. Mode: execution, high autonomy; no feature work, only fixes for defects found, each with a regression test. No LLM spend planned (the ledger stands at $35.96 of $50). Push to origin when a step is done (a deploy key is set up); Pages redeploys on push, so check the deployed pages against a local build after each push that touches the site.
+Where things stand: S10 is still open in another session. It finishes the safe video (the S9 script, corupta's voice-over, his rounded numbers) and the submission on Oct 28. The deadline is 2026-10-30 10:00 PT; check that the Devpost entry can be edited until then, so a better video can replace the safe one's link if it is ready by Oct 30 08:00 PT.
 
-The submission rules (Devpost's rules page, read 2026-10-24; Devpost blocks automated fetches, so this is the copy to work from):
-- Fields: a text description of the features and functionality; a URL to a working demo, hosted application or test build; the public repo URL; the track (Coding and Agentic Engineering: "coding agents and developer tools: agents that write, run, and test code in Token Factory"); feedback on Nebius Token Factory, AI Cloud and any NVIDIA tools, models or technologies used.
-- Repo: public, with all source and instructions needed to run it; an open-source license "detectable and visible at the top of the repository page (in the About section)"; a README with setup instructions that highlights "how you've used NVIDIA Nemotron or other NVIDIA open source models and where Token Factory accelerated your workflow and any other Nebius Tools or Services used".
-- Video: under 3 minutes ("judges are not required to watch beyond three minutes"), footage of the project working, public on YouTube, and "must not include third party trademarks, or copyrighted music or other material" without permission.
-- Judging (equal weight): Technological Implementation, Design ("a complete, coherent product experience"), Potential Impact ("a credible, specific case for solving a real problem for a real audience"), Quality of the Idea ("a creative, non-obvious use of ... Nemotron"). Most Valuable Feedback (10 × $100 and NVIDIA swag) is judged on "the completeness, viability, and potential impact of the feedback".
+Read first: CLAUDE.md; docs/sessions/s10.md; docs/storyboard.md (locked with corupta, decisions 1–7); video/script.md, video/shots.md, video/rough-cut.md; docs/devpost.md (what the judges read); docs/plan.md §9–10; the replay site (npx ac site --out /tmp/site); the S9 rough cut (video/out/cut/rough.mp4).
 
-1. corupta's script OK (video/script.md): the failure beat's Ultra line (storyboard decision 7) and the hook ending on immich's 17 PRs. Then the voice-over: corupta's takes in video/vo/<beat>.wav (hook, failure, ours, result, credibility, close), read against rough cut v0; render v1 with `node video/cut/render.mjs`; fix each take that overruns its slot in the text, or in cut/edl.json and script.md together; check that each sentence lands on its shot (a review in S9 flagged "for twenty cents" falling after the cut to ours-certify).
-2. The final cut: at most 3:00 on the file, −14 LUFS, a 1 s fade at each end, the thumbnail from the close card; every number on screen in docs/numbers.md. Check the trademark rule against what's on screen (opencode, immich, NVIDIA and Nebius names in a factual comparison). corupta uploads it to YouTube (public); its URL goes into the README.
-3. The README against the rule above: the Nemotron and Token Factory usage, where Token Factory accelerated the work, the setup. The repo's About section: a description and the site as the website (corupta's step on GitHub, or `gh` with a token).
-4. Devpost: draft the text (what it does, how Nemotron on Nebius Token Factory is used and what it cost, how it's built, the misses, what's next: Clean Architecture), Built With, the demo URL (the site) and the test build (npx ac demo --replay) in docs/devpost.md, and the feedback write-up from docs/feedback-log.md, complete and specific enough for the Most Valuable Feedback bonus. corupta reviews both (30 min) and submits.
+corupta's verdict on the S9 cut: technically adequate, but bloated with text and numbers, as if we dumped facts to look trustworthy. His view: the tool is genuinely useful and open to improvement, the concept is good, the execution is strong, and the video has to convey those three things, not the inventory.
 
-Exit criteria: the video public on YouTube and linked from the README; the repo's About section filled; docs/devpost.md ready and the entry submitted by corupta; main tagged submitted; docs/sessions/s10.md.
+1. Research. corupta studied demos and presentations growing up; sync with him, don't lecture. Write docs/research/06-demo-videos.md:
+   - Great product demos and launch videos from the world, developer tools and coding agents above all, plus live keynote demos and YC Demo Day pitches. For each: how fast it reaches the product working, the hook, how it shows proof, how much text and how many numbers are on screen, pacing, voice, music.
+   - The craft: story structure (problem, stakes, turn, proof, call to action), show-don't-tell, one idea per scene, showing data (one number at a time, with its comparison), on-screen text economy, pacing for 3 minutes, screen-recording technique (zoom, focus, highlight), audio (voice first; music bed or none), captions.
+   - A few past hackathon winners in developer-tool or agent tracks, and what their videos did.
+   - For every source: the link, what we take from it, and the timestamp where it shows. Mark what was checked and what is opinion.
+2. Who watches. People, and possibly AI models (an Opus-class model given the transcript, sampled frames and the Devpost text). Work out how each takes in a 3-minute video:
+   - what an AI judge sees (captions or speech-to-text, frames at some interval, the description) and what it misses (sub-second flashes, on-screen text it never samples);
+   - whether dense numbers help or hurt it;
+   - how to design for both audiences without gaming either.
+   Then measure it. Run an AI-judge panel: agents scoring against the four judging criteria and the Most Valuable Feedback bonus, from the transcript only, the frames only, and both. Add a human-proxy pass: a skeptic with 3 minutes and no context. Run both on the S9 rough cut first, and later on the v2 storyboard and animatic.
+3. The plan, video/v2/plan.md, for corupta to discuss and change:
+   - the story in one sentence;
+   - the beats with timings: for each, what is said, what is shown, and the one thing the viewer keeps;
+   - the number budget: the few numbers that carry the story, each shown once with its comparison; the rest live on the site and in the README, linked;
+   - the assets. Existing: VHS tapes, site captures, cards, the render pipeline. New: e.g. the plan-move-certify loop as a diagram or motion graphic, generated in code so it re-renders. Any new tool must be scriptable and free;
+   - the voice-over script; music (none, or royalty-free under a license the rules allow);
+   - what stays from the honesty rules: no staged terminal output, every number in docs/numbers.md, speed badges, the trademark line;
+   - a production schedule that ends with the video public by Oct 30 08:00 PT, naming corupta's time (voice-over, reviews);
+   - the fallback: the S10 video stays submitted unless v2 is clearly better, by the panel and by corupta.
+4. Discuss with corupta (he has ideas too), revise, and get his OK. Production comes next, in this session if time allows.
+
+Exit criteria: docs/research/06-demo-videos.md; video/v2/plan.md agreed with corupta; the panel's scores for the S9 cut and the v2 storyboard; the production schedule.
 Log weird-but-not-blocking observations with /log-anomaly.
 ```
