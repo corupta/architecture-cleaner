@@ -34,7 +34,7 @@ is sped up or cut in the edit, never re-typed.
 its own timer and 633 s of video). A CLI shot played faster than ×1.2 carries a speed badge in the cut; a long wait
 the cut leaves out carries a "≈ … later" badge with the clock time left out, rounded.
 
-`card-close` shows the repository and site URLs (github.com/corupta/architecture-cleaner, corupta.github.io/architecture-cleaner);
+`card-close` shows the repository and site URLs (github.com/corupta/architecture-cleaner, corupta.github.io/architecture-cleaner) and the before/after diagram ([diagram/diagram.js](diagram/diagram.js), also the README's image: `node diagram/render.mjs`);
 re-capture it after any change to `cards/close.html`.
 
 ## Rendering

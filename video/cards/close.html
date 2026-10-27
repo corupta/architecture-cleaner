@@ -1,9 +1,24 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>architecture-cleaner</title><link rel="stylesheet" href="card.css">
+<!-- The close card, and the video's thumbnail (its last frame): the pitch, the command and the links on the left, what
+     ac does on the right (../diagram/diagram.js, the README's image too). The bottom stays clear for the captions. -->
+<style>
+body{padding-bottom:90px;box-sizing:border-box}
+main{width:1200px;display:grid;grid-template-columns:1fr auto;gap:44px;align-items:center}
+.pitch{font-size:30px}
+.left p{margin:8px 0}
+.links{font-size:18px}
+</style>
 <main>
-<p class="pitch"><span>Nemotron draws the map.</span><span>Code moves it.</span><span>A checker proves nothing else changed.</span></p>
-<p style="margin-top:48px"><code>npx ac demo --replay</code> <span class="muted">no key, $0</span></p>
-<p>github.com/corupta/architecture-cleaner</p>
-<p>corupta.github.io/architecture-cleaner</p>
-<p class="source">architecture-cleaner · Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineering · MIT</p>
+<div class="left">
+<p class="pitch"><span>Nemotron draws the map.</span><span>Code moves it.</span><span>A checker proves<br>nothing else changed.</span></p>
+<p style="margin-top:34px"><code>npx ac demo --replay</code> <span class="muted">no key, $0</span></p>
+<p class="links">github.com/corupta/architecture-cleaner</p>
+<p class="links">corupta.github.io/architecture-cleaner</p>
+<p class="source">Nebius x NVIDIA Global AI Hackathon · Coding and Agentic Engineering · MIT</p>
 <p class="source" style="margin-top:4px">immich, opencode, NVIDIA, Nemotron, Nebius, Token Factory and the other names shown belong to their owners and only identify them; no affiliation or endorsement is implied.</p>
-</main></html>
+</div>
+<div id="diagram"></div>
+</main>
+<script src="../diagram/diagram.js"></script>
+<script>renderRestructure(document.getElementById('diagram'), { mono: '14px', title: '18px', note: '13px', gap: '18px', pad: '12px 18px 14px', arrow: '56px', dot: '7px' });</script>
+</html>

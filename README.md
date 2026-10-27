@@ -2,6 +2,9 @@
 
 **Nemotron draws the map. Code moves it. A checker proves nothing else changed.**
 
+![immich's server/src before and after ac: sliced by type (controllers/, dtos/, repositories/, services/), then by feature (album/, asset/, user/), each file marked by its feature](docs/assets/restructure.png)
+
+
 `ac` restructures a TypeScript backend that is sliced by technical type (`controllers/`, `services/`, `repositories/`,
 `dtos/`) into feature modules (`modules/<feature>/`, `platform/<concern>/`, `shared/`), one commit per step, without
 changing behavior. Every commit carries a certificate that says why nothing else changed. The pitch is proof, not

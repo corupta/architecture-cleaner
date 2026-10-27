@@ -99,7 +99,7 @@ The voice-over doesn't say which way they went.
 |---|---|
 | `replay` (`npx ac demo --replay` typed in a fresh clone) | npx ac demo --replay · no key, $0 |
 | `replay-end` (the verdict lines of the summary the replay wrote: everything compared matches the recorded run; 62 of 62 trees equal the recorded run's) | every tree equals the recording · ~11 min |
-| `card-close` (the pitch line, the repo and site URLs) | — |
+| `card-close` (the pitch line, the repo and site URLs, and what ac does: immich's files sliced by type, then by feature, from video/diagram/diagram.js) | — |
 
 Not in the cut (no room in 3:00; each would need a donor): stretch S3 ("even the formatting fix is proven", over
 `ac rewrap`'s commit), and the future direction ("Next: from enforced boundaries to Clean Architecture"). The cleanest
