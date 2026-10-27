@@ -1,15 +1,22 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>architecture-cleaner</title><link rel="stylesheet" href="card.css">
 <!-- The video's thumbnail (1280×720, rendered by diagram/render.mjs): readable when YouTube shows it small, so only the
-     pitch and the diagram (../diagram/diagram.js) as large as the height allows, no legend and no small print. -->
+     pitch, the command and the diagram (../diagram/diagram.js) as large as the height allows, with a filled arrow, no
+     legend and no small print. -->
 <style>
 html,body{width:1280px;height:720px;overflow:hidden}
 body{display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 40px;box-sizing:border-box}
 .pitch{font-size:34px;line-height:1.2;margin:0;width:520px}
 .pitch span{margin-bottom:14px}
+.left{width:520px}
+.cmd{margin:30px 0 0}
+.cmd code{font-size:25px;padding:4px 12px}
 #diagram .legend{display:none}
 </style>
+<div class="left">
 <p class="pitch"><span>Nemotron draws the map.</span><span>Code moves it.</span><span>A checker proves<br>nothing else changed.</span></p>
+<p class="cmd"><code>npx ac demo --replay</code></p>
+</div>
 <div id="diagram"></div>
 <script src="../diagram/diagram.js"></script>
-<script>renderRestructure(document.getElementById('diagram'), { mono: '22px', title: '26px', note: '16px', gap: '12px', pad: '10px 18px 8px', arrow: '52px', dot: '10px' });</script>
+<script>renderRestructure(document.getElementById('diagram'), { mono: '22px', title: '26px', note: '16px', gap: '12px', pad: '10px 18px 8px', arrow: '62px', dot: '10px' }, { arrow: 'triangle' });</script>
 </html>

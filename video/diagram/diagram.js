@@ -24,14 +24,15 @@ const file = (name, feature) => `<div class="row">  <span class="dot" style="bac
 const tree = (title, note, folders) => `<div class="tree"><h2>${title}<small>${note}</small></h2>${folders.map(([folder, files]) => `<div class="row dir">${folder}/</div>${files.join('')}`).join('')}</div>`;
 
 /**
- * Renders the diagram into `container`; `sizes` overrides the CSS variables (--mono, --title, --gap, ...). A classic
- * script's global, not an ES module: pages opened from file:// can't import modules.
+  * Renders the diagram into `container`; `sizes` overrides the CSS variables (--mono, --title, --gap, ...); `arrow` is
+ * 'curve' or 'triangle' (a filled one, for the thumbnail). A classic script's global, not an ES module: pages opened
+ * from file:// can't import modules.
  */
-function renderRestructure(container, sizes = {}) {
+function renderRestructure(container, sizes = {}, { arrow: arrowShape = 'curve' } = {}) {
   if (!document.getElementById('restructure-style')) document.head.insertAdjacentHTML('beforeend', `<style id="restructure-style">${style}</style>`);
   const before = tree('Sliced by type', 'immich server/src, before', roles.map(([folder, role]) => [folder, features.map((feature) => file(`${feature}.${role}.ts`, feature))]));
   const after = tree('Sliced by feature', 'after ac: 63 certified commits', features.map((feature) => [feature, roles.map(([, role]) => file(`${feature}.${role}.ts`, feature))]));
-  const arrow = '<svg class="arrow" viewBox="0 0 110 70"><path d="M8 40 C 30 6, 80 6, 98 34" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M84 30 L 100 38 L 102 20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const arrow = arrowShape === 'triangle' ? '<svg class="arrow" viewBox="0 0 72 40"><polygon points="0,0 72,20 0,40" fill="#45443f"/></svg>' : '<svg class="arrow" viewBox="0 0 110 70"><path d="M8 40 C 30 6, 80 6, 98 34" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M84 30 L 100 38 L 102 20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const legend = `<div class="legend">${features.map((feature) => `<span><span class="dot" style="background:var(--${feature})"></span>${feature}</span>`).join('')}</div>`;
   container.classList.add('restructure');
   for (const [name, value] of Object.entries(sizes)) container.style.setProperty(`--${name}`, value);
