@@ -4,7 +4,6 @@
 
 ![immich's server/src before and after ac: sliced by type (controllers/, dtos/, repositories/, services/), then by feature (album/, asset/, user/), each file marked by its feature](docs/assets/restructure.png)
 
-
 `ac` restructures a TypeScript backend that is sliced by technical type (`controllers/`, `services/`, `repositories/`,
 `dtos/`) into feature modules (`modules/<feature>/`, `platform/<concern>/`, `shared/`), one commit per step, without
 changing behavior. Every commit carries a certificate that says why nothing else changed. The pitch is proof, not
@@ -16,6 +15,9 @@ same Nemotron model left 1,638 imports dangling. To check it yourself, with no k
 `npx ac demo --replay` (about 11 minutes; see the quick start).
 
 Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineering track.
+
+**The video (3 minutes): [youtu.be/C1lzr74Ozd4](https://youtu.be/C1lzr74Ozd4)**, with chapters and English captions.
+
 
 **The replay site: [corupta.github.io/architecture-cleaner](https://corupta.github.io/architecture-cleaner/)**, every
 recorded run with its certificates and findings, the A/B against a generic agent, and the benchmarks, rendered from
