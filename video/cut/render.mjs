@@ -180,7 +180,8 @@ for (const beat of beats) {
     timing.push(`| ${beat.id}${take ? '' : ' (no take)'} | ${start.toFixed(1)}–${end.toFixed(1)} | ${under.join(', ')} | ${sentence} |`);
   });
 }
-events.push(...captions.map((caption) => ({ style: 'Caption', ...caption })));
+// Captions are burned in unless edl.json says `"burnCaptions": false` (then only the .srt carries them, for YouTube's CC).
+if (edl.burnCaptions !== false) events.push(...captions.map((caption) => ({ style: 'Caption', ...caption })));
 fs.writeFileSync(path.join(work, 'timing.md'), `# Each sentence's time and the shots under it\n\n| Beat | Seconds | Shots | Sentence |\n|---|---|---|---|\n${timing.join('\n')}\n`);
 if (values.timing) {
   console.log(timing.join('\n'));

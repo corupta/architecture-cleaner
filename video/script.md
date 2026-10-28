@@ -8,8 +8,7 @@ times this script is `video/out/cut/rough.mp4` (`node video/cut/render.mjs`).
 Voice-over: corupta's revision (2026-10-27), as he recorded it in six takes (video/vo/, not committed): 400 spoken words
 in 2:57.6, his numbers rounded as he read them ("2,000" for 2,337, "over 1,000" for 1,680, "about 400" for 374,
 "two-thirds of all 600" for 367 of 563, "800" for 831). Each beat is its take plus 0.6 s, played as recorded: trimmed at
-its ends and, in the failure take, of a false start; no pause shortened, no tempo change. Captions are the voice-over,
-word for word, timed by the takes; the lower thirds (right-hand column) are burned in. The 1 s fades at each end make
+its ends and, in the failure take, of a false start; no pause shortened, no tempo change. Captions are the voice-over, word for word, timed by the takes, uploaded to YouTube as closed captions (final.srt), not burned in (corupta, 2026-10-28: with CC on they'd show twice); the lower thirds (right-hand column) are burned in. The 1 s fades at each end make
 the file 2:59.6.
 
 ## 0:00–0:18.9 Hook (37 spoken words)

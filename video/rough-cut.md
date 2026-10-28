@@ -26,7 +26,7 @@ caption or a timing is a re-render, not an edit session.
    from the take's pauses. `voice` can also shorten pauses (`maxPause`) and set a pace (`tempo`), per beat; S10's cut
    uses neither. Captions are timed by the sentences (one line per sentence, or two for a long one, spread over the
    sentence by word count). It writes `out/cut/timing.md`: each sentence's seconds and the shots under it, the check
-   that each sentence lands on its shot. Burned-in captions for the video; the `.srt` for YouTube's closed captions.
+   that each sentence lands on its shot. The `.srt` goes to YouTube as closed captions; `edl.json`'s `burnCaptions` decides whether they're also burned in (S10's cut: not, so a viewer with CC on doesn't see them twice).
 6. **Final** (`node cut/render.mjs --final`, Oct 25–27): no music bed; 1 s of the first and last frames added around
    the cut, fading from and to black, so no word is faded; the voice normalized to −14 LUFS for YouTube (two-pass
    loudnorm, linear, true peak −1.5 dBTP), mixed as stereo before the normalization (an encoder upmix costs about
