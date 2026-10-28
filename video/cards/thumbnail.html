@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>architecture-cleaner</title><link rel="stylesheet" href="card.css">
 <!-- The video's thumbnail (1280×720, rendered by diagram/render.mjs): readable when YouTube shows it small, so only the
      pitch, the command and the diagram (../diagram/diagram.js) as large as the height allows, with a filled arrow, no
-     legend and no small print. -->
+          legend and no small print. ?layout=devpost: Devpost's 3:2 (1080×720), the same diagram, the left side narrower. -->
 <style>
 html,body{width:1280px;height:720px;overflow:hidden}
 body{display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 32px;box-sizing:border-box}
@@ -14,12 +14,24 @@ body{display:flex;align-items:center;justify-content:space-between;padding:0 14p
 #diagram { align-self:stretch;}
 #diagram .stage { height: 100%; }
 #diagram .tree { justify-content:stretch; }
+html.devpost,html.devpost body{width:1080px}
+.devpost body{padding:0 14px 0 26px}
+.devpost .left,.devpost .pitch{width:332px}
+.devpost .pitch{font-size:25px}
+.devpost .pitch span{margin-bottom:34px}
+.devpost .cmd{margin-top:46px}
+.devpost .cmd code{font-size:21px;padding:5px 10px}
 </style>
 <div class="left">
-<p class="pitch"><span>Nemotron draws the map.</span><span>Code moves it.</span><span>A checker proves<br>nothing else changed.</span></p>
+<p class="pitch"><span id="first">Nemotron draws the map.</span><span>Code moves it.</span><span>A checker proves<br>nothing else changed.</span></p>
 <p class="cmd"><code>npx ac demo --replay</code></p>
 </div>
 <div id="diagram"></div>
 <script src="../diagram/diagram.js"></script>
-<script>renderRestructure(document.getElementById('diagram'), { mono: '24px', title: '28px', note: '0px', gap: '0px', pad: '8px 14px 8px 14px', arrow: '84px', dot: '10px' }, { arrow: 'triangle' });</script>
+<script>
+const devpost = new URLSearchParams(location.search).get('layout') === 'devpost';
+document.documentElement.classList.toggle('devpost', devpost);
+if (devpost) document.getElementById('first').innerHTML = 'Nemotron draws<br>the map.';
+renderRestructure(document.getElementById('diagram'), { mono: '24px', title: '28px', note: '0px', gap: '0px', pad: '8px 14px 8px 14px', arrow: devpost ? '60px' : '84px', dot: '10px' }, { arrow: 'triangle' });
+</script>
 </html>
