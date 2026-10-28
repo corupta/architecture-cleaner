@@ -1,12 +1,12 @@
 # Next session: S11 (a better demo video: research and plan)
 
-Opening prompt for S11, from corupta's request in S10 (2026-10-27). Paste it as the first message. S10 stays open in
-its own session for the safe video (the S9 script with corupta's voice-over) and the submission.
+Opening prompt for S11, from corupta's request in S10 (2026-10-27). Paste it as the first message. S10 closed on
+2026-10-28 with the entry submitted (tag `submitted`); a better video can still replace the link until the deadline.
 
 ```
 Session S11 for architecture-cleaner: a better demo video, research and plan. This is a planning session: research, design and discuss with corupta; write new docs only, and change nothing in video/, src/, runs/ or the README until corupta OKs the plan. Ultracode workflows are fine for the research; no Token Factory spend.
 
-Where things stand: S10 is still open in another session. It finishes the safe video (the S9 script, corupta's voice-over, his rounded numbers) and the submission on Oct 28. The deadline is 2026-10-30 10:00 PT; check that the Devpost entry can be edited until then, so a better video can replace the safe one's link if it is ready by Oct 30 08:00 PT.
+Where things stand: S10 closed on 2026-10-28. The entry is submitted with the safe video (https://youtu.be/C1lzr74Ozd4: the S9 script, corupta's voice-over and rounded numbers, captions as YouTube CC, the before/after diagram from video/diagram/diagram.js on the close card and the thumbnails). The deadline is 2026-10-30 10:00 PT and the entry stays editable until then, so a better video can replace the link if it is ready by Oct 30 08:00 PT.
 
 Read first: CLAUDE.md; docs/sessions/s10.md; docs/storyboard.md (locked with corupta, decisions 1–7); video/script.md, video/shots.md, video/rough-cut.md; docs/devpost.md (what the judges read); docs/plan.md §9–10; the replay site (npx ac site --out /tmp/site); the S9 rough cut (video/out/cut/rough.mp4).
 
