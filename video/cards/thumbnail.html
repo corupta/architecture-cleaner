@@ -5,12 +5,15 @@
 <style>
 html,body{width:1280px;height:720px;overflow:hidden}
 body{display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 32px;box-sizing:border-box}
-.pitch{font-size:34px;line-height:1.2;margin:0;width:520px}
+.pitch{font-size:34px;line-height:1.2;margin:0;width:516px}
 .pitch span{margin-bottom:46px}
-.left{width:520px}
+.left{width:516px}
 .cmd{margin:64px 0 0}
 .cmd code{font-size:30px;padding:6px 14px}
 #diagram .legend{display:none}
+#diagram { align-self:stretch;}
+#diagram .stage { height: 100%; }
+#diagram .tree { justify-content:stretch; }
 </style>
 <div class="left">
 <p class="pitch"><span>Nemotron draws the map.</span><span>Code moves it.</span><span>A checker proves<br>nothing else changed.</span></p>
@@ -18,5 +21,5 @@ body{display:flex;align-items:center;justify-content:space-between;padding:0 14p
 </div>
 <div id="diagram"></div>
 <script src="../diagram/diagram.js"></script>
-<script>renderRestructure(document.getElementById('diagram'), { mono: '22px', title: '26px', note: '16px', gap: '8px', pad: '10px 18px 8px', arrow: '87px', dot: '10px' }, { arrow: 'triangle' });</script>
+<script>renderRestructure(document.getElementById('diagram'), { mono: '24px', title: '28px', note: '0px', gap: '0px', pad: '8px 14px 8px 14px', arrow: '84px', dot: '10px' }, { arrow: 'triangle' });</script>
 </html>
