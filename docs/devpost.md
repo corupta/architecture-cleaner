@@ -261,77 +261,48 @@ Markdown and PDF.
 
 **Which model(s) did you use, and why did you choose that size/variant?**
 
-Nemotron 3 Ultra (550B-A55B), at `medium_effort`, is the planner: it edits a deterministic draft map of the
-repository and then reviews its own plan. We chose the largest model because this is a judgment call over a whole
-repository (which feature a contested file belongs to, what to call a module), made twice per run, so quality matters
-more than price: immich's whole plan cost $0.20. `medium_effort` keeps its reasoning bounded (finished edits peak near
-25k tokens), which made unattended runs under hard budget caps predictable. Nemotron 3.5 Lightning, thinking off,
-narrates the findings log: many short, grounded paraphrases, where speed and cost matter and a lexical guard checks
-each one ($0.0010 for immich). Nemotron 3 Super (120B-A12B) runs our baseline, the generic coding agent we compare
-against. We also measured Nemotron 3.5 Super VL as the planner: with thinking on and 256k tokens per answer it beat
-Ultra on all four of our scramble benchmarks at 2.5 times the cost and 6.4 times the time, and showed no difference on
-immich, so the demo keeps Ultra (preliminary: three runs per entry).
+Nemotron 3 Ultra (550B-A55B), at medium effort, is the planner: it edits a deterministic draft map of the repository and then reviews its own plan. We chose the largest model because this is a judgment call over a whole repository (which feature a contested file belongs to, what to call a module), made twice per run, so quality matters more than price: immich's whole plan cost $0.20. Medium effort keeps its reasoning bounded (finished edits peak near 25k tokens), which made unattended runs under hard budget caps predictable. 
+
+Nemotron 3.5 Lightning, thinking off, narrates the findings log: many short, grounded paraphrases, where speed and cost matter and a lexical guard checks each one ($0.0010 for immich). 
+
+Nemotron 3 Super (120B-A12B) runs our baseline, the generic coding agent we compare against. 
+
+We also measured Nemotron 3.5 Super VL as the planner: with thinking on and 256k tokens per answer it beat Ultra on all four of our scramble benchmarks at 2.5 times the cost and 6.4 times the time, and showed no difference on immich, so the demo keeps Ultra (preliminary: three runs per entry).
 
 **How would you rate Nemotron's output quality for your use case? (1–10)** Suggested: **7**.
 
-What worked well: instruction-following inside a strict schema. Every finished answer in our recordings (214 of 214)
-validated against its JSON schema, including schemas with 114 required keys. Ultra's judgment on top of a
-deterministic draft (names, contested files, feature or platform) is where it adds value, and its review of its own
-plan raises real points (6 of its 12 suggestions on immich passed our evidence gate). What fell short: asked to place
-every file from scratch, Super and Ultra dropped 10–15% of hoppscotch's 189 files and 26–45% of kaneo's 456, so the
-model never draws the map alone; 5 of Ultra's 128 paid answers looped until the token cap; on our benchmarks the
-planner beats the best classic method on 2 of 5 entries, counting only plans our validator accepts; and in a generic
-agent loop at its default settings, Ultra ran `ls` on the same two folders 38 times in 48 tool calls.
+What worked well: instruction-following inside a strict schema. Every finished answer in our recordings (214 of 214) validated against its JSON schema, including schemas with 114 required keys. Ultra's judgment on top of a deterministic draft (names, contested files, feature or platform) is where it adds value, and its review of its own plan raises real points (6 of its 12 suggestions on immich passed our evidence gate). 
+
+What fell short: asked to place every file from scratch, Super and Ultra dropped 10–15% of hoppscotch's 189 files and 26–45% of kaneo's 456, so the model never draws the map alone; 5 of Ultra's 128 paid answers looped until the token cap; on our benchmarks the planner beats the best classic method on 2 of 5 entries, counting only plans our validator accepts; and in a generic agent loop at its default settings, Ultra ran "ls" on the same two folders 38 times in 48 tool calls.
 
 **Did you fine-tune, prompt-engineer, or use Nemotron out of the box? What was your approach?**
 
-Out of the box, no fine-tuning. The approach is structure more than prompting. Deterministic code reads the
-repository (imports, DI wiring, tables, routes) and draws a draft map. Ultra edits it in one `n=3` call (three
-candidates) under a strict `json_schema` with one required key per draft group, so it can't skip a group; a
-validator ranks the candidates; a second call reviews the winning plan, and a gate keeps only changes backed by
-evidence (an import edge, a table, a route). Reasoning is set through `chat_template_kwargs` (`medium_effort` for
-Ultra, thinking off for Lightning). Every request and response is recorded, so the demo replays byte for byte with no
-key. Plan quality improves in the tool (validator rules, the critic's gate), never by editing a plan by hand. No model
-writes code: a compiler-API executor moves the files, and a separate checker certifies every commit.
+Out of the box, no fine-tuning. 
+
+The approach is structure more than prompting. Deterministic code reads the repository (imports, DI wiring, tables, routes) and draws a draft map. Ultra edits it in one n=3 call (three candidates) under a strict "json_schema" with one required key per draft group, so it can't skip a group; a validator ranks the candidates; a second call reviews the winning plan, and a gate keeps only changes backed by evidence (an import edge, a table, a route). Reasoning is set through "chat_template_kwargs" ("medium_effort" for Ultra, thinking off for Lightning). Every request and response is recorded, so the demo replays byte for byte with no key. Plan quality improves in the tool (validator rules, the critic's gate), never by editing a plan by hand. No model writes code: a compiler-API executor moves the files, and a separate checker certifies every commit.
 
 **How did Nemotron's performance compare to other models you've used for similar tasks?**
 
-We compared within the Nemotron family and against classic methods, not against other vendors' models. Ultra at
-`medium_effort` gave the best edits in our first gate; Super matched it on one benchmark when it finished, but often
-stopped at its 32,768-token output limit; Super VL with room to think planned better than Ultra on our scrambles (above).
-Against classic clustering (Louvain) and our deterministic draft, the fair baseline for drawing module boundaries,
-Nemotron's edits win on 2 of 5 entries and lose on 2, which matches the literature (classic methods beat LLM
-decompositions). That's why Nemotron edits a deterministic draft instead of drawing the map, and why a checker, not the
-plan, carries the proof. The sharpest comparison is the same model in two jobs: in a generic agent loop, Ultra moved
-374 files and rewrote no import; in `ac` it makes two planning calls for $0.20 and every commit is certified.
+We compared within the Nemotron family and against classic methods, not against other vendors' models. Ultra at "medium_effort" gave the best edits in our first gate; Super matched it on one benchmark when it finished, but often stopped at its 32,768-token output limit; Super VL with room to think planned better than Ultra on our scrambles (above).
+
+Against classic clustering (Louvain) and our deterministic draft, the fair baseline for drawing module boundaries, Nemotron's edits win on 2 of 5 entries and lose on 2, which matches the literature (classic methods beat LLM decompositions). That's why Nemotron edits a deterministic draft instead of drawing the map, and why a checker, not the plan, carries the proof. The sharpest comparison is the same model in two jobs: in a generic agent loop, Ultra moved 374 files and rewrote no import within its spending limit; in "ac" it makes two planning calls for $0.20 and every commit is certified.
 
 **Which Nebius platform capabilities were most valuable to your project and how?**
 
-Token Factory's serverless, OpenAI-compatible API, with no GPU instances: we used no Nebius AI Cloud compute, since
-`ac`'s own work (moving files, certifying, running the target's tests) is CPU work, done on our own machine (an NVIDIA
-Jetson AGX Orin). Most valuable: one key and one client for every Nemotron tier, so each model comparison was a model id,
-not an integration; strict `json_schema` on every Nemotron model we used; `n=3` with the prompt billed once;
-`chat_template_kwargs` for reasoning effort; streaming, which let Super VL reason past the 10-minute limit for
-non-streamed calls; the implicit prompt cache and its new price (our Ultra baseline was billed $3.15 instead of $13.70);
-and a bill that reconciles with our usage-based ledger to the cent ($24.40 for the whole hackathon), so our hard budget
-caps could be trusted.
+Token Factory's serverless, OpenAI-compatible API, with no GPU instances: we used no Nebius AI Cloud compute, since "ac"s own work (moving files, certifying, running the target's tests) is CPU work, done on our own machine (an NVIDIA Jetson AGX Orin). 
+
+Most valuable: one key and one client for every Nemotron tier, so each model comparison was a model id, not an integration; strict "json_schema" on every Nemotron model we used; n=3 with the prompt billed once; "chat_template_kwargs" for reasoning effort; streaming, which let Super VL reason past the 10-minute limit for non-streamed calls; the implicit prompt cache and its new price (our Ultra baseline was billed $3.15 instead of $13.70); and a bill that reconciles with our usage-based ledger to the cent ($24.40 for the whole hackathon), so our hard budget caps could be trusted.
 
 **How likely are you to recommend running Nemotron on Nebius to other developers? (1–10)** Suggested: **8**.
 
-For: quick to integrate and reliable (857 chat completions over 22 days, never a 429; every long streamed answer
-completed), strict structured output, every Nemotron tier behind one key, a bill you can reconcile. Against:
-documentation gaps we found by measuring (the 600 s limit on non-streamed calls, which answers with an HTML 504;
-Super's silent 32,768-token output limit; rate-limit headers that count characters, not tokens; undocumented
-reasoning controls) and a serverless prompt cache that the docs say is shared across organizations. The full write-up
-is in the uploaded file.
+For: quick to integrate and reliable (857 chat completions over 22 days, never a 429; every long streamed answer completed), strict structured output, every Nemotron tier behind one key, a bill you can reconcile. 
+
+Against: documentation gaps we found by measuring (the 600 s limit on non-streamed calls, which answers with an HTML 504; Super's silent 32,768-token output limit; rate-limit headers that count characters, not tokens; undocumented reasoning controls) and a serverless prompt cache that the docs say is shared across organizations. The full write-up is in the uploaded file.
 
 **How would you rate your experience running Nemotron inference on Nebius compared to previous cloud or local
 development environments? (1–10)** Suggested: **8**.
 
-Compared with hosting open models ourselves: nothing to deploy, and a 550B model is out of reach locally, while Token
-Factory served it at $0.20 per plan. Compared with other hosted APIs: OpenAI compatibility meant our client, our
-recordings and the baseline agent worked unchanged. What kept it from higher is the limits and behaviors we had to
-discover by measuring (the uploaded write-up lists each with its evidence).
+Compared with hosting open models ourselves: nothing to deploy, and a 550B model is out of reach locally, while Token Factory served it at $0.20 per plan. Compared with other hosted APIs: OpenAI compatibility meant our client, our recordings and the baseline agent worked unchanged. What kept it from higher is the limits and behaviors we had to discover by measuring (the uploaded write-up lists each with its evidence).
 
 **What additional features or improvements would have made the Nemotron on Nebius experience more effective?**
 
@@ -339,30 +310,29 @@ The ten we'd fix first (details, evidence and request ids in the uploaded write-
 1. Scope the serverless prompt cache per organization, or offer an opt-out, and say so in the ZDR terms.
 2. A dated pricing changelog (cached input became 80–88% cheaper mid-hackathon with no effective date).
 3. Document the 600 s limit on non-streamed calls, and answer it with a JSON error and a request id.
-4. Publish max output tokens per model, and reject or visibly clamp a larger `max_tokens` (Super stops at 32,768).
+4. Publish max output tokens per model, and reject or visibly clamp a larger "max_tokens" (Super stops at 32,768).
 5. Document what the rate-limit counter counts, and enforce or flag over-limit traffic as documented.
-6. Bound whitespace under strict `json_schema` (three answers ran to their cap on whitespace).
-7. One reasoning parser for every model (Ultra returns truncated reasoning as `content`).
+6. Bound whitespace under strict "json_schema" (three answers ran to their cap on whitespace).
+7. One reasoning parser for every model (Ultra returns truncated reasoning as "content").
 8. Document the reasoning controls, and a reasoning budget for Super VL.
 9. Tag structured output on the Nemotron models in the catalog.
-10. Code samples on served models, with one Nemotron sample using reasoning controls and strict `json_schema`.
+10. Code samples on served models, with one Nemotron sample using reasoning controls and strict "json_schema".
 
 **What do you most hope to see from the Nemotron team next?**
 
-A documented reasoning budget, a token target the model plans within rather than a hard cut, for Super VL above all:
-with room to think it planned better than Ultra on our scrambles, but needed a median of about 118k tokens per answer.
-Published evaluations in common agent harnesses at their default settings. Complete coverage on long lists under
-structured output (no dropped or duplicated ids). Guidance against repetition loops with reasoning plus strict JSON. And
-more mid-size models: Ultra's judgment at Super VL's price would let us plan every step, not once per run.
+A documented reasoning budget, a token target the model plans within rather than a hard cut, for Super VL above all: with room to think it planned better than Ultra on our scrambles, but needed a median of about 118k tokens per answer. 
+Published evaluations in common agent harnesses at their default settings. 
+Complete coverage on long lists under structured output (no dropped or duplicated ids). 
+Guidance against repetition loops with reasoning plus strict JSON. 
+And more mid-size models: Ultra's judgment at Super VL's price would let us plan every step, not once per run.
 
 **Did you use Tavily?** No. **IRL event city:** none.
 
 **Which AI tools have you leveraged while working on this project?**
 
-Claude Code (Anthropic), over Paseo, with Claude Opus 5.5 at the ultracode effort setting, did most of the
-implementation under corupta's direction; corupta set the direction, made the decisions and reviewed. NVIDIA Nemotron
-(3 Ultra and 3.5 Lightning in the product; 3 Super and 3.5 Super VL in experiments) on Nebius Token Factory at runtime.
-opencode, as the baseline agent we compare against, not in the product. Vosk, offline speech recognition, to time the
-video's captions.
+Claude Code (Anthropic), over Paseo, with Claude Opus 5.5 at the ultracode effort setting, did most of the implementation under my direction; I set the direction, made the decisions and reviewed. 
+NVIDIA Nemotron (3 Ultra and 3.5 Lightning in the product; 3 Super and 3.5 Super VL in experiments) on Nebius Token Factory at runtime.
+opencode, as the baseline agent we compare against, not in the product. 
+Vosk, offline speech recognition, to time the video's captions.
 
 **Level of learning:** Significant. **AI value for your career:** Yes.

@@ -45,10 +45,11 @@ S9 ran on 2026-10-23; [docs/sessions/s9.md](docs/sessions/s9.md) has the report.
 - Addendum (2026-10-24, corupta's question "isn't it just the better model?"): G3's Ultra arm, the same agent, prompt and scripts on Nemotron 3 Ultra (its own caps), fails too: single-shot looped on `ls` with no change ($1.86 at the full input price, its $2 cap; $0.55 billed); persistent moved 374 files, rewrote no import, FAIL on K1, K3a–K3c, K4, K6, K8 ($11.76 at the full input price, its $12 cap, 9 min; $2.55 billed). It is the A/B page's second table and storyboard decision 7. The ledger stood at $35.96 (S10: $24.40 billed).
 - The repo is public (github.com/corupta/architecture-cleaner, MIT) and the site is live at corupta.github.io/architecture-cleaner; S9 closed with its exit criteria met.
 
-S10 runs from 2026-10-24 (the cut and the submission); [docs/sessions/s10.md](docs/sessions/s10.md) has the report so far.
-- The cut's tooling (takes trimmed and timed by their pauses, `--final` at −14 LUFS), the video audited for the trademark rule, the README to the submission rule, [docs/devpost.md](docs/devpost.md) and the feedback write-up [docs/feedback.md](docs/feedback.md) (36 items, each checked by a skeptic), all reviewed and pushed.
-- corupta's Nebius console export (2026-10-24): the whole hackathon cost **$24.40**. The ledger said $35.96: since 2026-10-20 at the latest Token Factory bills cached input at a lower price, and it didn't bill the 504. Reconciliation lines bring the ledger to the bill; G3's Ultra persistent run was $2.55 billed (its cap counted $11.76), so the video says "twelve million tokens", not "twelve dollars".
-- Open: corupta's script OK and voice-over takes, the final cut and its upload, the Devpost review and submission. Submission is **Oct 28**.
+S10 ran on 2026-10-24/28 (the cut and the submission); [docs/sessions/s10.md](docs/sessions/s10.md) has the report. **Submitted on 2026-10-28** (tag `submitted`).
+- The video is public: https://youtu.be/C1lzr74Ozd4 (corupta's voice-over and rounded numbers, 2:59.6, English captions as YouTube CC, a thumbnail with the before/after diagram). The README's diagram, the close card and the thumbnails come from one script (`video/diagram/diagram.js`).
+- The README to the submission rule, [docs/devpost.md](docs/devpost.md) (the text, the Additional info answers, the gallery) and the feedback write-up [docs/feedback.md](docs/feedback.md) (36 items, each checked by a skeptic, uploaded as a zip with the log).
+- corupta's Nebius console export: the whole hackathon cost **$24.40** (the ledger said $35.96: Token Factory bills cached input at a lower price since 2026-10-20 at the latest, and didn't bill the 504); reconciliation lines bring the ledger to the bill.
+- Next: S11 (a better video, research and plan; [docs/next-session.md](docs/next-session.md)) is paused in another session; a v2 video can replace the link until the deadline, 2026-10-30 10:00 PT. Judging Dec 1–15.
 
 ## Decided (revisable with a reason)
 
