@@ -19,36 +19,42 @@ We measured it on our own task: the planner of `ac bench` (plan §7), on the fou
 - `ultra` and `super-vl-direct`: `ac bench --repeats 3`, three independent planner runs on each of the five entries,
   recorded into `cassettes/s8b-bench.jsonl` under budget run s8b. Ultra was recorded fresh under these settings (all
   30 of its calls were paid, none replayed). `super-vl` was stopped after hoppscotch's three runs and one call on
-  hoppscotch-H1, and `super-vl-low` had a single probe run on hoppscotch: both had already shown the cap problem below.
+  hoppscotch-H1, and `super-vl-low` had a single probe run on hoppscotch: both had already shown the cap problem
+  below.
 - The full numbers are in [compare.md](compare.md), made by `ac bench compare` from the result directories here.
 
 ## What happened
 
-**Thinking on did not finish inside our token cap.** On hoppscotch, all 9 edit choices of its 3 runs ran into the
-64k cap (about 190,000 reasoning tokens per call): 8 of the 9 while still reasoning, before starting their answer, and
-the 9th partway into its answer. The reasoning isn't a loop: 98% of its lines are distinct (96% to 99.5% per
-choice). It deliberates, for instance, over what to call the root module's group when `app` is a banned name. Each
-run therefore fell back to the seeds draft (MoJoFM 80.00) and cost $0.18. On hoppscotch-H1, the one edit call
-recorded returned 1 usable choice of 3 (2 cut by the cap); its critic call was in flight when we stopped the
-configuration, and was never recorded. We stopped rather than spend about $2 more on the same cap problem.
+**Thinking on did not finish inside our token cap.** On hoppscotch, all 9 edit choices of its 3 runs ran into the 64k
+cap (about 190,000 reasoning tokens per call): 8 of the 9 while still reasoning, before starting their answer, and the
+9th partway into its answer. The reasoning isn't a loop: 98% of its lines are distinct (96% to 99.5% per choice). It
+deliberates, for instance, over what to call the root module's group when `app` is a banned name. Each run therefore
+fell back to the seeds draft (MoJoFM 80.00, TurboMQ 7.63) and cost $0.18. On hoppscotch-H1, the one edit call recorded
+returned 1 usable choice of 3 (2 cut by the cap); its critic call was in flight when we stopped the configuration, and
+was never recorded. We stopped rather than spend about $2 more on the same cap problem.
 
 **Low effort finished more often, but not well.** One run on hoppscotch: 2 of 3 edit choices finished, still after
 about 164,000 reasoning tokens in all, and the critic ran into its 32k cap with no answer. The plan scored MoJoFM
-55.86 with 13 modules.
+55.86 and TurboMQ 5.60, with 13 modules.
 
-**Thinking off worked.** In its 15 runs every edit choice finished and the critic ran every time. MoJoFM (scrambles)
-and TurboMQ (immich), mean over 3 runs (min to max):
+**Thinking off worked.** In its 15 runs every edit choice finished and the critic ran every time. For every entry,
+MoJoFM and TurboMQ, mean over 3 runs (min to max), next to the best deterministic method on each metric:
 
-| Entry | Best deterministic | Ultra (`medium_effort`) | Super VL (thinking off) |
-|---|---|---|---|
-| hoppscotch | 81.38 | 83.22 (81.38 to 84.83) | 81.84 (76.55 to 90.34) |
-| hoppscotch-H1 | 81.38 | 85.06 (80.00 to 90.34) | 79.77 (77.24 to 82.76) |
-| kaneo | **66.90** | 50.74 (50.39 to 50.91) | 56.13 (43.34 to 64.75) |
-| ghostfolio | 84.72 | 82.18 (76.39 to 87.50) | 82.18 (80.56 to 83.33) |
-| immich (TurboMQ) | **10.50** | 10.20 (10.03 to 10.42) | 9.84 (9.76 to 9.98) |
-| immich (MoJoFM over its 2024 key, 47 of 269 files) | **93.02** | 89.15 (88.37 to 90.70) | 89.92 (88.37 to 90.70) |
+| Entry | Metric | Best deterministic | Ultra (`medium_effort`) | Super VL (thinking off) |
+|---|---|---|---|---|
+| hoppscotch | MoJoFM | 81.38 (seeds draft, export names) | **83.22** (81.38 to 84.83) | 81.84 (76.55 to 90.34) |
+|  | TurboMQ | **9.63** (Louvain r=4) | 7.86 (7.67 to 8.13) | 7.95 (7.55 to 8.74) |
+| hoppscotch-H1 | MoJoFM | 81.38 (seeds draft, export names) | **85.06** (80.00 to 90.34) | 79.77 (77.24 to 82.76) |
+|  | TurboMQ | **9.57** (Louvain r=4) | 7.82 (7.14 to 8.46) | 7.57 (7.22 to 8.22) |
+| kaneo | MoJoFM | **66.90** (Louvain r=4) | 50.74 (50.39 to 50.91) | 56.13 (43.34 to 64.75) |
+|  | TurboMQ | **16.05** (Louvain r=4) | 9.83 (9.45 to 10.48) | 10.36 (8.55 to 11.87) |
+| ghostfolio | MoJoFM | **84.72** (seeds draft, file names) | 82.18 (76.39 to 87.50) | 82.18 (80.56 to 83.33) |
+|  | TurboMQ | **19.88** (seeds draft, file names) | 18.25 (17.36 to 19.20) | 18.08 (17.09 to 18.64) |
+| immich | MoJoFM over its 2024 key (47 of 269 files) | **93.02** (seeds draft, file names) | 89.15 (88.37 to 90.70) | 89.92 (88.37 to 90.70) |
+|  | TurboMQ | **10.50** (Louvain r=4) | 10.20 (10.03 to 10.42) | 9.84 (9.76 to 9.98) |
 
-- Runs that beat the best deterministic method: Ultra 5 of 15 (4 with a plan our validator accepts), Super VL 2 of 15.
+- Runs that beat the best deterministic method on MoJoFM: Ultra 5 of 15 (4 with a plan our validator accepts), Super
+  VL 2 of 15. On TurboMQ: none of either.
 - Plans from an edit that our validator accepts: Ultra 11 of 15, Super VL 13 of 15 (ghostfolio: Ultra 0 of 3, Super
   VL 2 of 3; every rejected plan keeps a banned module name, `app` or `middleware`).
 - Cost per planner run, as recorded: Ultra $0.1702, Super VL $0.0361, 4.7 times cheaper. Completion tokens over the
@@ -72,7 +78,8 @@ and TurboMQ (immich), mean over 3 runs (min to max):
   conclusive difference elsewhere, at a fifth of the cost and about a third of the time. Its public lead over Ultra
   does not show up here.
 - With thinking on, 11 of 12 edit choices reasoned past 64k tokens; on low effort (one run), 1 of 3 edit choices did
-  and the critic passed 32k. We didn't try larger caps (cost and latency), a reasoning budget, or prompts for Super VL.
+  and the critic passed 32k. We didn't try larger caps (cost and latency), a reasoning budget, or prompts for Super
+  VL.
 - Our prompts and our answer reader were tuned on Ultra, from G1 to S8. The reader drops moves in forms it doesn't
   parse, and it dropped most of the moves of 4 of Super VL's 15 winning edits (files named as `src/2 decorators/…`,
   targets as `platform:bootstrap`) against 2 of Ultra's. The scores measure each model through that reader.
@@ -98,8 +105,8 @@ hoppscotch, one run ([super-vl-long](super-vl-long/summary.md)):
 | 3 | 512k, all reasoning | the 512k cap | a loop: 12% distinct, 1% in its last 400 lines ("Let me pick. Let me go. Let me write.") |
 
 - The critic reasoned 28k tokens and finished: 11 suggestions, its gate kept 9. The plan is valid, 30 groups, and
-  scores MoJoFM 88.28. The edit call streamed for 19 m 36 s and the critic for 1 m 18 s; the run cost $0.60, of which
-  the looping choice cost $0.46.
+  scores MoJoFM 88.28 and TurboMQ 8.16. The edit call streamed for 19 m 36 s and the critic for 1 m 18 s; the run cost
+  $0.60, of which the looping choice cost $0.46.
 - In this one run the two choices that finished took about 45k and 69k tokens. That was a short draw: S8d's three
   runs of the same request finished at about 62k to 164k, and 2 of their 9 choices were still reasoning at 256k.
 
@@ -112,19 +119,26 @@ field (system prompts, per-entry prompt, response format, n=3, sampling, planner
 (256k/128k against 64k/32k), streaming, and the reasoning mode (Super VL's full default thinking against Ultra's
 `medium_effort`).
 
-| Entry | Best deterministic | Ultra (`medium_effort`) | Super VL, thinking off | **Super VL, thinking on, 256k** |
-|---|---|---|---|---|
-| hoppscotch | 81.38 | 83.22 (81.38 to 84.83) | 81.84 (76.55 to 90.34) | **91.26** (88.97 to 94.48) |
-| hoppscotch-H1 | 81.38 | 85.06 (80.00 to 90.34) | 79.77 (77.24 to 82.76) | **90.80** (88.97 to 93.10) |
-| kaneo | **66.90** | 50.74 (50.39 to 50.91) | 56.13 (43.34 to 64.75) | 55.27 (49.61 to 58.75) |
-| ghostfolio | 84.72 | 82.18 (76.39 to 87.50) | 82.18 (80.56 to 83.33) | **86.11** (83.33 to 87.50) |
-| immich (TurboMQ) | **10.50** | 10.20 (10.03 to 10.42) | 9.84 (9.76 to 9.98) | 10.26 (10.08 to 10.35) |
-| immich (MoJoFM over its 2024 key, 47 of 269 files) | **93.02** | 89.15 (88.37 to 90.70) | 89.92 (88.37 to 90.70) | 88.37 (88.37 to 88.37) |
+| Entry | Metric | Best deterministic | Ultra (`medium_effort`) | Super VL, thinking off | **Super VL, thinking on, 256k** |
+|---|---|---|---|---|---|
+| hoppscotch | MoJoFM | 81.38 (seeds draft, export names) | 83.22 (81.38 to 84.83) | 81.84 (76.55 to 90.34) | **91.26** (88.97 to 94.48) |
+|  | TurboMQ | **9.63** (Louvain r=4) | 7.86 (7.67 to 8.13) | 7.95 (7.55 to 8.74) | 8.32 (8.12 to 8.44) |
+| hoppscotch-H1 | MoJoFM | 81.38 (seeds draft, export names) | 85.06 (80.00 to 90.34) | 79.77 (77.24 to 82.76) | **90.80** (88.97 to 93.10) |
+|  | TurboMQ | **9.57** (Louvain r=4) | 7.82 (7.14 to 8.46) | 7.57 (7.22 to 8.22) | 8.33 (8.22 to 8.41) |
+| kaneo | MoJoFM | **66.90** (Louvain r=4) | 50.74 (50.39 to 50.91) | 56.13 (43.34 to 64.75) | 55.27 (49.61 to 58.75) |
+|  | TurboMQ | **16.05** (Louvain r=4) | 9.83 (9.45 to 10.48) | 10.36 (8.55 to 11.87) | 10.97 (8.99 to 12.12) |
+| ghostfolio | MoJoFM | 84.72 (seeds draft, file names) | 82.18 (76.39 to 87.50) | 82.18 (80.56 to 83.33) | **86.11** (83.33 to 87.50) |
+|  | TurboMQ | **19.88** (seeds draft, file names) | 18.25 (17.36 to 19.20) | 18.08 (17.09 to 18.64) | 18.31 (18.22 to 18.45) |
+| immich | MoJoFM over its 2024 key (47 of 269 files) | **93.02** (seeds draft, file names) | 89.15 (88.37 to 90.70) | 89.92 (88.37 to 90.70) | 88.37 (88.37 to 88.37) |
+|  | TurboMQ | **10.50** (Louvain r=4) | 10.20 (10.03 to 10.42) | 9.84 (9.76 to 9.98) | 10.26 (10.08 to 10.35) |
 
+- On TurboMQ no planner run of any configuration beats the best deterministic method on any entry: Louvain, which
+  optimizes a close cousin of TurboMQ, or on ghostfolio the seeds draft. TurboMQ scores the cohesion of the import
+  graph, not whether the modules are the features (see "How immich is scored"). The beat counts below are on MoJoFM.
 - Runs that beat the best deterministic method: 8 of 15 (hoppscotch 3, hoppscotch-H1 3, ghostfolio 2), against Ultra's
   5 and thinking off's 2. Plans from an edit that our validator accepts: 14 of 15 (Ultra 11, thinking off 13).
-- Cost per planner run: $0.428, 2.5 times Ultra's $0.170. Model time per run (the ledger's latencies, edit and critic):
-  13.7 minutes, against Ultra's 2.1, 6.4 times as long.
+- Cost per planner run: $0.428, 2.5 times Ultra's $0.170. Model time per run (the ledger's latencies, edit and
+  critic): 13.7 minutes, against Ultra's 2.1, 6.4 times as long.
 - How much it thinks: 37 of 45 edit choices finished on their own, after a median of about 118k tokens (about 42k to
   247k, estimated per choice from each call's usage); only 5 of them would have fit S8b's 64k cap. 8 reached the 256k
   cap: 7 still reasoning (their text compresses like the finished ones), 1 in a loop. The critic finished 14 of 15
@@ -138,12 +152,13 @@ field (system prompts, per-entry prompt, response format, n=3, sampling, planner
 
 Reading it:
 
-- Against Ultra at `medium_effort`, its mean is higher on all four scrambles. Pairwise over the runs that is 28 wins, 3
-  ties and 5 losses in 36 pairs; a permutation test stratified by entry gives p ≈ 0.0007 (still at most 0.011 with any
-  one entry left out). Entry by entry only hoppscotch is clear on its own (every run above every Ultra run, p = 0.05);
-  hoppscotch-H1 (p 0.15), ghostfolio and kaneo (p 0.20) are not.
+- Against Ultra at `medium_effort`, its mean is higher on all four scrambles. Pairwise over the runs that is 28 wins,
+  3 ties and 5 losses in 36 pairs; a permutation test stratified by entry gives p ≈ 0.0007 (still at most 0.011 with
+  any one entry left out). Entry by entry only hoppscotch is clear on its own (every run above every Ultra run, p =
+  0.05); hoppscotch-H1 (p 0.15), ghostfolio and kaneo (p 0.20) are not.
 - It is the best planner we have measured on hoppscotch, hoppscotch-H1 and ghostfolio. On kaneo thinking off is a
-  little better (MoJoFM 56.13 against 55.27, and on ARI and c2c too); thinking on merges kaneo heavily (about 26
+  little better on MoJoFM (56.13 against 55.27, and on ARI and c2c too) and a little worse on TurboMQ (10.36 against
+  10.97); thinking on merges kaneo heavily (about 26
   modules against 47 in the ground truth), and every configuration stays below Louvain (66.90).
 - On immich, the demo's target and the one entry that isn't a scramble, we can't tell them apart: TurboMQ 10.26
   against 10.20, p 0.45, both below Louvain; MoJoFM over immich's 2024 key 88.37 against 89.15, a difference of under
@@ -154,9 +169,9 @@ Reading it:
   the codebase)"); some of what it recalls is wrong. Ultra's calls show no such recall. How much this inflates the
   scramble scores is unmeasured; the scramble whose upstream it recalls most, ghostfolio, gains 3.9 points over Ultra.
   On immich, which has no answer key to recall, TurboMQ shows no measurable difference, which can't settle it either.
-- The lead is over Ultra at `medium_effort`, the configuration the tool uses, not over Ultra at full thinking, which we
-  never measured with room to finish. It costs 2.5 times as much and takes 6.4 times as long per plan. At our earlier
-  64k cap the same model looked like a failure.
+- The lead is over Ultra at `medium_effort`, the configuration the tool uses, not over Ultra at full thinking, which
+  we never measured with room to finish. It costs 2.5 times as much and takes 6.4 times as long per plan. At our
+  earlier 64k cap the same model looked like a failure.
 - **Decided (corupta, 2026-10-23): the demo plans with Ultra.** The demo shows these Super VL numbers as preliminary
   results, with their limits, and says why it keeps Ultra:
   - On immich, the demo's target, Super VL shows no measurable gain: TurboMQ 10.26 against 10.20, p 0.45, and MoJoFM
@@ -201,25 +216,34 @@ real entry over such a partial key the way it scores a scramble over its complet
 movable files, and MoJoFM, ARI and c2c_cvg count the 47 labeled ones. The results here were spliced into the recorded
 results from $0 replays (only `partialKey` added):
 
-| Method | MoJoFM over the 2024 key |
-|---|---|
-| seeds draft (file names), the draft every planner starts from | **93.02** |
-| name-token (anchored) | 90.70 |
-| Super VL, thinking off (3 runs) | 89.92 (88.37 to 90.70) |
-| Ultra, `medium_effort` (3 fresh runs) | 89.15 (88.37 to 90.70) |
-| the demo's plan (Ultra, S6) | 88.37 |
-| Super VL, thinking on, 256k (3 runs) | 88.37 (88.37 to 88.37) |
-| Louvain r=4 (mean of seeds 1-5) | 71.63 |
-| B0 type folders | 11.63 |
+| Method | MoJoFM over the 2024 key | TurboMQ |
+|---|---|---|
+| seeds draft (file names), the draft every planner starts from | **93.02** | 10.19 |
+| name-token (anchored) | 90.70 | 9.51 |
+| Super VL, thinking off (3 runs) | 89.92 (88.37 to 90.70) | 9.84 (9.76 to 9.98) |
+| Ultra, `medium_effort` (3 fresh runs) | 89.15 (88.37 to 90.70) | 10.20 (10.03 to 10.42) |
+| the demo's plan (Ultra, S6) | 88.37 | 10.07 |
+| Super VL, thinking on, 256k (3 runs) | 88.37 (88.37 to 88.37) | 10.26 (10.08 to 10.35) |
+| Louvain r=4 (mean of seeds 1-5) | 71.63 | **10.50** |
+| B0 type folders | 11.63 | 1.94 |
 
-- One MoJo operation (one file moved, or two groups joined) is worth about 2.3 points here (43 at most). Every planner
-  run is 4 or 5 operations from the key, so the configurations' scores differ by at most one operation; their
-  placements of the 47 labeled files differ by up to 3 files, which the score can't show. All of them score at or
-  below the draft they start from, which is 3 operations away: it already puts `time-bucket.dto.ts` in a timeline
-  group and `stack.dto.ts` in a stack group (the key: asset), and `session.dto.ts` in a session group (the key:
-  auth). The planners lose the rest by merging features whose files name their feature: every run puts
-  `storage-template.service.ts` with storage, and most put `smart-info.service.ts` with search, asset or media. Two
-  thinking-off runs move `time-bucket.dto.ts` back to asset, toward the key.
+- How to read these numbers. MoJoFM counts the fewest operations that turn a plan into the key, an operation being
+  one file moved to another group or two groups joined, and divides by the most any plan could need for this key:
+  MoJoFM = (1 − operations / 43) × 100 (43 is MoJoFM's maximum for 47 files whose features have these sizes, Wen and
+  Tzerpos 2004). Each operation costs 100/43 ≈ 2.33 points: 3 operations give 93.02, 4 give 90.70, 5 give 88.37.
+- The seeds draft is 3 operations from the key: it groups 44 of the 47 files exactly as the key does and puts the
+  other three in groups of their own, `time-bucket.dto.ts` (timeline) and `stack.dto.ts` (stack), which the key
+  files under asset, and `session.dto.ts` (session), which it files under auth. That isn't because only three files
+  changed since 2024: most of them were rewritten, some several times. It is because the key can only hold files
+  whose history reaches back to 2024, and those are almost all named after their 2024 feature (`album.service.ts`
+  and `album.dto.ts` both say album), so a grouping by file name, which is what the draft is, reproduces the key
+  almost by construction.
+- The demo's plan keeps the draft's three and adds two merges the key keeps apart: `storage-template.service.ts` with
+  storage, and `smart-info.service.ts` with search: 5 operations, 88.37. Every planner run is 4 or 5 operations from
+  the key, so their scores differ by at most one operation, while their placements of the 47 files differ by up to 4
+  files, which the score can't show. Every run puts `storage-template` with storage, and most put `smart-info` with
+  search, asset or media; two thinking-off runs move `time-bucket.dto.ts` back to asset, toward the key, and one of
+  them also puts the media files (`media.service.ts`, `utils/media.ts`) with storage.
 - MoJoFM hard is meaningless on this key: 6 hard files in 3 features, so it takes steps of 33.33.
 - So it does what we expected: it confirms that every planner keeps the easy files together, and it can't separate
   them. It is reported for consistency with the scrambles, not as a measure of planning quality on immich.
@@ -247,13 +271,14 @@ TurboMQ next to their MoJoFM difference:
 
 Budget run s8b recorded $4.00 of its $7 cap: Ultra $2.55, Super VL thinking off $0.54, thinking on at 64k $0.70 (3
 runs on hoppscotch, 1 edit call on hoppscotch-H1), low effort $0.19, the probes $0.02. S8c (budget run s8c): the 504
-probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown; S10: the bill shows it wasn't billed), and the 512k probe cost $0.60,
-$1.30 in all. S8d (budget run s8d): $6.42 for the 15 runs at 256k/128k. The ledger stands at $22.26 recorded. (S10: the Nebius bill of 2026-10-24 priced Super VL's and Ultra's cached input
-lower from 2026-10-20 at the latest and didn't bill the 504: these experiments came to $10.71 billed against $11.72 recorded; see the
-reconciliation lines in `budget/ledger.jsonl`.) The
-hoppscotch-H1 critic call that was in flight when we stopped thinking on at 64k was never recorded; its $0.04
-reservation stayed open in the ledger (the gateway and `ac report`, which count open reservations, showed s8b at $4.04
-and the ledger at $22.30) until S10's reconciliation settled it at $0.
+probe was charged its $0.70 estimate (the bill for a call cut off upstream is unknown; S10: the bill shows it wasn't
+billed), and the 512k probe cost $0.60, $1.30 in all. S8d (budget run s8d): $6.42 for the 15 runs at 256k/128k. The
+ledger stands at $22.26 recorded. (S10: the Nebius bill of 2026-10-24 priced Super VL's and Ultra's cached input lower
+from 2026-10-20 at the latest and didn't bill the 504: these experiments came to $10.71 billed against $11.72
+recorded; see the reconciliation lines in `budget/ledger.jsonl`.) The hoppscotch-H1 critic call that was in flight
+when we stopped thinking on at 64k was never recorded; its $0.04 reservation stayed open in the ledger (the gateway
+and `ac report`, which count open reservations, showed s8b at $4.04 and the ledger at $22.30) until S10's
+reconciliation settled it at $0.
 
 Every recorded run here replays from the cassette for $0, for example:
 
