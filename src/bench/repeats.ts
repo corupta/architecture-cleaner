@@ -48,6 +48,14 @@ export function beatsBestDeterministic(result: BenchResult, score: MethodScore):
   return result.kind === 'scramble' ? (score.mojoFm ?? -Infinity) > (best.mojoFm ?? -Infinity) : score.turboMq.sum > best.turboMq;
 }
 
+/** Whether a planner row scores above the best deterministic method on MoJoFM over the entry's partial key; null without one. */
+export function beatsBestOnKey(result: BenchResult, method: string): boolean | null {
+  const key = result.partialKey;
+  if (!key) return null;
+  const score = key.methods.find((row) => row.method === method);
+  return Boolean(score && key.bestBaseline && score.mojoFm > key.bestBaseline.mojoFm);
+}
+
 /**
  * A planner run as compare reads it. Tokens and edit choices are null for a result written without a repeats block;
  * where the plan came from and whether the critic ran, for a result written before the S7 fix round (no `change`).

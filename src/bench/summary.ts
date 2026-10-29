@@ -1,7 +1,9 @@
 // bench/results/summary.md: one table per entry, rendered from the BenchResult files alone (a pure function, so the
-// same results give the same bytes). The best deterministic method and the planner are bolded.
-import { beatsBestDeterministic, configurationOf, configurationText } from './repeats.js';
-import type { BenchPlannerRun, BenchRepeats, BenchResult, BenchRunMeasures, MethodScore } from './types.js';
+// same results give the same bytes). The best deterministic method and the planner are bolded. A real entry with a
+// partial key shows its scores over the key's files in the ground-truth columns, and says what the key covers.
+import { keyScoresByMethod, partialKeyScope } from './partial-key.js';
+import { beatsBestDeterministic, beatsBestOnKey, configurationOf, configurationText } from './repeats.js';
+import type { BenchKeyScore, BenchPlannerRun, BenchRepeats, BenchResult, BenchRunMeasures, MethodScore } from './types.js';
 
 const dash = '–';
 const fixed = (value: number | null, digits: number) => (value === null ? dash : value.toFixed(digits));
@@ -29,12 +31,20 @@ function scrambleVerdicts(results: readonly BenchResult[]): string {
   return ` Our certifier checks that commit as a pure move: ${parts.join('; ')}. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.`;
 }
 
+/** The real entries' bullet: said differently once a result scores a partial key (S8e on), so older summaries keep their bytes. */
+const realEntries = (results: readonly BenchResult[]) => (results.some((result) => result.partialKey)
+  ? `- **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry
+  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.
+  Every method still places every movable file. Bold there: the best deterministic method by TurboMQ in the graph's
+  columns (clusters, TurboMQ, back-edges), the best by MoJoFM over the key in the key's columns.`
+  : '- **Real** entries are type-sliced targets with no ground truth: TurboMQ and back-edges only.');
+
 const header = (results: readonly BenchResult[], rulesStated: boolean, configurationsStated: boolean) => `# ac bench results
 
 \`ac bench\` writes one JSON file per entry next to this summary (format \`ac-bench/1\`, src/bench/types.ts).
 
 - **Scramble** entries flatten a feature-modular package into type folders with our own executor, in one commit.${scrambleVerdicts(results)}
-- **Real** entries are type-sliced targets with no ground truth: TurboMQ and back-edges only.
+${realEntries(results)}
 - MoJoFM runs 0 to 100 (ARCADE port). ARI runs from −0.5 to 1. c2c_cvg is the share of ground-truth modules recovered
   (c2c above 0.66). The cluster ratio is predicted clusters over ground-truth clusters.
 - MoJoFM hard counts only the files whose own name doesn't give their feature away.
@@ -66,7 +76,29 @@ const configurationsNote = `- A planner configuration (src/planner/configuration
   only the plans that came from an edit.
 `;
 
-function row(score: MethodScore, bold: boolean): string {
+/** A row with a real entry's scores over its partial key in the ground-truth columns. */
+const withKeyScores = (score: MethodScore, key: BenchKeyScore | undefined): MethodScore => (key
+  ? { ...score, mojoFm: key.mojoFm, ari: key.ari, c2cCvg: key.c2cCvg, clusterCountRatio: key.clusterCountRatio, mojoFmHard: key.mojoFmHard }
+  : score);
+
+/** The table's cells by column: the method, clusters, the five ground-truth measures, TurboMQ, back-edges. */
+const graphColumns = new Set([0, 1, 7, 8]);
+const truthColumns = new Set([0, 2, 3, 4, 5, 6]);
+
+/**
+ * The bold cells of a row: the planner's and the best deterministic method's; with a partial key, the best by TurboMQ
+ * in the graph's columns and the best by MoJoFM over the key in the key's (all of them when one method is both).
+ */
+function boldCells(score: MethodScore, result: BenchResult): boolean | ReadonlySet<number> {
+  if (score.kind === 'planner') return true;
+  const bestGraph = score.method === result.bestBaseline?.method;
+  if (!result.partialKey) return bestGraph;
+  const bestKey = score.method === result.partialKey.bestBaseline?.method;
+  return bestGraph && bestKey ? true : bestGraph ? graphColumns : bestKey ? truthColumns : false;
+}
+
+/** `bold`: every cell, or the cells of the columns given. */
+function row(score: MethodScore, bold: boolean | ReadonlySet<number>): string {
   const cells = [
     score.method + (score.note && !score.note.startsWith('mean of seeds') ? ` (${score.note})` : ''),
     Number.isInteger(score.clusters) ? String(score.clusters) : score.clusters.toFixed(1),
@@ -78,7 +110,8 @@ function row(score: MethodScore, bold: boolean): string {
     score.turboMq.sum.toFixed(2),
     Number.isInteger(score.backEdges) ? String(score.backEdges) : score.backEdges.toFixed(1),
   ];
-  return `| ${cells.map((cell) => (bold && cell !== dash ? `**${cell}**` : cell)).join(' | ')} |`;
+  const bolded = (column: number) => (typeof bold === 'boolean' ? bold : bold.has(column));
+  return `| ${cells.map((cell, column) => (bolded(column) && cell !== dash ? `**${cell}**` : cell)).join(' | ')} |`;
 }
 
 /** Where the planner's answers came from: the cassette, this run's calls, or both (a run in auto mode records only the misses). */
@@ -108,6 +141,26 @@ const measures: [string, keyof BenchRunMeasures, (value: number) => string][] = 
   ['completion tokens', 'completionTokens', (value) => Math.round(value).toLocaleString('en-US')],
   ['reasoning tokens', 'reasoningTokens', (value) => Math.round(value).toLocaleString('en-US')],
 ];
+
+const truthDigits = { mojoFm: 2, ari: 3, c2cCvg: 3, clusterCountRatio: 2, mojoFmHard: 2 } as const;
+
+/**
+ * The mean, min and max over the runs, with a real entry's scores over its partial key in the ground-truth measures
+ * (null in its repeats block, as in `methods`), rounded as the bench rounds them.
+ */
+function runStatistics(result: BenchResult, repeats: BenchRepeats): Pick<BenchRepeats, 'mean' | 'min' | 'max'> {
+  const statistics = { mean: { ...repeats.mean }, min: { ...repeats.min }, max: { ...repeats.max } };
+  if (!result.partialKey) return statistics;
+  const scores = keyScoresByMethod(result.partialKey);
+  for (const field of Object.keys(truthDigits) as (keyof typeof truthDigits)[]) {
+    const values = repeats.runs.map((run) => scores.get(run.method)?.[field] ?? null);
+    if (statistics.mean[field] !== null || !values.every((value): value is number => value !== null)) continue;
+    statistics.mean[field] = Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(truthDigits[field]));
+    statistics.min[field] = Math.min(...values);
+    statistics.max[field] = Math.max(...values);
+  }
+  return statistics;
+}
 
 /** `1 of 3 parsed (2 returned, 1 truncated)`: the edit's choices that parsed into an edit, of K. */
 function editChoicesText({ editChoices: { asked, returned, parsed, truncated } }: BenchPlannerRun): string {
@@ -149,17 +202,20 @@ function repeatsSection(result: BenchResult, repeats: BenchRepeats): string[] {
     ].join(' | ')} |`),
   ];
   if (runs.length > 1) {
-    const shown = measures.filter(([, field]) => repeats.mean[field] !== null);
+    const statistics = runStatistics(result, repeats);
+    const shown = measures.filter(([, field]) => statistics.mean[field] !== null);
     lines.push(
       '',
       `| over the ${runs.length} runs, as delivered | ${shown.map(([label]) => label).join(' | ')} |`,
       `|---|${shown.map(() => '---').join('|')}|`,
-      ...(['mean', 'min', 'max'] as const).map((statistic) => `| ${statistic} | ${shown.map(([, field, format]) => format(repeats[statistic][field]!)).join(' | ')} |`),
+      ...(['mean', 'min', 'max'] as const).map((statistic) => `| ${statistic} | ${shown.map(([, field, format]) => format(statistics[statistic][field]!)).join(' | ')} |`),
     );
   }
   const measure = result.kind === 'scramble' ? 'MoJoFM' : "TurboMQ's sum";
+  const key = result.partialKey;
+  const onKey = key ? `, and ${runs.filter((run) => beatsBestOnKey(result, run.method)).length} of ${runs.length} above the best on MoJoFM over the key's ${key.scoredFiles} files` : '';
   lines.push('', [
-    `${beat} of ${runs.length} ${runs.length === 1 ? 'run scores' : 'runs score'} above the best deterministic method on ${measure}, each run as delivered.`,
+    `${beat} of ${runs.length} ${runs.length === 1 ? 'run scores' : 'runs score'} above the best deterministic method on ${measure}, each run as delivered${onKey}.`,
     `${ofRuns(drafts, runs.length, 'run')} had no usable edit${drafts ? `, so the seeds draft became ${drafts === 1 ? 'its' : 'their'} plan` : ''}; the critic reviewed ${ofRuns(reviewed, runs.length, 'plan')};`,
     `${truncated} of ${asked} edit choices ${truncated === 1 ? 'was' : 'were'} cut by the length cap (finish_reason length).`,
     `The validator accepts ${ofRuns(valid, runs.length, 'plan')}, counting only plans that came from an edit.`,
@@ -177,6 +233,8 @@ function configurationLine(result: BenchResult): string {
 }
 
 function entrySection(result: BenchResult, rulesStated: boolean): string {
+  const key = result.partialKey ?? null;
+  const keyScores = key ? keyScoresByMethod(key) : null;
   const lines = [`## ${result.entry} (${result.kind}${result.kind === 'scramble' ? `, ${result.variant}` : ''})`, ''];
   const where = [result.packageRoot, result.moduleRoot].filter(Boolean).join('/') || '.';
   lines.push(`- Target: ${code(result.repo)} ${code(where)} @ ${code(short(result.sha))}.`);
@@ -188,12 +246,19 @@ function entrySection(result: BenchResult, rulesStated: boolean): string {
     lines.push(`- Scramble: commit ${code(short(scramble.commit))}, ${scramble.moved} files moved, ${scramble.declined} declined by the executor (they stay), ${scramble.excluded} excluded; ${certificate}.`);
     const leaky = result.leakage ? `${result.leakyFiles} of the movable files give their feature away in their path (the leakage note below)` : `${result.leakyFiles} files give their feature away (leaky renames and files left in a feature folder)`;
     lines.push(`- Scored: ${result.featureFiles} feature files in ${result.groundTruthModules} modules (${result.hardFiles} hard), of ${result.files} movable files. ${leaky}.`);
+  } else if (key) {
+    lines.push(`- ${result.files} movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are ${partialKeyScope(key, result.files)}: every method places all ${result.files}, and only those ${key.scoredFiles} count (key ${code(key.file)}, sha256 ${code(short(key.sha256))}).`);
+    if (key.notMovable.length) {
+      const paths = key.notMovable.map((labeled) => `${code(labeled.path)} (${labeled.feature})`);
+      lines.push(`- ${key.notMovable.length} labeled ${key.notMovable.length === 1 ? 'path is' : 'paths are'} no movable file here and not scored: ${list(paths)}.`);
+    }
   } else {
     lines.push(`- ${result.files} movable files; no ground truth.`);
   }
   if (result.bestBaseline) {
     const value = result.kind === 'scramble' ? `MoJoFM ${fixed(result.bestBaseline.mojoFm, 2)}` : `TurboMQ ${result.bestBaseline.turboMq.toFixed(2)}`;
-    lines.push(`- Best deterministic method: ${result.bestBaseline.method}, ${value}.`);
+    const onKey = key?.bestBaseline ? ` On MoJoFM over the key's ${key.scoredFiles} files: ${key.bestBaseline.method}, MoJoFM ${key.bestBaseline.mojoFm.toFixed(2)}.` : '';
+    lines.push(`- Best deterministic method: ${result.bestBaseline.method}, ${value}.${onKey}`);
   }
   if (result.planner) {
     const { planner } = result;
@@ -208,10 +273,14 @@ function entrySection(result: BenchResult, rulesStated: boolean): string {
     lines.push('- Planner: no row (see the notes).');
   }
   lines.push('', '| method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |', '|---|---|---|---|---|---|---|---|---|');
-  for (const score of result.methods) lines.push(row(score, score.kind === 'planner' || score.method === result.bestBaseline?.method));
+  for (const score of result.methods) lines.push(row(withKeyScores(score, keyScores?.get(score.method)), boldCells(score, result)));
   if (result.louvainMojoFmByResolution) {
     const perSeed = Object.entries(result.louvainMojoFmByResolution).map(([resolution, values]) => `r=${resolution}: ${values.map((value) => value.toFixed(2)).join(', ')}`);
     lines.push('', `Louvain MoJoFM per seed (1 to 5): ${perSeed.join('; ')}.`);
+  }
+  if (key) {
+    const perSeed = Object.entries(key.louvainSeeds).map(([resolution, seeds]) => `r=${resolution}: ${seeds.map((seed) => seed.mojoFm.toFixed(2)).join(', ')}`);
+    if (perSeed.length) lines.push('', `Louvain MoJoFM per seed (1 to 5), over the key's ${key.scoredFiles} files: ${perSeed.join('; ')}.`);
   }
   if (result.repeats) lines.push(...repeatsSection(result, result.repeats));
   if (result.notes?.length) lines.push('', ...result.notes.map((note) => `- ${note}`));

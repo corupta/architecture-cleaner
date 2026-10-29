@@ -8,6 +8,7 @@ import { createGateway } from '../gateway/gateway.js';
 import type { CassetteMode } from '../gateway/types.js';
 import { defaultPlannerConfiguration, isPlannerConfigurationName, plannerConfigurationNames } from '../planner/configurations.js';
 import { compareReport, readComparedResults } from './compare.js';
+import { keyScoresByMethod } from './partial-key.js';
 import { packagePath, readBenchManifest, runBench } from './run.js';
 
 export const benchUsage = `ac bench <manifest.json> [--only <entry,…>] [--mode replay|record|auto] [--run <budget run>] [--out bench/results]
@@ -127,7 +128,13 @@ export async function benchCommand(argv: string[]): Promise<number> {
     const rows = result.methods.filter((score) => score.kind === 'planner');
     const value = (mojoFm: number | null, turboMq: number) => (result.kind === 'scramble' ? `MoJoFM ${mojoFm}` : `TurboMQ ${turboMq.toFixed(2)}`);
     const planner = rows.length ? rows.map((score) => value(score.mojoFm, score.turboMq.sum)).join(', ') : 'no row';
-    console.log(`${result.entry}: best deterministic ${best ? `${best.method} ${value(best.mojoFm, best.turboMq)}` : 'none'}; planner ${rows.length > 1 ? `(${rows.length} runs) ` : ''}${planner}`);
+    const key = result.partialKey;
+    const onKey = key ? (() => {
+      const scores = keyScoresByMethod(key);
+      const planners = rows.length ? rows.map((score) => `MoJoFM ${scores.get(score.method)?.mojoFm}`).join(', ') : 'no row';
+      return `; over the key's ${key.scoredFiles} files: best deterministic ${key.bestBaseline ? `${key.bestBaseline.method} MoJoFM ${key.bestBaseline.mojoFm}` : 'none'}, planner ${planners}`;
+    })() : '';
+    console.log(`${result.entry}: best deterministic ${best ? `${best.method} ${value(best.mojoFm, best.turboMq)}` : 'none'}; planner ${rows.length > 1 ? `(${rows.length} runs) ` : ''}${planner}${onKey}`);
   }
   for (const failure of outcome.failures) console.error(`${failure.entry}: FAILED: ${failure.error.split('\n')[0]}`);
   console.log(`results: ${out} (summary.md); work: ${outcome.work}`);

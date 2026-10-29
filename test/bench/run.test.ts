@@ -10,6 +10,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { benchCommand } from '../../src/bench/command.js';
 import { compareReport, readComparedResults } from '../../src/bench/compare.js';
 import { groundTruthOf, leakageNote, leakageOf, plannerNotes, readBenchManifest, runBench, type BenchOptions } from '../../src/bench/run.js';
+import { truthScores } from '../../src/bench/score.js';
 import type { BenchManifest, BenchResult } from '../../src/bench/types.js';
 import type { CassetteRecord } from '../../src/gateway/cassette.js';
 import { createGateway } from '../../src/gateway/gateway.js';
@@ -502,6 +503,103 @@ describe('ac bench --repeats, --planner and --cassette', async () => {
   });
 });
 
+describe('a real entry with a partial key', async () => {
+  // Five of the base tree's nine movable files, two of them hard (their names don't say `user`); one path no movable file.
+  const keyFile = path.join(temporary, 'fixture-key.rsf');
+  fs.writeFileSync(keyFile, [
+    '# the fixture\'s own history', 'contain album src/album/album.service.ts', 'contain album src/album/album.repository.ts', '',
+    'contain user src/user/user.service.ts', 'contain user src/user/avatar.service.ts', 'contain user src/user/profile.controller.ts', 'contain gone src/gone/gone.service.ts', '',
+  ].join('\n'));
+  const plain: BenchManifest['entries'][number] = { name: 'fixture-real', kind: 'real', repo, sha: base, packageRoot: 'pkg', moduleRoot: 'src', cassette: 'cassettes/fixture.jsonl' };
+  const keyed = { ...plain, groundTruth: keyFile, groundTruthSource: "the fixture's history" };
+  const runEntry = async (label: string, entry: BenchManifest['entries'][number], extra: Partial<BenchOptions> = {}) => {
+    const options = { ...optionsFor(label, () => fakeGateway()), ...extra };
+    const outcome = await runBench({ entries: [entry] }, options, { scramble: fakeScramble });
+    return { outcome, out: options.out, result: outcome.results[0]! };
+  };
+  const without = await runEntry('key-without', plain);
+  const withKey = await runEntry('key-with', keyed);
+  const key = withKey.result.partialKey!;
+
+  it('records the key\'s scope: its file, the labeled and scored files, the features, their share and the hard files', () => {
+    expect(withKey.outcome.failures).toEqual([]);
+    expect(withKey.result.files).toBe(9);
+    expect(key).toMatchObject({
+      file: keyFile, source: "the fixture's history", labeled: 6, scoredFiles: 5, features: 2, share: 0.556,
+      hardFiles: ['src/user/avatar.service.ts', 'src/user/profile.controller.ts'],
+      truth: { 'src/album/album.repository.ts': 'album', 'src/album/album.service.ts': 'album', 'src/user/avatar.service.ts': 'user', 'src/user/profile.controller.ts': 'user', 'src/user/user.service.ts': 'user' },
+    });
+    expect(key.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('reports a labeled path that is no movable file, and scores without it', () => {
+    expect(key.notMovable).toEqual([{ path: 'src/gone/gone.service.ts', feature: 'gone' }]);
+    for (const score of key.methods) if (score.assignment) expect(Object.keys(score.assignment)).not.toContain('src/gone/gone.service.ts');
+  });
+
+  it('scores every method, Louvain per seed and mean, and the planner over the labeled files only, each with its groups for them', () => {
+    expect(key.methods.map((score) => score.method)).toEqual(withKey.result.methods.map((score) => score.method));
+    expect(Object.keys(key.louvainSeeds)).toEqual(['1', '2', '4']);
+    for (const [resolution, seeds] of Object.entries(key.louvainSeeds)) {
+      expect(seeds.map((seed) => seed.method)).toEqual([1, 2, 3, 4, 5].map((seed) => `Louvain r=${resolution} seed ${seed}`));
+      const mean = key.methods.find((score) => score.method === `Louvain r=${resolution} (mean of seeds 1-5)`)!;
+      expect(mean.assignment).toBeUndefined();
+      expect(mean.mojoFm).toBe(Number((seeds.reduce((sum, seed) => sum + seed.mojoFm, 0) / 5).toFixed(2)));
+    }
+    // Anyone can recompute each score from the result alone: the truth, the hard files and the method's groups.
+    const truth = new Map(Object.entries(key.truth));
+    const groundTruth = { truth, featureFiles: [...truth.keys()].sort(), hardFiles: key.hardFiles };
+    const assigned = [...key.methods, ...Object.values(key.louvainSeeds).flat()].filter((score) => score.assignment);
+    expect(assigned).toHaveLength(key.methods.length - 3 + 15);
+    for (const { assignment, method, ...scores } of assigned) {
+      expect(Object.keys(assignment!).sort(), method).toEqual(groundTruth.featureFiles);
+      expect(truthScores(new Map(Object.entries(assignment!)), groundTruth), method).toEqual(scores);
+    }
+    // B0 type folders: the base tree's feature folders, so the labeled files are recovered exactly, whatever main.ts and shared/ do.
+    expect(key.methods[0]).toMatchObject({ method: 'B0 type folders', mojoFm: 100, ari: 1, c2cCvg: 1, clusterCountRatio: 1, mojoFmHard: 100 });
+    expect(key.methods.at(-1)!.method).toBe('planner (Ultra)');
+    const best = key.methods.filter((score) => !score.method.startsWith('planner')).reduce((top, score) => (score.mojoFm > top.mojoFm ? score : top));
+    expect(key.bestBaseline).toEqual({ method: best.method, mojoFm: best.mojoFm });
+  });
+
+  it("keeps everything else as without a key: methods' nulls, TurboMQ, the best by TurboMQ, the notes", () => {
+    const { partialKey: _key, ...rest } = withKey.result;
+    expect(rest).toEqual(without.result);
+    expect('partialKey' in without.result).toBe(false);
+    for (const score of withKey.result.methods) expect([score.mojoFm, score.ari, score.c2cCvg, score.clusterCountRatio, score.mojoFmHard]).toEqual([null, null, null, null, null]);
+  });
+
+  it('says what the key covers in summary.md, and nothing new without one', () => {
+    const summary = fs.readFileSync(path.join(withKey.out, 'summary.md'), 'utf8');
+    expect(fs.readFileSync(path.join(without.out, 'summary.md'), 'utf8')).toContain('- 9 movable files; no ground truth.');
+    expect(summary).toContain("- 9 movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are computed over the files the fixture's history labels (5 of 9 movable files, 2 features, 2 hard), unlike the scrambles' complete keys: every method places all 9, and only those 5 count");
+    expect(summary).toContain("- 1 labeled path is no movable file here and not scored: `src/gone/gone.service.ts` (gone).");
+    // The best by MoJoFM over the key is bolded in the key's columns, the best by TurboMQ in the graph's.
+    expect(summary).toContain('| **B0 type folders** | 3 | **100.00** | **1.000** | **1.000** | **1.00** | **100.00** | 1.71 | 0 |');
+    expect(summary).toContain('| **Louvain r=1 (mean of seeds 1-5)** | **3** | 66.67 | 0.545 | 1.000 | 1.50 | 0.00 | **2.04** | **0** |');
+    expect(summary).toContain("- Best deterministic method: Louvain r=1 (mean of seeds 1-5), TurboMQ 2.04. On MoJoFM over the key's 5 files: B0 type folders, MoJoFM 100.00.");
+    expect(summary).toContain("\nLouvain MoJoFM per seed (1 to 5), over the key's 5 files: r=1: 66.67, 66.67, 66.67, 66.67, 66.67; r=2: ");
+  });
+
+  it('scores every planner run over the key, and summary.md gives their mean, min and max on it', async () => {
+    const { result, out } = await runEntry('key-repeats', keyed, { repeats: 2 });
+    expect(result.partialKey!.methods.filter((score) => score.method.startsWith('planner')).map((score) => [score.method, Object.keys(score.assignment!).length]))
+      .toEqual([['planner (Ultra) #1', 5], ['planner (Ultra) #2', 5]]);
+    const summary = fs.readFileSync(path.join(out, 'summary.md'), 'utf8');
+    expect(summary).toContain('| over the 2 runs, as delivered | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ |');
+    expect(summary).toMatch(/\n\d of 2 runs score above the best deterministic method on TurboMQ's sum, each run as delivered, and \d of 2 above the best on MoJoFM over the key's 5 files\./);
+  });
+
+  it('fails the entry when the key labels no movable file (paths not package-relative) or is missing', async () => {
+    const repoRelative = path.join(temporary, 'repo-relative.rsf');
+    fs.writeFileSync(repoRelative, 'contain album pkg/src/album/album.service.ts\n');
+    const { outcome } = await runEntry('key-none', { ...plain, groundTruth: repoRelative });
+    expect(outcome.failures[0]!.error).toContain('the partial key labels none of the 9 movable files: its paths must be package-relative, as the facts name them (src/');
+    const missing = await runEntry('key-missing', { ...plain, groundTruth: path.join(temporary, 'nowhere.rsf') });
+    expect(missing.outcome.failures[0]!.error).toContain('nowhere.rsf not found');
+  });
+});
+
 describe('ground truth', () => {
   const roleOf = (file: string) => (file.endsWith('.resolver.ts') ? 'resolver' : 'service');
   const factsAt = (paths: string[]): Facts => ({
@@ -624,10 +722,22 @@ describe('planner notes', () => {
 });
 
 describe('the bench manifest and the command line', () => {
-  it('reads the committed manifest: four scrambles and immich at the pinned commit', () => {
+  it("reads the committed manifest: four scrambles and immich at the pinned commit, with its 2024 domain layer's partial key", () => {
     const committed = readBenchManifest(path.join(import.meta.dirname, '..', '..', 'bench', 'manifest.json'));
     expect(committed.entries.map((entry) => `${entry.name}:${entry.kind}`)).toEqual(['hoppscotch:scramble', 'hoppscotch-H1:scramble', 'kaneo:scramble', 'ghostfolio:scramble', 'immich:real']);
-    expect(committed.entries.find((entry) => entry.name === 'immich')).toMatchObject({ sha: '02063972e82b1bfd17b6fc2e3b3ff39936229ea5', cassette: 'cassettes/s6-immich.jsonl' });
+    expect(committed.entries.find((entry) => entry.name === 'immich')).toMatchObject({
+      sha: '02063972e82b1bfd17b6fc2e3b3ff39936229ea5', cassette: 'cassettes/s6-immich.jsonl', groundTruth: 'bench/ground-truth/immich-2024.rsf', groundTruthSource: "immich's 2024 domain layer",
+    });
+  });
+
+  it('takes a partial key on a real entry only', () => {
+    const file = path.join(temporary, 'key-manifest.json');
+    fs.writeFileSync(file, JSON.stringify({ entries: [{ ...manifest.entries[0], groundTruth: 'bench/ground-truth/x.rsf' }] }));
+    expect(() => readBenchManifest(file)).toThrow("entry fixture: groundTruth names a partial key file, on a real entry only (a scramble's key is its original folders)");
+    fs.writeFileSync(file, JSON.stringify({ entries: [{ ...manifest.entries[1], groundTruthSource: 'history' }] }));
+    expect(() => readBenchManifest(file)).toThrow('entry fixture-real: groundTruthSource without a groundTruth');
+    fs.writeFileSync(file, JSON.stringify({ entries: [{ ...manifest.entries[1], groundTruth: 'bench/ground-truth/x.rsf', groundTruthSource: 'history' }] }));
+    expect(readBenchManifest(file).entries[0]).toMatchObject({ groundTruth: 'bench/ground-truth/x.rsf', groundTruthSource: 'history' });
   });
 
   it('rejects a manifest entry without its scramble manifest, and duplicate names', () => {

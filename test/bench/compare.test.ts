@@ -1,7 +1,7 @@
 // `ac bench compare` from fixture results: one directory as a default bench writes it (one run, no repeats block, as
 // before S8b), two with three runs per entry; a missing planner row and a missing entry; runs whose edit choices all
 // came back unusable, so the seeds draft became the plan; the numbers and the ranges they fall in (as printed), never a
-// winner; and the command line.
+// winner; a real entry with a partial key; the committed experiment's compare.md byte for byte; and the command line.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,7 +9,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { benchCommand } from '../../src/bench/command.js';
 import { compareReport, readComparedResults } from '../../src/bench/compare.js';
 import { repeatsOf } from '../../src/bench/repeats.js';
-import type { BenchPlannerRun, BenchResult, MethodScore } from '../../src/bench/types.js';
+import type { BenchKeyScore, BenchPlannerRun, BenchResult, MethodScore } from '../../src/bench/types.js';
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'ac-bench-compare-'));
 afterAll(() => fs.rmSync(temporary, { recursive: true, force: true }));
@@ -186,5 +186,66 @@ describe('ac bench compare', () => {
     expect(errors.join('\n')).toContain('give one or more results directories');
     expect(errors.join('\n')).toContain('nowhere: not a results directory');
     expect(errors.join('\n')).toContain('empty: no ac-bench/1 result in it');
+  });
+});
+
+describe('ac bench compare with a partial key', () => {
+  const keyScoreOf = (method: string, mojoFm: number): BenchKeyScore => ({ method, mojoFm, ari: 0.8, c2cCvg: 0.9, clusterCountRatio: 1, mojoFmHard: null, assignment: {} });
+  /** immich with a partial key whose planner runs score `onKey` over it. */
+  function keyed(runs: Run[], configuration: string, onKey: number[]): BenchResult {
+    const base = result('immich', 'real', realBest, runs, configuration);
+    const planners = base.methods.filter((score) => score.kind === 'planner');
+    return {
+      ...base, files: 269,
+      partialKey: {
+        file: 'bench/ground-truth/immich-2024.rsf', sha256: 'e'.repeat(64), source: "immich's 2024 domain layer", labeled: 44, scoredFiles: 44, features: 22, share: 0.164,
+        hardFiles: ['a', 'b', 'c'], notMovable: [], truth: {}, louvainSeeds: {},
+        methods: [keyScoreOf('seeds draft (file names)', 95), ...planners.map((score, index) => keyScoreOf(score.method, onKey[index]!))],
+        bestBaseline: { method: 'seeds draft (file names)', mojoFm: 95 },
+      },
+    };
+  }
+  const ultraKey = writeDirectory('ultra-key', [keyed([{ turboMq: 10 }, { turboMq: 10.2 }, { turboMq: 10.4 }], 'ultra', [90, 92, 96])]);
+  const superKey = writeDirectory('super-vl-key', [keyed([{ turboMq: 10.1 }, { turboMq: 10.3 }, { turboMq: 10.5 }], 'super-vl', [94, 95, 97])]);
+  const noRowKey = writeDirectory('super-vl-low-key', [keyed([], 'super-vl-low', [])]);
+  const report = compareReport(readComparedResults([ultraKey, superKey, noRowKey, committedLike]));
+  const immich = report.slice(report.indexOf('## immich'), report.indexOf('## Totals'));
+
+  it("says what the key covers against the scrambles' complete keys, its best deterministic method, and which directories have none", () => {
+    expect(report).toContain('- MoJoFM over the key: a real target with a partial answer key adds the mean (min to max) of MoJoFM over the files the key labels');
+    expect(immich).toContain("\n\nMoJoFM over the key is computed over the files immich's 2024 domain layer labels (44 of 269 movable files, 22 features, 3 hard), unlike the scrambles' complete keys (key `bench/ground-truth/immich-2024.rsf`, sha256 `eeeeeeeeeeee`) in the 3 directories with a key.\n"
+      + 'Best deterministic method on MoJoFM over the key: seeds draft (file names), MoJoFM 95.00 in the 3 directories with a key.\n'
+      + 'results scores no key for this entry: dashes.\n\n');
+  });
+
+  it('shows MoJoFM over the key next to TurboMQ, the runs above the best on it, and dashes where a directory has no key or no run', () => {
+    expect(immich).toContain('| results | configuration | runs | TurboMQ mean (min to max), as delivered | beat the best deterministic | back-edges mean (min to max) | MoJoFM over the key mean (min to max) | beat the best on it | draft as the plan |');
+    expect(immich).toContain('| ultra-key | `ultra` | 3 | 10.20 (10.00 to 10.40) | 0 of 3 | 3.0 (3 to 3) | 92.67 (90.00 to 96.00) | 1 of 3 | 0 of 3 |');
+    expect(immich).toContain('| super-vl-key | `super-vl` | 3 | 10.30 (10.10 to 10.50) | 0 of 3 | 3.0 (3 to 3) | 95.33 (94.00 to 97.00) | 1 of 3 | 0 of 3 |');
+    expect(immich).toContain(`| super-vl-low-key | \`super-vl-low\` | 0 | no planner row (its notes say why) | ${Array.from({ length: 12 }, () => '–').join(' | ')} |`);
+    expect(immich).toContain('| results | `ultra` | 1 | 10.07 | 0 of 1 | 30 | – | – | 0 of 1 |');
+    expect(immich).toContain("Each MoJoFM mean over the key against the other directories' runs:\n\n"
+      + '- ultra-key: 92.67, below the range (94.00 to 97.00) of super-vl-key.\n'
+      + '- super-vl-key: 95.33, inside the range (90.00 to 96.00) of ultra-key.\n');
+    expect(report).not.toMatch(/\b(win|wins|winner|better|worse|beats)\b/i);
+  });
+
+  it('names each directory\'s key when they differ', () => {
+    const other = keyed([{ turboMq: 10 }], 'ultra', [91]);
+    other.partialKey = { ...other.partialKey!, scoredFiles: 40, sha256: 'f'.repeat(64), bestBaseline: { method: 'name-token (anchored)', mojoFm: 92.5 } };
+    const differing = compareReport([{ directory: 'a', label: 'a', results: [keyed([{ turboMq: 10 }], 'ultra', [90])] }, { directory: 'b', label: 'b', results: [other] }]);
+    expect(differing).toContain("MoJoFM over the key is computed over the files immich's 2024 domain layer labels (44 of 269 movable files, 22 features, 3 hard), unlike the scrambles' complete keys (key `bench/ground-truth/immich-2024.rsf`, sha256 `eeeeeeeeeeee`) in a; "
+      + "computed over the files immich's 2024 domain layer labels (40 of 269 movable files, 22 features, 3 hard), unlike the scrambles' complete keys (key `bench/ground-truth/immich-2024.rsf`, sha256 `ffffffffffff`) in b.");
+    expect(differing).toContain('Best deterministic method on MoJoFM over the key: seeds draft (file names), MoJoFM 95.00 (a); name-token (anchored), MoJoFM 92.50 (b).');
+  });
+});
+
+describe('the committed experiment', () => {
+  it('renders bench/experiments/s8b-super-vl/compare.md byte for byte from its result directories', () => {
+    const repoRoot = path.join(import.meta.dirname, '..', '..');
+    // As made from the package root: the directories as given there.
+    const given = ['ultra', 'super-vl-direct', 'super-vl-256k', 'super-vl', 'super-vl-low', 'super-vl-long'].map((name) => `bench/experiments/s8b-super-vl/${name}`);
+    const sets = readComparedResults(given.map((directory) => path.join(repoRoot, directory))).map((set, index) => ({ ...set, directory: given[index]! }));
+    expect(compareReport(sets)).toBe(fs.readFileSync(path.join(repoRoot, 'bench', 'experiments', 's8b-super-vl', 'compare.md'), 'utf8'));
   });
 });

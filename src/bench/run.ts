@@ -2,8 +2,9 @@
 // linked from the pristine checkout, which is never written), for a scramble entry `scrambleRepo` (our executor and
 // certifier flatten its feature folders into type folders; the original folders are the ground truth), then the facts
 // the planner would see, every baseline, the seeds draft and the planner (through a gateway on the entry's cassette:
-// replay by default), each scored against the ground truth (scrambles) and with TurboMQ and back-edges (every entry).
-// Writes bench/results/<entry>.json (BenchResult) and summary.md over every result in the out directory.
+// replay by default), each scored against the ground truth (scrambles, and a real entry's partial key over the files it
+// labels) and with TurboMQ and back-edges (every entry). Writes bench/results/<entry>.json (BenchResult) and summary.md
+// over every result in the out directory.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,11 +22,12 @@ import { readInventory } from '../scramble/inventory.js';
 import { layoutScramble } from '../scramble/layout.js';
 import type { ScrambleManifest, ScrambleOptions, ScrambleResult } from '../scramble/types.js';
 import { baselinePartitions, benchDraft, louvainPartitions, nameTokenAnchored, underNames, type Assignment } from './baselines.js';
+import { keyMean, keyScore, partialGroundTruthOf, partialKeyRecord, readPartialKey } from './partial-key.js';
 import { benchPlanner, planPartition, type PlannerPartition } from './planner.js';
 import { repeatsOf } from './repeats.js';
 import { graphScores, truthScores, truthTokens, type GroundTruth } from './score.js';
 import { benchSummary } from './summary.js';
-import type { BenchDraft, BenchEntry, BenchLeakage, BenchManifest, BenchPlannerRun, BenchRepeats, BenchResult, MethodScore } from './types.js';
+import type { BenchDraft, BenchEntry, BenchKeyScore, BenchLeakage, BenchManifest, BenchPlannerRun, BenchRepeats, BenchResult, MethodScore } from './types.js';
 
 export interface BenchOptions {
   /** Entry names to run; null runs every entry. */
@@ -87,6 +89,10 @@ export function readBenchManifest(file: string): BenchManifest {
     if (entry.kind !== 'scramble' && entry.kind !== 'real') throw new Error(`${file}: entry ${entry.name}: kind is scramble or real`);
     if (entry.kind === 'scramble' && !entry.scramble) throw new Error(`${file}: entry ${entry.name} needs a scramble manifest`);
     if (entry.kind === 'real' && !entry.sha) throw new Error(`${file}: entry ${entry.name} needs a sha`);
+    if (entry.groundTruth !== undefined && (entry.kind !== 'real' || typeof entry.groundTruth !== 'string' || !entry.groundTruth)) {
+      throw new Error(`${file}: entry ${entry.name}: groundTruth names a partial key file, on a real entry only (a scramble's key is its original folders)`);
+    }
+    if (entry.groundTruthSource !== undefined && entry.groundTruth === undefined) throw new Error(`${file}: entry ${entry.name}: groundTruthSource without a groundTruth`);
     if (!entry.repo || !entry.cassette) throw new Error(`${file}: entry ${entry.name} needs repo and cassette`);
   }
   return manifest;
@@ -287,6 +293,8 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
   const repeats = options.repeats ?? 1;
   const planner = benchPlanner(options.planner ?? defaultPlannerConfiguration, packagePath(cassette) === packagePath(entry.cassette) ? profile : null, options.mode);
   const variant = entry.variant ?? 'default';
+  // A real entry's partial key, read before any work: scored apart from `methods`, which keep their nulls.
+  const keyFile = entry.kind === 'real' && entry.groundTruth ? readPartialKey(packagePath(entry.groundTruth)) : null;
   const base = resolveRevision(target.checkout, target.sha);
   const directory = path.resolve(options.work, entry.name);
   const worktree = path.join(directory, 'repo');
@@ -321,18 +329,31 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
     const facts = buildFacts(repoFs, { ...roots, pins: profile?.plan?.pins ?? [], rules: planner.edit.rules });
     log(`facts: ${facts.files.length} movable files, ${facts.edges.length} edges, ${facts.pins.length} pinned`);
     const groundTruth = scramble ? groundTruthOf(scramble, facts, defaultPaths) : null;
+    const partialTruth = keyFile ? partialGroundTruthOf(keyFile.labels, facts) : null;
+    if (keyFile && partialTruth) log(`partial key ${entry.groundTruth}: ${partialTruth.featureFiles.length} of ${keyFile.labels.size} labeled files are movable`);
+    const keyScores = new Map<string, BenchKeyScore>();
+    const keyLouvainSeeds: Record<string, BenchKeyScore[]> = {};
     if (groundTruth?.pinnedFeatureFiles) {
       const count = groundTruth.pinnedFeatureFiles;
       notes.push(`${count} feature ${count === 1 ? 'file is' : 'files are'} pinned in the facts (no method can place ${count === 1 ? 'it' : 'them'}) and not scored.`);
     }
 
     const draft = benchDraft(facts);
-    const methods: MethodScore[] = baselinePartitions(facts).map((partition) => methodScore(partition.method, partition.kind, partition.assignment, facts, groundTruth));
+    const methods: MethodScore[] = baselinePartitions(facts).map((partition) => {
+      if (partialTruth) keyScores.set(partition.method, keyScore(partition.method, partition.assignment, partialTruth));
+      return methodScore(partition.method, partition.kind, partition.assignment, facts, groundTruth);
+    });
     const louvainMojoFm: Record<string, number[]> = {};
     for (const [resolution, partitions] of louvainPartitions(facts)) {
       const scores = partitions.map((assignment) => methodScore(`Louvain r=${resolution}`, 'baseline', assignment, facts, groundTruth));
-      methods.push(meanScore(`Louvain r=${resolution} (mean of seeds 1-${partitions.length})`, scores));
+      const method = `Louvain r=${resolution} (mean of seeds 1-${partitions.length})`;
+      methods.push(meanScore(method, scores));
       louvainMojoFm[String(resolution)] = scores.map((score) => score.mojoFm!);
+      if (partialTruth) {
+        const seeds = partitions.map((assignment, index) => keyScore(`Louvain r=${resolution} seed ${index + 1}`, assignment, partialTruth));
+        keyLouvainSeeds[String(resolution)] = seeds;
+        keyScores.set(method, keyMean(method, seeds));
+      }
     }
     log(`${methods.length} deterministic methods scored`);
 
@@ -366,6 +387,7 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
         const described = plannerNotes(partition, draft, facts.files.length);
         const score: MethodScore = { ...methodScore(method, 'planner', partition.assignment, facts, groundTruth), ...(described.rowNote ? { note: described.rowNote } : {}) };
         methods.push(score);
+        if (partialTruth) keyScores.set(method, keyScore(method, partition.assignment, partialTruth));
         const record = {
           cassette, recordedCostUsd: round(partition.recordedCostUsd, 6), spentUsd, replayed: spentUsd === 0, calls: partition.calls, rules: partition.rules,
           groups: partition.groups, modules: partition.modules, change: partition.change, planSha256: partition.planSha256,
@@ -427,6 +449,13 @@ async function benchEntry(entry: BenchEntry, options: BenchOptions & { work: str
       // Both absent for one run of the default configuration, so its result is the one S7 and S8 wrote.
       ...(planner.configuration === defaultPlannerConfiguration ? {} : { plannerConfiguration: planner.configuration }),
       ...(repeatsRecord ? { repeats: repeatsRecord } : {}),
+      // Absent without a key, so a result is the one S7 to S8d wrote.
+      ...(keyFile && partialTruth ? {
+        partialKey: partialKeyRecord(
+          { file: entry.groundTruth!, sha256: keyFile.sha256, source: entry.groundTruthSource ?? null, labeled: keyFile.labels.size },
+          partialTruth, facts.files.length, methods, keyScores, keyLouvainSeeds,
+        ),
+      } : {}),
     };
   } finally {
     if (!options.keep) removeWorktrees(target.checkout, [worktree]);

@@ -1,13 +1,13 @@
 // summary.md from BenchResult files alone: the empty case, a real entry (no ground truth: dashes), bolding and notes,
 // the scramble verdicts the header states from the results, a repeats block (a run that delivered the seeds draft
-// included), and the committed summary byte for byte.
+// included), a real entry with a partial key, and the committed summary byte for byte.
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { repeatsOf } from '../../src/bench/repeats.js';
 import { readBenchManifest, readResults } from '../../src/bench/run.js';
 import { benchSummary } from '../../src/bench/summary.js';
-import type { BenchPlannerRun, BenchResult, MethodScore } from '../../src/bench/types.js';
+import type { BenchKeyScore, BenchPartialKey, BenchPlannerRun, BenchResult, MethodScore } from '../../src/bench/types.js';
 
 const score = (method: string, kind: MethodScore['kind'], turboMq: number, extra: Partial<MethodScore> = {}): MethodScore => ({
   method, kind, clusters: 10, mojoFm: null, ari: null, c2cCvg: null, clusterCountRatio: null, mojoFmHard: null, turboMq: { sum: turboMq, mean: turboMq / 10 }, backEdges: 3, ...extra,
@@ -102,6 +102,15 @@ describe('bench summary', () => {
     expect(benchSummary(results)).toBe(fs.readFileSync(path.join(repoRoot, 'bench', 'results', 'summary.md'), 'utf8'));
   });
 
+  it('renders every committed experiment summary byte for byte from its JSON files', () => {
+    const repoRoot = path.join(import.meta.dirname, '..', '..');
+    const manifest = readBenchManifest(path.join(repoRoot, 'bench', 'manifest.json'));
+    const experiments = path.join(repoRoot, 'bench', 'experiments', 's8b-super-vl');
+    const directories = fs.readdirSync(experiments).map((name) => path.join(experiments, name)).filter((directory) => fs.existsSync(path.join(directory, 'summary.md')));
+    expect(directories.length).toBeGreaterThan(3);
+    for (const directory of directories) expect(benchSummary(readResults(directory, manifest)), directory).toBe(fs.readFileSync(path.join(directory, 'summary.md'), 'utf8'));
+  });
+
   it('renders one run of another configuration: its configuration and its runs table, no mean, min and max', () => {
     const method = 'planner (Super VL, thinking on)';
     const row = score(method, 'planner', 11.2, { clusters: 40 });
@@ -146,5 +155,59 @@ describe('bench summary', () => {
     expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered. "
       + '1 of 3 runs had no usable edit, so the seeds draft became its plan; the critic reviewed 2 of 3 plans; 5 of 9 edit choices were cut by the length cap (finish_reason length). '
       + 'The validator accepts 1 of 3 plans, counting only plans that came from an edit.\n');
+  });
+
+  /** immich's shape with a partial key: the best by TurboMQ (Louvain) and by MoJoFM over the key (the draft) differ. */
+  const keyScoreOf = (method: string, mojoFm: number, extra: Partial<BenchKeyScore> = {}): BenchKeyScore => ({
+    method, mojoFm, ari: 0.5, c2cCvg: 0.75, clusterCountRatio: 1.1, mojoFmHard: 50, assignment: { 'src/services/album.service.ts': 'album' }, ...extra,
+  });
+  const partialKey = (methods: BenchKeyScore[], extra: Partial<BenchPartialKey> = {}): BenchPartialKey => ({
+    file: 'bench/ground-truth/immich-2024.rsf', sha256: 'e'.repeat(64), source: "immich's 2024 domain layer", labeled: 46, scoredFiles: 44, features: 22, share: 0.164,
+    hardFiles: ['src/dtos/exif.dto.ts', 'src/dtos/stack.dto.ts', 'src/dtos/time-bucket.dto.ts'], notMovable: [], truth: { 'src/services/album.service.ts': 'album' },
+    methods, louvainSeeds: { 4: [1, 2, 3, 4, 5].map((seed) => keyScoreOf(`Louvain r=4 seed ${seed}`, 70 + seed)) }, bestBaseline: { method: 'B0 type folders', mojoFm: 95 }, ...extra,
+  });
+  const keyed: BenchResult = {
+    ...real,
+    partialKey: partialKey([
+      keyScoreOf('B0 type folders', 95), keyScoreOf('Louvain r=4 (mean of seeds 1-5)', 73, { assignment: undefined }), keyScoreOf('planner (Ultra)', 90, { mojoFmHard: null }),
+    ], { notMovable: [{ path: 'src/cores/access.core.ts', feature: 'access' }, { path: 'src/dtos/audit.dto.ts', feature: 'audit' }] }),
+  };
+
+  it("renders a real entry's partial key: what it covers against the scrambles' complete keys, its scores in the ground-truth columns, the paths it can't score", () => {
+    const summary = benchSummary([keyed]);
+    expect(summary).toContain("- **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry\n  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.\n");
+    expect(summary).toContain("- 269 movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are computed over the files immich's 2024 domain layer labels (44 of 269 movable files, 22 features, 3 hard), unlike the scrambles' complete keys: every method places all 269, and only those 44 count (key `bench/ground-truth/immich-2024.rsf`, sha256 `eeeeeeeeeeee`).\n");
+    expect(summary).toContain('- 2 labeled paths are no movable file here and not scored: `src/cores/access.core.ts` (access) and `src/dtos/audit.dto.ts` (audit).\n');
+    expect(summary).toContain("- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50. On MoJoFM over the key's 44 files: B0 type folders, MoJoFM 95.00.\n");
+    // Two bests, each bolded in its own columns; the planner in every one.
+    expect(summary).toContain('| **B0 type folders** | 10 | **95.00** | **0.500** | **0.750** | **1.10** | **50.00** | 1.94 | 3 |');
+    expect(summary).toContain('| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | 73.00 | 0.500 | 0.750 | 1.10 | 50.00 | **10.50** | **166** |');
+    expect(summary).toContain('| **planner (Ultra) (invalid plan: 2 validator errors)** | **59** | **90.00** | **0.500** | **0.750** | **1.10** | – | **10.07** | **3** |');
+    expect(summary).toContain("\nLouvain MoJoFM per seed (1 to 5), over the key's 44 files: r=4: 71.00, 72.00, 73.00, 74.00, 75.00.\n");
+    // A key with every labeled path movable says nothing about unscored paths; one best for both measures is bolded whole.
+    const tidy = benchSummary([{ ...keyed, partialKey: { ...keyed.partialKey!, notMovable: [], bestBaseline: { method: 'Louvain r=4 (mean of seeds 1-5)', mojoFm: 73 } } }]);
+    expect(tidy).not.toContain('no movable file here');
+    expect(tidy).toContain('| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | **73.00** | **0.500** | **0.750** | **1.10** | **50.00** | **10.50** | **166** |');
+    expect(tidy).toContain('| B0 type folders | 10 | 95.00 |');
+  });
+
+  it("gives the planner runs' mean, min and max over the key, and how many beat the best on it", () => {
+    const method = 'planner (Super VL, thinking on)';
+    const rows = [11, 10, 12].map((turboMq, index) => score(`${method} #${index + 1}`, 'planner', turboMq, { clusters: 40 }));
+    const runs = rows.map((row, index): BenchPlannerRun => ({
+      repeat: index + 1, method: row.method, valid: true, validatorErrors: 0, fromEdit: true, criticRan: true, editChoices: { asked: 3, returned: 3, parsed: 3, truncated: 0 },
+      groups: 40, modules: 31, samePartition: false, planSha256: String(index).repeat(64), recordedCostUsd: 0.04, spentUsd: 0,
+      calls: { replayed: 2, recorded: 0 }, tokens: { prompt: 25_000, completion: 12_000, reasoning: 10_000 },
+    }));
+    const keyRows = [96, 90, 94].map((mojoFm, index) => keyScoreOf(rows[index]!.method, mojoFm, { ari: 0.5 + index / 10 }));
+    const summary = benchSummary([{
+      ...real, methods: [...real.methods.slice(0, 2), ...rows], plannerConfiguration: 'super-vl', repeats: repeatsOf(runs.map((run, index) => ({ run, score: rows[index]! }))),
+      partialKey: partialKey([keyScoreOf('B0 type folders', 95), keyScoreOf('Louvain r=4 (mean of seeds 1-5)', 73), ...keyRows]),
+    }]);
+    expect(summary).toContain('| over the 3 runs, as delivered | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges | groups | modules | recorded cost | completion tokens | reasoning tokens |');
+    expect(summary).toContain('| mean | 93.33 | 0.600 | 0.750 | 1.10 | 50.00 | 11.00 |');
+    expect(summary).toContain('| min | 90.00 | 0.500 | 0.750 | 1.10 | 50.00 | 10.00 |');
+    expect(summary).toContain('| max | 96.00 | 0.700 | 0.750 | 1.10 | 50.00 | 12.00 |');
+    expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered, and 1 of 3 above the best on MoJoFM over the key's 44 files. ");
   });
 });

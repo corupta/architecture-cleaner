@@ -1,11 +1,12 @@
 // Vocabulary of `ac bench` (plan §7): recovery scores of the planner next to deterministic baselines, on scrambled
-// feature-modular repos (ground truth: their original feature folders) and on real type-sliced targets (no ground truth).
+// feature-modular repos (ground truth: their original feature folders) and on real type-sliced targets (no ground truth,
+// or a partial key: the files a target's own history labels).
 
 /** One entry of a bench manifest (bench/manifest.json). */
 export interface BenchEntry {
   /** Unique, a path segment: `hoppscotch`, `hoppscotch-H1`, `immich`. */
   name: string;
-  /** scramble: flatten a feature-modular repo and score recovery; real: a type-sliced target, scored without ground truth. */
+  /** scramble: flatten a feature-modular repo and score recovery; real: a type-sliced target, scored without ground truth or on a partial key. */
   kind: 'scramble' | 'real';
   /** Checkout of the target (never written to: the bench makes its own worktree). */
   repo: string;
@@ -20,6 +21,14 @@ export interface BenchEntry {
   profile?: string;
   /** The planner's cassette, replayed or recorded (repo-relative, e.g. cassettes/s7-bench.jsonl). */
   cassette: string;
+  /**
+   * real: a partial answer key (package-relative, e.g. bench/ground-truth/immich-2024.rsf; `contain <feature> <path>`
+   * lines, paths as the facts name the movable files). The files it labels are scored like a scramble's feature files;
+   * every method still places every movable file. Absent: no ground truth.
+   */
+  groundTruth?: string;
+  /** Who labeled the key's files, in words, for summary.md and compare: `immich's 2024 domain layer`. */
+  groundTruthSource?: string;
 }
 
 export interface BenchManifest {
@@ -35,7 +44,7 @@ export interface MethodScore {
   kind: 'baseline' | 'draft' | 'planner';
   /** Clusters over every movable file the method partitions (Louvain rows: the mean over seeds). */
   clusters: number;
-  /** Against the ground truth (scramble entries only; null on real targets). MoJoFM in 0–100. */
+  /** Against the ground truth (scramble entries only; null on real targets, whose partial key scores are in `partialKey`). MoJoFM in 0–100. */
   mojoFm: number | null;
   ari: number | null;
   /** Share of ground-truth modules recovered (c2c ≥ 0.66). */
@@ -160,6 +169,52 @@ export interface BenchRepeats {
   max: BenchRunMeasures;
 }
 
+/** One method's scores over a partial key's scored files (`truthScores`, as a scramble's), and the groups they came from. */
+export interface BenchKeyScore {
+  /** Its row in `methods`, or one Louvain seed (`Louvain r=4 seed 3`). */
+  method: string;
+  mojoFm: number;
+  ari: number;
+  c2cCvg: number;
+  clusterCountRatio: number;
+  /** Over the hard files; null with fewer than two, as on a scramble. */
+  mojoFmHard: number | null;
+  /** The method's group for each scored file it places, by path; absent on a Louvain mean row (each seed has its own). */
+  assignment?: Record<string, string>;
+}
+
+/**
+ * A real entry's partial answer key (BenchEntry.groundTruth) and every method's scores over the files it labels. The
+ * methods still place every movable file; only the scored files count, as a scramble's feature files do. `methods` in
+ * `methods`' order (TurboMQ and back-edges stay there), so the scores live here and `methods` keeps nulls.
+ */
+export interface BenchPartialKey {
+  /** The key as the manifest names it, and its bytes' sha256. */
+  file: string;
+  sha256: string;
+  /** Who labeled the files, in words (BenchEntry.groundTruthSource), or null. */
+  source: string | null;
+  /** Paths the key labels. */
+  labeled: number;
+  /** Labeled paths that are movable files: the files every score here counts. */
+  scoredFiles: number;
+  /** Features among the scored files. */
+  features: number;
+  /** scoredFiles over the movable files (`files`), 3 decimals. */
+  share: number;
+  /** Scored files whose anchored name token differs from their feature (the scrambles' definition), sorted. */
+  hardFiles: string[];
+  /** Labeled paths that are no movable file (absent at the commit, pinned, or not read by the facts): not scored, by path. */
+  notMovable: { path: string; feature: string }[];
+  /** Each scored file's feature, by path: with the assignments, every score can be recomputed. */
+  truth: Record<string, string>;
+  methods: BenchKeyScore[];
+  /** Louvain per resolution, one score per seed (1 to 5), each with its assignment. */
+  louvainSeeds: Record<string, BenchKeyScore[]>;
+  /** The best deterministic method (baselines and the seeds draft) by MoJoFM over the scored files. */
+  bestBaseline: { method: string; mojoFm: number } | null;
+}
+
 /** bench/results/<entry>.json */
 export interface BenchResult {
   format: 'ac-bench/1';
@@ -223,4 +278,6 @@ export interface BenchResult {
   plannerConfiguration?: string;
   /** Every planner run with the mean, min and max over them (absent: one run of the default configuration). */
   repeats?: BenchRepeats;
+  /** A real entry's partial answer key and the scores over its files (absent: the entry names none, as before S8e). */
+  partialKey?: BenchPartialKey;
 }
