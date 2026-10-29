@@ -98,9 +98,16 @@ inputs and outputs: `~/ac-work/s11/` (not committed).
 | v2.1 storyboard | 4 AI + 2 proxies | 4.0 | 4.0 | 3.67 | 4.08 | 4.0 | 3.92 | 4.67 | 4.33 |
 | **v1, submitted** (§7b) | 5 AI | 4.3 | 3.7 | 3.6 | 4.2 | 3.8 | 4.5 | 4.3 | 4.3 |
 | **v1, submitted** (§7b) | 7 watchers | 4.0 | **3.0** | **3.29** | 4.0 | **3.21** | 4.29 | 4.14 | 4.07 |
+| v1, submitted | all 12 | 4.12 | 3.29 | 3.42 | 4.08 | 3.46 | 4.38 | 4.21 | 4.17 |
+| animatic 1 (v2.3's order, silent, captions burned in) | all 12 | 4.12 | 3.67 | 3.38 | 4.21 | 3.88 | 3.58 | 4.75 | 4.04 |
+| animatic 2 (v2.5's order, v1's Super VL table) | all 12 | 4.04 | 3.62 | 3.58 | 4.08 | 3.92 | 3.21 | 4.58 | 4.04 |
 
 - v2.1's storyboard fixed Design and "useful"; its "2 wins, 2 losses" card was every AI judge's weakest moment
   (v2.3 uses the Super VL line, corupta's pick).
+- Animatic 2 against v1 (the same 12 raters): Design +0.33, Impact +0.16, "useful" +0.46, "concept" +0.37; the four
+  criteria's mean +0.10 (3.73 → 3.83), short of the +0.3 bar; "open to improvement" −1.17. All five AI judges named v1's
+  Super VL table the weakest moment (MoJoFM and TurboMQ unexplained, about 25 decimals in 13 s, its immich row a tie),
+  and most watchers got lost there. The animatics are silent (captions only); v1 has corupta's voice.
 - v1's watchers set the bar v2 has to clear, with the same profiles and setup: the animatic and the final candidate
   are scored by the same 5 AI judges and 7 watchers.
 
