@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>As before</title>
+<link rel="stylesheet" href="common.css"><link rel="stylesheet" href="cards.css">
+<script src="../../out/v2/data.js"></script>
+<script src="common.js"></script>
+<style>
+.checks{display:grid;grid-template-columns:auto auto;column-gap:30px;row-gap:16px;align-items:center;margin-top:30px;text-align:left}
+.checks .row{font:400 64px/1.2 var(--sans);color:var(--ink);white-space:nowrap}
+.checks .row b{font-weight:700}
+.check{width:60px;height:60px}
+.check path{fill:none;stroke:var(--pass);stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+.heading{font:700 52px/1.2 var(--sans);color:var(--ink)}
+</style>
+<div class="stage">
+  <div class="center">
+    <div class="heading">as before</div>
+    <div class="checks">
+      <svg class="check" viewBox="0 0 60 60"><path d="M10 31 L25 45 L50 15"/></svg><div class="row">compiler: <b>0</b> errors</div>
+      <svg class="check" viewBox="0 0 60 60"><path d="M10 31 L25 45 L50 15"/></svg><div class="row">every test passes</div>
+      <svg class="check" viewBox="0 0 60 60"><path d="M10 31 L25 45 L50 15"/></svg><div class="row">API spec identical</div>
+    </div>
+  </div>
+</div>
+<script>
+// B7's card (1:58–2:09). Voice: "On immich's whole server, unattended: sixty-three commits, each certified, in under two
+// hours. The compiler, every test and the API spec: exactly as before." The card carries the second sentence, all of it
+// on screen from the cut (the whole PR's certificate, runs/immich-ladder/certificate.json: tsc exit 0, 2,337 / 2,337
+// cases, the OpenAPI spec byte-identical).
+const SCHEDULE = {
+  card: 0,            // the heading and the three rows, from the first frame
+  end: 4,
+};
+window.renderAt = () => {};
+window.renderAt(0);
+</script>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html><html lang="en" class="history-page"><meta charset="utf-8"><title>immich's restructure, by hand</title>
+<!-- H, immich's history (B2): its 17 merged pull requests as a pull-request list on a white page, drawn by us from immich's
+     git history (data.history), with no logo, avatars or author names. The list scrolls top to bottom (there are a lot
+     of them), then steps back behind the card. -->
+<link rel="stylesheet" href="common.css"><link rel="stylesheet" href="cards.css">
+<script src="../../out/v2/data.js"></script>
+<script src="common.js"></script>
+<body class="history-page">
+<div class="stage">
+  <section class="history" id="list">
+    <header class="history-header"><span><b>immich-app/immich</b> · Pull requests · merged · server/src · <span id="range"></span></span></header>
+    <div class="history-viewport"><ol class="history-rows" id="rows"></ol></div>
+  </section>
+  <div class="center history-card" id="card">
+    <div class="big figure" id="card-prs"></div>
+    <div class="big figure" id="card-days"></div>
+    <div class="big by-hand">by hand</div>
+  </div>
+</div>
+<script>
+// B2 (0:21–0:32). Voice: "The maintainers of immich, a self-hosted photo and video app, did this by hand: seventeen pull
+// requests in two days." (0–7 s), then "Why not an AI agent?" (8–10 s). Everything is on screen from the first frame;
+// the scroll is the only motion, then the list steps back and the card's three lines come up together, in place.
+const SCHEDULE = {
+  scrollStart: 0.4,   // the top of the list, held for a moment
+  scrollEnd: 6.0,     // the last (oldest) pull request reached
+  ramp: 1.0,          // seconds to reach full speed, and to stop
+  bottomGap: 34,      // CSS px between the list's end and the viewport's, once it stops (above the bottom fade)
+  card: 6.2,          // "…seventeen pull requests in two days": the list dims and blurs as the card comes up
+  cardLength: 0.7,
+  end: 11,            // held through "Why not an AI agent?"
+};
+
+// The merged icon is the shape of Primer Octicons' git-merge-16 (github.com/primer/octicons, MIT License).
+const mergedIcon = '<svg class="merged" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"/></svg>';
+
+// Everything drawn comes from immich's git history (data.history: number, title, merge date), newest first, as the
+// list sorts by default.
+const pulls = [...data.history].sort((left, right) => right.number - left.number);
+const dayOf = (date) => Date.parse(`${date} 2024 UTC`);
+const days = [...new Set(pulls.map((pull) => pull.date))].sort((left, right) => dayOf(left) - dayOf(right));
+const month = { Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April', May: 'May', Jun: 'June', Jul: 'July', Aug: 'August', Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December' };
+const [firstMonth, firstDay] = days[0].split(' ');
+const lastDay = days.at(-1).split(' ')[1];
+document.getElementById('range').textContent = `${month[firstMonth]} ${Number(firstDay)}–${Number(lastDay)}, 2024`;
+const spanDays = Math.round((dayOf(days.at(-1)) - dayOf(days[0])) / 86400000);
+document.getElementById('card-prs').textContent = `${pulls.length} pull requests`;
+document.getElementById('card-days').textContent = `${spanDays} days`;
+
+const escape = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** A title's `code` spans read as code, as on the pull request's own page. */
+const titleHtml = (title) => title.split(/(`[^`]+`)/).filter(Boolean)
+  .map((part) => (part.startsWith('`') ? `<code>${escape(part.slice(1, -1))}</code>` : escape(part))).join('');
+const rows = document.getElementById('rows');
+rows.innerHTML = pulls.map((pull) => `<li>${mergedIcon}<div><div class="title">${titleHtml(pull.title)}</div>`
+  + `<div class="meta">#${pull.number} merged on ${escape(pull.date)}</div></div></li>`).join('');
+
+const viewport = document.querySelector('.history-viewport');
+const distance = Math.max(0, rows.offsetHeight - (viewport.clientHeight - SCHEDULE.bottomGap));
+
+/** How far the list has scrolled at `t`: still, then speeding up evenly, a constant speed, slowing down evenly. */
+function scrolled(t) {
+  const { scrollStart, scrollEnd, ramp } = SCHEDULE;
+  const length = scrollEnd - scrollStart;
+  const speed = distance / (length - ramp);
+  const moving = clamp(t - scrollStart, 0, length);
+  if (moving < ramp) return (speed * moving * moving) / (2 * ramp);
+  if (moving <= length - ramp) return speed * (ramp / 2 + moving - ramp);
+  const left = length - moving;
+  return distance - (speed * left * left) / (2 * ramp);
+}
+
+const list = document.getElementById('list');
+const card = document.getElementById('card');
+window.renderAt = (seconds) => {
+  const t = seconds;
+  rows.style.transform = `translateY(${(-scrolled(t)).toFixed(2)}px)`;
+  const back = progress(t, SCHEDULE.card, SCHEDULE.cardLength);
+  list.style.opacity = String(lerp(1, 0.12, back));
+  list.style.filter = back > 0 ? `blur(${lerp(0, 3, back).toFixed(2)}px)` : 'none';
+  card.style.opacity = String(back);
+  card.style.filter = back < 1 ? `blur(${lerp(10, 0, back).toFixed(2)}px)` : 'none';
+};
+window.renderAt(0);
+</script>
+</body>
+</html>

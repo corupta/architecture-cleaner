@@ -1,0 +1,167 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Nemotron 3 Ultra: the calls code can't make</title>
+<!-- M3, shot "nemotron" (B5b): one stable scene, all from the immich plan (data.nemotron). Three panels, one per call
+     the voice names: the draft's five asset groups that Nemotron made one feature; a contested file, the draft's group,
+     Nemotron's and its reason in the model's words; the second call's review, one suggestion accepted with its evidence
+     and one rejected. Everything is on screen from the first frame, faint; each panel turns opaque when the voice
+     reaches it, then the footer with the cost. Nothing enters, leaves or moves. -->
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="diagrams.css">
+<script src="../../out/v2/data.js"></script>
+<script src="common.js"></script>
+<style>
+.title{position:absolute;left:0;width:1280px;top:44px;text-align:center;font:700 34px/1.2 var(--sans);color:var(--ink)}
+.panel{position:absolute;top:114px;height:372px;box-sizing:border-box;background:var(--surface);border:2px solid var(--ring);border-radius:14px}
+.panel > *{position:absolute}
+.panel-heading{left:18px;top:14px;font:700 30px/1.2 var(--sans);color:var(--ink);white-space:nowrap}
+.caption{font:25px/1.2 var(--sans);color:var(--muted);white-space:nowrap}
+.chip{box-sizing:border-box;height:42px;display:flex;align-items:center;padding:0 9px;border:2px solid var(--ring);border-radius:8px;background:var(--page);font:26px/1 var(--mono);color:var(--ink-2);white-space:nowrap}
+.folder{box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:3px solid var(--ac);border-radius:10px;background:var(--surface);font:700 30px/1 var(--mono);color:var(--ink);white-space:nowrap}
+.panel svg{left:0;top:0;width:100%;height:100%;overflow:visible}
+.file{font:700 25px/1.2 var(--mono);color:var(--ink);white-space:nowrap}
+.quote{font:26px/1.3 var(--sans);color:var(--ink);text-wrap:balance}
+.words-label{font:700 25px/1.2 var(--sans);color:var(--accent);white-space:nowrap}
+.suggestion{display:flex;flex-direction:column;gap:4px;white-space:nowrap}
+.suggestion .file{font-weight:400}
+.suggestion .to{font:25px/1.2 var(--mono);color:var(--ink)}
+.suggestion .verdict{font:700 25px/1.2 var(--sans);margin-top:2px}
+.footer{position:absolute;left:0;width:1280px;top:512px;text-align:center;font:27px/1.3 var(--sans);color:var(--ink-2);white-space:nowrap}
+.footer b{color:var(--ink)}
+</style>
+<div class="stage" id="stage">
+  <div class="title">Nemotron 3 Ultra: the calls code can't make</div>
+</div>
+<script>
+// Seconds on the page's clock, keyed to the voice-over (v2.3, B5b).
+const SCHEDULE = {
+  // "Code places the obvious files." (0–2 s): the title, and everything else faint.
+  feature: 2.0, // "Nemotron 3 Ultra makes the calls code can't: what counts as one feature,"
+  contested: 6.0, // "where a contested file belongs."
+  review: 9.0, // "A second call reviews the plan."
+  cost: 11.5, // "Two calls, twenty cents."
+  lighting: 0.5, // faint → opaque
+};
+// Not yet its moment: the loop's convention (loop.html), every element present from the start, faint.
+const FAINT = 0.25;
+// numbers.md row 51: the immich plan's two paid calls (the draft editor and the review), $0.1998 together.
+const COST = { calls: 2, dollars: '$0.20' };
+
+const stage = document.getElementById('stage');
+const element = (parent, tag, className, text, style = {}) => {
+  const created = document.createElement(tag);
+  if (className) created.className = className;
+  if (text) created.textContent = text;
+  Object.assign(created.style, style);
+  parent.append(created);
+  return created;
+};
+const svgElement = (parent, tag, attributes) => {
+  const created = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [name, value] of Object.entries(attributes)) created.setAttribute(name, value);
+  parent.append(created);
+  return created;
+};
+const folder = (group) => `${group.replace(/^[a-z]+\//, '')}/`;
+const px = (value) => `${value}px`;
+
+// Three panels side by side; the first is wider for its five groups and their arrows.
+const panelGeometry = [{ left: 28, width: 432 }, { left: 476, width: 380 }, { left: 872, width: 380 }];
+const panel = (index, heading) => {
+  const { left, width } = panelGeometry[index];
+  const created = element(stage, 'div', 'panel', '', { left: px(left), width: px(width) });
+  element(created, 'div', 'panel-heading', heading);
+  return created;
+};
+/** An arrow (a line or a curve) with its head at the end point, pointing right. */
+const arrow = (svg, d, [x, y], color, dashed = false) => {
+  const path = svgElement(svg, 'path', { d, class: 'wire', ...(dashed ? { 'stroke-dasharray': '8 8' } : {}) });
+  path.style.stroke = color;
+  const head = svgElement(svg, 'polygon', { points: `${x},${y} ${x - 15},${y - 8} ${x - 15},${y + 8}`, class: 'head' });
+  head.style.fill = color;
+};
+
+// (a) One feature: the draft's asset groups (code's), and the one folder Nemotron's plan made of them.
+const draftGroups = Object.entries(data.nemotron.assetDraftGroups)
+  .filter(([group]) => group.startsWith('module/asset'))
+  .map(([group, files]) => ({ name: group.replace(/^module\//, ''), files }))
+  .sort((left, right) => right.files.length - left.files.length || left.name.localeCompare(right.name));
+const featurePanel = panel(0, 'one feature');
+const featureSvg = svgElement(featurePanel, 'svg', {});
+element(featurePanel, 'div', 'caption', "code's draft", { left: '18px', top: '66px' });
+const chip = { left: 18, top: 102, width: 196, height: 42, pitch: 52 };
+const chipCenters = draftGroups.map((group, index) => {
+  const top = chip.top + index * chip.pitch;
+  element(featurePanel, 'div', 'chip', group.name, { left: px(chip.left), top: px(top), width: px(chip.width) });
+  return top + chip.height / 2;
+});
+const merged = { width: 132, height: 76 };
+merged.left = panelGeometry[0].width - 18 - 4 - merged.width;
+merged.middle = (chipCenters[0] + chipCenters.at(-1)) / 2;
+element(featurePanel, 'div', 'folder', folder('module/asset'), { left: px(merged.left), top: px(merged.middle - merged.height / 2), width: px(merged.width), height: px(merged.height) });
+for (const y of chipCenters) {
+  const [x1, x2] = [chip.left + chip.width + 6, merged.left - 6];
+  arrow(featureSvg, `M ${x1} ${y} C ${x1 + 40} ${y}, ${x2 - 36} ${merged.middle}, ${x2 - 13} ${merged.middle}`, [x2, merged.middle], 'var(--accent)');
+}
+
+// (b) A contested file: the draft's group (code's), the plan's (Nemotron's), and the model's reason in its words.
+const contested = data.nemotron.contested;
+const contestedPanel = panel(1, 'a contested file');
+const contestedSvg = svgElement(contestedPanel, 'svg', {});
+element(contestedPanel, 'div', 'file', contested.path.replace(/^src\//, ''), { left: '18px', top: '66px' });
+element(contestedPanel, 'div', 'caption', "code's draft", { left: '18px', top: '116px' });
+const choice = { top: 150, height: 58 };
+const draftChip = element(contestedPanel, 'div', 'chip', contested.draftGroup.split('/').at(-1), { left: '18px', top: px(choice.top + (choice.height - 42) / 2) });
+const choiceLeft = 18 + draftChip.offsetWidth + 76;
+element(contestedPanel, 'div', 'folder', folder(contested.group), { left: px(choiceLeft), top: px(choice.top), width: '124px', height: px(choice.height) });
+const choiceMiddle = choice.top + choice.height / 2;
+arrow(contestedSvg, `M ${18 + draftChip.offsetWidth + 8} ${choiceMiddle} L ${choiceLeft - 19} ${choiceMiddle}`, [choiceLeft - 6, choiceMiddle], 'var(--accent)');
+element(contestedPanel, 'div', 'quote', `“${contested.rationale}”`, { left: '18px', top: '234px', width: px(panelGeometry[1].width - 40) });
+const wordsLabel = element(contestedPanel, 'div', 'words-label', "the model's words", { left: '18px' });
+
+// (c) The review: two of the second call's suggestions, one accepted with its evidence, one rejected without.
+const suggestionOf = (summary) => {
+  const found = data.nemotron.critic.suggestions.find((suggestion) => suggestion.summary === summary);
+  if (!found) throw new Error(`no critic suggestion "${summary}"`);
+  const [, file, group] = /^move src\/(?:.+\/)?([^/]+) → (.+)$/.exec(found.summary);
+  return { ...found, file, folder: folder(group) };
+};
+const evidenceText = (evidence) => {
+  const edges = /^(\d+) edges?$/.exec(evidence);
+  if (!edges) throw new Error(`unexpected evidence "${evidence}"`);
+  return `${edges[1]} dependency edge${edges[1] === '1' ? '' : 's'}`;
+};
+const accepted = suggestionOf('move src/repositories/app.repository.ts → module/maintenance');
+const rejected = suggestionOf('move src/repositories/move.repository.ts → module/asset');
+if (!accepted.accepted || rejected.accepted) throw new Error('the review pair changed');
+const reviewPanel = panel(2, 'the review');
+element(reviewPanel, 'div', 'caption', 'its suggestions', { left: '18px', top: '66px' });
+[
+  { suggestion: accepted, verdict: `✓ ${evidenceText(accepted.evidence)}`, color: 'var(--pass)', top: 102 },
+  { suggestion: rejected, verdict: '✗ no evidence', color: 'var(--fail)', top: 244 },
+].forEach((row) => {
+  const block = element(reviewPanel, 'div', 'suggestion', '', { left: '18px', top: px(row.top) });
+  element(block, 'div', 'file', row.suggestion.file);
+  element(block, 'div', 'to', `→ ${row.suggestion.folder}`, { color: row.suggestion.accepted ? 'var(--ink)' : 'var(--muted)' });
+  element(block, 'div', 'verdict', row.verdict, { color: row.color });
+});
+
+// The footer: what the two calls cost, and where they ran.
+const footer = element(stage, 'div', 'footer', '');
+element(footer, 'b', '', `${COST.calls} calls · ${COST.dollars}`);
+footer.append(' · Nemotron 3 Ultra via Nebius Token Factory');
+
+// The reason's label sits under the reason, however many lines it wraps to.
+const quote = contestedPanel.querySelector('.quote');
+wordsLabel.style.top = px(quote.offsetTop + quote.offsetHeight + 10);
+
+const sequence = [
+  { element: featurePanel, at: SCHEDULE.feature },
+  { element: contestedPanel, at: SCHEDULE.contested },
+  { element: reviewPanel, at: SCHEDULE.review },
+  { element: footer, at: SCHEDULE.cost },
+];
+window.renderAt = (t) => {
+  for (const item of sequence) item.element.style.opacity = String(lerp(FAINT, 1, progress(t, item.at, SCHEDULE.lighting)));
+};
+window.renderAt(0);
+</script>
+</html>

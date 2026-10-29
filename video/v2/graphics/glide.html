@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>M1 · the glide</title>
+<!-- B1: what ac does, as a picture. The title, then immich's album files glide from their type folders into album/
+     (the real run's step 2), asset's and user's follow, and the album commit lands certified. -->
+<link rel="stylesheet" href="common.css">
+<script src="../../out/v2/data.js"></script>
+<script src="common.js"></script>
+<script src="tree.js"></script>
+<style>
+.title{position:absolute;left:0;top:0;width:1280px;text-align:center;font:600 56px/1.2 var(--sans);color:var(--ink)}
+.title .ac{font-family:var(--mono);font-weight:700;color:var(--ac)}
+.title .dot{color:var(--muted)}
+#picture{position:absolute;top:10px}
+</style>
+<div class="stage">
+  <div class="title"><span class="ac">ac</span> <span class="dot">·</span> architecture-cleaner</div>
+  <div id="picture"></div>
+</div>
+<script>
+// Seconds, keyed to the voice-over's sentences (plan v2.3, B1, 0:07–0:21 of the video).
+const SCHEDULE = {
+  // "This is ac, architecture-cleaner." (0–2.5 s): the title alone.
+  titleIn: 0.15,
+  titleOut: 1.8,
+  // "It moves a TypeScript backend from type folders into feature folders," (2.5–7 s): album's files, one by one.
+  pictureIn: 2.15,
+  album: { start: 3.05, stagger: 0.8, duration: 1.55 },
+  // "one commit at a time," (7–9 s): asset's files together, then user's: a feature a commit, faster.
+  asset: { start: 6.95, stagger: 0, duration: 0.95 },
+  user: { start: 7.95, stagger: 0, duration: 0.95 },
+  // "each with a proof that nothing else changed." (9–12 s): the album commit lands, certified.
+  chip: 9.2,
+  chipLength: 0.9,
+  // Held to 14 s (shots-tree.mjs).
+};
+
+// The chip: the run's own step for album (step 2 on the ladder), and its outcome.
+const albumStep = data.runs.ladder.steps.find((step) => step.group === 'module/album');
+if (albumStep?.status !== 'certified') throw new Error(`the ladder's album step is ${albumStep?.status}`);
+const albumFolder = albumStep.group.split('/')[1];
+const chip = { folder: albumFolder, html: `commit · ${albumFolder} · <b>${albumStep.status} ✓</b>` };
+
+const pictureNode = document.getElementById('picture');
+const glide = tree.createGlide(pictureNode, { chip });
+pictureNode.style.left = `${Math.round((1280 - glide.size.width) / 2)}px`;
+const title = document.querySelector('.title');
+const offset = tree.clockOffset();
+
+function renderAt(seconds) {
+  const t = seconds + offset;
+  const titleOpacity = Math.min(progress(t, SCHEDULE.titleIn, 0.6), 1 - progress(t, SCHEDULE.titleOut, 0.45));
+  title.style.opacity = titleOpacity;
+  title.style.transform = `translateY(${262 - 10 * progress(t, SCHEDULE.titleOut, 0.45)}px)`;
+  pictureNode.style.opacity = progress(t, SCHEDULE.pictureIn, 0.6);
+  const moves = glide.files.map((file) => {
+    const order = glide.files.filter((other) => other.feature === file.feature).indexOf(file);
+    const { start, stagger, duration } = SCHEDULE[file.feature];
+    return clamp((t - start - order * stagger) / duration);
+  });
+  glide.draw({ moves, chip: clamp((t - SCHEDULE.chip) / SCHEDULE.chipLength) });
+}
+window.renderAt = renderAt;
+renderAt(0);
+</script>
+</html>

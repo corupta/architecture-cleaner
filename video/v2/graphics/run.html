@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>immich's server, unattended</title>
+<!-- M4, shot "run" (B7): the ladder run from its own log (data.runs.ladder). A clock runs over the run's length, and
+     each commit lands as a tick on the track when the clock passes the time it was made. The compression is labeled
+     with the clock's own on-screen duration, so retiming the schedule keeps the label true. Under the commit counter,
+     the rollback counter is on screen from the first frame, in ink, and turns green once the last commit has landed. -->
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="diagrams.css">
+<script src="../../out/v2/data.js"></script>
+<script src="common.js"></script>
+<div class="stage" id="stage"><svg class="wires" id="wires"></svg></div>
+<script>
+// Seconds on the page's clock, keyed to the voice-over (v2.3, B7): "On immich's whole server, unattended: sixty-three
+// commits, each certified, in under two hours."
+const SCHEDULE = {
+  clockStart: 0.6, // the run starts
+  clockEnd: 5.6, // the run's last event: the clock stops at the run's length
+  tickLanding: 0.3, // how long a tick takes to land
+  rollbacksGreen: 0.4, // "0 rollbacks needed" turns green over this long, from when the last commit has landed
+};
+
+const run = data.runs.ladder;
+const stage = document.getElementById('stage');
+const wires = document.getElementById('wires');
+const svg = (tag, attributes) => {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+  wires.append(element);
+  return element;
+};
+const block = (className, text, style) => {
+  const element = document.createElement('div');
+  element.className = className;
+  if (text) element.textContent = text;
+  Object.assign(element.style, style);
+  stage.append(element);
+  return element;
+};
+const clockText = (seconds) => {
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 3600)}:${String(Math.floor((whole % 3600) / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
+};
+const duration = `${Math.floor(run.seconds / 3600)} h ${Math.floor((run.seconds % 3600) / 60)} m`;
+const shownIn = +(SCHEDULE.clockEnd - SCHEDULE.clockStart).toFixed(1);
+
+block('note center', "immich's server · unattended", { left: '640px', top: '36px', fontSize: '34px', fontWeight: '700', color: 'var(--ink)' });
+const clock = block('note center mono', clockText(0), { left: '640px', top: '104px', fontSize: '72px', fontWeight: '700', color: 'var(--ink)' });
+
+// The track: the run's length, left to right; a tick per commit.
+const track = { left: 100, right: 1180, y: 310 };
+const xAt = (seconds) => lerp(track.left, track.right, seconds / run.seconds);
+const line = svg('line', { x1: track.left, y1: track.y, x2: track.right, y2: track.y, 'stroke-width': 3, 'stroke-linecap': 'round' });
+line.style.stroke = 'var(--ring)';
+const ticks = run.commits.map((commit) => {
+  const tick = svg('line', { x1: xAt(commit.at), x2: xAt(commit.at), 'stroke-width': 4, 'stroke-linecap': 'round' });
+  tick.style.stroke = 'var(--pass)';
+  return { tick, at: commit.at };
+});
+const playhead = svg('line', { y1: track.y - 46, y2: track.y + 46, 'stroke-width': 2 });
+playhead.style.stroke = 'var(--ink-2)';
+
+const counter = block('note center', '', { left: '640px', top: '384px', fontSize: '34px', color: 'var(--ink)' });
+const count = Object.assign(document.createElement('span'), { style: 'display:inline-block;width:2ch;text-align:right;font-weight:700' });
+counter.append(count, ` commit${run.commits.length === 1 ? '' : 's'} · each certified`);
+const rollbacks = block('note center', '', { left: '640px', top: '440px', fontSize: '34px', color: 'var(--ink)' });
+rollbacks.append(Object.assign(document.createElement('span'), { textContent: String(run.rollbacks.length), style: 'display:inline-block;width:2ch;text-align:right;font-weight:700' }));
+rollbacks.append(` rollback${run.rollbacks.length === 1 ? '' : 's'} needed`);
+block('note center', `the run's own log · ${duration} shown in ${shownIn} s`, { left: '640px', top: '540px', fontSize: '25px', color: 'var(--muted)' });
+
+window.renderAt = (t) => {
+  const runSeconds = run.seconds * clamp((t - SCHEDULE.clockStart) / (SCHEDULE.clockEnd - SCHEDULE.clockStart));
+  clock.textContent = clockText(runSeconds);
+  const screenTime = (seconds) => lerp(SCHEDULE.clockStart, SCHEDULE.clockEnd, seconds / run.seconds);
+  let landed = 0;
+  for (const { tick, at } of ticks) {
+    const landing = progress(t, screenTime(at), SCHEDULE.tickLanding);
+    if (t >= screenTime(at)) landed += 1;
+    tick.setAttribute('y1', track.y - 24 - 26 * (1 - landing));
+    tick.setAttribute('y2', track.y + 24 - 26 * (1 - landing));
+    tick.style.opacity = String(landing);
+  }
+  count.textContent = String(landed);
+  playhead.setAttribute('x1', xAt(runSeconds));
+  playhead.setAttribute('x2', xAt(runSeconds));
+  playhead.style.opacity = String(Math.min(progress(t, SCHEDULE.clockStart - 0.3, 0.3), 1 - progress(t, SCHEDULE.clockEnd, 0.4)));
+  const lastLanded = screenTime(ticks.at(-1).at) + SCHEDULE.tickLanding;
+  rollbacks.style.color = `color-mix(in srgb, var(--pass) ${(progress(t, lastLanded, SCHEDULE.rollbacksGreen) * 100).toFixed(1)}%, var(--ink))`;
+};
+window.renderAt(0);
+</script>
+</html>

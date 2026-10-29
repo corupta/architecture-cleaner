@@ -1,0 +1,10 @@
+/* The v2 graphics' look, shared: the replay site's palette (video/cards/card.css), local fonts only, a 1280×720 CSS
+   page captured at 1.5× (1920×1080). The bottom 96 CSS px are the caption band: nothing that matters goes there. */
+:root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#1d1d1b;--ink-2:#45443f;--muted:#76746c;--ring:#dcdad3;--ac:#2a78d6;--accent:#eb6834;--pass:#006300;--fail:#d03b3b;--terminal:#1b1b1a;--band:96px;
+  --sans:"DejaVu Sans",system-ui,sans-serif;--mono:"DejaVu Sans Mono",ui-monospace,monospace}
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--page);color:var(--ink);font:26px/1.35 var(--sans)}
+.stage{position:absolute;left:0;top:0;width:1280px;height:calc(720px - var(--band));overflow:hidden}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.label{font:600 26px/1.2 var(--sans);color:var(--ink-2)}
+.box{background:var(--surface);border:2px solid var(--ring);border-radius:12px}

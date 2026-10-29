@@ -3,16 +3,17 @@
 // screen recording, so a shot comes out the same on every run and never drops a frame. ffmpeg encodes each shot to
 // <out>/<id>.mp4 (H.264, 1920×1080, 30 fps) and keeps its first and last frame as PNG stills.
 //
-// A card (a title or a table made for the video, video/cards/*.html) is captured the same way.
+// A card (a title or a table made for the video, video/cards/*.html) is captured the same way, and so is an animated
+// graphic (video/v2/graphics/*.html): its `play` step sets the page's clock, `window.renderAt(seconds)`, once a frame.
 //
 //   node capture/site.mjs --site /tmp/s9-site --out out/site [--only site-ab,site-fault] [--ffmpeg <path>]
+//   node capture/site.mjs --shots v2/graphics/shots.mjs --out out/v2/graphics   (no site needed)
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
-import { siteShots } from './site-shots.mjs';
 
 const videoDirectory = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -21,17 +22,20 @@ const { values } = parseArgs({
     site: { type: 'string' },
     out: { type: 'string', default: 'out/site' },
     only: { type: 'string' },
+    shots: { type: 'string' },
     ffmpeg: { type: 'string', default: process.env.FFMPEG ?? 'ffmpeg' },
   },
 });
-if (!values.site) throw new Error('--site <a built site dir> is required (npx ac site --out <dir>)');
+const { siteShots } = values.shots ? await import(path.resolve(values.shots)) : await import('./site-shots.mjs');
+const needsSite = siteShots.some((shot) => shot.page && (!values.only || values.only.split(',').includes(shot.id)));
+if (needsSite && !values.site) throw new Error('--site <a built site dir> is required (npx ac site --out <dir>)');
 
 const fps = 30;
 // A 1280×720 CSS viewport at 1.5× gives 1920×1080 frames with the site's text large enough to read on a phone.
 const viewport = { width: 1280, height: 720 };
 const scale = 1.5;
 const only = values.only ? new Set(values.only.split(',')) : null;
-const site = path.resolve(values.site);
+const site = values.site ? path.resolve(values.site) : null;
 const out = path.resolve(values.out);
 fs.mkdirSync(out, { recursive: true });
 
@@ -69,6 +73,7 @@ async function render(shot, browser) {
   await page.evaluate(() => document.fonts.ready);
   let frame = 0;
   let last = null;
+  let clock = 0;
   const snap = async () => {
     const file = path.join(frames, `${String(frame++).padStart(5, '0')}.png`);
     await page.screenshot({ path: file });
@@ -105,6 +110,14 @@ async function render(shot, browser) {
       await snap();
     } else if ('hold' in step) {
       await hold(step.hold);
+    } else if ('play' in step) {
+      // The page's clock runs on from where the last play step left it: one renderAt and one screenshot a frame.
+      const count = Math.round(step.play * fps);
+      for (let index = 0; index < count; index += 1) {
+        await page.evaluate((seconds) => window.renderAt(seconds), clock + index / fps);
+        await snap();
+      }
+      clock += count / fps;
     } else {
       throw new Error(`${shot.id}: unknown step ${JSON.stringify(step)}`);
     }

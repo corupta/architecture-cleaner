@@ -1,0 +1,95 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>A seeded fault: attempt 1 fails, attempt 2 is certified</title>
+<!-- M4, shot "fault" (B6's end): the seeded run's step from its own log (data.runs.fault): the attempt the checker
+     failed and what failed, the rollback, the file pinned where it was, and the attempt that was certified. The title
+     and all four blocks are on screen from the first frame; each block, with the text under it and the arrow into it,
+     is faint until its moment and then opaque (the loop's convention, loop.html). Nothing moves. -->
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="diagrams.css">
+<script src="../../out/v2/data.js"></script>
+<script src="common.js"></script>
+<div class="stage" id="stage"><svg class="wires" id="wires"></svg></div>
+<script>
+// Seconds on the page's clock, keyed to the voice-over (v2.3, B6): "ac rolled the commit back and redid the step
+// without that file. Certified."
+const SCHEDULE = {
+  stages: [0, 1.5, 3, 4.5], // attempt 1 ✗, rolled back, the pinned file, attempt 2 ✓
+  lighting: 0.5, // faint → opaque
+};
+// Not yet its moment: faint, as in the loop (loop.html).
+const FAINT = 0.25;
+
+const run = data.runs.fault;
+// The checks' plain names (the video never shows their ids): resolution under the compiler, the test runner, Node.
+const checkNames = { K3a: 'compiler', K3b: 'test runner', K3c: 'Node' };
+const rollback = run.rollbacks[0];
+const failed = run.certifies.find((certify) => certify.step === rollback.step && certify.attempt === rollback.attempt);
+const passed = run.certifies.find((certify) => certify.step === rollback.step && certify.attempt === rollback.attempt + 1);
+const pin = run.pins.find((pinned) => pinned.step === rollback.step);
+if (failed?.verdict !== 'fail' || passed?.verdict !== 'pass' || !pin) throw new Error('the fault run changed');
+const failing = failed.failing.map((id) => {
+  if (!checkNames[id]) throw new Error(`no plain name for ${id}`);
+  return checkNames[id];
+});
+
+const stage = document.getElementById('stage');
+const wires = document.getElementById('wires');
+const svg = (tag, attributes) => {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+  wires.append(element);
+  return element;
+};
+const block = (className, lines, style) => {
+  const element = document.createElement('div');
+  element.className = className;
+  for (const line of lines) element.append(typeof line === 'string' ? Object.assign(document.createElement('div'), { textContent: line }) : line);
+  Object.assign(element.style, style);
+  stage.append(element);
+  return element;
+};
+const marked = (text, mark, color) => {
+  const line = document.createElement('div');
+  line.append(`${text} `, Object.assign(document.createElement('span'), { textContent: mark, style: `color:${color}` }));
+  return line;
+};
+
+block('note center', [`a seeded fault, in a separate ${Math.round(run.seconds / 60)}-minute run`], { left: '640px', top: '124px', fontSize: '28px', color: 'var(--ink-2)', fontWeight: '600' });
+
+const boxTop = 260;
+const height = 110;
+const width = 250;
+const lefts = [40, 356, 672, 988];
+const stages = [
+  { title: marked(`attempt ${failed.attempt}`, '✗', 'var(--fail)'), border: 'var(--fail)', notes: failing.map((name) => marked(name, '✗', 'var(--fail)')) },
+  { title: 'rolled back', border: 'var(--muted)', notes: [] },
+  { title: pin.files[0].split('/').at(-1), mono: true, border: 'var(--accent)', notes: ['stays where it was'] },
+  { title: marked(`attempt ${passed.attempt}`, '✓', 'var(--pass)'), border: 'var(--pass)', notes: ['certified'], notesClass: 'pass' },
+].map((stageSpec, index) => {
+  const box = block('node', [], { left: `${lefts[index]}px`, top: `${boxTop}px`, width: `${width}px`, height: `${height}px`, borderColor: stageSpec.border });
+  const title = block(`node-title${stageSpec.mono ? ' mono' : ''}`, [stageSpec.title], { fontSize: stageSpec.mono ? '28px' : '30px' });
+  box.append(title);
+  const notes = block(`note center ${stageSpec.notesClass ?? ''}`, stageSpec.notes, { left: `${lefts[index] + width / 2}px`, top: `${boxTop + height + 22}px`, fontWeight: stageSpec.notesClass ? '700' : '400' });
+  return { box, notes };
+});
+// The arrow into each block after the first: it lights with the block it leads to.
+const arrows = lefts.slice(1).map((left) => {
+  const [x1, x2, y] = [left - 66 + 10, left - 10, boxTop + height / 2];
+  const line = svg('path', { d: `M ${x1} ${y} L ${x2 - 12} ${y}`, class: 'wire' });
+  line.style.stroke = 'var(--muted)';
+  const head = svg('polygon', { points: `${x2},${y} ${x2 - 16},${y - 9} ${x2 - 16},${y + 9}`, class: 'head' });
+  head.style.fill = 'var(--muted)';
+  return { line, head };
+});
+
+/** Faint before `start`, opaque after; a moment at the shot's first frame is opaque from that frame. */
+const lit = (t, start) => (start <= 0 ? 1 : lerp(FAINT, 1, progress(t, start, SCHEDULE.lighting)));
+window.renderAt = (t) => {
+  stages.forEach(({ box, notes }, index) => {
+    const opacity = String(lit(t, SCHEDULE.stages[index]));
+    box.style.opacity = notes.style.opacity = opacity;
+    if (index) arrows[index - 1].line.style.opacity = arrows[index - 1].head.style.opacity = opacity;
+  });
+};
+window.renderAt(0);
+</script>
+</html>

@@ -1,0 +1,238 @@
+{
+  "_doc": "v2's timeline (video/cut/render.mjs --cut v2): each shot's slot in seconds, the range of its capture (under video/out/), how it fills the slot (speed 1 holds the last frame; \"fit\" speeds the range up to the slot minus `hold`), a `crop` [x, y, w, h] of the capture for a punch-in, and `labels` placed in the picture ({ text, at, dur, x, y }: seconds into the shot, the label's top-left corner in the 1920×1080 frame). `page`: terminal shots as windows on the light page, above the caption band. The captions are burned into the review cuts and not into the upload (corupta, 2026-10-28). Times match script.md; they follow corupta's takes once they're in vo/.",
+  "page": true,
+  "burnCaptions": true,
+  "finalBurnCaptions": false,
+  "maxSeconds": 175,
+  "shots": [
+    {
+      "shot": "sprawl",
+      "file": "v2/graphics/sprawl.mp4",
+      "start": 0,
+      "end": 7,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "glide",
+      "file": "v2/graphics/glide.mp4",
+      "start": 7,
+      "end": 21,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "history",
+      "file": "v2/graphics/history.mp4",
+      "start": 21,
+      "end": 32,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "g3-vitest",
+      "file": "v2/cli/g3-vitest.mp4",
+      "start": 32,
+      "end": 38.5,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "g3-vitest-result",
+      "file": "v2/cli/g3-vitest.mp4",
+      "start": 38.5,
+      "end": 50.5,
+      "from": 61.8,
+      "speed": 1,
+      "badge": "≈ 1 min later",
+      "boxes": [
+        {
+          "x": 381,
+          "y": 338,
+          "w": 765,
+          "h": 107,
+          "at": 4.3
+        }
+      ],
+      "labels": [
+        {
+          "text": "copied, not moved: the originals still ran",
+          "at": 4.3,
+          "x": 381,
+          "y": 700
+        }
+      ]
+    },
+    {
+      "shot": "card-agents",
+      "file": "v2/graphics/card-agents.mp4",
+      "start": 50.5,
+      "end": 56,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "card-agents-ultra",
+      "file": "v2/graphics/card-agents-ultra.mp4",
+      "start": 56,
+      "end": 70,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "loop",
+      "file": "v2/graphics/loop.mp4",
+      "start": 70,
+      "end": 86,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "nemotron",
+      "file": "v2/graphics/nemotron.mp4",
+      "start": 86,
+      "end": 100,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "loop-fail",
+      "file": "v2/graphics/loop-fail.mp4",
+      "start": 100,
+      "end": 104,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "fault-cert",
+      "file": "v2/cli/fault-cert.mp4",
+      "start": 104,
+      "end": 111,
+      "from": 1.6,
+      "speed": 1,
+      "labels": [
+        {
+          "text": "compiler ✗",
+          "at": 2.5,
+          "x": 200,
+          "y": 745
+        },
+        {
+          "text": "test runner ✗",
+          "at": 3.2,
+          "x": 640,
+          "y": 745
+        },
+        {
+          "text": "Node ✗",
+          "at": 3.9,
+          "x": 1140,
+          "y": 745
+        }
+      ]
+    },
+    {
+      "shot": "fault",
+      "file": "v2/graphics/fault.mp4",
+      "start": 111,
+      "end": 118,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "run",
+      "file": "v2/graphics/run.mp4",
+      "start": 118,
+      "end": 125,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "trailer",
+      "file": "v2/cli/trailer.mp4",
+      "start": 125,
+      "end": 127,
+      "from": 0.4,
+      "speed": 1,
+      "labels": [
+        {
+          "text": "every commit carries its verdict",
+          "at": 0.2,
+          "x": 160,
+          "y": 690
+        }
+      ]
+    },
+    {
+      "shot": "card-scale",
+      "file": "v2/graphics/card-scale.mp4",
+      "start": 127,
+      "end": 129.5,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "branch-log",
+      "file": "v2/cli/branch-log.mp4",
+      "start": 129.5,
+      "end": 133,
+      "from": 0.3,
+      "speed": 1
+    },
+    {
+      "shot": "plan-entry",
+      "file": "v2/cli/plan-entry.mp4",
+      "start": 133,
+      "end": 135.5,
+      "from": 1.2,
+      "speed": 1
+    },
+    {
+      "shot": "certify-verdicts",
+      "file": "v2/cli/certify-verdicts.mp4",
+      "start": 135.5,
+      "end": 140,
+      "from": 4.5,
+      "speed": 1,
+      "labels": [
+        {
+          "text": "opencode's branch",
+          "at": 0.3,
+          "x": 1000,
+          "y": 205
+        },
+        {
+          "text": "ours, all 63 commits",
+          "at": 2.8,
+          "x": 1000,
+          "y": 350
+        }
+      ]
+    },
+    {
+      "shot": "card-supervl",
+      "file": "v2/graphics/card-supervl.mp4",
+      "start": 140,
+      "end": 149,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "replay",
+      "file": "v2/cli/replay.mp4",
+      "start": 149,
+      "end": 154,
+      "from": 0,
+      "to": 200,
+      "speed": "fit"
+    },
+    {
+      "shot": "end",
+      "file": "v2/graphics/end.mp4",
+      "start": 154,
+      "end": 162,
+      "from": 0,
+      "speed": 1
+    }
+  ]
+}

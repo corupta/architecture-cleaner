@@ -14,7 +14,14 @@
 // LUFS); with final.srt (the captions 1 s later) and thumbnail.png (cards/thumbnail.html, 1280×720). Exit 1 if a
 // check fails.
 //
-//   node cut/render.mjs [--final | --timing] [--ffmpeg <path>] [--ffprobe <path>]
+// --cut <dir> renders another cut from video/<dir>/ (its script.md, edl.json and vo/), into out/<dir>/: v2's (S11).
+// edl.json can then set, per shot, `crop` ([x, y, w, h] of the capture, before the fit), `labels` ([{ text, at, dur,
+// x, y }]: seconds into the shot, a point in the 1920×1080 frame) and `boxes` ([{ x, y, w, h, at, dur }]: a red
+// rectangle drawn around part of the picture); and for the cut, `page` (terminal shots fill a black frame, padded,
+// their text above the caption band), `burnCaptions` and `finalBurnCaptions` (the review cuts burn the captions
+// in, the upload doesn't) and `maxSeconds` (the final's limit).
+//
+//   node cut/render.mjs [--cut <dir>] [--final | --timing] [--ffmpeg <path>] [--ffprobe <path>]
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,6 +32,7 @@ import { alignSentences, anchorSentences, beatCaptions, findSilences, frameLevel
 const { values } = parseArgs({
   options: {
         final: { type: 'boolean', default: false },
+    cut: { type: 'string' },
     timing: { type: 'boolean', default: false },
     ffmpeg: { type: 'string', default: process.env.FFMPEG ?? 'ffmpeg' },
     ffprobe: { type: 'string', default: process.env.FFPROBE ?? 'ffprobe' },
@@ -32,7 +40,9 @@ const { values } = parseArgs({
 });
 const video = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const out = path.join(video, 'out');
-const work = path.join(out, 'cut');
+// S10's cut lives in video/ itself (script.md, cut/edl.json, vo/); another cut in video/<dir>/.
+const source = values.cut ? path.join(video, values.cut) : video;
+const work = path.join(out, values.cut ?? 'cut');
 fs.mkdirSync(work, { recursive: true });
 const fps = 30;
 const ffmpeg = (args) => execFileSync(values.ffmpeg, ['-y', '-loglevel', 'error', ...args], { stdio: 'inherit' });
@@ -50,7 +60,7 @@ function readScript() {
   const beats = [];
   const lowerThirds = new Map();
   let beat = null;
-  for (const line of fs.readFileSync(path.join(video, 'script.md'), 'utf8').split('\n')) {
+  for (const line of fs.readFileSync(path.join(source, 'script.md'), 'utf8').split('\n')) {
     const heading = /^## (\d+:\d\d(?:\.\d)?)–(\d+:\d\d(?:\.\d)?) ([^(]+?)\s*(\(|$)/.exec(line);
     if (heading) {
       beat = { id: heading[3].toLowerCase().replace(/^the /, '').split(' ')[0], title: heading[3], start: seconds(heading[1]), end: seconds(heading[2]), voiceOver: [] };
@@ -66,7 +76,7 @@ function readScript() {
 }
 
 /** A beat's take: vo/<beat>.wav, or the phone's lossless .flac or .m4a. */
-const takeFile = (id) => ['wav', 'flac', 'm4a'].map((extension) => path.join(video, 'vo', `${id}.${extension}`)).find((file) => fs.existsSync(file));
+const takeFile = (id) => ['wav', 'flac', 'm4a'].map((extension) => path.join(source, 'vo', `${id}.${extension}`)).find((file) => fs.existsSync(file));
 
 const assTime = (value) => {
   const centiseconds = Math.round(value * 100);
@@ -83,7 +93,7 @@ for (const card of fs.readdirSync(path.join(video, 'cards')).filter((file) => fi
   const placeholders = fs.readFileSync(path.join(video, 'cards', card), 'utf8').match(/REPO_URL|SITE_URL/g);
   if (placeholders) console.log(`warning: cards/${card} still has ${[...new Set(placeholders)].join(' and ')}: fill them before the final cut`);
 }
-const edl = JSON.parse(fs.readFileSync(path.join(video, 'cut', 'edl.json'), 'utf8'));
+const edl = JSON.parse(fs.readFileSync(path.join(values.cut ? source : path.join(video, 'cut'), 'edl.json'), 'utf8'));
 const total = edl.shots.at(-1).end;
 /**
  * How the takes are shaped to the timeline (edl.json `voice`): pauses shortened to `maxPause` s, played at `tempo`;
@@ -91,7 +101,7 @@ const total = edl.shots.at(-1).end;
  */
 const shapingOf = (id) => ({ maxPause: Infinity, tempo: 1, ...edl.voice, ...edl.voice?.beats?.[id] });
 if (values.final) {
-  const missing = beats.filter((beat) => !takeFile(beat.id)).map((beat) => `vo/${beat.id}.wav`);
+  const missing = beats.filter((beat) => !takeFile(beat.id)).map((beat) => `${values.cut ? `${values.cut}/` : ''}vo/${beat.id}.wav`);
   if (missing.length) {
     console.error(`--final needs every take; missing: ${missing.join(', ')}`);
     process.exit(1);
@@ -104,28 +114,36 @@ const events = [];
 const segments = values.timing ? [] : edl.shots.map((shot, index) => {
   const slot = shot.end - shot.start;
   const segment = path.join(work, `${String(index).padStart(2, '0')}-${shot.shot}.mp4`);
-  const source = path.join(out, shot.file);
-  // A terminal's last lines sit at the bottom, where the captions go: CLI shots are scaled into the top 87% of the frame.
-  const fit = shot.file.startsWith('cli/')
-    ? 'scale=1664:936,pad=1920:1080:128:16:color=0x1b1b1a'
-    : 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x1b1b1a';
-  if (!fs.existsSync(source)) {
+  const capture = path.join(out, shot.file);
+  const terminal = /(^|\/)cli\//.test(shot.file);
+  // A terminal's last lines sit at the bottom, where the captions go: CLI shots are scaled into the top 87% of the frame
+  // (with edl.page, at 0.92 in a black frame, its last line above the caption band). `crop` punches in on part of a capture.
+  const crop = shot.crop ? `crop=${shot.crop[2]}:${shot.crop[3]}:${shot.crop[0]}:${shot.crop[1]},` : '';
+  const fit = crop + (terminal
+    ? (edl.page ? 'scale=1766:994,pad=1920:1080:77:16:color=0x1b1b1a' : 'scale=1664:936,pad=1920:1080:128:16:color=0x1b1b1a')
+    : 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x1b1b1a');
+  if (!fs.existsSync(capture)) {
     ffmpeg(['-f', 'lavfi', '-i', `color=c=0x3a3a37:s=1920x1080:r=${fps}:d=${slot}`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', segment]);
     events.push({ style: 'Missing', start: shot.start, end: shot.end, text: `missing capture: ${shot.shot}\\N(${shot.file})` });
     console.log(`${shot.shot}: missing ${shot.file}, placeholder`);
     return segment;
   }
   const from = shot.from ?? 0;
-  const to = shot.to ?? duration(source);
+  const to = shot.to ?? duration(capture);
   const speed = shot.speed === 'fit' ? (to - from) / (slot - (shot.hold ?? 0)) : shot.speed ?? 1;
-  ffmpeg(['-ss', String(from), '-t', String(to - from), '-i', source, '-an', '-vf',
-    `setpts=(PTS-STARTPTS)/${speed},fps=${fps},${fit},tpad=stop_mode=clone:stop_duration=${slot},trim=duration=${slot},setpts=PTS-STARTPTS`,
+  // A red rectangle around what matters, in the shot's own seconds (after the fit, so in the 1920×1080 frame).
+  const boxes = (shot.boxes ?? []).map((box) => `,drawbox=x=${box.x}:y=${box.y}:w=${box.w}:h=${box.h}:color=0xd03b3b:t=6:enable='between(t,${box.at ?? 0},${(box.at ?? 0) + (box.dur ?? slot)})'`).join('');
+  ffmpeg(['-ss', String(from), '-t', String(to - from), '-i', capture, '-an', '-vf',
+    `setpts=(PTS-STARTPTS)/${speed},fps=${fps},${fit},tpad=stop_mode=clone:stop_duration=${slot},trim=duration=${slot},setpts=PTS-STARTPTS${boxes}`,
     '-r', String(fps), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', segment]);
   // A CLI wait sped up, or left out, is marked so nobody takes the footage's speed for the tool's; a page scroll isn't.
-  const badge = shot.badge ?? (shot.file.startsWith('cli/') && speed > 1.2 ? `×${speed >= 10 ? Math.round(speed) : speed.toFixed(1)}` : null);
+  const badge = shot.badge ?? (terminal && speed > 1.2 ? `×${speed >= 10 ? Math.round(speed) : speed.toFixed(1)}` : null);
   if (badge) events.push({ style: 'Badge', start: shot.start, end: shot.end, text: badge });
   const lower = lowerThirds.get(shot.shot);
   if (lower) events.push({ style: 'Lower', start: shot.start + 0.2, end: Math.min(shot.end, shot.start + 4.5), text: lower });
+  for (const label of shot.labels ?? []) {
+    events.push({ style: 'Label', start: shot.start + label.at, end: Math.min(shot.end, shot.start + label.at + (label.dur ?? slot)), text: `{\\an7\\pos(${label.x},${label.y})}${label.text}` });
+  }
   console.log(`${shot.shot}: ${slot} s from ${(to - from).toFixed(1)} s of ${shot.file} at ×${speed.toFixed(2)}`);
   return segment;
 });
@@ -180,15 +198,18 @@ for (const beat of beats) {
     timing.push(`| ${beat.id}${take ? '' : ' (no take)'} | ${start.toFixed(1)}–${end.toFixed(1)} | ${under.join(', ')} | ${sentence} |`);
   });
 }
-// Captions are burned in unless edl.json says `"burnCaptions": false` (then only the .srt carries them, for YouTube's CC).
-if (edl.burnCaptions !== false) events.push(...captions.map((caption) => ({ style: 'Caption', ...caption })));
+// Captions are burned in unless edl.json says `"burnCaptions": false` (then only the .srt carries them, for YouTube's CC);
+// `finalBurnCaptions` says the same for the upload (v2: burned into the review cuts, not into the upload).
+const captionEvents = captions.map((caption) => ({ style: 'Caption', ...caption }));
+const burnInRough = edl.burnCaptions !== false;
+const burnInFinal = (edl.finalBurnCaptions ?? edl.burnCaptions) !== false;
 fs.writeFileSync(path.join(work, 'timing.md'), `# Each sentence's time and the shots under it\n\n| Beat | Seconds | Shots | Sentence |\n|---|---|---|---|\n${timing.join('\n')}\n`);
 if (values.timing) {
   console.log(timing.join('\n'));
   process.exit(overruns ? 1 : 0);
 }
 
-const ass = `[Script Info]
+const assText = (events) => `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
@@ -201,13 +222,16 @@ Style: Caption,DejaVu Sans,46,&H00FFFFFF,&H00FFFFFF,&H00000000,&HB0000000,0,0,0,
 Style: Lower,DejaVu Sans,34,&H001B1B1D,&H001B1B1D,&H00FCFCFB,&H20FCFCFB,1,0,0,0,100,100,0,0,3,16,0,1,60,600,150,1
 Style: Badge,DejaVu Sans Mono,40,&H00FFFFFF,&H00FFFFFF,&H003468EB,&H003468EB,1,0,0,0,100,100,0,0,3,12,0,9,60,60,48,1
 Style: Missing,DejaVu Sans,60,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,5,100,100,0,1
+Style: Label,DejaVu Sans,40,&H001B1B1D,&H001B1B1D,&H00FCFCFB,&H10FCFCFB,1,0,0,0,100,100,0,0,3,12,0,7,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 ${events.sort((left, right) => left.start - right.start).map((event) => `Dialogue: 0,${assTime(event.start)},${assTime(event.end)},${event.style},,0,0,0,,${keepTogether(event.text).replace(/\n/g, '\\N')}`).join('\n')}
 `;
 const assFile = path.join(work, 'cut.ass');
-fs.writeFileSync(assFile, ass);
+fs.writeFileSync(assFile, assText(burnInRough ? [...events, ...captionEvents] : events));
+const assFinal = path.join(work, 'final.ass');
+fs.writeFileSync(assFinal, assText(burnInFinal ? [...events, ...captionEvents] : events));
 fs.writeFileSync(path.join(work, 'captions.srt'), srt(captions));
 
 // 3. Concatenate, mix the takes into one voice track (or silence), burn the text in. The voice is stereo from the mix
@@ -255,7 +279,7 @@ if (values.final) {
   const loudnorm = `loudnorm=${target}:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true`;
   const final = path.join(work, 'final.mp4');
   ffmpeg(['-i', silent, '-i', voice, '-filter_complex',
-    `[0:v]ass=${assFile},tpad=start_duration=${pad}:start_mode=clone:stop_duration=${pad}:stop_mode=clone,fade=t=in:st=0:d=${pad},fade=t=out:st=${total + pad}:d=${pad}[video];` +
+    `[0:v]ass=${assFinal},tpad=start_duration=${pad}:start_mode=clone:stop_duration=${pad}:stop_mode=clone,fade=t=in:st=0:d=${pad},fade=t=out:st=${total + pad}:d=${pad}[video];` +
     `[1:a]${shape},${loudnorm},aresample=48000,afade=t=in:st=0:d=${pad},afade=t=out:st=${total + pad}:d=${pad}[audio]`,
     '-map', '[video]', '-map', '[audio]', '-r', String(fps), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', final]);
@@ -270,7 +294,8 @@ if (values.final) {
   } else failures.push(`no ${path.relative(video, card)} for the thumbnail: node diagram/render.mjs`);
   const finalLength = duration(final);
   const { integrated, peak } = loudness(final);
-  if (!(finalLength <= 180)) failures.push(`${finalLength.toFixed(2)} s on the file, over 3:00`);
+  const limit = edl.maxSeconds ?? 180;
+  if (!(finalLength <= limit)) failures.push(`${finalLength.toFixed(2)} s on the file, over ${Math.floor(limit / 60)}:${String(limit % 60).padStart(2, '0')}`);
   if (!(Math.abs(integrated + 14) <= 1)) failures.push(`${integrated} LUFS integrated, not −14 ± 1`);
   if (!(peak <= -1)) failures.push(`true peak ${peak} dBFS, above −1`);
   console.log(`final: ${path.relative(video, final)}, ${finalLength.toFixed(2)} s, ${integrated} LUFS, true peak ${peak} dBFS; final.srt; thumbnail.png`);
