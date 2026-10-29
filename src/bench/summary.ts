@@ -1,8 +1,9 @@
 // bench/results/summary.md: one table per entry, rendered from the BenchResult files alone (a pure function, so the
-// same results give the same bytes). The best deterministic method and the planner are bolded. A real entry with a
-// partial key shows its scores over the key's files in the ground-truth columns, and says what the key covers.
+// same results give the same bytes). Every entry names its best deterministic method on MoJoFM and on TurboMQ, and
+// the planner's runs say how many beat each; the table bolds the planner and each best in its own columns. A real
+// entry with a partial key shows its scores over the key's files in the ground-truth columns, and says what the key covers.
 import { keyScoresByMethod, partialKeyScope } from './partial-key.js';
-import { beatsBestDeterministic, beatsBestOnKey, configurationOf, configurationText } from './repeats.js';
+import { beatsBestOn, bestDeterministicOn, configurationOf, configurationText, hasMoJoFm, type BenchMetric } from './repeats.js';
 import type { BenchKeyScore, BenchPlannerRun, BenchRepeats, BenchResult, BenchRunMeasures, MethodScore } from './types.js';
 
 const dash = '–';
@@ -31,12 +32,11 @@ function scrambleVerdicts(results: readonly BenchResult[]): string {
   return ` Our certifier checks that commit as a pure move: ${parts.join('; ')}. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.`;
 }
 
-/** The real entries' bullet: said differently once a result scores a partial key (S8e on), so older summaries keep their bytes. */
+/** The real entries' bullet: it speaks of partial keys once a result scores one (S8e on). */
 const realEntries = (results: readonly BenchResult[]) => (results.some((result) => result.partialKey)
   ? `- **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry
-  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.
-  Every method still places every movable file. Bold there: the best deterministic method by TurboMQ in the graph's
-  columns (clusters, TurboMQ, back-edges), the best by MoJoFM over the key in the key's columns.`
+  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only
+  (its best on MoJoFM is the best over the key). Every method still places every movable file.`
   : '- **Real** entries are type-sliced targets with no ground truth: TurboMQ and back-edges only.');
 
 const header = (results: readonly BenchResult[], rulesStated: boolean, configurationsStated: boolean) => `# ac bench results
@@ -50,8 +50,9 @@ ${realEntries(results)}
 - MoJoFM hard counts only the files whose own name doesn't give their feature away.
 - TurboMQ is Bunch's sum of cluster factors; the JSON also has ARCADE's mean. Back-edges are the cluster-level import
   edges that point backwards in the partition's own DAG order.
-- Louvain rows are the mean of seeds 1 to 5. **Bold**: the best deterministic method (baselines and the seeds draft)
-  and the planner.
+- Louvain rows are the mean of seeds 1 to 5. **Bold**: the planner, and the best deterministic method (baselines and
+  the seeds draft) on each measure: the best by MoJoFM in the ground-truth columns (MoJoFM to MoJoFM hard), the best
+  by TurboMQ in the graph's columns (clusters, TurboMQ, back-edges), the whole row when one method is best on both.
 ${rulesStated ? plannerRulesNote : ''}${configurationsStated ? configurationsNote : ''}`;
 
 /**
@@ -85,16 +86,17 @@ const withKeyScores = (score: MethodScore, key: BenchKeyScore | undefined): Meth
 const graphColumns = new Set([0, 1, 7, 8]);
 const truthColumns = new Set([0, 2, 3, 4, 5, 6]);
 
+/** The best deterministic method on each measure (bestDeterministicOn), by name; null where the entry has none. */
+interface Bests { mojoFm: string | null; turboMq: string | null }
+
 /**
- * The bold cells of a row: the planner's and the best deterministic method's; with a partial key, the best by TurboMQ
- * in the graph's columns and the best by MoJoFM over the key in the key's (all of them when one method is both).
+ * The bold cells of a row: every one of the planner's; the best by MoJoFM in the ground-truth columns (over the key on
+ * a real entry) and the best by TurboMQ in the graph's (all of them when one method is both).
  */
-function boldCells(score: MethodScore, result: BenchResult): boolean | ReadonlySet<number> {
+function boldCells(score: MethodScore, bests: Bests): boolean | ReadonlySet<number> {
   if (score.kind === 'planner') return true;
-  const bestGraph = score.method === result.bestBaseline?.method;
-  if (!result.partialKey) return bestGraph;
-  const bestKey = score.method === result.partialKey.bestBaseline?.method;
-  return bestGraph && bestKey ? true : bestGraph ? graphColumns : bestKey ? truthColumns : false;
+  const [bestTruth, bestGraph] = [score.method === bests.mojoFm, score.method === bests.turboMq];
+  return bestGraph && bestTruth ? true : bestGraph ? graphColumns : bestTruth ? truthColumns : false;
 }
 
 /** `bold`: every cell, or the cells of the columns given. */
@@ -168,17 +170,21 @@ function editChoicesText({ editChoices: { asked, returned, parsed, truncated } }
   return `${parsed} of ${asked} parsed${lost.length ? ` (${lost.join(', ')})` : ''}`;
 }
 
+/** How a sentence names an entry's MoJoFM: over the key's files on a real entry with a partial key. */
+const moJoFmName = (result: BenchResult) => (result.partialKey ? `MoJoFM over the key's ${result.partialKey.scoredFiles} files` : 'MoJoFM');
+
 /** `1 of 3 runs`, `1 of 1 run`. */
 const ofRuns = (part: number, runs: number, noun: string) => `${part} of ${runs} ${runs === 1 ? noun : `${noun}s`}`;
 
 /**
- * The runs table, the mean, min and max over the runs as delivered, how many beat the best deterministic method, how
- * many delivered the seeds draft, how many edit choices the length cap cut, and how many plans from an edit pass the validator.
+ * The runs table, the mean, min and max over the runs as delivered (MoJoFM and TurboMQ always among them), how many beat
+ * the best deterministic method on each measure, how many delivered the seeds draft, how many edit choices the length
+ * cap cut, and how many plans from an edit pass the validator.
  */
 function repeatsSection(result: BenchResult, repeats: BenchRepeats): string[] {
   const { runs } = repeats;
   const rows = new Map(result.methods.map((score) => [score.method, score]));
-  const beat = runs.filter((run) => beatsBestDeterministic(result, rows.get(run.method)!)).length;
+  const beat = (metric: BenchMetric) => runs.filter((run) => beatsBestOn(result, metric, rows.get(run.method)!)).length;
   const drafts = runs.filter((run) => !run.fromEdit).length;
   const reviewed = runs.filter((run) => run.criticRan).length;
   const truncated = runs.reduce((sum, run) => sum + run.editChoices.truncated, 0);
@@ -203,19 +209,21 @@ function repeatsSection(result: BenchResult, repeats: BenchRepeats): string[] {
   ];
   if (runs.length > 1) {
     const statistics = runStatistics(result, repeats);
-    const shown = measures.filter(([, field]) => statistics.mean[field] !== null);
+    // MoJoFM and TurboMQ always, a dash where the entry has no MoJoFM; the other measures where the entry has them.
+    const shown = measures.filter(([, field]) => field === 'mojoFm' || field === 'turboMq' || statistics.mean[field] !== null);
+    const cell = (value: number | null, format: (value: number) => string) => (value === null ? dash : format(value));
     lines.push(
       '',
       `| over the ${runs.length} runs, as delivered | ${shown.map(([label]) => label).join(' | ')} |`,
       `|---|${shown.map(() => '---').join('|')}|`,
-      ...(['mean', 'min', 'max'] as const).map((statistic) => `| ${statistic} | ${shown.map(([, field, format]) => format(statistics[statistic][field]!)).join(' | ')} |`),
+      ...(['mean', 'min', 'max'] as const).map((statistic) => `| ${statistic} | ${shown.map(([, field, format]) => cell(statistics[statistic][field], format)).join(' | ')} |`),
     );
   }
-  const measure = result.kind === 'scramble' ? 'MoJoFM' : "TurboMQ's sum";
-  const key = result.partialKey;
-  const onKey = key ? `, and ${runs.filter((run) => beatsBestOnKey(result, run.method)).length} of ${runs.length} above the best on MoJoFM over the key's ${key.scoredFiles} files` : '';
+  const above = `${runs.length === 1 ? 'run scores' : 'runs score'} above the best deterministic method on`;
   lines.push('', [
-    `${beat} of ${runs.length} ${runs.length === 1 ? 'run scores' : 'runs score'} above the best deterministic method on ${measure}, each run as delivered${onKey}.`,
+    hasMoJoFm(result)
+      ? `${beat('MoJoFM')} of ${runs.length} ${above} ${moJoFmName(result)} and ${beat('TurboMQ')} of ${runs.length} on TurboMQ's sum, each run as delivered.`
+      : `${beat('TurboMQ')} of ${runs.length} ${above} TurboMQ's sum, each run as delivered; no ground truth, so no MoJoFM.`,
     `${ofRuns(drafts, runs.length, 'run')} had no usable edit${drafts ? `, so the seeds draft became ${drafts === 1 ? 'its' : 'their'} plan` : ''}; the critic reviewed ${ofRuns(reviewed, runs.length, 'plan')};`,
     `${truncated} of ${asked} edit choices ${truncated === 1 ? 'was' : 'were'} cut by the length cap (finish_reason length).`,
     `The validator accepts ${ofRuns(valid, runs.length, 'plan')}, counting only plans that came from an edit.`,
@@ -230,6 +238,22 @@ function configurationLine(result: BenchResult): string {
   const configuration = configurationOf(result);
   const runs = result.repeats?.runs.length ?? 0;
   return `- Planner configuration ${code(configuration)}: ${configurationText(configuration)}${runs > 1 ? `; ${runs} runs through one gateway` : ''}.`;
+}
+
+type Best = ReturnType<typeof bestDeterministicOn>;
+
+/**
+ * `- Best deterministic method on MoJoFM: a, MoJoFM 81.38. On TurboMQ: b, TurboMQ 9.63.`, or one clause when one method
+ * is best on both; on a real entry MoJoFM over its key's files, and none without a key.
+ */
+function bestLine(result: BenchResult, mojoFm: Best, turboMq: Best): string {
+  const name = moJoFmName(result);
+  if (mojoFm && turboMq && mojoFm.method === turboMq.method) {
+    return `- Best deterministic method on ${name} and on TurboMQ: ${mojoFm.method}, MoJoFM ${mojoFm.value.toFixed(2)} and TurboMQ ${turboMq.value.toFixed(2)}.`;
+  }
+  const onMoJoFm = mojoFm ? `${mojoFm.method}, MoJoFM ${mojoFm.value.toFixed(2)}` : hasMoJoFm(result) ? 'none' : 'none (no ground truth)';
+  const onTurboMq = turboMq ? `${turboMq.method}, TurboMQ ${turboMq.value.toFixed(2)}` : 'none';
+  return `- Best deterministic method on ${name}: ${onMoJoFm}. On TurboMQ: ${onTurboMq}.`;
 }
 
 function entrySection(result: BenchResult, rulesStated: boolean): string {
@@ -255,11 +279,8 @@ function entrySection(result: BenchResult, rulesStated: boolean): string {
   } else {
     lines.push(`- ${result.files} movable files; no ground truth.`);
   }
-  if (result.bestBaseline) {
-    const value = result.kind === 'scramble' ? `MoJoFM ${fixed(result.bestBaseline.mojoFm, 2)}` : `TurboMQ ${result.bestBaseline.turboMq.toFixed(2)}`;
-    const onKey = key?.bestBaseline ? ` On MoJoFM over the key's ${key.scoredFiles} files: ${key.bestBaseline.method}, MoJoFM ${key.bestBaseline.mojoFm.toFixed(2)}.` : '';
-    lines.push(`- Best deterministic method: ${result.bestBaseline.method}, ${value}.${onKey}`);
-  }
+  const best = { mojoFm: bestDeterministicOn(result, 'MoJoFM'), turboMq: bestDeterministicOn(result, 'TurboMQ') };
+  if (best.mojoFm || best.turboMq) lines.push(bestLine(result, best.mojoFm, best.turboMq));
   if (result.planner) {
     const { planner } = result;
     const groups = `${planner.groups} groups${planner.modules === undefined ? '' : ` (${planner.modules} modules)`}${result.draft ? `, from the ${result.draft.method}` : ''}`;
@@ -273,7 +294,7 @@ function entrySection(result: BenchResult, rulesStated: boolean): string {
     lines.push('- Planner: no row (see the notes).');
   }
   lines.push('', '| method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |', '|---|---|---|---|---|---|---|---|---|');
-  for (const score of result.methods) lines.push(row(withKeyScores(score, keyScores?.get(score.method)), boldCells(score, result)));
+  for (const score of result.methods) lines.push(row(withKeyScores(score, keyScores?.get(score.method)), boldCells(score, { mojoFm: best.mojoFm?.method ?? null, turboMq: best.turboMq?.method ?? null })));
   if (result.louvainMojoFmByResolution) {
     const perSeed = Object.entries(result.louvainMojoFmByResolution).map(([resolution, values]) => `r=${resolution}: ${values.map((value) => value.toFixed(2)).join(', ')}`);
     lines.push('', `Louvain MoJoFM per seed (1 to 5): ${perSeed.join('; ')}.`);

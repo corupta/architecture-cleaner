@@ -4,16 +4,16 @@
 
 - **Scramble** entries flatten a feature-modular package into type folders with our own executor, in one commit. Our certifier checks that commit as a pure move: hoppscotch, hoppscotch-H1, kaneo and ghostfolio were not certified in this run. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.
 - **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry
-  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.
-  Every method still places every movable file. Bold there: the best deterministic method by TurboMQ in the graph's
-  columns (clusters, TurboMQ, back-edges), the best by MoJoFM over the key in the key's columns.
+  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only
+  (its best on MoJoFM is the best over the key). Every method still places every movable file.
 - MoJoFM runs 0 to 100 (ARCADE port). ARI runs from −0.5 to 1. c2c_cvg is the share of ground-truth modules recovered
   (c2c above 0.66). The cluster ratio is predicted clusters over ground-truth clusters.
 - MoJoFM hard counts only the files whose own name doesn't give their feature away.
 - TurboMQ is Bunch's sum of cluster factors; the JSON also has ARCADE's mean. Back-edges are the cluster-level import
   edges that point backwards in the partition's own DAG order.
-- Louvain rows are the mean of seeds 1 to 5. **Bold**: the best deterministic method (baselines and the seeds draft)
-  and the planner.
+- Louvain rows are the mean of seeds 1 to 5. **Bold**: the planner, and the best deterministic method (baselines and
+  the seeds draft) on each measure: the best by MoJoFM in the ground-truth columns (MoJoFM to MoJoFM hard), the best
+  by TurboMQ in the graph's columns (clusters, TurboMQ, back-edges), the whole row when one method is best on both.
 - Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron's answers and ranks its
   edits. Rules 2 (S8) read a move that names its file by the id the prompt showed, or its target by a draft group's id
   or key, never rank a plan without feature modules first while another candidate has one, and leave out of the facts'
@@ -33,7 +33,7 @@
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
 - Scramble: commit `f5fd0ff53cb7`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; not certified.
 - Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (export names), MoJoFM 81.38.
+- Best deterministic method on MoJoFM: seeds draft (export names), MoJoFM 81.38. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 9.63.
 - Planner configuration `super-vl-direct`: Nemotron 3.5 Super VL (thinking off) edits and reviews; 3 runs through one gateway.
 - Planner, run 1 of 3 (the runs table has every run): replayed from `cassettes/s8b-bench.jsonl` (2 calls, recorded cost $0.0287, this run spent $0); 36 groups (24 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `31064ef9d518`.
 
@@ -44,10 +44,10 @@
 | name-token (anchored) | 56 | 75.17 | 0.541 | 0.760 | 1.88 | 50.00 | 7.43 | 53 |
 | export-token (anchored) | 62 | 74.48 | 0.528 | 0.760 | 2.04 | 45.00 | 6.92 | 47 |
 | seeds draft (file names) | 43 | 80.00 | 0.593 | 0.800 | 1.56 | 57.50 | 7.63 | 37 |
-| **seeds draft (export names)** | **45** | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | **7.37** | **36** |
+| **seeds draft (export names)** | 45 | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | 7.37 | 36 |
 | Louvain r=1 (mean of seeds 1-5) | 8.4 | 32.55 | 0.278 | 0.032 | 0.30 | 57.00 | 4.02 | 17.2 |
 | Louvain r=2 (mean of seeds 1-5) | 17 | 56.96 | 0.516 | 0.272 | 0.64 | 77.00 | 6.74 | 58 |
-| Louvain r=4 (mean of seeds 1-5) | 33.6 | 74.62 | 0.601 | 0.616 | 1.26 | 79.00 | 9.63 | 76.4 |
+| **Louvain r=4 (mean of seeds 1-5)** | **33.6** | 74.62 | 0.601 | 0.616 | 1.26 | 79.00 | **9.63** | **76.4** |
 | **planner (Super VL, thinking off) #1** | **36** | **90.34** | **0.778** | **0.880** | **1.28** | **75.00** | **8.74** | **21** |
 | **planner (Super VL, thinking off) #2** | **34** | **76.55** | **0.555** | **0.680** | **1.32** | **55.00** | **7.55** | **39** |
 | **planner (Super VL, thinking off) #3** | **34** | **78.62** | **0.598** | **0.720** | **1.32** | **55.00** | **7.56** | **43** |
@@ -68,7 +68,7 @@ Planner runs (`super-vl-direct`):
 | min | 76.55 | 0.555 | 0.680 | 1.28 | 55.00 | 7.55 | 21 | 34 | 22 | $0.0280 | 24,099 | 0 |
 | max | 90.34 | 0.778 | 0.880 | 1.32 | 75.00 | 8.74 | 43 | 36 | 24 | $0.0322 | 28,809 | 0 |
 
-1 of 3 runs score above the best deterministic method on MoJoFM, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
+1 of 3 runs score above the best deterministic method on MoJoFM and 0 of 3 on TurboMQ's sum, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
 
 - 1 feature file is pinned in the facts (no method can place it) and not scored.
 - The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 10 (no ground truth is read).
@@ -82,7 +82,7 @@ Planner runs (`super-vl-direct`):
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
 - Scramble: commit `8f874d49a6fd`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; not certified.
 - Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (export names), MoJoFM 81.38.
+- Best deterministic method on MoJoFM: seeds draft (export names), MoJoFM 81.38. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 9.57.
 - Planner configuration `super-vl-direct`: Nemotron 3.5 Super VL (thinking off) edits and reviews; 3 runs through one gateway.
 - Planner, run 1 of 3 (the runs table has every run): replayed from `cassettes/s8b-bench.jsonl` (2 calls, recorded cost $0.0195, this run spent $0); 40 groups (19 modules), from the seeds draft (export names); planner rules 2; plan.yaml sha256 `420d0c350deb`.
 
@@ -93,10 +93,10 @@ Planner runs (`super-vl-direct`):
 | name-token (anchored) | 175 | 9.66 | 0.000 | 0.000 | 6.24 | 22.50 | 0.06 | 2 |
 | export-token (anchored) | 62 | 74.48 | 0.528 | 0.760 | 2.04 | 45.00 | 6.92 | 47 |
 | seeds draft (file names) | 92 | 23.45 | 0.015 | 0.080 | 3.40 | 15.00 | 2.88 | 48 |
-| **seeds draft (export names)** | **45** | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | **7.37** | **36** |
+| **seeds draft (export names)** | 45 | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | 7.37 | 36 |
 | Louvain r=1 (mean of seeds 1-5) | 9.4 | 33.38 | 0.299 | 0.048 | 0.34 | 56.50 | 4.44 | 22.4 |
 | Louvain r=2 (mean of seeds 1-5) | 16.6 | 53.10 | 0.499 | 0.216 | 0.62 | 74.00 | 6.72 | 57.4 |
-| Louvain r=4 (mean of seeds 1-5) | 33.2 | 76.27 | 0.601 | 0.616 | 1.22 | 80.50 | 9.57 | 70.4 |
+| **Louvain r=4 (mean of seeds 1-5)** | **33.2** | 76.27 | 0.601 | 0.616 | 1.22 | 80.50 | **9.57** | **70.4** |
 | **planner (Super VL, thinking off) #1** | **40** | **77.24** | **0.585** | **0.680** | **1.40** | **57.50** | **7.26** | **34** |
 | **planner (Super VL, thinking off) #2** | **35** | **79.31** | **0.636** | **0.680** | **1.32** | **62.50** | **7.22** | **29** |
 | **planner (Super VL, thinking off) #3** | **28** | **82.76** | **0.741** | **0.760** | **1.04** | **72.50** | **8.22** | **15** |
@@ -117,7 +117,7 @@ Planner runs (`super-vl-direct`):
 | min | 77.24 | 0.585 | 0.680 | 1.04 | 57.50 | 7.22 | 15 | 28 | 19 | $0.0195 | 14,288 | 0 |
 | max | 82.76 | 0.741 | 0.760 | 1.40 | 72.50 | 8.22 | 34 | 40 | 22 | $0.0230 | 18,256 | 0 |
 
-1 of 3 runs score above the best deterministic method on MoJoFM, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
+1 of 3 runs score above the best deterministic method on MoJoFM and 0 of 3 on TurboMQ's sum, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
 
 - 1 feature file is pinned in the facts (no method can place it) and not scored.
 - The planner starts from the seeds draft (export names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 85 (no ground truth is read).
@@ -131,7 +131,7 @@ Planner runs (`super-vl-direct`):
 - Target: `~/ac-targets/kaneo` `apps/api/src` @ `b80818fe2e93`.
 - Scramble: commit `65e47f349959`, 400 files moved, 1 declined by the executor (they stay), 12 excluded; not certified.
 - Scored: 401 feature files in 47 modules (234 hard), of 454 movable files. 54 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: Louvain r=4 (mean of seeds 1-5), MoJoFM 66.90.
+- Best deterministic method on MoJoFM and on TurboMQ: Louvain r=4 (mean of seeds 1-5), MoJoFM 66.90 and TurboMQ 16.05.
 - Planner configuration `super-vl-direct`: Nemotron 3.5 Super VL (thinking off) edits and reviews; 3 runs through one gateway.
 - Planner, run 1 of 3 (the runs table has every run): recorded into `cassettes/s8b-bench.jsonl` (2 calls) for $0.0584; 51 groups (40 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `6ae8b1e9dd74`.
 
@@ -166,7 +166,7 @@ Planner runs (`super-vl-direct`):
 | min | 43.34 | 0.174 | 0.234 | 0.87 | 41.55 | 8.55 | 38 | 44 | 39 | $0.0584 | 48,683 | 0 |
 | max | 64.75 | 0.510 | 0.362 | 0.94 | 59.82 | 11.87 | 47 | 51 | 45 | $0.0760 | 68,034 | 0 |
 
-0 of 3 runs score above the best deterministic method on MoJoFM, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 2 of 3 plans, counting only plans that came from an edit.
+0 of 3 runs score above the best deterministic method on MoJoFM and 0 of 3 on TurboMQ's sum, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 2 of 3 plans, counting only plans that came from an edit.
 
 - The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 125 against 29 (no ground truth is read).
 - Run 1 of 3: The planner's plan moves 126 of 454 files out of their draft group and merges 68 draft groups into others (114 draft groups, 51 plan groups). The winning edit, super-vl#1, had 114 group entries and 447 moves; the validator found 9 problems with it (banned-name 9) and dropped or repaired each before applying it. The critic made 14 suggestions and its gate kept 5.
@@ -180,7 +180,7 @@ Planner runs (`super-vl-direct`):
 - Target: `~/ac-targets/ghostfolio` `apps/api/src/app` @ `347cd06a4012`.
 - Scramble: commit `88d9276404ea`, 156 files moved, 3 declined by the executor (they stay), 219 excluded; not certified.
 - Scored: 153 feature files in 34 modules (54 hard), of 154 movable files. 16 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (file names), MoJoFM 84.72.
+- Best deterministic method on MoJoFM and on TurboMQ: seeds draft (file names), MoJoFM 84.72 and TurboMQ 19.88.
 - Planner configuration `super-vl-direct`: Nemotron 3.5 Super VL (thinking off) edits and reviews; 3 runs through one gateway.
 - Planner, run 1 of 3 (the runs table has every run): replayed from `cassettes/s8b-bench.jsonl` (2 calls, recorded cost $0.0156, this run spent $0); 29 groups (27 modules), from the seeds draft (export names); planner rules 2; plan.yaml sha256 `d25c7addaa8b`.
 
@@ -215,7 +215,7 @@ Planner runs (`super-vl-direct`):
 | min | 80.56 | 0.681 | 0.559 | 0.82 | 83.67 | 17.09 | 6 | 29 | 27 | $0.0144 | 11,536 | 0 |
 | max | 83.33 | 0.772 | 0.706 | 1.00 | 89.80 | 18.64 | 7 | 35 | 34 | $0.0278 | 26,400 | 0 |
 
-0 of 3 runs score above the best deterministic method on MoJoFM, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 2 of 3 plans, counting only plans that came from an edit.
+0 of 3 runs score above the best deterministic method on MoJoFM and 0 of 3 on TurboMQ's sum, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 2 of 3 plans, counting only plans that came from an edit.
 
 - 6 feature files are pinned in the facts (no method can place them) and not scored.
 - Run 1 of 3: The validator rejects the planner's plan (banned-name: "app" is a junk drawer or a type word, not a feature); it is scored as it came back.
@@ -229,7 +229,7 @@ Planner runs (`super-vl-direct`):
 
 - Target: `~/ac-targets/immich` `server/src` @ `02063972e82b`.
 - 269 movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are computed over the files immich's 2024 domain layer labels (47 of 269 movable files, 23 features, 6 hard), unlike the scrambles' complete keys: every method places all 269, and only those 47 count (key `bench/ground-truth/immich-2024.rsf`, sha256 `5459ab310fa5`).
-- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50. On MoJoFM over the key's 47 files: seeds draft (file names), MoJoFM 93.02.
+- Best deterministic method on MoJoFM over the key's 47 files: seeds draft (file names), MoJoFM 93.02. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.
 - Planner configuration `super-vl-direct`: Nemotron 3.5 Super VL (thinking off) edits and reviews; 3 runs through one gateway.
 - Planner, run 1 of 3 (the runs table has every run): recorded into `cassettes/s8b-bench.jsonl` (2 calls) for $0.0362; 61 groups (52 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `e8af9da5de5a`.
 
@@ -264,7 +264,7 @@ Planner runs (`super-vl-direct`):
 | min | 88.37 | 0.782 | 0.870 | 1.00 | 33.33 | 9.76 | 117 | 58 | 41 | $0.0362 | 28,502 | 0 |
 | max | 90.70 | 0.840 | 0.957 | 1.09 | 66.67 | 9.98 | 163 | 63 | 52 | $0.0426 | 35,695 | 0 |
 
-0 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered, and 0 of 3 above the best on MoJoFM over the key's 47 files. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
+0 of 3 runs score above the best deterministic method on MoJoFM over the key's 47 files and 0 of 3 on TurboMQ's sum, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
 
 - The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 31 against 29 (no ground truth is read).
 - Run 1 of 3: The planner's plan moves 21 of 269 files out of their draft group and merges 20 draft groups into others (81 draft groups, 61 plan groups). The winning edit, super-vl#2, had 81 group entries and 112 moves; the validator found 5 problems with it (unknown-file 3, bad-name 2) and dropped or repaired each before applying it. The critic made 25 suggestions and its gate kept 8.

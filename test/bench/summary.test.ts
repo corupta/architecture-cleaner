@@ -1,6 +1,7 @@
 // summary.md from BenchResult files alone: the empty case, a real entry (no ground truth: dashes), bolding and notes,
-// the scramble verdicts the header states from the results, a repeats block (a run that delivered the seeds draft
-// included), a real entry with a partial key, and the committed summary byte for byte.
+// the scramble verdicts the header states from the results, the best deterministic method on MoJoFM and on TurboMQ for
+// every entry, a repeats block (a run that delivered the seeds draft included), a real entry with a partial key, and
+// the committed summary byte for byte.
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -58,7 +59,7 @@ describe('bench summary', () => {
     const summary = benchSummary([real]);
     expect(summary).toContain('## immich (real)\n');
     expect(summary).toContain('- Target: `~/ac-targets/immich` `server/src` @ `02063972e82b`.');
-    expect(summary).toContain('- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.');
+    expect(summary).toContain('- Best deterministic method on MoJoFM: none (no ground truth). On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.\n');
     expect(summary).toContain('- Planner: replayed from `cassettes/s6-immich.jsonl` (recorded cost $0.1998, this run spent $0); 59 groups; plan.yaml sha256 `b4c7c548883c`.');
     expect(summary).toContain('| B0 type folders | 10 | – | – | – | – | – | 1.94 | 3 |');
     expect(summary).toContain('| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | – | – | – | – | – | **10.50** | **166** |');
@@ -126,7 +127,7 @@ describe('bench summary', () => {
     expect(summary).toContain('| run | plan from | edit choices | critic | valid | groups | modules | recorded cost | spent | calls | prompt tokens | completion tokens | reasoning tokens | plan.yaml sha256 |');
     expect(summary).toContain(`| ${method} | an edit | 3 of 3 parsed | yes | yes | 40 | 31 | $0.0412 | $0.0000 | 2 replayed | 25,000 | 12,345 | 10,000 | \`cccccccccccc\` |`);
     expect(summary).not.toContain('| over the');
-    expect(summary).toContain("\n1 of 1 run scores above the best deterministic method on TurboMQ's sum, each run as delivered. "
+    expect(summary).toContain("\n1 of 1 run scores above the best deterministic method on TurboMQ's sum, each run as delivered; no ground truth, so no MoJoFM. "
       + '0 of 1 run had no usable edit; the critic reviewed 1 of 1 plan; 0 of 3 edit choices were cut by the length cap (finish_reason length). '
       + 'The validator accepts 1 of 1 plan, counting only plans that came from an edit.\n');
   });
@@ -149,10 +150,11 @@ describe('bench summary', () => {
     expect(summary).toContain(`| ${method} #1 | an edit | 2 of 3 parsed (1 truncated) | yes | yes | 40 |`);
     expect(summary).toContain(`| ${method} #2 | the seeds draft | 0 of 3 parsed (3 truncated) | no | yes | 40 |`);
     expect(summary).toContain(`| ${method} #3 | an edit | 1 of 3 parsed (2 returned, 1 truncated) | yes | no (2 errors) | 40 |`);
-    expect(summary).toContain('| over the 3 runs, as delivered | TurboMQ |');
-    expect(summary).toContain('| mean | 11.00 |');
-    expect(summary).toContain('| min | 10.00 |');
-    expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered. "
+    // MoJoFM and TurboMQ always, a dash for the MoJoFM a real entry without a key doesn't have.
+    expect(summary).toContain('| over the 3 runs, as delivered | MoJoFM | TurboMQ | back-edges | groups |');
+    expect(summary).toContain('| mean | – | 11.00 |');
+    expect(summary).toContain('| min | – | 10.00 |');
+    expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered; no ground truth, so no MoJoFM. "
       + '1 of 3 runs had no usable edit, so the seeds draft became its plan; the critic reviewed 2 of 3 plans; 5 of 9 edit choices were cut by the length cap (finish_reason length). '
       + 'The validator accepts 1 of 3 plans, counting only plans that came from an edit.\n');
   });
@@ -175,10 +177,10 @@ describe('bench summary', () => {
 
   it("renders a real entry's partial key: what it covers against the scrambles' complete keys, its scores in the ground-truth columns, the paths it can't score", () => {
     const summary = benchSummary([keyed]);
-    expect(summary).toContain("- **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry\n  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.\n");
+    expect(summary).toContain("- **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry\n  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only\n  (its best on MoJoFM is the best over the key). Every method still places every movable file.\n");
     expect(summary).toContain("- 269 movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are computed over the files immich's 2024 domain layer labels (44 of 269 movable files, 22 features, 3 hard), unlike the scrambles' complete keys: every method places all 269, and only those 44 count (key `bench/ground-truth/immich-2024.rsf`, sha256 `eeeeeeeeeeee`).\n");
     expect(summary).toContain('- 2 labeled paths are no movable file here and not scored: `src/cores/access.core.ts` (access) and `src/dtos/audit.dto.ts` (audit).\n');
-    expect(summary).toContain("- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50. On MoJoFM over the key's 44 files: B0 type folders, MoJoFM 95.00.\n");
+    expect(summary).toContain("- Best deterministic method on MoJoFM over the key's 44 files: B0 type folders, MoJoFM 95.00. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.\n");
     // Two bests, each bolded in its own columns; the planner in every one.
     expect(summary).toContain('| **B0 type folders** | 10 | **95.00** | **0.500** | **0.750** | **1.10** | **50.00** | 1.94 | 3 |');
     expect(summary).toContain('| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | 73.00 | 0.500 | 0.750 | 1.10 | 50.00 | **10.50** | **166** |');
@@ -187,6 +189,7 @@ describe('bench summary', () => {
     // A key with every labeled path movable says nothing about unscored paths; one best for both measures is bolded whole.
     const tidy = benchSummary([{ ...keyed, partialKey: { ...keyed.partialKey!, notMovable: [], bestBaseline: { method: 'Louvain r=4 (mean of seeds 1-5)', mojoFm: 73 } } }]);
     expect(tidy).not.toContain('no movable file here');
+    expect(tidy).toContain("- Best deterministic method on MoJoFM over the key's 44 files and on TurboMQ: Louvain r=4 (mean of seeds 1-5), MoJoFM 73.00 and TurboMQ 10.50.\n");
     expect(tidy).toContain('| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | **73.00** | **0.500** | **0.750** | **1.10** | **50.00** | **10.50** | **166** |');
     expect(tidy).toContain('| B0 type folders | 10 | 95.00 |');
   });
@@ -208,6 +211,53 @@ describe('bench summary', () => {
     expect(summary).toContain('| mean | 93.33 | 0.600 | 0.750 | 1.10 | 50.00 | 11.00 |');
     expect(summary).toContain('| min | 90.00 | 0.500 | 0.750 | 1.10 | 50.00 | 10.00 |');
     expect(summary).toContain('| max | 96.00 | 0.700 | 0.750 | 1.10 | 50.00 | 12.00 |');
-    expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered, and 1 of 3 above the best on MoJoFM over the key's 44 files. ");
+    expect(summary).toContain("\n1 of 3 runs score above the best deterministic method on MoJoFM over the key's 44 files and 2 of 3 on TurboMQ's sum, each run as delivered. ");
+  });
+
+  /** hoppscotch's shape: the best by MoJoFM (the seeds draft) and by TurboMQ (Louvain) differ. */
+  const truth = (mojoFm: number, ari: number): Partial<MethodScore> => ({ mojoFm, ari, c2cCvg: 0.8, clusterCountRatio: 1.6, mojoFmHard: 62.5 });
+  const scrambleMethods = (draftTurboMq: number) => [
+    score('B0 type folders', 'baseline', 1.11, { ...truth(9.66, -0.022), clusters: 17, backEdges: 15 }),
+    score('seeds draft (export names)', 'draft', draftTurboMq, { ...truth(81.38, 0.634), clusters: 45, backEdges: 36 }),
+    score('Louvain r=4 (mean of seeds 1-5)', 'baseline', 9.63, { ...truth(74.62, 0.601), clusters: 33.6, backEdges: 76.4, note: 'mean of seeds 1-5' }),
+    score('planner (Ultra)', 'planner', 8.12, { ...truth(87.59, 0.794), clusters: 29, backEdges: 30 }),
+  ];
+  const split = scramble('hoppscotch', certificate('pass'), { methods: scrambleMethods(7.37), bestBaseline: { method: 'seeds draft (export names)', mojoFm: 81.38, turboMq: 7.37 } });
+
+  it('names the best deterministic method on MoJoFM and on TurboMQ for a scramble, and bolds each in its own columns', () => {
+    const summary = benchSummary([split]);
+    expect(summary).toContain('- Louvain rows are the mean of seeds 1 to 5. **Bold**: the planner, and the best deterministic method (baselines and\n  the seeds draft) on each measure: the best by MoJoFM in the ground-truth columns (MoJoFM to MoJoFM hard), the best\n  by TurboMQ in the graph\'s columns (clusters, TurboMQ, back-edges), the whole row when one method is best on both.\n');
+    expect(summary).toContain('- Best deterministic method on MoJoFM: seeds draft (export names), MoJoFM 81.38. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 9.63.\n');
+    expect(summary).toContain('| B0 type folders | 17 | 9.66 | -0.022 | 0.800 | 1.60 | 62.50 | 1.11 | 15 |');
+    expect(summary).toContain('| **seeds draft (export names)** | 45 | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | 7.37 | 36 |');
+    expect(summary).toContain('| **Louvain r=4 (mean of seeds 1-5)** | **33.6** | 74.62 | 0.601 | 0.800 | 1.60 | 62.50 | **9.63** | **76.4** |');
+    expect(summary).toContain('| **planner (Ultra)** | **29** | **87.59** | **0.794** | **0.800** | **1.60** | **62.50** | **8.12** | **30** |');
+    // One method best on both: one clause, its whole row bolded.
+    const both = benchSummary([{ ...split, methods: scrambleMethods(10) }]);
+    expect(both).toContain('- Best deterministic method on MoJoFM and on TurboMQ: seeds draft (export names), MoJoFM 81.38 and TurboMQ 10.00.\n');
+    expect(both).toContain('| **seeds draft (export names)** | **45** | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | **10.00** | **36** |');
+    expect(both).toContain('| Louvain r=4 (mean of seeds 1-5) | 33.6 | 74.62 |');
+    // A tie on TurboMQ goes to the first row, as the bench picks its best (run.ts).
+    const tie = benchSummary([{ ...split, methods: scrambleMethods(9.63) }]);
+    expect(tie).toContain('- Best deterministic method on MoJoFM and on TurboMQ: seeds draft (export names), MoJoFM 81.38 and TurboMQ 9.63.\n');
+  });
+
+  it("gives a scramble's planner runs both measures: the mean, min and max on each, and how many beat the best on each", () => {
+    const method = 'planner (Super VL, thinking on)';
+    // MoJoFM 80, 85, 90 against the draft's 81.38; TurboMQ 9, 10, 8 against Louvain's 9.63.
+    const rows = [[80, 9], [85, 10], [90, 8]].map(([mojoFm, turboMq], index) => score(`${method} #${index + 1}`, 'planner', turboMq!, { ...truth(mojoFm!, 0.7), clusters: 30 }));
+    const runs = rows.map((row, index): BenchPlannerRun => ({
+      repeat: index + 1, method: row.method, valid: true, validatorErrors: 0, fromEdit: true, criticRan: true, editChoices: { asked: 3, returned: 3, parsed: 3, truncated: 0 },
+      groups: 30, modules: 25, samePartition: false, planSha256: String(index).repeat(64), recordedCostUsd: 0.04, spentUsd: 0,
+      calls: { replayed: 2, recorded: 0 }, tokens: { prompt: 25_000, completion: 12_000, reasoning: 10_000 },
+    }));
+    const summary = benchSummary([{
+      ...split, methods: [...split.methods.slice(0, 3), ...rows], plannerConfiguration: 'super-vl', repeats: repeatsOf(runs.map((run, index) => ({ run, score: rows[index]! }))),
+    }]);
+    expect(summary).toContain('| over the 3 runs, as delivered | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |');
+    expect(summary).toContain('| mean | 85.00 | 0.700 | 0.800 | 1.60 | 62.50 | 9.00 |');
+    expect(summary).toContain('| min | 80.00 | 0.700 | 0.800 | 1.60 | 62.50 | 8.00 |');
+    expect(summary).toContain('| max | 90.00 | 0.700 | 0.800 | 1.60 | 62.50 | 10.00 |');
+    expect(summary).toContain("\n2 of 3 runs score above the best deterministic method on MoJoFM and 1 of 3 on TurboMQ's sum, each run as delivered. ");
   });
 });

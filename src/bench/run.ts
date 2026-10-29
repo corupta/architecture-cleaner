@@ -24,7 +24,7 @@ import type { ScrambleManifest, ScrambleOptions, ScrambleResult } from '../scram
 import { baselinePartitions, benchDraft, louvainPartitions, nameTokenAnchored, underNames, type Assignment } from './baselines.js';
 import { keyMean, keyScore, partialGroundTruthOf, partialKeyRecord, readPartialKey } from './partial-key.js';
 import { benchPlanner, planPartition, type PlannerPartition } from './planner.js';
-import { repeatsOf } from './repeats.js';
+import { bestDeterministicBy, repeatsOf } from './repeats.js';
 import { graphScores, truthScores, truthTokens, type GroundTruth } from './score.js';
 import { benchSummary } from './summary.js';
 import type { BenchDraft, BenchEntry, BenchKeyScore, BenchLeakage, BenchManifest, BenchPlannerRun, BenchRepeats, BenchResult, MethodScore } from './types.js';
@@ -256,9 +256,7 @@ function meanScore(method: string, scores: MethodScore[]): MethodScore {
 
 /** The best deterministic method (baselines and the seeds draft): by MoJoFM on a scramble, by TurboMQ (sum) on a real target. */
 function bestDeterministic(methods: MethodScore[], scramble: boolean): BenchResult['bestBaseline'] {
-  const candidates = methods.filter((score) => score.kind !== 'planner');
-  const value = (score: MethodScore) => (scramble ? score.mojoFm ?? -Infinity : score.turboMq.sum);
-  const best = candidates.reduce<MethodScore | null>((winner, score) => (!winner || value(score) > value(winner) ? score : winner), null);
+  const best = bestDeterministicBy(methods, (score) => (scramble ? score.mojoFm ?? -Infinity : score.turboMq.sum));
   return best && { method: best.method, mojoFm: best.mojoFm, turboMq: best.turboMq.sum };
 }
 

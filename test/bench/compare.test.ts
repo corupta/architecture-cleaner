@@ -1,7 +1,8 @@
 // `ac bench compare` from fixture results: one directory as a default bench writes it (one run, no repeats block, as
 // before S8b), two with three runs per entry; a missing planner row and a missing entry; runs whose edit choices all
-// came back unusable, so the seeds draft became the plan; the numbers and the ranges they fall in (as printed), never a
-// winner; a real entry with a partial key; the committed experiment's compare.md byte for byte; and the command line.
+// came back unusable, so the seeds draft became the plan; MoJoFM and TurboMQ for every entry, the numbers and the ranges
+// they fall in (as printed), never a winner; a real entry with a partial key and one without; the committed
+// experiment's compare.md byte for byte; and the command line.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -90,12 +91,25 @@ describe('ac bench compare', () => {
     expect(evenly).toContain("Every directory has k=3 runs per entry. A difference that falls inside the other directory's min-to-max range over k=3 isn't conclusive.");
   });
 
-  it('gives a scramble per directory: MoJoFM mean (min to max), runs above the best deterministic method, where the plans came from, valid plans, modules, cost and tokens per run', () => {
-    expect(report).toContain('## hoppscotch (scramble, default)\n\nBest deterministic method: seeds draft (file names), MoJoFM 81.38 in every directory.');
-    expect(report).toContain('| results | configuration | runs | MoJoFM mean (min to max), as delivered | beat the best deterministic | draft as the plan | edit choices truncated | critic ran | valid plans from an edit | modules mean (min to max) |');
-    expect(lines).toContain('| results | `ultra` | 1 | 87.59 | 1 of 1 | 0 of 1 | – | 1 of 1 | 1 of 1 | 12 | $0.0100 | – | – |');
-    expect(lines).toContain('| results-super-vl | `super-vl` | 3 | 85.00 (80.00 to 90.00) | 2 of 3 | 1 of 3 | 4 of 9 | 2 of 3 | 2 of 3 | 13.0 (12 to 15) | $0.0100 | 2,000 | 1,500 |');
-    expect(lines).toContain('| results-super-vl-low | `super-vl-low` | 3 | 72.00 (70.00 to 74.00) | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 12.0 (12 to 12) | $0.0040 | 900 | 300 |');
+  it('gives a scramble per directory: MoJoFM and TurboMQ each as mean (min to max) with the runs above the best deterministic method on it, where the plans came from, valid plans, modules, cost and tokens per run', () => {
+    expect(report).toContain('## hoppscotch (scramble, default)\n\nBest deterministic method on MoJoFM: seeds draft (file names), MoJoFM 81.38 in every directory.\n'
+      + 'Best deterministic method on TurboMQ: seeds draft (file names), TurboMQ 7.37 in every directory.\n\n');
+    expect(report).toContain('| results | configuration | runs | MoJoFM mean (min to max), as delivered | beat the best deterministic on MoJoFM | TurboMQ mean (min to max), as delivered | beat the best deterministic on TurboMQ | draft as the plan | edit choices truncated | critic ran | valid plans from an edit | modules mean (min to max) |');
+    expect(lines).toContain('| results | `ultra` | 1 | 87.59 | 1 of 1 | 8.12 | 1 of 1 | 0 of 1 | – | 1 of 1 | 1 of 1 | 12 | $0.0100 | – | – |');
+    expect(lines).toContain('| results-super-vl | `super-vl` | 3 | 85.00 (80.00 to 90.00) | 2 of 3 | 8.00 (7.00 to 9.00) | 2 of 3 | 1 of 3 | 4 of 9 | 2 of 3 | 2 of 3 | 13.0 (12 to 15) | $0.0100 | 2,000 | 1,500 |');
+    expect(lines).toContain('| results-super-vl-low | `super-vl-low` | 3 | 72.00 (70.00 to 74.00) | 0 of 3 | 6.00 (6.00 to 6.00) | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 12.0 (12 to 12) | $0.0040 | 900 | 300 |');
+    expect(report).toContain("- MoJoFM and TurboMQ's sum are each the mean over an entry's runs, the min to max in parentheses, every run as delivered:");
+    expect(report).toContain("- Beat: the runs that score above the entry's best deterministic method (the baselines and the seeds draft) on that measure, MoJoFM or TurboMQ's sum: each measure has its own best.");
+  });
+
+  it("names a scramble's best deterministic method on TurboMQ by the bench's rule, apart from its best on MoJoFM", () => {
+    // Louvain beats the draft on TurboMQ only: 2 of 3 runs beat the draft's MoJoFM, 1 of 3 Louvain's TurboMQ.
+    const louvain = score('Louvain r=4 (mean of seeds 1-5)', 'baseline', { mojoFm: 74.62, turboMq: 8.5 }, 'mean of seeds 1-5');
+    const base = result('hoppscotch', 'scramble', scrambleBest, [{ mojoFm: 80, turboMq: 7 }, { mojoFm: 85, turboMq: 8 }, { mojoFm: 90, turboMq: 9 }], 'super-vl');
+    const split = compareReport([{ directory: 'a', label: 'a', results: [{ ...base, methods: [base.methods[0]!, louvain, ...base.methods.slice(1)] }] }]);
+    expect(split).toContain('Best deterministic method on MoJoFM: seeds draft (file names), MoJoFM 81.38 in every directory.\nBest deterministic method on TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 8.50 in every directory.\n');
+    expect(split).toContain('| a | `super-vl` | 3 | 85.00 (80.00 to 90.00) | 2 of 3 | 8.00 (7.00 to 9.00) | 1 of 3 |');
+    expect(split).toContain('| a | `super-vl` | 1 | 3 | 2 of 3 | 1 of 3 |');
   });
 
   it('keeps a run that delivered the seeds draft in the mean as delivered, never counts it as a valid plan of the model, and says so', () => {
@@ -107,8 +121,8 @@ describe('ac bench compare', () => {
     const before = JSON.parse(fs.readFileSync(path.join(committedLike, 'hoppscotch.json'), 'utf8')) as BenchResult;
     delete before.planner!.change;
     const unknown = compareReport([{ directory: 'old', label: 'old', results: [before] }]);
-    expect(unknown).toContain('| old | `ultra` | 1 | 87.59 | 1 of 1 | – | – | – | – | 12 | $0.0100 | – | – |');
-    expect(unknown).toContain('| old | `ultra` | 1 | 1 | 1 of 1 | – | – | – | – | $0.0100 | $0.0100 | – | – |');
+    expect(unknown).toContain('| old | `ultra` | 1 | 87.59 | 1 of 1 | 8.12 | 1 of 1 | – | – | – | – | 12 | $0.0100 | – | – |');
+    expect(unknown).toContain('| old | `ultra` | 1 | 1 | 1 of 1 | 1 of 1 | – | – | – | – | $0.0100 | $0.0100 | – | – |');
   });
 
   it("places each mean against the other directories' runs, inside, above or below, and names no winner", () => {
@@ -116,33 +130,42 @@ describe('ac bench compare', () => {
     expect(hoppscotch).toContain("Each MoJoFM mean against the other directories' runs:\n\n"
       + '- results: 87.59, inside the range (80.00 to 90.00) of results-super-vl and above the range (70.00 to 74.00) of results-super-vl-low.\n'
       + '- results-super-vl: 85.00, below the one run (87.59) of results and above the range (70.00 to 74.00) of results-super-vl-low.\n'
-      + '- results-super-vl-low: 72.00, below the one run (87.59) of results and below the range (80.00 to 90.00) of results-super-vl.\n');
+      + '- results-super-vl-low: 72.00, below the one run (87.59) of results and below the range (80.00 to 90.00) of results-super-vl.\n\n'
+      + "Each TurboMQ mean against the other directories' runs:\n\n"
+      + '- results: 8.12, inside the range (7.00 to 9.00) of results-super-vl and above the range (6.00 to 6.00) of results-super-vl-low.\n'
+      + '- results-super-vl: 8.00, below the one run (8.12) of results and above the range (6.00 to 6.00) of results-super-vl-low.\n'
+      + '- results-super-vl-low: 6.00, below the one run (8.12) of results and below the range (7.00 to 9.00) of results-super-vl.\n');
     expect(report).not.toMatch(/\b(win|wins|winner|better|worse|beats)\b/i);
   });
 
-  it('gives a real target TurboMQ and back-edges, says which directories have no planner row or no result, and orders scrambles first', () => {
+  it('gives a real target without a key MoJoFM dashes, TurboMQ and back-edges, says which directories have no planner row or no result, and orders scrambles first', () => {
     const immich = report.slice(report.indexOf('## immich'), report.indexOf('## Totals'));
-    expect(immich).toContain('Best deterministic method: seeds draft (file names), TurboMQ 10.50 in every directory.');
-    expect(immich).toContain('| results | configuration | runs | TurboMQ mean (min to max), as delivered | beat the best deterministic | back-edges mean (min to max) | draft as the plan | edit choices truncated | critic ran | valid plans from an edit |');
-    expect(immich).toContain('| results | `ultra` | 1 | 10.07 | 0 of 1 | 30 | 0 of 1 | – | 1 of 1 | 0 of 1 | 12 | $0.0100 | – | – |');
-    expect(immich).toContain('| results-super-vl | `super-vl` | 3 | 10.67 (9.00 to 12.00) | 2 of 3 | 24.0 (20 to 27) | 0 of 3 | 0 of 9 | 3 of 3 | 2 of 3 |');
+    expect(immich).toContain('## immich (real)\n\nNo directory scores a partial key for this entry, so it has no MoJoFM: dashes.\n'
+      + 'Best deterministic method on TurboMQ: seeds draft (file names), TurboMQ 10.50 in every directory.\n\n');
+    expect(immich).toContain('| results | configuration | runs | MoJoFM over the key mean (min to max), as delivered | beat the best deterministic on MoJoFM | TurboMQ mean (min to max), as delivered | beat the best deterministic on TurboMQ | back-edges mean (min to max) | draft as the plan | edit choices truncated | critic ran | valid plans from an edit |');
+    expect(immich).toContain('| results | `ultra` | 1 | – | – | 10.07 | 0 of 1 | 30 | 0 of 1 | – | 1 of 1 | 0 of 1 | 12 | $0.0100 | – | – |');
+    expect(immich).toContain('| results-super-vl | `super-vl` | 3 | – | – | 10.67 (9.00 to 12.00) | 2 of 3 | 24.0 (20 to 27) | 0 of 3 | 0 of 9 | 3 of 3 | 2 of 3 |');
     // A result without a planner row doesn't say its configuration: the row names its directory's.
-    expect(immich).toContain('| results-super-vl-low | `super-vl-low` | 0 | no planner row (its notes say why) | – | – | – | – | – | – | – | – | – | – |');
-    expect(report).toContain('| results | `ultra` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – |');
+    expect(immich).toContain(`| results-super-vl-low | \`super-vl-low\` | 0 | no planner row (its notes say why) | ${Array.from({ length: 12 }, () => '–').join(' | ')} |`);
+    expect(immich).not.toContain('Each MoJoFM');
+    expect(immich).toContain("Each TurboMQ mean against the other directories' runs:\n\n- results: 10.07, inside the range (9.00 to 12.00) of results-super-vl.\n");
+    expect(report).toContain(`| results | \`ultra\` | 0 | no result for this entry | ${Array.from({ length: 11 }, () => '–').join(' | ')} |`);
     expect(lines.filter((line) => line.startsWith('## '))).toEqual(['## hoppscotch (scramble, default)', '## kaneo (scramble, default)', '## immich (real)', '## Totals']);
-    expect(report).toContain('## kaneo (scramble, default)\n\nBest deterministic method: seeds draft (file names), MoJoFM 50.00.\n');
+    expect(report).toContain('## kaneo (scramble, default)\n\nBest deterministic method on MoJoFM: seeds draft (file names), MoJoFM 50.00.\nBest deterministic method on TurboMQ: seeds draft (file names), TurboMQ 3.00.\n');
     // Planner rules 2 changed immich's facts (S8): a different best names each directory's.
     const rules1: BenchResult = { ...JSON.parse(fs.readFileSync(path.join(committedLike, 'immich.json'), 'utf8')), bestBaseline: { method: 'Louvain r=4 (mean of seeds 1-5)', mojoFm: null, turboMq: 10.5 } };
     rules1.planner!.rules = 1;
     const rulesDiffer = compareReport([{ directory: 'a', label: 'a', results: [rules1] }, { directory: 'b', label: 'b', results: [{ ...rules1, planner: { ...rules1.planner!, rules: 2 }, bestBaseline: { method: 'B0 type folders', mojoFm: null, turboMq: 1.94 } }] }]);
-    expect(rulesDiffer).toContain('Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50 (a, planner rules 1); B0 type folders, TurboMQ 1.94 (b, planner rules 2). The directories scored different facts.');
+    expect(rulesDiffer).toContain('Best deterministic method on TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50 (a, planner rules 1); B0 type folders, TurboMQ 1.94 (b, planner rules 2). The directories scored different facts.');
   });
 
-  it('totals each directory: entries and runs, how many beat the best deterministic method, delivered the draft, lost edit choices to the length cap, valid plans from an edit, cost and tokens', () => {
-    expect(report).toContain('| results | configuration | entries with runs | runs | beat the best deterministic | draft as the plan | edit choices truncated | critic ran | valid plans from an edit | recorded cost |');
-    expect(lines).toContain('| results | `ultra` | 2 | 2 | 1 of 2 | 0 of 2 | – | 2 of 2 | 1 of 2 | $0.0200 | $0.0100 | – | – |');
-    expect(lines).toContain('| results-super-vl | `super-vl` | 3 | 9 | 6 of 9 | 1 of 9 | 4 of 27 | 8 of 9 | 7 of 9 | $0.0900 | $0.0100 | 18,000 | 13,500 |');
-    expect(lines).toContain('| results-super-vl-low | `super-vl-low` | 1 | 3 | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | $0.0120 | $0.0040 | 2,700 | 900 |');
+  it('totals each directory: entries and runs, how many beat the best deterministic method on MoJoFM (over the runs that have one) and on TurboMQ, delivered the draft, lost edit choices to the length cap, valid plans from an edit, cost and tokens', () => {
+    expect(report).toContain('| results | configuration | entries with runs | runs | beat the best deterministic on MoJoFM | beat the best deterministic on TurboMQ | draft as the plan | edit choices truncated | critic ran | valid plans from an edit | recorded cost |');
+    // immich has no key here: its runs count on TurboMQ only.
+    expect(lines).toContain('| results | `ultra` | 2 | 2 | 1 of 1 | 1 of 2 | 0 of 2 | – | 2 of 2 | 1 of 2 | $0.0200 | $0.0100 | – | – |');
+    expect(lines).toContain('| results-super-vl | `super-vl` | 3 | 9 | 4 of 6 | 4 of 9 | 1 of 9 | 4 of 27 | 8 of 9 | 7 of 9 | $0.0900 | $0.0100 | 18,000 | 13,500 |');
+    expect(lines).toContain('| results-super-vl-low | `super-vl-low` | 1 | 3 | 0 of 3 | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | $0.0120 | $0.0040 | 2,700 | 900 |');
+    expect(report).toContain('The totals count MoJoFM over the runs that have one.');
   });
 
   it('places a mean by the values as printed: a gap below the second decimal reads as inside', () => {
@@ -211,22 +234,28 @@ describe('ac bench compare with a partial key', () => {
   const report = compareReport(readComparedResults([ultraKey, superKey, noRowKey, committedLike]));
   const immich = report.slice(report.indexOf('## immich'), report.indexOf('## Totals'));
 
-  it("says what the key covers against the scrambles' complete keys, its best deterministic method, and which directories have none", () => {
-    expect(report).toContain('- MoJoFM over the key: a real target with a partial answer key adds the mean (min to max) of MoJoFM over the files the key labels');
+  it("says what the key covers against the scrambles' complete keys, its best deterministic method on it and on TurboMQ, and which directories have none", () => {
+    expect(report).toContain('- MoJoFM over the key: a real target has a MoJoFM only over the files its partial answer key labels, every method still placing every movable file, and its best deterministic method on MoJoFM is the best over those files.');
     expect(immich).toContain("\n\nMoJoFM over the key is computed over the files immich's 2024 domain layer labels (44 of 269 movable files, 22 features, 3 hard), unlike the scrambles' complete keys (key `bench/ground-truth/immich-2024.rsf`, sha256 `eeeeeeeeeeee`) in the 3 directories with a key.\n"
       + 'Best deterministic method on MoJoFM over the key: seeds draft (file names), MoJoFM 95.00 in the 3 directories with a key.\n'
-      + 'results scores no key for this entry: dashes.\n\n');
+      + 'results scores no key for this entry: dashes.\n'
+      + 'Best deterministic method on TurboMQ: seeds draft (file names), TurboMQ 10.50 in every directory.\n\n');
   });
 
-  it('shows MoJoFM over the key next to TurboMQ, the runs above the best on it, and dashes where a directory has no key or no run', () => {
-    expect(immich).toContain('| results | configuration | runs | TurboMQ mean (min to max), as delivered | beat the best deterministic | back-edges mean (min to max) | MoJoFM over the key mean (min to max) | beat the best on it | draft as the plan |');
-    expect(immich).toContain('| ultra-key | `ultra` | 3 | 10.20 (10.00 to 10.40) | 0 of 3 | 3.0 (3 to 3) | 92.67 (90.00 to 96.00) | 1 of 3 | 0 of 3 |');
-    expect(immich).toContain('| super-vl-key | `super-vl` | 3 | 10.30 (10.10 to 10.50) | 0 of 3 | 3.0 (3 to 3) | 95.33 (94.00 to 97.00) | 1 of 3 | 0 of 3 |');
+  it('shows MoJoFM over the key next to TurboMQ, the runs above the best on each, both placements, and dashes where a directory has no key or no run', () => {
+    expect(immich).toContain('| results | configuration | runs | MoJoFM over the key mean (min to max), as delivered | beat the best deterministic on MoJoFM | TurboMQ mean (min to max), as delivered | beat the best deterministic on TurboMQ | back-edges mean (min to max) | draft as the plan |');
+    expect(immich).toContain('| ultra-key | `ultra` | 3 | 92.67 (90.00 to 96.00) | 1 of 3 | 10.20 (10.00 to 10.40) | 0 of 3 | 3.0 (3 to 3) | 0 of 3 |');
+    // super-vl-key's top run ties the best's TurboMQ (10.50): no beat.
+    expect(immich).toContain('| super-vl-key | `super-vl` | 3 | 95.33 (94.00 to 97.00) | 1 of 3 | 10.30 (10.10 to 10.50) | 0 of 3 | 3.0 (3 to 3) | 0 of 3 |');
     expect(immich).toContain(`| super-vl-low-key | \`super-vl-low\` | 0 | no planner row (its notes say why) | ${Array.from({ length: 12 }, () => '–').join(' | ')} |`);
-    expect(immich).toContain('| results | `ultra` | 1 | 10.07 | 0 of 1 | 30 | – | – | 0 of 1 |');
+    expect(immich).toContain('| results | `ultra` | 1 | – | – | 10.07 | 0 of 1 | 30 | 0 of 1 |');
     expect(immich).toContain("Each MoJoFM mean over the key against the other directories' runs:\n\n"
       + '- ultra-key: 92.67, below the range (94.00 to 97.00) of super-vl-key.\n'
-      + '- super-vl-key: 95.33, inside the range (90.00 to 96.00) of ultra-key.\n');
+      + '- super-vl-key: 95.33, inside the range (90.00 to 96.00) of ultra-key.\n\n'
+      + "Each TurboMQ mean against the other directories' runs:\n\n"
+      + '- ultra-key: 10.20, inside the range (10.10 to 10.50) of super-vl-key and above the one run (10.07) of results.\n'
+      + '- super-vl-key: 10.30, inside the range (10.00 to 10.40) of ultra-key and above the one run (10.07) of results.\n'
+      + '- results: 10.07, inside the range (10.00 to 10.40) of ultra-key and below the range (10.10 to 10.50) of super-vl-key.\n');
     expect(report).not.toMatch(/\b(win|wins|winner|better|worse|beats)\b/i);
   });
 

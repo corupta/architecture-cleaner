@@ -1,6 +1,8 @@
 // The planner's runs of a bench entry (`ac bench --repeats k`): one row per run and the mean, min and max over them.
 // summary.md and `ac bench compare` read them back from any result: from its repeats block, or from its one planner
 // row when it has none (a default run, and every result before S8b).
+// Also the two measures every report gives an entry, MoJoFM and TurboMQ's sum, with the best deterministic method on
+// each and whether a planner row beats it.
 import { defaultPlannerConfiguration, isPlannerConfigurationName, plannerConfigurations } from '../planner/configurations.js';
 import { modelLabel } from '../planner/outputs.js';
 import type { BenchPlannerRun, BenchRepeats, BenchResult, BenchRunMeasures, MethodScore } from './types.js';
@@ -41,19 +43,48 @@ export function repeatsOf(runs: { run: BenchPlannerRun; score: MethodScore }[]):
   };
 }
 
-/** Whether a planner row scores above the entry's best deterministic method: MoJoFM on a scramble, TurboMQ's sum on a real target. */
-export function beatsBestDeterministic(result: BenchResult, score: MethodScore): boolean {
-  const best = result.bestBaseline;
-  if (!best) return false;
-  return result.kind === 'scramble' ? (score.mojoFm ?? -Infinity) > (best.mojoFm ?? -Infinity) : score.turboMq.sum > best.turboMq;
+/** The two measures every report gives each entry: MoJoFM against its ground truth, and TurboMQ's sum. */
+export type BenchMetric = 'MoJoFM' | 'TurboMQ';
+export const benchMetrics: readonly BenchMetric[] = ['MoJoFM', 'TurboMQ'];
+
+/** The first row with the highest value: how the bench picks a best deterministic method (run.ts's `bestBaseline`). */
+export function bestDeterministicBy(methods: readonly MethodScore[], value: (score: MethodScore) => number): MethodScore | null {
+  return methods.filter((score) => score.kind !== 'planner').reduce<MethodScore | null>((best, score) => (!best || value(score) > value(best) ? score : best), null);
 }
 
-/** Whether a planner row scores above the best deterministic method on MoJoFM over the entry's partial key; null without one. */
-export function beatsBestOnKey(result: BenchResult, method: string): boolean | null {
-  const key = result.partialKey;
-  if (!key) return null;
-  const score = key.methods.find((row) => row.method === method);
-  return Boolean(score && key.bestBaseline && score.mojoFm > key.bestBaseline.mojoFm);
+/** Whether an entry has a MoJoFM: a scramble against its original folders, a real entry over its partial key only. */
+export const hasMoJoFm = (result: BenchResult) => result.kind === 'scramble' || result.partialKey !== undefined;
+
+/**
+ * A row's value on a measure: TurboMQ's sum; MoJoFM on a scramble, or over a real entry's partial key (null without
+ * one, or when the key doesn't score the row).
+ */
+export function metricValue(result: BenchResult, metric: BenchMetric, score: MethodScore): number | null {
+  if (metric === 'TurboMQ') return score.turboMq.sum;
+  if (result.kind === 'scramble') return score.mojoFm;
+  return result.partialKey?.methods.find((row) => row.method === score.method)?.mojoFm ?? null;
+}
+
+/**
+ * The best deterministic method (baselines and the seeds draft) on a measure. The bench records one per entry, by
+ * MoJoFM on a scramble and by TurboMQ's sum on a real entry (`bestBaseline`), and a partial key its own by MoJoFM over
+ * the key; a scramble's best by TurboMQ is picked here by the same rule. Null when the entry has no value on it.
+ */
+export function bestDeterministicOn(result: BenchResult, metric: BenchMetric): { method: string; value: number } | null {
+  if (metric === 'MoJoFM') {
+    const best = result.kind === 'scramble' ? result.bestBaseline : result.partialKey?.bestBaseline;
+    return best && best.mojoFm !== null ? { method: best.method, value: best.mojoFm } : null;
+  }
+  if (result.kind === 'real') return result.bestBaseline && { method: result.bestBaseline.method, value: result.bestBaseline.turboMq };
+  const best = bestDeterministicBy(result.methods, (score) => score.turboMq.sum);
+  return best && { method: best.method, value: best.turboMq.sum };
+}
+
+/** Whether a planner row scores above the best deterministic method on a measure; null when the entry has none (MoJoFM on a real entry without a key). */
+export function beatsBestOn(result: BenchResult, metric: BenchMetric, score: MethodScore): boolean | null {
+  if (metric === 'MoJoFM' && !hasMoJoFm(result)) return null;
+  const best = bestDeterministicOn(result, metric);
+  return best !== null && (metricValue(result, metric, score) ?? -Infinity) > best.value;
 }
 
 /**

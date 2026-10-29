@@ -9,8 +9,9 @@
 - MoJoFM hard counts only the files whose own name doesn't give their feature away.
 - TurboMQ is Bunch's sum of cluster factors; the JSON also has ARCADE's mean. Back-edges are the cluster-level import
   edges that point backwards in the partition's own DAG order.
-- Louvain rows are the mean of seeds 1 to 5. **Bold**: the best deterministic method (baselines and the seeds draft)
-  and the planner.
+- Louvain rows are the mean of seeds 1 to 5. **Bold**: the planner, and the best deterministic method (baselines and
+  the seeds draft) on each measure: the best by MoJoFM in the ground-truth columns (MoJoFM to MoJoFM hard), the best
+  by TurboMQ in the graph's columns (clusters, TurboMQ, back-edges), the whole row when one method is best on both.
 - Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron's answers and ranks its
   edits. Rules 2 (S8) read a move that names its file by the id the prompt showed, or its target by a draft group's id
   or key, never rank a plan without feature modules first while another candidate has one, and leave out of the facts'
@@ -30,7 +31,7 @@
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
 - Scramble: commit `f5fd0ff53cb7`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; not certified.
 - Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (export names), MoJoFM 81.38.
+- Best deterministic method on MoJoFM: seeds draft (export names), MoJoFM 81.38. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 9.63.
 - Planner configuration `super-vl-long`: Nemotron 3.5 Super VL (thinking on) edits and reviews.
 - Planner: recorded into `cassettes/s8b-bench.jsonl` (2 calls) for $0.5957; 30 groups (21 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `9d1135074a27`.
 
@@ -41,10 +42,10 @@
 | name-token (anchored) | 56 | 75.17 | 0.541 | 0.760 | 1.88 | 50.00 | 7.43 | 53 |
 | export-token (anchored) | 62 | 74.48 | 0.528 | 0.760 | 2.04 | 45.00 | 6.92 | 47 |
 | seeds draft (file names) | 43 | 80.00 | 0.593 | 0.800 | 1.56 | 57.50 | 7.63 | 37 |
-| **seeds draft (export names)** | **45** | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | **7.37** | **36** |
+| **seeds draft (export names)** | 45 | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | 7.37 | 36 |
 | Louvain r=1 (mean of seeds 1-5) | 8.4 | 32.55 | 0.278 | 0.032 | 0.30 | 57.00 | 4.02 | 17.2 |
 | Louvain r=2 (mean of seeds 1-5) | 17 | 56.96 | 0.516 | 0.272 | 0.64 | 77.00 | 6.74 | 58 |
-| Louvain r=4 (mean of seeds 1-5) | 33.6 | 74.62 | 0.601 | 0.616 | 1.26 | 79.00 | 9.63 | 76.4 |
+| **Louvain r=4 (mean of seeds 1-5)** | **33.6** | 74.62 | 0.601 | 0.616 | 1.26 | 79.00 | **9.63** | **76.4** |
 | **planner (Super VL, thinking on, 512k)** | **30** | **88.28** | **0.798** | **0.840** | **1.12** | **72.50** | **8.16** | **25** |
 
 Louvain MoJoFM per seed (1 to 5): r=1: 29.66, 35.17, 35.86, 32.41, 29.66; r=2: 56.55, 51.72, 59.31, 57.93, 59.31; r=4: 75.86, 73.79, 74.48, 75.86, 73.10.
@@ -55,7 +56,7 @@ Planner runs (`super-vl-long`):
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | planner (Super VL, thinking on, 512k) | an edit | 2 of 3 parsed (1 truncated) | yes | yes | 30 | 21 | $0.5957 | $0.5957 | 2 recorded | 21,064 | 654,852 | 648,596 | `9d1135074a27` |
 
-1 of 1 run scores above the best deterministic method on MoJoFM, each run as delivered. 0 of 1 run had no usable edit; the critic reviewed 1 of 1 plan; 1 of 3 edit choices was cut by the length cap (finish_reason length). The validator accepts 1 of 1 plan, counting only plans that came from an edit.
+1 of 1 run scores above the best deterministic method on MoJoFM and 0 of 1 on TurboMQ's sum, each run as delivered. 0 of 1 run had no usable edit; the critic reviewed 1 of 1 plan; 1 of 3 edit choices was cut by the length cap (finish_reason length). The validator accepts 1 of 1 plan, counting only plans that came from an edit.
 
 - 1 feature file is pinned in the facts (no method can place it) and not scored.
 - The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 12 against 10 (no ground truth is read).

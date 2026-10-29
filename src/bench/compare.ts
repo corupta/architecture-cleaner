@@ -1,14 +1,14 @@
 // `ac bench compare <results-dir>...`: the planner's runs from several results directories side by side, one planner
-// configuration each. Per entry: the mean and the min to max over the runs as delivered, how many runs beat the best
-// deterministic method, how many delivered the seeds draft because no edit choice was usable and how many choices the
-// length cap cut, how many plans from an edit the validator accepts, modules, cost and tokens per run, and where each
-// mean falls against the other directories' ranges; then totals. A real entry with a partial key adds its MoJoFM over
-// the key's files next to TurboMQ, and says what the key covers. A pure function of the results: it states numbers,
-// never a winner.
+// configuration each. Per entry, on MoJoFM and on TurboMQ's sum each: the mean and the min to max over the runs as
+// delivered, how many runs beat the best deterministic method on it, and where each mean falls against the other
+// directories' ranges; then how many runs delivered the seeds draft because no edit choice was usable and how many
+// choices the length cap cut, how many plans from an edit the validator accepts, modules, cost and tokens per run; then
+// totals. A real entry's MoJoFM is over its partial key's files (dashes without one), and it says what the key covers.
+// A pure function of the results: it states numbers, never a winner.
 import fs from 'node:fs';
 import path from 'node:path';
-import { keyScoresByMethod, partialKeyScope } from './partial-key.js';
-import { beatsBestDeterministic, beatsBestOnKey, configurationOf, configurationText, plannerRunsOf, type PlannerRunView } from './repeats.js';
+import { partialKeyScope } from './partial-key.js';
+import { beatsBestOn, benchMetrics, bestDeterministicOn, configurationOf, configurationText, metricValue, plannerRunsOf, type BenchMetric, type PlannerRunView } from './repeats.js';
 import { readResults } from './run.js';
 import type { BenchResult } from './types.js';
 
@@ -49,20 +49,26 @@ function spread(values: number[], format: (value: number) => string, formatMean 
 /** A count (back-edges, modules) as written, its mean with one decimal. */
 const counted = (values: number[]) => spread(values, (value) => (Number.isInteger(value) ? String(value) : value.toFixed(1)), (value) => value.toFixed(1));
 
+/** One directory's runs on a measure: the mean of their values, and every value. */
+interface Placed { label: string; value: number; values: number[] }
+
 /** Places each directory's mean against the other directories' runs, as `- label: mean, inside the range (…) of other.` lines. */
-function placements(means: { label: string; value: number; values: number[] }[], format: (value: number) => string): string[] {
+function placements(means: Placed[], format: (value: number) => string): string[] {
   return means.map(({ label, value }) => {
     const against = means.filter((other) => other.label !== label).map((other) => `${placement(value, other.values, format)} of ${other.label}`);
     return `- ${label}: ${format(value)}, ${list(against)}.`;
   });
 }
 
+type Found = { set: ComparedResults; result: BenchResult | null }[];
+
 /**
  * What a real entry's partial keys cover, and the best deterministic method on MoJoFM over them: one sentence each when
  * every directory's agrees, else one per directory; the directories with a result but no key are named (dashes).
  */
-function keyLines(found: { set: ComparedResults; result: BenchResult | null }[]): string[] {
+function keyLines(found: Found): string[] {
   const keyed = found.filter(({ result }) => result?.partialKey);
+  if (!keyed.length) return ['No directory scores a partial key for this entry, so it has no MoJoFM: dashes.'];
   const scopes = keyed.map(({ set, result }) => ({
     label: set.label,
     text: `${partialKeyScope(result!.partialKey!, result!.files)} (key ${code(result!.partialKey!.file)}, sha256 ${code(result!.partialKey!.sha256.slice(0, 12))})`,
@@ -84,10 +90,25 @@ function keyLines(found: { set: ComparedResults; result: BenchResult | null }[])
   ];
 }
 
-/** The measure the bench ranks an entry by: MoJoFM on a scramble, TurboMQ's sum on a real target. */
-const measureOf = (result: BenchResult) => (result.kind === 'scramble'
-  ? { name: 'MoJoFM', value: (run: PlannerRunView) => run.score.mojoFm ?? 0, best: (best: NonNullable<BenchResult['bestBaseline']>) => best.mojoFm ?? 0 }
-  : { name: 'TurboMQ', value: (run: PlannerRunView) => run.score.turboMq.sum, best: (best: NonNullable<BenchResult['bestBaseline']>) => best.turboMq });
+/**
+ * The best deterministic method on a measure (bestDeterministicOn): one sentence when every directory's agrees, else
+ * each directory's with its planner rules, since the deterministic methods read the facts alone and a different best
+ * means different facts (planner rules 2 changed immich's).
+ */
+function bestLine(found: Found, metric: BenchMetric): string {
+  const bests = found.flatMap(({ set, result }) => {
+    const best = result && bestDeterministicOn(result, metric);
+    return best ? [{ label: set.label, rules: result.planner?.rules, text: `${best.method}, ${metric} ${best.value.toFixed(2)}` }] : [];
+  });
+  const texts = [...new Set(bests.map((best) => best.text))];
+  if (!texts.length) return `Best deterministic method on ${metric}: none.`;
+  if (texts.length > 1) {
+    const differing = bests.map((best) => `${best.text} (${best.label}${best.rules === undefined ? '' : `, planner rules ${best.rules}`})`);
+    return `Best deterministic method on ${metric}: ${differing.join('; ')}. The directories scored different facts.`;
+  }
+  const everywhere = bests.length === found.length ? ' in every directory' : bests.length > 1 ? ` in the ${bests.length} directories with this entry` : '';
+  return `Best deterministic method on ${metric}: ${texts[0]}${everywhere}.`;
+}
 
 /** The configurations a directory's results asked for (one, normally). */
 const configurationsOf = (set: ComparedResults) => [...new Set(set.results.map(configurationOf))];
@@ -118,13 +139,13 @@ function header(sets: ComparedResults[]): string[] {
       return `| ${set.label} | ${code(set.directory)} | ${configurations.map(code).join(', ')} | ${configurations.map(configurationText).join('; ')} | ${runs.length ? runs.length === 1 ? runs[0] : `${runs[0]} to ${runs.at(-1)}` : dash} |`;
     }),
     '',
-    `- MoJoFM (scrambles) and TurboMQ's sum (real targets) are the mean over an entry's runs, the min to max in parentheses, every run as delivered: with the plan \`ac plan\` would give, which is the seeds draft when none of a run's edit choices came back usable. ${conclusive}`,
-    "- Beat: the runs that score above the entry's best deterministic method (the baselines and the seeds draft), on MoJoFM for a scramble and on TurboMQ's sum for a real target.",
+    `- MoJoFM and TurboMQ's sum are each the mean over an entry's runs, the min to max in parentheses, every run as delivered: with the plan \`ac plan\` would give, which is the seeds draft when none of a run's edit choices came back usable. ${conclusive}`,
+    "- Beat: the runs that score above the entry's best deterministic method (the baselines and the seeds draft) on that measure, MoJoFM or TurboMQ's sum: each measure has its own best. The totals count MoJoFM over the runs that have one.",
     '- Draft as the plan: the runs where none of the K edit choices came back usable (each one cut by the length cap or unparseable), so the seeds draft became the plan and the critic had nothing to review. Edit choices truncated: the choices the length cap cut (finish_reason length), of K per run. Critic ran: the runs whose winning edit the critic reviewed.',
     "- Valid plans from an edit: the runs whose plan came from an edit and that our validator accepts. A run that delivered the draft is no plan of the model, so it never counts here, whatever the validator says of the draft; `ac run` refuses an invalid plan, and the bench scores it as it came back.",
     `- Cost is what a run's edit and critic calls cost when they were recorded; tokens are the cassette's usage over those calls. ${dash} where a result doesn't record a count: tokens and edit choices in a result without a repeats block (before S8b, or one default run), and where the plan came from in a result written before the S7 fix round.`,
-    ...(sets.some((set) => set.results.some((result) => result.partialKey))
-      ? ["- MoJoFM over the key: a real target with a partial answer key adds the mean (min to max) of MoJoFM over the files the key labels, every method still placing every movable file, and the runs above the best deterministic method on it. Each such entry says what its key covers."]
+    ...(sets.some((set) => set.results.some((result) => result.kind === 'real'))
+      ? ["- MoJoFM over the key: a real target has a MoJoFM only over the files its partial answer key labels, every method still placing every movable file, and its best deterministic method on MoJoFM is the best over those files. Each such entry says what its key covers; a real target without a key has dashes."]
       : []),
   ];
 }
@@ -163,51 +184,50 @@ const origins = (runs: PlannerRunView[]) => [
   runsWhere(runs, (run) => (run.fromEdit === null ? null : run.fromEdit && run.valid)),
 ];
 
-const originHeaders = 'draft as the plan | edit choices truncated | critic ran | valid plans from an edit';
+const originHeaders = ['draft as the plan', 'edit choices truncated', 'critic ran', 'valid plans from an edit'];
+
+/** A table's header and separator rows. */
+const tableHead = (headers: string[]) => [`| ${headers.join(' | ')} |`, `|${headers.map(() => '---').join('|')}|`];
 
 function entrySection(entry: string, sets: ComparedResults[]): string[] {
   const found = sets.map((set) => ({ set, result: set.results.find((result) => result.entry === entry) ?? null }));
   const first = found.find(({ result }) => result)!.result!;
   const real = first.kind === 'real';
-  const measure = measureOf(first);
   const format = (value: number) => value.toFixed(2);
-  const bests = found.flatMap(({ set, result }) => (result?.bestBaseline
-    ? [{ label: set.label, rules: result.planner?.rules, text: `${result.bestBaseline.method}, ${measure.name} ${format(measure.best(result.bestBaseline))}` }]
-    : []));
-  const bestTexts = [...new Set(bests.map((best) => best.text))];
-  const everywhere = bests.length === sets.length ? ' in every directory' : bests.length > 1 ? ` in the ${bests.length} directories with this entry` : '';
-  // The deterministic methods read the facts alone, so a different best means different facts (planner rules 2 changed immich's).
-  const differing = bests.map((best) => `${best.text} (${best.label}${best.rules === undefined ? '' : `, planner rules ${best.rules}`})`);
-  // A real entry with a partial key in any directory: its MoJoFM over the key's files, next to TurboMQ.
-  const keyed = real && found.some(({ result }) => result?.partialKey);
+  // A real entry's MoJoFM is over its partial key's files.
+  const moJoFmName = real ? 'MoJoFM over the key' : 'MoJoFM';
+  const headers = [
+    'results', 'configuration', 'runs',
+    `${moJoFmName} mean (min to max), as delivered`, 'beat the best deterministic on MoJoFM',
+    'TurboMQ mean (min to max), as delivered', 'beat the best deterministic on TurboMQ',
+    ...(real ? ['back-edges mean (min to max)'] : []),
+    ...originHeaders, 'modules mean (min to max)', 'recorded cost per run', 'completion tokens per run', 'reasoning tokens per run',
+  ];
   const lines = [
     `## ${entry} (${first.kind}${first.kind === 'scramble' ? `, ${first.variant}` : ''})`,
     '',
-    bestTexts.length === 1
-      ? `Best deterministic method: ${bestTexts[0]}${everywhere}.`
-      : `Best deterministic method: ${differing.join('; ')}. The directories scored different facts.`,
-    ...(keyed ? ['', ...keyLines(found)] : []),
+    ...(real ? keyLines(found) : [bestLine(found, 'MoJoFM')]),
+    bestLine(found, 'TurboMQ'),
     '',
-    `| results | configuration | runs | ${measure.name} mean (min to max), as delivered | beat the best deterministic | ${real ? 'back-edges mean (min to max) | ' : ''}${keyed ? 'MoJoFM over the key mean (min to max) | beat the best on it | ' : ''}${originHeaders} | modules mean (min to max) | recorded cost per run | completion tokens per run | reasoning tokens per run |`,
-    `|---|---|---|---|---|${real ? '---|' : ''}${keyed ? '---|---|' : ''}---|---|---|---|---|---|---|---|`,
+    ...tableHead(headers),
   ];
-  const means: { label: string; value: number; values: number[] }[] = [];
-  const keyMeans: { label: string; value: number; values: number[] }[] = [];
+  const placed = new Map<BenchMetric, Placed[]>(benchMetrics.map((metric) => [metric, []]));
   for (const { set, result } of found) {
     const runs = result ? plannerRunsOf(result) : [];
     // No result for this entry: the directory's configuration stands in.
     const configurationCell = (result ? [configurationOf(result)] : configurationsOf(set)).map(code).join(', ');
     if (!runs.length) {
       const why = result ? 'no planner row (its notes say why)' : 'no result for this entry';
-      lines.push(`| ${[set.label, configurationCell, '0', why, ...Array.from({ length: (real ? 10 : 9) + (keyed ? 2 : 0) }, () => dash)].join(' | ')} |`);
+      lines.push(`| ${[set.label, configurationCell, '0', why, ...Array.from({ length: headers.length - 4 }, () => dash)].join(' | ')} |`);
       continue;
     }
-    const values = runs.map(measure.value);
-    means.push({ label: set.label, value: mean(values), values });
-    const keyScores = result?.partialKey ? keyScoresByMethod(result.partialKey) : null;
-    const keyValues = keyScores ? runs.map((run) => keyScores.get(run.score.method)?.mojoFm ?? null) : [];
-    const onKey = keyScores && keyValues.every((value): value is number => value !== null) ? keyValues : null;
-    if (onKey) keyMeans.push({ label: set.label, value: mean(onKey), values: onKey });
+    // Each measure's mean (min to max) and the runs above the best on it; dashes when a run has no value on it.
+    const metricCells = benchMetrics.flatMap((metric) => {
+      const values = runs.map((run) => metricValue(result!, metric, run.score));
+      if (!values.every((value): value is number => value !== null)) return [dash, dash];
+      placed.get(metric)!.push({ label: set.label, value: mean(values), values });
+      return [spread(values, format), `${runs.filter((run) => beatsBestOn(result!, metric, run.score)).length} of ${runs.length}`];
+    });
     const modules = runs.map((run) => run.modules);
     const tokenRuns = runs.map((run) => run.tokens);
     const known = tokenRuns.every((value) => value !== null) ? (tokenRuns as NonNullable<PlannerRunView['tokens']>[]) : null;
@@ -215,10 +235,8 @@ function entrySection(entry: string, sets: ComparedResults[]): string[] {
       set.label,
       configurationCell,
       String(runs.length),
-      spread(values, format),
-      `${runs.filter((run) => beatsBestDeterministic(result!, run.score)).length} of ${runs.length}`,
+      ...metricCells,
       ...(real ? [counted(runs.map((run) => run.score.backEdges))] : []),
-      ...(keyed ? (onKey ? [spread(onKey, format), `${runs.filter((run) => beatsBestOnKey(result!, run.score.method)).length} of ${runs.length}`] : [dash, dash]) : []),
       ...origins(runs),
       modules.every((value) => value !== null) ? counted(modules as number[]) : dash,
       usd(mean(runs.map((run) => run.recordedCostUsd))),
@@ -227,8 +245,11 @@ function entrySection(entry: string, sets: ComparedResults[]): string[] {
     ];
     lines.push(`| ${cells.join(' | ')} |`);
   }
-  if (means.length > 1) lines.push('', `Each ${measure.name} mean against the other directories' runs:`, '', ...placements(means, format));
-  if (keyMeans.length > 1) lines.push('', "Each MoJoFM mean over the key against the other directories' runs:", '', ...placements(keyMeans, format));
+  for (const metric of benchMetrics) {
+    const means = placed.get(metric)!;
+    const name = metric === 'MoJoFM' && real ? 'MoJoFM mean over the key' : `${metric} mean`;
+    if (means.length > 1) lines.push('', `Each ${name} against the other directories' runs:`, '', ...placements(means, format));
+  }
   return lines;
 }
 
@@ -236,13 +257,19 @@ function totals(sets: ComparedResults[]): string[] {
   const lines = [
     '## Totals',
     '',
-    `| results | configuration | entries with runs | runs | beat the best deterministic | ${originHeaders} | recorded cost | recorded cost per run | completion tokens | reasoning tokens |`,
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    ...tableHead([
+      'results', 'configuration', 'entries with runs', 'runs', 'beat the best deterministic on MoJoFM', 'beat the best deterministic on TurboMQ',
+      ...originHeaders, 'recorded cost', 'recorded cost per run', 'completion tokens', 'reasoning tokens',
+    ]),
   ];
   for (const set of sets) {
     const perEntry = set.results.map((result) => ({ result, runs: plannerRunsOf(result) })).filter(({ runs }) => runs.length);
     const runs = perEntry.flatMap(({ runs }) => runs);
-    const beat = perEntry.reduce((sum, { result, runs }) => sum + runs.filter((run) => beatsBestDeterministic(result, run.score)).length, 0);
+    // Each measure over the runs that have it: a real entry without a key has no MoJoFM.
+    const beat = (metric: BenchMetric) => {
+      const beats = perEntry.flatMap(({ result, runs }) => runs.map((run) => beatsBestOn(result, metric, run.score))).filter((value) => value !== null);
+      return beats.length ? `${beats.filter(Boolean).length} of ${beats.length}` : dash;
+    };
     const cost = runs.reduce((sum, run) => sum + run.recordedCostUsd, 0);
     const known = runs.every((run) => run.tokens !== null);
     const sum = (pick: (value: NonNullable<PlannerRunView['tokens']>) => number) => (known ? tokens(runs.reduce((total, run) => total + pick(run.tokens!), 0)) : dash);
@@ -251,7 +278,7 @@ function totals(sets: ComparedResults[]): string[] {
       configurationsOf(set).map(code).join(', '),
       String(perEntry.length),
       String(runs.length),
-      `${beat} of ${runs.length}`,
+      ...benchMetrics.map(beat),
       ...origins(runs),
       usd(cost),
       runs.length ? usd(cost / runs.length) : dash,

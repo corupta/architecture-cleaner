@@ -328,8 +328,9 @@ describe('ac bench on a fixture', async () => {
     expect(summary).toContain('1 of 3 runs had no usable edit, so the seeds draft became its plan; the critic reviewed 2 of 3 plans; 4 of 9 edit choices were cut by the length cap (finish_reason length). '
       + 'The validator accepts 2 of 3 plans, counting only plans that came from an edit.');
     const compared = compareReport(readComparedResults([truncated.out]));
-    expect(compared).toMatch(/\n\| results \| `ultra` \| 3 \| [\d.]+ \([\d.]+ to [\d.]+\) \| \d of 3 \| 1 of 3 \| 4 of 9 \| 2 of 3 \| 2 of 3 \| /);
-    expect(compared).toMatch(/\n\| results \| `ultra` \| 1 \| 3 \| \d of 3 \| 1 of 3 \| 4 of 9 \| 2 of 3 \| 2 of 3 \| /);
+    // MoJoFM, then TurboMQ: each mean (min to max) and the runs above the best on it.
+    expect(compared).toMatch(/\n\| results \| `ultra` \| 3 \| [\d.]+ \([\d.]+ to [\d.]+\) \| \d of 3 \| [\d.]+ \([\d.]+ to [\d.]+\) \| \d of 3 \| 1 of 3 \| 4 of 9 \| 2 of 3 \| 2 of 3 \| /);
+    expect(compared).toMatch(/\n\| results \| `ultra` \| 1 \| 3 \| \d of 3 \| \d of 3 \| 1 of 3 \| 4 of 9 \| 2 of 3 \| 2 of 3 \| /);
   });
 
   it('skips the planner row with --no-llm and keeps the worktree with --keep', async () => {
@@ -440,7 +441,7 @@ describe('ac bench --repeats, --planner and --cassette', async () => {
     expect(summary).toContain('| **planner (Ultra) #2** |');
     expect(summary).toContain(`| planner (Ultra) #2 | an edit | 3 of 3 parsed | yes | yes | 2 | 2 | $0.0009 | $0.0009 | 2 recorded | 700 | 70 | 35 | \`${recorded.repeats!.runs[1]!.planSha256.slice(0, 12)}\` |`);
     expect(summary).toContain('| min | ');
-    expect(summary).toMatch(/\n\d of 3 runs score above the best deterministic method on MoJoFM, each run as delivered\. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap \(finish_reason length\)\. The validator accepts 3 of 3 plans, counting only plans that came from an edit\.\n/);
+    expect(summary).toMatch(/\n\d of 3 runs score above the best deterministic method on MoJoFM and \d of 3 on TurboMQ's sum, each run as delivered\. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap \(finish_reason length\)\. The validator accepts 3 of 3 plans, counting only plans that came from an edit\.\n/);
   });
 
   it('replays all k runs from the cassette and spends nothing; a replay asking for one run more fails closed', async () => {
@@ -577,7 +578,7 @@ describe('a real entry with a partial key', async () => {
     // The best by MoJoFM over the key is bolded in the key's columns, the best by TurboMQ in the graph's.
     expect(summary).toContain('| **B0 type folders** | 3 | **100.00** | **1.000** | **1.000** | **1.00** | **100.00** | 1.71 | 0 |');
     expect(summary).toContain('| **Louvain r=1 (mean of seeds 1-5)** | **3** | 66.67 | 0.545 | 1.000 | 1.50 | 0.00 | **2.04** | **0** |');
-    expect(summary).toContain("- Best deterministic method: Louvain r=1 (mean of seeds 1-5), TurboMQ 2.04. On MoJoFM over the key's 5 files: B0 type folders, MoJoFM 100.00.");
+    expect(summary).toContain("- Best deterministic method on MoJoFM over the key's 5 files: B0 type folders, MoJoFM 100.00. On TurboMQ: Louvain r=1 (mean of seeds 1-5), TurboMQ 2.04.");
     expect(summary).toContain("\nLouvain MoJoFM per seed (1 to 5), over the key's 5 files: r=1: 66.67, 66.67, 66.67, 66.67, 66.67; r=2: ");
   });
 
@@ -587,7 +588,7 @@ describe('a real entry with a partial key', async () => {
       .toEqual([['planner (Ultra) #1', 5], ['planner (Ultra) #2', 5]]);
     const summary = fs.readFileSync(path.join(out, 'summary.md'), 'utf8');
     expect(summary).toContain('| over the 2 runs, as delivered | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ |');
-    expect(summary).toMatch(/\n\d of 2 runs score above the best deterministic method on TurboMQ's sum, each run as delivered, and \d of 2 above the best on MoJoFM over the key's 5 files\./);
+    expect(summary).toMatch(/\n\d of 2 runs score above the best deterministic method on MoJoFM over the key's 5 files and \d of 2 on TurboMQ's sum, each run as delivered\./);
   });
 
   it('fails the entry when the key labels no movable file (paths not package-relative) or is missing', async () => {

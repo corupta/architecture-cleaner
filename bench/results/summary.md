@@ -4,16 +4,16 @@
 
 - **Scramble** entries flatten a feature-modular package into type folders with our own executor, in one commit. Our certifier checks that commit as a pure move: hoppscotch, hoppscotch-H1 and ghostfolio pass; kaneo (K3c, K4) fails. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.
 - **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry
-  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.
-  Every method still places every movable file. Bold there: the best deterministic method by TurboMQ in the graph's
-  columns (clusters, TurboMQ, back-edges), the best by MoJoFM over the key in the key's columns.
+  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only
+  (its best on MoJoFM is the best over the key). Every method still places every movable file.
 - MoJoFM runs 0 to 100 (ARCADE port). ARI runs from −0.5 to 1. c2c_cvg is the share of ground-truth modules recovered
   (c2c above 0.66). The cluster ratio is predicted clusters over ground-truth clusters.
 - MoJoFM hard counts only the files whose own name doesn't give their feature away.
 - TurboMQ is Bunch's sum of cluster factors; the JSON also has ARCADE's mean. Back-edges are the cluster-level import
   edges that point backwards in the partition's own DAG order.
-- Louvain rows are the mean of seeds 1 to 5. **Bold**: the best deterministic method (baselines and the seeds draft)
-  and the planner.
+- Louvain rows are the mean of seeds 1 to 5. **Bold**: the planner, and the best deterministic method (baselines and
+  the seeds draft) on each measure: the best by MoJoFM in the ground-truth columns (MoJoFM to MoJoFM hard), the best
+  by TurboMQ in the graph's columns (clusters, TurboMQ, back-edges), the whole row when one method is best on both.
 - Planner rules (src/planner/types.ts) say how the planner reads the target and Nemotron's answers and ranks its
   edits. Rules 2 (S8) read a move that names its file by the id the prompt showed, or its target by a draft group's id
   or key, never rank a plan without feature modules first while another candidate has one, and leave out of the facts'
@@ -26,7 +26,7 @@
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
 - Scramble: commit `a38bd84671c2`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; certificate PASS (static), digest `110a9b0bf198`.
 - Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (export names), MoJoFM 81.38.
+- Best deterministic method on MoJoFM: seeds draft (export names), MoJoFM 81.38. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 9.63.
 - Planner: replayed from `cassettes/s7-bench.jsonl` (2 calls, recorded cost $0.1375, this run spent $0); 29 groups (22 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `615def2cbbab`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
@@ -36,10 +36,10 @@
 | name-token (anchored) | 56 | 75.17 | 0.541 | 0.760 | 1.88 | 50.00 | 7.43 | 53 |
 | export-token (anchored) | 62 | 74.48 | 0.528 | 0.760 | 2.04 | 45.00 | 6.92 | 47 |
 | seeds draft (file names) | 43 | 80.00 | 0.593 | 0.800 | 1.56 | 57.50 | 7.63 | 37 |
-| **seeds draft (export names)** | **45** | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | **7.37** | **36** |
+| **seeds draft (export names)** | 45 | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | 7.37 | 36 |
 | Louvain r=1 (mean of seeds 1-5) | 8.4 | 32.55 | 0.278 | 0.032 | 0.30 | 57.00 | 4.02 | 17.2 |
 | Louvain r=2 (mean of seeds 1-5) | 17 | 56.96 | 0.516 | 0.272 | 0.64 | 77.00 | 6.74 | 58 |
-| Louvain r=4 (mean of seeds 1-5) | 33.6 | 74.62 | 0.601 | 0.616 | 1.26 | 79.00 | 9.63 | 76.4 |
+| **Louvain r=4 (mean of seeds 1-5)** | **33.6** | 74.62 | 0.601 | 0.616 | 1.26 | 79.00 | **9.63** | **76.4** |
 | **planner (Ultra)** | **29** | **87.59** | **0.794** | **0.840** | **1.16** | **67.50** | **8.12** | **30** |
 
 Louvain MoJoFM per seed (1 to 5): r=1: 29.66, 35.17, 35.86, 32.41, 29.66; r=2: 56.55, 51.72, 59.31, 57.93, 59.31; r=4: 75.86, 73.79, 74.48, 75.86, 73.10.
@@ -54,7 +54,7 @@ Louvain MoJoFM per seed (1 to 5): r=1: 29.66, 35.17, 35.86, 32.41, 29.66; r=2: 5
 - Target: `~/ac-targets/hoppscotch` `packages/hoppscotch-backend/src` @ `63273f8e599e`.
 - Scramble: commit `bf37a0f63913`, 156 files moved, 1 declined by the executor (they stay), 22 excluded; certificate PASS (static), digest `aaae99a7b3cc`.
 - Scored: 156 feature files in 25 modules (46 hard), of 186 movable files. 0 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (export names), MoJoFM 81.38.
+- Best deterministic method on MoJoFM: seeds draft (export names), MoJoFM 81.38. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 9.57.
 - Planner: 1 of 2 calls replayed from `cassettes/s7-bench.jsonl` and 1 recorded into it for $0.0191 (the plan's calls cost $0.1275 when recorded); 37 groups (35 modules), from the seeds draft (export names); planner rules 2; plan.yaml sha256 `e38cd9aeaa64`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
@@ -64,10 +64,10 @@ Louvain MoJoFM per seed (1 to 5): r=1: 29.66, 35.17, 35.86, 32.41, 29.66; r=2: 5
 | name-token (anchored) | 175 | 9.66 | 0.000 | 0.000 | 6.24 | 22.50 | 0.06 | 2 |
 | export-token (anchored) | 62 | 74.48 | 0.528 | 0.760 | 2.04 | 45.00 | 6.92 | 47 |
 | seeds draft (file names) | 92 | 23.45 | 0.015 | 0.080 | 3.40 | 15.00 | 2.88 | 48 |
-| **seeds draft (export names)** | **45** | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | **7.37** | **36** |
+| **seeds draft (export names)** | 45 | **81.38** | **0.634** | **0.800** | **1.60** | **62.50** | 7.37 | 36 |
 | Louvain r=1 (mean of seeds 1-5) | 9.4 | 33.38 | 0.299 | 0.048 | 0.34 | 56.50 | 4.44 | 22.4 |
 | Louvain r=2 (mean of seeds 1-5) | 16.6 | 53.10 | 0.499 | 0.216 | 0.62 | 74.00 | 6.72 | 57.4 |
-| Louvain r=4 (mean of seeds 1-5) | 33.2 | 76.27 | 0.601 | 0.616 | 1.22 | 80.50 | 9.57 | 70.4 |
+| **Louvain r=4 (mean of seeds 1-5)** | **33.2** | 76.27 | 0.601 | 0.616 | 1.22 | 80.50 | **9.57** | **70.4** |
 | **planner (Ultra)** | **37** | **83.45** | **0.641** | **0.800** | **1.40** | **60.00** | **7.14** | **42** |
 
 Louvain MoJoFM per seed (1 to 5): r=1: 26.21, 34.48, 42.76, 33.10, 30.34; r=2: 55.86, 51.03, 54.48, 51.03, 53.10; r=4: 74.48, 76.55, 76.55, 80.00, 73.79.
@@ -82,7 +82,7 @@ Louvain MoJoFM per seed (1 to 5): r=1: 26.21, 34.48, 42.76, 33.10, 30.34; r=2: 5
 - Target: `~/ac-targets/kaneo` `apps/api/src` @ `b80818fe2e93`.
 - Scramble: commit `aad6fc97e3c7`, 400 files moved, 1 declined by the executor (they stay), 12 excluded; certificate FAIL (static), failing K3c, K4, digest `d68239231a54`.
 - Scored: 401 feature files in 47 modules (234 hard), of 454 movable files. 54 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: Louvain r=4 (mean of seeds 1-5), MoJoFM 66.90.
+- Best deterministic method on MoJoFM and on TurboMQ: Louvain r=4 (mean of seeds 1-5), MoJoFM 66.90 and TurboMQ 16.05.
 - Planner: 1 of 2 calls replayed from `cassettes/s7-bench.jsonl` and 1 recorded into it for $0.0649 (the plan's calls cost $0.1714 when recorded); 64 groups (55 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `bcb39422b864`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
@@ -110,7 +110,7 @@ Louvain MoJoFM per seed (1 to 5): r=1: 27.15, 31.85, 27.68, 32.90, 27.68; r=2: 5
 - Target: `~/ac-targets/ghostfolio` `apps/api/src/app` @ `347cd06a4012`.
 - Scramble: commit `9e65a3a63971`, 156 files moved, 3 declined by the executor (they stay), 219 excluded; certificate PASS (static), digest `c2d4ef40f83d`.
 - Scored: 153 feature files in 34 modules (54 hard), of 154 movable files. 16 of the movable files give their feature away in their path (the leakage note below).
-- Best deterministic method: seeds draft (file names), MoJoFM 84.72.
+- Best deterministic method on MoJoFM and on TurboMQ: seeds draft (file names), MoJoFM 84.72 and TurboMQ 19.88.
 - Planner: 1 of 2 calls replayed from `cassettes/s7-bench.jsonl` and 1 recorded into it for $0.0274 (the plan's calls cost $0.0878 when recorded); 42 groups (38 modules), from the seeds draft (export names); planner rules 2; plan.yaml sha256 `9048c87d30c7`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
@@ -138,7 +138,7 @@ Louvain MoJoFM per seed (1 to 5): r=1: 54.86, 52.78, 52.78, 52.78, 52.78; r=2: 6
 
 - Target: `~/ac-targets/immich` `server/src` @ `02063972e82b`.
 - 269 movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are computed over the files immich's 2024 domain layer labels (47 of 269 movable files, 23 features, 6 hard), unlike the scrambles' complete keys: every method places all 269, and only those 47 count (key `bench/ground-truth/immich-2024.rsf`, sha256 `5459ab310fa5`).
-- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50. On MoJoFM over the key's 47 files: seeds draft (file names), MoJoFM 93.02.
+- Best deterministic method on MoJoFM over the key's 47 files: seeds draft (file names), MoJoFM 93.02. On TurboMQ: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.
 - Planner: replayed from `cassettes/s6-immich.jsonl` (2 calls, recorded cost $0.1998, this run spent $0); 59 groups (38 modules), from the seeds draft (file names); planner rules 1; plan.yaml sha256 `b4c7c548883c`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
