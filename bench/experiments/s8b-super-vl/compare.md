@@ -16,6 +16,7 @@ The planner's runs from 6 results directories, one planner configuration each (s
 - Draft as the plan: the runs where none of the K edit choices came back usable (each one cut by the length cap or unparseable), so the seeds draft became the plan and the critic had nothing to review. Edit choices truncated: the choices the length cap cut (finish_reason length), of K per run. Critic ran: the runs whose winning edit the critic reviewed.
 - Valid plans from an edit: the runs whose plan came from an edit and that our validator accepts. A run that delivered the draft is no plan of the model, so it never counts here, whatever the validator says of the draft; `ac run` refuses an invalid plan, and the bench scores it as it came back.
 - Cost is what a run's edit and critic calls cost when they were recorded; tokens are the cassette's usage over those calls. – where a result doesn't record a count: tokens and edit choices in a result without a repeats block (before S8b, or one default run), and where the plan came from in a result written before the S7 fix round.
+- MoJoFM over the key: a real target with a partial answer key adds the mean (min to max) of MoJoFM over the files the key labels, every method still placing every movable file, and the runs above the best deterministic method on it. Each such entry says what its key covers.
 
 ## ghostfolio (scramble, default)
 
@@ -100,20 +101,29 @@ Each MoJoFM mean against the other directories' runs:
 
 Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50 in the 3 directories with this entry.
 
-| results | configuration | runs | TurboMQ mean (min to max), as delivered | beat the best deterministic | back-edges mean (min to max) | draft as the plan | edit choices truncated | critic ran | valid plans from an edit | modules mean (min to max) | recorded cost per run | completion tokens per run | reasoning tokens per run |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| ultra | `ultra` | 3 | 10.20 (10.03 to 10.42) | 0 of 3 | 121.7 (118 to 125) | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 41.7 (40 to 44) | $0.1596 | 41,543 | 30,247 |
-| super-vl-direct | `super-vl-direct` | 3 | 9.84 (9.76 to 9.98) | 0 of 3 | 137.0 (117 to 163) | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 45.0 (41 to 52) | $0.0400 | 32,779 | 0 |
-| super-vl-256k | `super-vl-256k` | 3 | 10.26 (10.08 to 10.35) | 0 of 3 | 119.0 (118 to 120) | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 42.7 (42 to 43) | $0.2911 | 311,861 | 303,252 |
-| super-vl | `super-vl` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – | – |
-| super-vl-low | `super-vl-low` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – | – |
-| super-vl-long | `super-vl-long` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – | – |
+MoJoFM over the key is computed over the files immich's 2024 domain layer labels (47 of 269 movable files, 23 features, 6 hard), unlike the scrambles' complete keys (key `bench/ground-truth/immich-2024.rsf`, sha256 `5459ab310fa5`) in the 3 directories with a key.
+Best deterministic method on MoJoFM over the key: seeds draft (file names), MoJoFM 93.02 in the 3 directories with a key.
+
+| results | configuration | runs | TurboMQ mean (min to max), as delivered | beat the best deterministic | back-edges mean (min to max) | MoJoFM over the key mean (min to max) | beat the best on it | draft as the plan | edit choices truncated | critic ran | valid plans from an edit | modules mean (min to max) | recorded cost per run | completion tokens per run | reasoning tokens per run |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| ultra | `ultra` | 3 | 10.20 (10.03 to 10.42) | 0 of 3 | 121.7 (118 to 125) | 89.15 (88.37 to 90.70) | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 41.7 (40 to 44) | $0.1596 | 41,543 | 30,247 |
+| super-vl-direct | `super-vl-direct` | 3 | 9.84 (9.76 to 9.98) | 0 of 3 | 137.0 (117 to 163) | 89.92 (88.37 to 90.70) | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 45.0 (41 to 52) | $0.0400 | 32,779 | 0 |
+| super-vl-256k | `super-vl-256k` | 3 | 10.26 (10.08 to 10.35) | 0 of 3 | 119.0 (118 to 120) | 88.37 (88.37 to 88.37) | 0 of 3 | 0 of 3 | 0 of 9 | 3 of 3 | 3 of 3 | 42.7 (42 to 43) | $0.2911 | 311,861 | 303,252 |
+| super-vl | `super-vl` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – | – | – | – |
+| super-vl-low | `super-vl-low` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – | – | – | – |
+| super-vl-long | `super-vl-long` | 0 | no result for this entry | – | – | – | – | – | – | – | – | – | – | – | – |
 
 Each TurboMQ mean against the other directories' runs:
 
 - ultra: 10.20, above the range (9.76 to 9.98) of super-vl-direct and inside the range (10.08 to 10.35) of super-vl-256k.
 - super-vl-direct: 9.84, below the range (10.03 to 10.42) of ultra and below the range (10.08 to 10.35) of super-vl-256k.
 - super-vl-256k: 10.26, inside the range (10.03 to 10.42) of ultra and above the range (9.76 to 9.98) of super-vl-direct.
+
+Each MoJoFM mean over the key against the other directories' runs:
+
+- ultra: 89.15, inside the range (88.37 to 90.70) of super-vl-direct and above the range (88.37 to 88.37) of super-vl-256k.
+- super-vl-direct: 89.92, inside the range (88.37 to 90.70) of ultra and above the range (88.37 to 88.37) of super-vl-256k.
+- super-vl-256k: 88.37, inside the range (88.37 to 90.70) of ultra and inside the range (88.37 to 90.70) of super-vl-direct.
 
 ## Totals
 

@@ -1,5 +1,5 @@
 {
-  "_doc": "ac bench entries (src/bench/types.ts BenchEntry). Scramble entries flatten a feature-modular package (bench/scramble/<name>.json) and score recovery against its original folders; real entries are type-sliced targets scored without ground truth. repo is a pristine checkout (never written; the bench makes worktrees). cassette paths are relative to this package.",
+  "_doc": "ac bench entries (src/bench/types.ts BenchEntry). Scramble entries flatten a feature-modular package (bench/scramble/<name>.json) and score recovery against its original folders; real entries are type-sliced targets scored without ground truth, or on a partial key (groundTruth: `contain <feature> <path>` lines, package-relative like the facts' paths) over the files it labels only, every method still placing every movable file; groundTruthSource says who labeled them. repo is a pristine checkout (never written; the bench makes worktrees). cassette and groundTruth paths are relative to this package.",
   "entries": [
     {
       "name": "hoppscotch",
@@ -45,7 +45,9 @@
       "packageRoot": "server",
       "moduleRoot": "src",
       "profile": "immich",
-      "cassette": "cassettes/s6-immich.jsonl"
+      "cassette": "cassettes/s6-immich.jsonl",
+      "groundTruth": "bench/ground-truth/immich-2024.rsf",
+      "groundTruthSource": "immich's 2024 domain layer"
     }
   ]
 }

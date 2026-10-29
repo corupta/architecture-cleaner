@@ -3,7 +3,10 @@
 `ac bench` writes one JSON file per entry next to this summary (format `ac-bench/1`, src/bench/types.ts).
 
 - **Scramble** entries flatten a feature-modular package into type folders with our own executor, in one commit. Our certifier checks that commit as a pure move: hoppscotch, hoppscotch-H1, kaneo and ghostfolio were not certified in this run. Verdict, scope and failing checks are per entry below; a scramble is scored whatever its verdict, since the ground truth is its original folders.
-- **Real** entries are type-sliced targets with no ground truth: TurboMQ and back-edges only.
+- **Real** entries are type-sliced targets with no complete ground truth: TurboMQ and back-edges, and where an entry
+  names a partial answer key, MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard over the files it labels only.
+  Every method still places every movable file. Bold there: the best deterministic method by TurboMQ in the graph's
+  columns (clusters, TurboMQ, back-edges), the best by MoJoFM over the key in the key's columns.
 - MoJoFM runs 0 to 100 (ARCADE port). ARI runs from −0.5 to 1. c2c_cvg is the share of ground-truth modules recovered
   (c2c above 0.66). The cluster ratio is predicted clusters over ground-truth clusters.
 - MoJoFM hard counts only the files whose own name doesn't give their feature away.
@@ -224,25 +227,27 @@ Planner runs (`super-vl-256k`):
 ## immich (real)
 
 - Target: `~/ac-targets/immich` `server/src` @ `02063972e82b`.
-- 269 movable files; no ground truth.
-- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50.
+- 269 movable files. MoJoFM, ARI, c2c_cvg, the cluster ratio and MoJoFM hard are computed over the files immich's 2024 domain layer labels (47 of 269 movable files, 23 features, 6 hard), unlike the scrambles' complete keys: every method places all 269, and only those 47 count (key `bench/ground-truth/immich-2024.rsf`, sha256 `5459ab310fa5`).
+- Best deterministic method: Louvain r=4 (mean of seeds 1-5), TurboMQ 10.50. On MoJoFM over the key's 47 files: seeds draft (file names), MoJoFM 93.02.
 - Planner configuration `super-vl-256k`: Nemotron 3.5 Super VL (thinking on) edits and reviews; 3 runs through one gateway.
 - Planner, run 1 of 3 (the runs table has every run): recorded into `cassettes/s8b-bench.jsonl` (2 calls) for $0.2697; 52 groups (43 modules), from the seeds draft (file names); planner rules 2; plan.yaml sha256 `0b9e24688266`.
 
 | method | clusters | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges |
 |---|---|---|---|---|---|---|---|---|
-| B0 type folders | 10 | – | – | – | – | – | 1.94 | 25 |
-| name-token (full stem) | 138 | – | – | – | – | – | 9.03 | 212 |
-| name-token (anchored) | 118 | – | – | – | – | – | 9.51 | 129 |
-| export-token (anchored) | 122 | – | – | – | – | – | 8.39 | 127 |
-| seeds draft (file names) | 81 | – | – | – | – | – | 10.19 | 141 |
-| seeds draft (export names) | 83 | – | – | – | – | – | 9.11 | 142 |
-| Louvain r=1 (mean of seeds 1-5) | 9.2 | – | – | – | – | – | 3.81 | 20.8 |
-| Louvain r=2 (mean of seeds 1-5) | 25.6 | – | – | – | – | – | 7.09 | 136.8 |
-| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | – | – | – | – | – | **10.50** | **166** |
-| **planner (Super VL, thinking on, 256k) #1** | **52** | – | – | – | – | – | **10.34** | **119** |
-| **planner (Super VL, thinking on, 256k) #2** | **52** | – | – | – | – | – | **10.08** | **118** |
-| **planner (Super VL, thinking on, 256k) #3** | **52** | – | – | – | – | – | **10.35** | **120** |
+| B0 type folders | 10 | 11.63 | -0.006 | 0.000 | 0.17 | 33.33 | 1.94 | 25 |
+| name-token (full stem) | 138 | 81.40 | 0.552 | 0.913 | 1.35 | 33.33 | 9.03 | 212 |
+| name-token (anchored) | 118 | 90.70 | 0.731 | 0.957 | 1.17 | 33.33 | 9.51 | 129 |
+| export-token (anchored) | 122 | 81.40 | 0.624 | 0.826 | 1.35 | 33.33 | 8.39 | 127 |
+| **seeds draft (file names)** | 81 | **93.02** | **0.806** | **1.000** | **1.13** | **33.33** | 10.19 | 141 |
+| seeds draft (export names) | 83 | 81.40 | 0.613 | 0.826 | 1.30 | 33.33 | 9.11 | 142 |
+| Louvain r=1 (mean of seeds 1-5) | 9.2 | 23.72 | 0.104 | 0.052 | 0.26 | 86.67 | 3.81 | 20.8 |
+| Louvain r=2 (mean of seeds 1-5) | 25.6 | 55.35 | 0.263 | 0.331 | 0.74 | 33.33 | 7.09 | 136.8 |
+| **Louvain r=4 (mean of seeds 1-5)** | **47.6** | 71.63 | 0.413 | 0.661 | 1.16 | 33.33 | **10.50** | **166** |
+| **planner (Super VL, thinking on, 256k) #1** | **52** | **88.37** | **0.727** | **0.913** | **1.04** | **33.33** | **10.34** | **119** |
+| **planner (Super VL, thinking on, 256k) #2** | **52** | **88.37** | **0.759** | **0.913** | **1.04** | **33.33** | **10.08** | **118** |
+| **planner (Super VL, thinking on, 256k) #3** | **52** | **88.37** | **0.727** | **0.913** | **1.04** | **33.33** | **10.35** | **120** |
+
+Louvain MoJoFM per seed (1 to 5), over the key's 47 files: r=1: 25.58, 25.58, 25.58, 20.93, 20.93; r=2: 53.49, 53.49, 53.49, 58.14, 58.14; r=4: 65.12, 74.42, 74.42, 72.09, 72.09.
 
 Planner runs (`super-vl-256k`):
 
@@ -252,13 +257,13 @@ Planner runs (`super-vl-256k`):
 | planner (Super VL, thinking on, 256k) #2 | an edit | 3 of 3 parsed | yes | yes | 52 | 43 | $0.2912 | $0.2912 | 2 recorded | 34,771 | 311,963 | 303,925 | `862799b1547f` |
 | planner (Super VL, thinking on, 256k) #3 | an edit | 3 of 3 parsed | yes | yes | 52 | 42 | $0.3124 | $0.3124 | 2 recorded | 34,833 | 335,530 | 326,825 | `675e2d385416` |
 
-| over the 3 runs, as delivered | TurboMQ | back-edges | groups | modules | recorded cost | completion tokens | reasoning tokens |
-|---|---|---|---|---|---|---|---|
-| mean | 10.26 | 119 | 52 | 42.7 | $0.2911 | 311,861 | 303,252 |
-| min | 10.08 | 118 | 52 | 42 | $0.2697 | 288,090 | 279,007 |
-| max | 10.35 | 120 | 52 | 43 | $0.3124 | 335,530 | 326,825 |
+| over the 3 runs, as delivered | MoJoFM | ARI | c2c_cvg | cluster ratio | MoJoFM hard | TurboMQ | back-edges | groups | modules | recorded cost | completion tokens | reasoning tokens |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mean | 88.37 | 0.738 | 0.913 | 1.04 | 33.33 | 10.26 | 119 | 52 | 42.7 | $0.2911 | 311,861 | 303,252 |
+| min | 88.37 | 0.727 | 0.913 | 1.04 | 33.33 | 10.08 | 118 | 52 | 42 | $0.2697 | 288,090 | 279,007 |
+| max | 88.37 | 0.759 | 0.913 | 1.04 | 33.33 | 10.35 | 120 | 52 | 43 | $0.3124 | 335,530 | 326,825 |
 
-0 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
+0 of 3 runs score above the best deterministic method on TurboMQ's sum, each run as delivered, and 0 of 3 above the best on MoJoFM over the key's 47 files. 0 of 3 runs had no usable edit; the critic reviewed 3 of 3 plans; 0 of 9 edit choices were cut by the length cap (finish_reason length). The validator accepts 3 of 3 plans, counting only plans that came from an edit.
 
 - The planner starts from the seeds draft (file names): plannerDraft takes the export names only when they leave fewer files contested than the file names, and here they leave 31 against 29 (no ground truth is read).
 - Run 1 of 3: The planner's plan moves 12 of 269 files out of their draft group and merges 29 draft groups into others (81 draft groups, 52 plan groups). The winning edit, super-vl#2, had 81 group entries and 14 moves; the validator found no problem with it. The critic made 1 suggestion and its gate kept 1.
