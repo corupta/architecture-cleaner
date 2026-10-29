@@ -1,28 +1,37 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>ac splits the job: the map, the move, the proof</title>
-<!-- M2, the loop. Shot "loop" (B5a) plays 0–16 s: three boxes light as the voice names them, then the commit lands.
-     Shot "loop-fail" (B6's opening) opens it with ?from=16: everything lit, then the checker says no, the way back to
-     the move lights red and the commit fades. Every element is on screen from the shot's first frame, faint until its
-     moment; the notes under a box turn opaque with their box. -->
+<!-- M2, the loop. Shot "loop" (B5) plays 0–19 s: the three blocks become current one after another as the voice names
+     them, then the commit lands. Shot "loop-fail" (B6's opening) opens it with ?from=19, the loop's last picture: the
+     checker says no, the way back to the move turns red and the commit goes back to faint.
+     The faint stage is for chronology only: each block, its note and the arrow into it are faint with an ink outline
+     until their moment, then opaque. The current block's outline is blue; once the next one is current it goes back to
+     ink and stays opaque. Green is the commit (success), red the failure. The way back is faint in the loop (it is not
+     taken there). The cost line is not part of the chronology: absent until the voice names it, then there. -->
 <link rel="stylesheet" href="common.css">
 <link rel="stylesheet" href="diagrams.css">
 <script src="../../out/v2/data.js"></script>
 <script src="common.js"></script>
 <div class="stage" id="stage"><svg class="wires" id="wires"></svg></div>
 <script>
-// Seconds on the page's clock, keyed to the voice-over (v2.3, B5a and B6).
+// Seconds on the page's clock, keyed to the voice-over (v2.3, B5 and B6's opening). Retime here, then the shots'
+// lengths in shots-diagrams.mjs: loop plays 0–19 s, loop-fail starts the clock at 19 s (?from=19).
 const SCHEDULE = {
-  // "So ac splits the job." (0–2 s): the three boxes, their notes, the commit and the way back, all faint.
-  map: 2.0, // "Nemotron draws the map: which feature each file belongs to." The box and its note.
-  move: 6.0, // "Plain code moves the files, one feature per commit, changing nothing but import paths."
-  proof: 11.5, // "And a separate checker proves it." The box and its two notes.
-  commit: 13.5, // the commit lands
-  // The way back stays faint in B5a: its moment is B6's.
-  // loop-fail (?from=16), B6: "Just to test it, we broke one import on purpose."
-  fail: 16.0, // everything lit, B5a's notes gone, "the checker said no" faint
-  failChecker: 16.5, // the checker says no, and its note turns opaque
-  failPath: 17.0, // ✗ → roll back lights red, its label with it
-  failCommit: 17.4, // the commit fades back to faint: rolled back
+  // "So ac splits the job." (0–1.8 s): the blocks, their notes, the commit and the way back, all faint.
+  map: 1.8, // "Nemotron draws the map: which feature each file belongs to." (1.8–5.8 s)
+  cost: 5.8, // "Two calls on Nebius Token Factory, twenty cents." (5.8–8.6 s): the cost line appears
+  move: 8.6, // "Plain code moves the files and updates their imports, one feature per commit." (8.6–13 s)
+  proof: 13.0, // "And a separate checker proves every import still reaches the same file." (13–17 s)
+  commit: 17.0, // the commit lands (17–19 s); the loop shot ends at 19 s
+  // loop-fail (?from=19), B6: "Just to test it, we broke one import on purpose."
+  failChecker: 19.5, // the checker's outline and its ✗ turn red
+  failPath: 20.0, // the way back and its label turn red and opaque
+  failCommit: 20.4, // the commit goes back to faint: rolled back
+  lighting: 0.5, // faint → opaque, ink → blue, and each color change
+  costFade: 0.3, // the cost line's plain fade
 };
+// numbers.md row 51: the immich plan's two paid calls (the draft editor and the review), $0.1998 together.
+const COST = { calls: 2, dollars: '$0.20' };
+// Not yet its moment.
+const FAINT = 0.35;
 const from = Number(new URLSearchParams(location.search).get('from')) || 0;
 
 const stage = document.getElementById('stage');
@@ -42,109 +51,97 @@ const block = (className, lines, style) => {
   return element;
 };
 const mix = (from, to, amount) => `color-mix(in srgb, ${to} ${(clamp(amount) * 100).toFixed(2)}%, ${from})`;
-/** A path drawn from its start as `amount` goes 0 → 1. */
-const draw = (path, amount) => {
-  path.style.strokeDashoffset = String(1 - clamp(amount));
-  path.style.opacity = amount > 0 ? '1' : '0';
-};
-const wire = (d) => svg('path', { d, class: 'wire', pathLength: 1, 'stroke-dasharray': '1 1' });
 
-// The three parts, then the commit.
+// The three parts, each with its note, then the commit.
 const boxTop = 230;
 const boxHeight = 140;
 const boxWidth = 250;
 const middle = boxTop + boxHeight / 2;
+const noteTop = boxTop + boxHeight + 22;
 const parts = [
-  { x: 40, title: 'Nemotron', subtitle: 'the map' },
-  { x: 370, title: 'plain code', subtitle: 'the move' },
-  { x: 700, title: 'the checker', subtitle: 'the proof' },
+  { x: 40, title: 'Nemotron', subtitle: 'the map', note: ['which feature', 'each file belongs to'] },
+  { x: 370, title: 'plain code', subtitle: 'the move', note: ['moves files,', 'updates import paths'] },
+  { x: 700, title: 'the checker', subtitle: 'the proof', note: ['every import reaches', 'the same file'] },
 ].map((part) => {
   const element = block('node', [], { left: `${part.x}px`, top: `${boxTop}px`, width: `${boxWidth}px`, height: `${boxHeight}px` });
   element.append(Object.assign(document.createElement('div'), { className: 'node-title', textContent: part.title, style: 'font-size:32px' }));
   element.append(Object.assign(document.createElement('div'), { className: 'node-subtitle', textContent: part.subtitle }));
-  return { ...part, element, center: part.x + boxWidth / 2 };
+  const note = block('note center', part.note, { left: `${part.x + boxWidth / 2}px`, top: `${noteTop}px` });
+  return { ...part, element, note, center: part.x + boxWidth / 2 };
 });
-const commit = block('node', [], { left: '1030px', top: `${middle - 45}px`, width: '220px', height: '90px', borderColor: 'var(--pass)' });
-commit.append(Object.assign(document.createElement('div'), { className: 'node-title pass', textContent: 'commit ✓' }));
+const commit = block('node', [], { left: '1030px', top: `${middle - 45}px`, width: '220px', height: '90px' });
+commit.append(Object.assign(document.createElement('div'), { className: 'node-title', textContent: 'commit' }));
 
-// Arrows between them: a faint one always, a colored one drawn over it as the next part lights.
+const wire = (d, attributes = {}) => svg('path', { d, class: 'wire', ...attributes });
+
+/** A line and its head in one group, so a faint arrow is one even tint where they overlap. */
+const group = (...elements) => {
+  const created = svg('g', {});
+  created.append(...elements);
+  return created;
+};
+
+// The arrow into each block after the first: faint until that block's moment, then opaque with it.
 const arrow = (x1, x2) => {
-  const base = wire(`M ${x1} ${middle} L ${x2 - 12} ${middle}`);
-  base.style.stroke = 'var(--ring)';
-  const baseHead = svg('polygon', { points: `${x2},${middle} ${x2 - 16},${middle - 9} ${x2 - 16},${middle + 9}`, class: 'head' });
-  baseHead.style.fill = 'var(--ring)';
-  const lit = wire(`M ${x1} ${middle} L ${x2 - 12} ${middle}`);
+  const line = wire(`M ${x1} ${middle} L ${x2 - 12} ${middle}`);
   const head = svg('polygon', { points: `${x2},${middle} ${x2 - 16},${middle - 9} ${x2 - 16},${middle + 9}`, class: 'head' });
-  return { lit, head };
+  return { line, head, whole: group(line, head) };
 };
 const arrows = [arrow(300, 360), arrow(630, 690), arrow(960, 1020)];
-arrows[0].lit.style.stroke = arrows[0].head.style.fill = 'var(--ac)';
-arrows[1].lit.style.stroke = arrows[1].head.style.fill = 'var(--ac)';
-arrows[2].lit.style.stroke = arrows[2].head.style.fill = 'var(--pass)';
+// The checker → commit arrow's ✓: the commit's success.
+const passMark = block('note center', ['✓'], { left: '990px', top: `${middle - 52}px`, fontSize: '32px', fontWeight: '700' });
 
-// The way back: from the checker over the top to the move.
+// The way back: from the checker over the top to the move, with its ✗ just above the checker where it leaves.
 const [checkerX, moveX] = [parts[2].center, parts[1].center];
-const backPath = `M ${checkerX} ${boxTop - 8} C ${checkerX} 120, ${moveX} 120, ${moveX} ${boxTop - 18}`;
-const back = svg('path', { d: backPath, class: 'wire', 'stroke-dasharray': '10 10' });
-back.style.stroke = 'var(--muted)';
-const backHeadPoints = `${moveX},${boxTop - 4} ${moveX - 9},${boxTop - 21} ${moveX + 9},${boxTop - 21}`;
-const backHead = svg('polygon', { points: backHeadPoints, class: 'head' });
-backHead.style.fill = 'var(--muted)';
-const backRed = wire(backPath);
-backRed.style.stroke = 'var(--fail)';
-const backRedHead = svg('polygon', { points: backHeadPoints, class: 'head' });
-backRedHead.style.fill = 'var(--fail)';
-const backLabel = block('note center', ['✗ → roll back'], { left: `${(checkerX + moveX) / 2}px`, top: '88px', fontWeight: '600' });
+const back = wire(`M ${checkerX} ${boxTop - 8} C ${checkerX} 120, ${moveX} 120, ${moveX} ${boxTop - 18}`, { 'stroke-dasharray': '10 10' });
+const backHead = svg('polygon', { points: `${moveX},${boxTop - 4} ${moveX - 9},${boxTop - 21} ${moveX + 9},${boxTop - 21}`, class: 'head' });
+const backWhole = group(back, backHead);
+const backLabel = block('note center', ['roll back'], { left: `${(checkerX + moveX) / 2}px`, top: '88px', fontWeight: '600' });
+const failMark = block('note center', ['✗'], { left: `${checkerX + 26}px`, top: `${boxTop - 56}px`, fontSize: '32px', fontWeight: '700' });
 
-// Notes under the boxes: faint until their box lights, then opaque with it.
-const noteTop = boxTop + boxHeight + 22;
-const mapNote = block('note center', ['which feature', 'each file belongs to'], { left: `${parts[0].center}px`, top: `${noteTop}px` });
-const proofNotes = [
-  block('note center', ['only moves and', 'import paths'], { left: `${parts[2].center}px`, top: `${noteTop}px` }),
-  block('note center', ['every import reaches', 'the same file'], { left: `${parts[2].center}px`, top: `${noteTop + 86}px` }),
-];
-const saidNo = block('note center fail', ['the checker said no'], { left: `${parts[2].center}px`, top: `${noteTop}px`, fontWeight: '600' });
+// What Nemotron's map cost: not part of the chronology, so absent until the voice says it.
+const cost = block('note', [], { left: '40px', top: '530px', color: 'var(--muted)' });
+cost.append(
+  Object.assign(document.createElement('b'), { textContent: `${COST.calls} calls · ${COST.dollars}`, style: 'font-size:34px;color:var(--ink)' }),
+  Object.assign(document.createElement('span'), { textContent: 'Nemotron 3 Ultra via Nebius Token Factory', style: 'margin-left:24px' }),
+);
 
-const faint = 0.35;
+const paint = (element, opacity, color) => {
+  element.style.opacity = String(opacity);
+  element.style.color = color;
+};
 window.renderAt = (seconds) => {
   const t = seconds + from;
-  const failing = t >= SCHEDULE.fail;
-  const lit = [SCHEDULE.map, SCHEDULE.move, SCHEDULE.proof].map((start) => (failing ? 1 : progress(t, start, 0.6)));
+  // How far each part is through its moment, and how current it still is (until the next one's moment).
+  const lit = [SCHEDULE.map, SCHEDULE.move, SCHEDULE.proof, SCHEDULE.commit].map((start) => progress(t, start, SCHEDULE.lighting));
+  const no = progress(t, SCHEDULE.failChecker, SCHEDULE.lighting);
+  const red = progress(t, SCHEDULE.failPath, SCHEDULE.lighting);
+  const committed = lit[3] * (1 - progress(t, SCHEDULE.failCommit, SCHEDULE.lighting));
+
   parts.forEach((part, index) => {
-    part.element.style.opacity = String(lerp(faint, 1, lit[index]));
-    part.element.style.borderColor = mix('var(--ring)', 'var(--ac)', lit[index]);
+    const current = lit[index] - lit[index + 1];
+    let outline = mix('var(--ink)', 'var(--ac)', current);
+    if (index === 2) outline = mix(outline, 'var(--fail)', no);
+    part.element.style.borderColor = outline;
+    part.element.style.opacity = part.note.style.opacity = String(lerp(FAINT, 1, lit[index]));
   });
-  // The checker turns red when it says no.
-  const no = failing ? progress(t, SCHEDULE.failChecker, 0.5) : 0;
-  if (no > 0) parts[2].element.style.borderColor = mix('var(--ac)', 'var(--fail)', no);
-  saidNo.style.opacity = String(failing ? lerp(faint, 1, no) : 0);
+  arrows.forEach(({ line, head, whole }, index) => {
+    whole.style.opacity = String(lerp(FAINT, 1, index === 2 ? committed : lit[index + 1]));
+    line.style.stroke = head.style.fill = 'var(--ink)';
+  });
 
-  draw(arrows[0].lit, failing ? 1 : progress(t, SCHEDULE.move, 0.5));
-  arrows[0].head.style.opacity = String(failing ? 1 : progress(t, SCHEDULE.move + 0.35, 0.2));
-  draw(arrows[1].lit, failing ? 1 : progress(t, SCHEDULE.proof, 0.5));
-  arrows[1].head.style.opacity = String(failing ? 1 : progress(t, SCHEDULE.proof + 0.35, 0.2));
+  // The commit: green while it stands; rolled back, faint again with an ink outline.
+  commit.style.opacity = String(lerp(FAINT, 1, committed));
+  commit.style.borderColor = mix('var(--ink)', 'var(--pass)', committed);
+  paint(passMark, lerp(FAINT, 1, committed), mix('var(--ink)', 'var(--pass)', committed));
 
-  // The commit lands; on a fail it fades, with the arrow that led to it.
-  const landed = failing ? 1 : progress(t, SCHEDULE.commit, 0.6);
-  const gone = failing ? progress(t, SCHEDULE.failCommit, 0.8) : 0;
-  // Rolled back, it is faint again: the commit never happened.
-  const committed = landed * (1 - gone);
-  commit.style.opacity = String(lerp(faint, 1, committed));
-  commit.style.borderColor = mix('var(--ring)', 'var(--pass)', committed);
-  draw(arrows[2].lit, (failing ? 1 : progress(t, SCHEDULE.commit - 0.2, 0.5)) * (1 - gone));
-  arrows[2].head.style.opacity = String((failing ? 1 : progress(t, SCHEDULE.commit + 0.15, 0.2)) * (1 - gone));
+  // The way back: faint in the loop; red and opaque when the checker says no.
+  paint(failMark, lerp(FAINT, 1, no), mix('var(--ink)', 'var(--fail)', no));
+  backWhole.style.opacity = String(lerp(FAINT, 1, red));
+  back.style.stroke = backHead.style.fill = mix('var(--ink)', 'var(--fail)', red);
+  paint(backLabel, lerp(FAINT, 1, red), mix('var(--ink)', 'var(--fail)', red));
 
-  // The way back: faint from the start; red on a fail, its label opaque with it.
-  const red = failing ? progress(t, SCHEDULE.failPath, 0.9) : 0;
-  back.style.opacity = backHead.style.opacity = String(faint);
-  draw(backRed, red);
-  backRedHead.style.opacity = String(progress(t, SCHEDULE.failPath + 0.75, 0.2) * (failing ? 1 : 0));
-  backLabel.style.opacity = String(lerp(faint, 1, red));
-  backLabel.style.color = mix('var(--muted)', 'var(--fail)', red);
-
-  // The notes belong to B5a, each with its box; the fail picture has only its own.
-  mapNote.style.opacity = String(failing ? 0 : lerp(faint, 1, lit[0]));
-  proofNotes.forEach((note) => { note.style.opacity = String(failing ? 0 : lerp(faint, 1, lit[2])); });
+  cost.style.opacity = String(progress(t, SCHEDULE.cost, SCHEDULE.costFade));
 };
 window.renderAt(0);
 </script>

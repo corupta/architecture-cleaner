@@ -24,4 +24,5 @@
 .history-rows .title code{font:25px/1 var(--mono);background:var(--page);border:1px solid var(--ring);border-radius:6px;padding:1px 7px}
 .history-rows .meta{margin-top:2px;font:25px/1.3 "Noto Sans",var(--sans);color:var(--muted)}
 .history-card .big{line-height:1.2}
+.history-card .in{font:400 40px/1.1 var(--sans);color:var(--muted);margin:2px 0 6px}
 .history-card .by-hand{color:var(--accent)}

@@ -1,7 +1,8 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Two coding agents on immich</title>
 <!-- The two opencode runs on immich as one card: Super on the left, Ultra on the right, the same structure. Two shots
-     from one page: "card-agents" (B3's end) has the left column only (the right one there but faint), and
-     "card-agents-ultra" (B4) opens it with ?from=6, both columns on screen from its first frame. -->
+     from one page: "card-agents" (B3's end) has the left column only (the divider and the right column are laid out
+     but not drawn, so the left column sits exactly where it will be), and "card-agents-ultra" (B4) opens it with
+     ?from=6, both columns on screen from its first frame. -->
 <link rel="stylesheet" href="common.css"><link rel="stylesheet" href="cards.css">
 <script src="../../out/v2/data.js"></script>
 <script src="common.js"></script>
@@ -14,27 +15,29 @@
 .right > *{grid-column:3}
 .head{grid-row:1;font:700 46px/1.2 var(--sans);color:var(--ink);white-space:nowrap;padding-bottom:20px;border-bottom:2px solid var(--ring)}
 .first{grid-row:3}
-.connector{grid-row:4;align-self:center;font:italic 32px/1 var(--sans);color:var(--muted)}
+.connector{grid-row:4;align-self:center}
 .second{grid-row:5}
-.note{grid-row:6;margin-top:20px;font:32px/1.3 var(--sans);color:var(--ink-2)}
+.note{grid-row:6;margin-top:20px}
+.connector,.note{font:italic 32px/1 var(--sans);color:var(--muted)}
 .number{font:700 68px/1.1 var(--sans);letter-spacing:-.5px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .words{font:38px/1.3 var(--sans);color:var(--ink);white-space:nowrap}
 .number.fail,.words.fail{color:var(--fail)}
 </style>
 <div class="stage">
   <div class="agents">
-    <div class="column left" id="super">
+    <div class="column left">
       <div class="head">opencode +<br>Nemotron 3 Super</div>
-      <div class="first"><div class="number">2,337 / 2,337</div><div class="words">test cases pass</div></div>
+      <div class="first"><div class="number">2,337</div><div class="words">test cases pass</div></div>
       <div class="connector">but</div>
       <div class="second"><div class="number fail">1,680</div><div class="words fail">compiler errors</div></div>
     </div>
-    <div class="divider"></div>
+    <div class="divider" id="divider"></div>
     <div class="column right" id="ultra">
       <div class="head">opencode +<br>Nemotron 3 Ultra</div>
       <div class="first"><div class="number">11.6M</div><div class="words">tokens</div></div>
-      <div class="second"><div class="number fail">0</div><div class="words">imports rewritten</div></div>
-      <div class="note">spending limit reached</div>
+      <div class="connector">but</div>
+      <div class="second"><div class="number fail">0</div><div class="words fail">imports rewritten</div></div>
+      <div class="note">(spending limit reached)</div>
     </div>
   </div>
 </div>
@@ -43,26 +46,23 @@
 // 2,337 of 2,337 cases pass, tsc 1,680 errors) and its Ultra arm (persistent, 11.6M tokens, no import rewritten, stopped
 // at its spending limit).
 //   card-agents (B3's end, 0:50–0:56), page time 0–6. Voice: "…and the compiler found over a thousand errors. A passing
-//     test count is not proof." The Super column; the Ultra column there but faint, its turn still to come.
+//     test count is not proof." The Super column alone: the Ultra column isn't drawn before the voice names Ultra.
 //   card-agents-ultra (B4, 0:56–1:10), ?from=6, page time 6–20. Voice: "With Nemotron 3 Ultra, the model ac uses, it
 //     burned nearly twelve million tokens and hit its spending limit before rewriting a single import. It's not the
 //     model. It's the job." Both columns, from its first frame.
-// Nothing moves inside a shot: the Ultra column turns opaque at the cut, all of its text together.
+// Nothing moves inside a shot: the divider and the Ultra column appear at the cut, all of their text together.
 const SCHEDULE = {
-  super: 0,           // the Super column, opaque from card-agents' first frame
-  ultra: 6,           // the Ultra column: faint (0.25) before, opaque from card-agents-ultra's first frame
-  faint: 0.25,
+  super: 0,           // the Super column, from card-agents' first frame
+  ultra: 6,           // the divider and the Ultra column: absent before, there from card-agents-ultra's first frame
   end: 20,
 };
 const from = Number(new URLSearchParams(location.search).get('from')) || 0;
-const columns = { super: document.getElementById('super'), ultra: document.getElementById('ultra') };
+const ultra = [document.getElementById('divider'), ...document.getElementById('ultra').children];
 
 window.renderAt = (seconds) => {
   const t = from + seconds;
-  for (const [name, column] of Object.entries(columns)) {
-    const opacity = String(t >= SCHEDULE[name] ? 1 : SCHEDULE.faint);
-    for (const element of column.children) element.style.opacity = opacity;
-  }
+  const visibility = t >= SCHEDULE.ultra ? 'visible' : 'hidden';
+  for (const element of ultra) element.style.visibility = visibility;
 };
 window.renderAt(0);
 </script>

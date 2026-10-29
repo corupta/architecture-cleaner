@@ -8,190 +8,163 @@
     {
       "shot": "sprawl",
       "file": "v2/graphics/sprawl.mp4",
-      "start": 0,
-      "end": 7,
+      "start": 0.0,
+      "end": 7.1,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "glide",
       "file": "v2/graphics/glide.mp4",
-      "start": 7,
-      "end": 21,
+      "start": 7.1,
+      "end": 20.5,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "history",
       "file": "v2/graphics/history.mp4",
-      "start": 21,
-      "end": 32,
+      "start": 20.5,
+      "end": 31.6,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "g3-vitest",
       "file": "v2/cli/g3-vitest.mp4",
-      "start": 32,
-      "end": 38.5,
+      "start": 31.6,
+      "end": 38.7,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "g3-vitest-result",
       "file": "v2/cli/g3-vitest.mp4",
-      "start": 38.5,
-      "end": 50.5,
+      "start": 38.7,
+      "end": 44.5,
       "from": 61.8,
       "speed": 1,
-      "badge": "≈ 1 min later",
       "boxes": [
         {
           "x": 381,
           "y": 338,
           "w": 765,
           "h": 107,
-          "at": 4.3
-        }
-      ],
-      "labels": [
-        {
-          "text": "copied, not moved: the originals still ran",
-          "at": 4.3,
-          "x": 381,
-          "y": 700
+          "at": 0.3
         }
       ]
     },
     {
       "shot": "card-agents",
       "file": "v2/graphics/card-agents.mp4",
-      "start": 50.5,
-      "end": 56,
+      "start": 44.5,
+      "end": 53.1,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "card-agents-ultra",
       "file": "v2/graphics/card-agents-ultra.mp4",
-      "start": 56,
-      "end": 70,
+      "start": 53.1,
+      "end": 64.7,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "loop",
       "file": "v2/graphics/loop.mp4",
-      "start": 70,
-      "end": 86,
-      "from": 0,
-      "speed": 1
-    },
-    {
-      "shot": "nemotron",
-      "file": "v2/graphics/nemotron.mp4",
-      "start": 86,
-      "end": 100,
+      "start": 64.7,
+      "end": 86.0,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "loop-fail",
       "file": "v2/graphics/loop-fail.mp4",
-      "start": 100,
-      "end": 104,
+      "start": 86.0,
+      "end": 90.4,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "fault-cert",
       "file": "v2/cli/fault-cert.mp4",
-      "start": 104,
-      "end": 111,
+      "start": 90.4,
+      "end": 94.0,
       "from": 1.6,
       "speed": 1,
-      "labels": [
+      "boxes": [
         {
-          "text": "compiler ✗",
-          "at": 2.5,
-          "x": 200,
-          "y": 745
-        },
-        {
-          "text": "test runner ✗",
-          "at": 3.2,
-          "x": 640,
-          "y": 745
-        },
-        {
-          "text": "Node ✗",
-          "at": 3.9,
-          "x": 1140,
-          "y": 745
+          "x": 281,
+          "y": 156,
+          "w": 1250,
+          "h": 44,
+          "at": 0.5
         }
       ]
     },
     {
       "shot": "fault",
       "file": "v2/graphics/fault.mp4",
-      "start": 111,
-      "end": 118,
+      "start": 94.0,
+      "end": 100.2,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "run",
       "file": "v2/graphics/run.mp4",
-      "start": 118,
-      "end": 125,
+      "start": 100.2,
+      "end": 107.2,
+      "from": 0,
+      "speed": 1
+    },
+    {
+      "shot": "card-scale",
+      "file": "v2/graphics/card-scale.mp4",
+      "start": 107.2,
+      "end": 112.1,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "trailer",
       "file": "v2/cli/trailer.mp4",
-      "start": 125,
-      "end": 127,
+      "start": 112.1,
+      "end": 115.2,
       "from": 0.4,
       "speed": 1,
-      "labels": [
+      "boxes": [
         {
-          "text": "every commit carries its verdict",
-          "at": 0.2,
-          "x": 160,
-          "y": 690
+          "x": 117,
+          "y": 349,
+          "w": 632,
+          "h": 42,
+          "at": 0.3
         }
       ]
     },
     {
-      "shot": "card-scale",
-      "file": "v2/graphics/card-scale.mp4",
-      "start": 127,
-      "end": 129.5,
-      "from": 0,
-      "speed": 1
-    },
-    {
       "shot": "branch-log",
       "file": "v2/cli/branch-log.mp4",
-      "start": 129.5,
-      "end": 133,
+      "start": 115.2,
+      "end": 119.2,
       "from": 0.3,
       "speed": 1
     },
     {
       "shot": "plan-entry",
       "file": "v2/cli/plan-entry.mp4",
-      "start": 133,
-      "end": 135.5,
+      "start": 119.2,
+      "end": 121.9,
       "from": 1.2,
       "speed": 1
     },
     {
       "shot": "certify-verdicts",
       "file": "v2/cli/certify-verdicts.mp4",
-      "start": 135.5,
-      "end": 140,
+      "start": 121.9,
+      "end": 126.4,
       "from": 4.5,
       "speed": 1,
       "labels": [
@@ -210,27 +183,27 @@
       ]
     },
     {
-      "shot": "card-supervl",
-      "file": "v2/graphics/card-supervl.mp4",
-      "start": 140,
-      "end": 149,
+      "shot": "replay",
+      "file": "v2/cli/replay.mp4",
+      "start": 126.4,
+      "end": 131.3,
+      "from": 0,
+      "speed": "fit",
+      "to": 200
+    },
+    {
+      "shot": "card-super-vl",
+      "file": "site/card-super-vl.mp4",
+      "start": 131.3,
+      "end": 144.7,
       "from": 0,
       "speed": 1
     },
     {
-      "shot": "replay",
-      "file": "v2/cli/replay.mp4",
-      "start": 149,
-      "end": 154,
-      "from": 0,
-      "to": 200,
-      "speed": "fit"
-    },
-    {
       "shot": "end",
       "file": "v2/graphics/end.mp4",
-      "start": 154,
-      "end": 162,
+      "start": 144.7,
+      "end": 159.1,
       "from": 0,
       "speed": 1
     }

@@ -9,7 +9,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { parse } from 'yaml';
 
 const { values } = parseArgs({ options: { immich: { type: 'string', default: path.join(os.homedir(), 'ac-targets', 'immich') } } });
 const video = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -37,17 +36,6 @@ for (const file of baseFiles) {
 const feature = (name) => moves
   .filter(([, to]) => to.startsWith(`server/src/modules/${name}/`) && !to.endsWith('.spec.ts'))
   .map(([from, to]) => ({ from: strip(from), to: strip(to).replace(/^modules\//, '') }));
-
-// B5b: Nemotron's calls, from the plan: the draft groups that became module/asset; one contested file; the review.
-const plan = parse(fs.readFileSync(path.join(runs, 'immich-ladder', 'plan', 'plan.yaml'), 'utf8'));
-const draft = parse(fs.readFileSync(path.join(runs, 'immich-ladder', 'plan', 'candidates', 'seeds-draft.yaml'), 'utf8'));
-const draftGroupOf = new Map(Object.entries(draft.groups).flatMap(([group, files]) => files.map((file) => [file.path, group])));
-const assetFiles = plan.groups['module/asset'].map((file) => file.path);
-const assetDraftGroups = {};
-for (const file of assetFiles) (assetDraftGroups[draftGroupOf.get(file)] ??= []).push(file);
-const contestedPath = 'src/utils/profile-image.ts';
-const contestedEntry = Object.entries(plan.groups).flatMap(([group, files]) => files.map((file) => ({ group, ...file }))).find((file) => file.path === contestedPath);
-const planJson = readJson(path.join(runs, 'immich-ladder', 'plan', 'plan.json'));
 
 // B6, B7: the runs' own logs: each commit (62 move steps and R4's rules commit, 63 on the ladder), when each step
 // ended and how, the rollbacks and pins, and how long the run took.
@@ -78,11 +66,6 @@ const data = {
   base,
   typeFolders,
   features: { album: feature('album'), asset: feature('asset'), user: feature('user') },
-  nemotron: {
-    assetDraftGroups,
-    contested: { path: contestedPath, draftGroup: draftGroupOf.get(contestedPath), group: contestedEntry.group, rationale: contestedEntry.rationale, source: contestedEntry.source },
-    critic: planJson.critic,
-  },
   runs: { ladder: timeline('immich-ladder'), fault: timeline('immich-fault') },
   history,
 };

@@ -1,8 +1,9 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>A seeded fault: attempt 1 fails, attempt 2 is certified</title>
 <!-- M4, shot "fault" (B6's end): the seeded run's step from its own log (data.runs.fault): the attempt the checker
-     failed and what failed, the rollback, the file pinned where it was, and the attempt that was certified. The title
-     and all four blocks are on screen from the first frame; each block, with the text under it and the arrow into it,
-     is faint until its moment and then opaque (the loop's convention, loop.html). Nothing moves. -->
+     failed, the rollback, the file pinned where it was, and the attempt that was certified. The title is static. The
+     four blocks are a chronology: each, with the note under it and the arrow into it, is faint with an ink outline
+     until its moment, then opaque (the loop's convention, loop.html). Outlines: attempt 1 red (failure), attempt 2
+     green (success); the two between are blue while current, then ink. Nothing moves. -->
 <link rel="stylesheet" href="common.css">
 <link rel="stylesheet" href="diagrams.css">
 <script src="../../out/v2/data.js"></script>
@@ -13,23 +14,17 @@
 // without that file. Certified."
 const SCHEDULE = {
   stages: [0, 1.5, 3, 4.5], // attempt 1 ✗, rolled back, the pinned file, attempt 2 ✓
-  lighting: 0.5, // faint → opaque
+  lighting: 0.5, // faint → opaque, and each outline change
 };
 // Not yet its moment: faint, as in the loop (loop.html).
 const FAINT = 0.25;
 
 const run = data.runs.fault;
-// The checks' plain names (the video never shows their ids): resolution under the compiler, the test runner, Node.
-const checkNames = { K3a: 'compiler', K3b: 'test runner', K3c: 'Node' };
 const rollback = run.rollbacks[0];
 const failed = run.certifies.find((certify) => certify.step === rollback.step && certify.attempt === rollback.attempt);
 const passed = run.certifies.find((certify) => certify.step === rollback.step && certify.attempt === rollback.attempt + 1);
 const pin = run.pins.find((pinned) => pinned.step === rollback.step);
 if (failed?.verdict !== 'fail' || passed?.verdict !== 'pass' || !pin) throw new Error('the fault run changed');
-const failing = failed.failing.map((id) => {
-  if (!checkNames[id]) throw new Error(`no plain name for ${id}`);
-  return checkNames[id];
-});
 
 const stage = document.getElementById('stage');
 const wires = document.getElementById('wires');
@@ -47,47 +42,58 @@ const block = (className, lines, style) => {
   stage.append(element);
   return element;
 };
-const marked = (text, mark, color) => {
-  const line = document.createElement('div');
-  line.append(`${text} `, Object.assign(document.createElement('span'), { textContent: mark, style: `color:${color}` }));
-  return line;
-};
 
-block('note center', [`a seeded fault, in a separate ${Math.round(run.seconds / 60)}-minute run`], { left: '640px', top: '124px', fontSize: '28px', color: 'var(--ink-2)', fontWeight: '600' });
+block('note center', [`a seeded fault, in a separate ${Math.round(run.seconds / 60)}-minute run`], { left: '640px', top: '160px', fontSize: '28px', color: 'var(--ink-2)', fontWeight: '600' });
 
-const boxTop = 260;
+const boxTop = 296;
 const height = 110;
 const width = 250;
 const lefts = [40, 356, 672, 988];
+// Each block's outline once it is opaque: a color it keeps (failure, success), or blue while current, then ink.
 const stages = [
-  { title: marked(`attempt ${failed.attempt}`, '✗', 'var(--fail)'), border: 'var(--fail)', notes: failing.map((name) => marked(name, '✗', 'var(--fail)')) },
-  { title: 'rolled back', border: 'var(--muted)', notes: [] },
-  { title: pin.files[0].split('/').at(-1), mono: true, border: 'var(--accent)', notes: ['stays where it was'] },
-  { title: marked(`attempt ${passed.attempt}`, '✓', 'var(--pass)'), border: 'var(--pass)', notes: ['certified'], notesClass: 'pass' },
+  { title: `attempt ${failed.attempt}`, mark: '✗', outcome: 'var(--fail)', notes: [] },
+  { title: 'rolled back', notes: [] },
+  { title: pin.files[0].split('/').at(-1), mono: true, notes: ['stays where it was'] },
+  { title: `attempt ${passed.attempt}`, mark: '✓', outcome: 'var(--pass)', notes: ['certified'], noteOutcome: true },
 ].map((stageSpec, index) => {
-  const box = block('node', [], { left: `${lefts[index]}px`, top: `${boxTop}px`, width: `${width}px`, height: `${height}px`, borderColor: stageSpec.border });
-  const title = block(`node-title${stageSpec.mono ? ' mono' : ''}`, [stageSpec.title], { fontSize: stageSpec.mono ? '28px' : '30px' });
-  box.append(title);
-  const notes = block(`note center ${stageSpec.notesClass ?? ''}`, stageSpec.notes, { left: `${lefts[index] + width / 2}px`, top: `${boxTop + height + 22}px`, fontWeight: stageSpec.notesClass ? '700' : '400' });
-  return { box, notes };
+  const box = block('node', [], { left: `${lefts[index]}px`, top: `${boxTop}px`, width: `${width}px`, height: `${height}px` });
+  const mark = stageSpec.mark ? Object.assign(document.createElement('span'), { textContent: stageSpec.mark }) : null;
+  const titleLine = document.createElement('div');
+  titleLine.append(stageSpec.title);
+  if (mark) titleLine.append(' ', mark);
+  box.append(block(`node-title${stageSpec.mono ? ' mono' : ''}`, [titleLine], { fontSize: stageSpec.mono ? '28px' : '30px' }));
+  const notes = block('note center', stageSpec.notes, { left: `${lefts[index] + width / 2}px`, top: `${boxTop + height + 22}px`, fontWeight: stageSpec.noteOutcome ? '700' : '400' });
+  return { ...stageSpec, box, mark, notes };
 });
 // The arrow into each block after the first: it lights with the block it leads to.
 const arrows = lefts.slice(1).map((left) => {
   const [x1, x2, y] = [left - 66 + 10, left - 10, boxTop + height / 2];
   const line = svg('path', { d: `M ${x1} ${y} L ${x2 - 12} ${y}`, class: 'wire' });
-  line.style.stroke = 'var(--muted)';
+  line.style.stroke = 'var(--ink)';
   const head = svg('polygon', { points: `${x2},${y} ${x2 - 16},${y - 9} ${x2 - 16},${y + 9}`, class: 'head' });
-  head.style.fill = 'var(--muted)';
-  return { line, head };
+  head.style.fill = 'var(--ink)';
+  // One group, so a faint arrow is one even tint where the line and the head overlap.
+  const whole = svg('g', {});
+  whole.append(line, head);
+  return whole;
 });
 
-/** Faint before `start`, opaque after; a moment at the shot's first frame is opaque from that frame. */
-const lit = (t, start) => (start <= 0 ? 1 : lerp(FAINT, 1, progress(t, start, SCHEDULE.lighting)));
+const mix = (from, to, amount) => `color-mix(in srgb, ${to} ${(clamp(amount) * 100).toFixed(2)}%, ${from})`;
+/** How far a block is through its moment: 0 before `start`, 1 after; a moment at the shot's first frame is 1 from it. */
+const lit = (t, start) => (start <= 0 ? 1 : progress(t, start, SCHEDULE.lighting));
 window.renderAt = (t) => {
-  stages.forEach(({ box, notes }, index) => {
-    const opacity = String(lit(t, SCHEDULE.stages[index]));
+  const amounts = SCHEDULE.stages.map((start) => lit(t, start));
+  stages.forEach(({ box, mark, notes, outcome, noteOutcome }, index) => {
+    const opacity = String(lerp(FAINT, 1, amounts[index]));
     box.style.opacity = notes.style.opacity = opacity;
-    if (index) arrows[index - 1].line.style.opacity = arrows[index - 1].head.style.opacity = opacity;
+    if (index) arrows[index - 1].style.opacity = opacity;
+    // A failure or success keeps its color; the others are blue while current (until the next block's moment).
+    const outline = outcome
+      ? mix('var(--ink)', outcome, amounts[index])
+      : mix('var(--ink)', 'var(--ac)', amounts[index] - (amounts[index + 1] ?? 0));
+    box.style.borderColor = outline;
+    if (mark) mark.style.color = outline;
+    if (noteOutcome) notes.style.color = mix('var(--ink-2)', outcome, amounts[index]);
   });
 };
 window.renderAt(0);
