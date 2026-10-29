@@ -1096,3 +1096,31 @@ the Devpost text repeat, and the ones the review corrected.
 | feedback.md #60–#65 | 214 finished choices (90, 122, 2); 114 required keys; 156,442 prompt tokens; 580 streamed calls (548 and 32); 629,867 tokens; 17.7 and 19.6 minutes; 501 tool calls; 49% and 90%; 123 of 128 | the committed cassettes deduplicated by response id; `budget/ledger.jsonl`; the spike ledgers; opencode's event logs in `~/ac-work/g3*/` | ✓ |
 
 </details>
+
+## S11 additions: the v2 video (2026-10-28)
+
+The figures and wordings the v2 video (video/v2/plan.md, script.md) says or shows that the sections above don't list,
+each with its primary source, checked by the main session. The video's graphics read their figures from
+`video/out/v2/data.js`, written by `video/v2/graphics/data.mjs` from the runs' own files and immich's git history.
+
+<details><summary>Every number S11 added, with its source</summary>
+
+| Where | Claim | Source and how it was checked | |
+|---|---|---|---|
+| v2 Intro (B1) | the album feature's files, step 2 | `runs/immich-ladder/certificate.json` pathMap: controllers/album.controller.ts, dtos/album.dto.ts, repositories/album.repository.ts, services/album.service.ts → modules/album/ (and album-user.repository.ts, two specs); `events.jsonl`: step 2 is module/album | ✓ |
+| v2 Immich (B2) | 17 pull requests in 2 days; their titles | immich's `git log --invert-grep --grep='^fix' e6f2bb9f89..6e93ddf2f1 -- server/src` → 17 PRs, #8080 to #8204, March 20–22, 2024 (the S9 hook tape's range) | ✓ |
+| v2 Trap (B3) | over 2,000 test cases still passed; 2,000+ | opencode's single-shot branch: Tests 2,336 passed, 1 expected fail (2,337), as at base (rows above, script.md 8) | ✓ |
+| v2 Trap (B3) | it had copied the files, not moved them; 66 test files never loaded | the storyboard's lead table: 211 files copied into `src/features/`, the originals kept; 66 of 171 spec files never load (`runs/g3/g3-immich-opencode-super.full.txt`, K1 and K6) | ✓ |
+| v2 Trap (B3) | over a thousand errors; 1,000+ compiler errors | the same certificate's K8: tsc 1,680 diagnostics on head, 0 on base | ✓ |
+| v2 Model (B4) | nearly twelve million tokens; 11.6M; 0 imports rewritten; its spending limit | opencode on Nemotron 3 Ultra, persistent: 11.6M input tokens in 9 min 26 s, 374 files moved, no import rewritten, stopped by its $12 cap in turn 1 (rows above; `runs/g3/ab.json`, the Ultra table) | ✓ |
+| v2 Nemotron (B5b) | two calls, twenty cents; 2 calls → $0.20 | `runs/immich-ladder/plan/plan.md`: $0.1998 in 2 calls | ✓ |
+| v2 Nemotron (B5b) | the draft's asset, asset-file, asset-media, asset-edit and asset-job groups become one feature | `plan/candidates/seeds-draft.yaml` against `plan/plan.yaml` module/asset (data.js `nemotron.assetDraftGroups`; one file, editing.dto.ts, came from the draft's shared group) | ✓ |
+| v2 Nemotron (B5b) | utils/profile-image.ts: the draft's shared → user; "Profile image generation used by user feature." | `plan/plan.yaml` (module/user, source planner, contested); `seeds-draft.yaml` (shared/shared) | ✓ |
+| v2 Catch (B6) | the file and the line (workflow-execution.service.ts, line 14); the compiler, the test runner and Node | `runs/immich-fault/certificates/failed/002-R1-module-album-attempt1.txt`: K3a (TypeScript, line 14), K3b (vitest, head unresolved), K3c (nest-cli emit, ERR_MODULE_NOT_FOUND); verdict FAIL | ✓ |
+| v2 Catch (B6) | a separate 14-minute run; the file stays where it was | `runs/immich-fault/events.jsonl`: run-end 816,737 ms (13.6 min); pin of dtos/album.dto.ts after attempt 1; attempt 2 certified | ✓ |
+| v2 Scale (B7) | sixty-three commits, each certified, in under two hours; 0 rollbacks | `runs/immich-ladder/events.jsonl`: 63 commit events (62 steps and R4's rules commit), 6,900.7 s from run-start to run-end (1 h 55 m), no rollback event | ✓ |
+| v2 Scale (B7) | the compiler, every test and the API spec: exactly as before | `runs/immich-ladder/certificate.txt` K8: tsc exit 0; unit 105/105 files and 2,337/2,337 cases equal to base; openapi byte-identical | ✓ |
+| v2 Yours (B8) | opencode's fails, ours passes | `runs/g3/g3-immich-opencode-super.full.txt`: verdict FAIL (static checks and oracles); `runs/immich-ladder/certificate.txt`: verdict PASS (static checks and oracles) | ✓ |
+| v2 Yours (B8) | in early tests, the newer Nemotron 3.5 Super VL already draws better maps; better on 4 of 5 benchmarks; preliminary, 3 runs each, 2.5× the cost | `bench/experiments/s8b-super-vl/compare.md` and rows 55 above: higher MoJoFM on all four scrambles, no difference on immich (5 entries), mean of 3 runs each, 2.514 times the cost at the full input price | ✓ |
+
+</details>
