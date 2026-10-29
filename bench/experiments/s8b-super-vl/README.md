@@ -60,12 +60,14 @@ and TurboMQ (immich), mean over 3 runs (min to max):
 
 ## Reading it
 
-- Three runs per configuration are few. Only immich separates completely: all three Ultra runs are above all three
-  Super VL runs, which at k=3 is still only a one-sided p of 0.05. On hoppscotch-H1 Ultra's mean is above Super VL's
+- Three runs per configuration are few. Only immich separates completely, on TurboMQ (the only measure there, see
+  "Why immich is scored on TurboMQ" below): all three Ultra runs are above all three Super VL runs, which at k=3 is
+  still only a one-sided p of 0.05. On hoppscotch-H1 Ultra's mean is above Super VL's
   whole range, but Ultra's weakest run (80.00) is below Super VL's best (82.76). On hoppscotch, kaneo and ghostfolio
   the runs overlap: Super VL's kaneo runs (43.34 to 64.75) bracket Ultra's (50.39 to 50.91), and both stay below
   Louvain. Ultra's lead in beating the deterministic methods (5 against 2 of 15) is not conclusive either (p ≈ 0.2).
-- So, on this task: Super VL with thinking off is worse than Ultra on immich, probably worse on hoppscotch-H1, with no
+- So, on this task: Super VL with thinking off scores lower than Ultra on immich's TurboMQ, probably worse on
+  hoppscotch-H1, with no
   conclusive difference elsewhere, at a fifth of the cost and about a third of the time. Its public lead over Ultra
   does not show up here.
 - With thinking on, 11 of 12 edit choices reasoned past 64k tokens; on low effort (one run), 1 of 3 edit choices did
@@ -141,19 +143,22 @@ Reading it:
 - It is the best planner we have measured on hoppscotch, hoppscotch-H1 and ghostfolio. On kaneo thinking off is a
   little better (MoJoFM 56.13 against 55.27, and on ARI and c2c too); thinking on merges kaneo heavily (about 26
   modules against 47 in the ground truth), and every configuration stays below Louvain (66.90).
-- On immich, the demo's target and the one entry that isn't a scramble, it is not distinguishable from Ultra: TurboMQ
-  10.26 against 10.20, p 0.45, both below Louvain.
+- On immich, the demo's target and the one entry that isn't a scramble, we can't tell them apart: TurboMQ 10.26
+  against 10.20, p 0.45, both below Louvain. That is not evidence of no gain: TurboMQ is the only measure we have
+  there, and on ghostfolio a 3.9-point MoJoFM gain moved TurboMQ by the same 0.06 (below).
 - Caveat: the scrambles are public projects, and in 11 of its 30 calls Super VL's long reasoning names them and tries
   to recall their real structure ("I recall ghostfolio has modules…", "the actual Immich module list (from memory of
   the codebase)"); some of what it recalls is wrong. Ultra's calls show no such recall. How much this inflates the
-  scramble scores is unmeasured; the scramble whose upstream it recalls most, ghostfolio, gains 3.9 points over Ultra,
-  and immich, which isn't scored against its upstream, gains nothing.
+  scramble scores is unmeasured; the scramble whose upstream it recalls most, ghostfolio, gains 3.9 points over Ultra.
+  On immich, which has no answer key to recall, TurboMQ shows no measurable difference, which can't settle it either.
 - The lead is over Ultra at `medium_effort`, the configuration the tool uses, not over Ultra at full thinking, which we
   never measured with room to finish. It costs 2.5 times as much and takes 6.4 times as long per plan. At our earlier
   64k cap the same model looked like a failure.
 - **Decided (corupta, 2026-10-23): the demo plans with Ultra.** The demo shows these Super VL numbers as preliminary
   results, with their limits, and says why it keeps Ultra:
-  - On immich, the demo's target, Super VL shows no gain: TurboMQ 10.26 against 10.20, p 0.45.
+  - On immich, the demo's target, Super VL shows no measurable gain: TurboMQ 10.26 against 10.20, p 0.45. (Revised
+    2026-10-29: "no gain" said too much. TurboMQ is the only measure on immich and can miss a gain of the size seen on
+    ghostfolio, so this reason is the weakest of the five.)
   - The recorded demo run (S6: 63 certified commits) reproduces byte for byte, digests included, from a fresh clone
     with the frozen tool. Switching means new code after the feature freeze (the demo and `ac run` can't take a
     planner configuration today) and recording the ladder, fault and re-wrap runs again.
@@ -163,6 +168,49 @@ Reading it:
     for non-streamed answers.
   - The proof doesn't depend on the planner: the certificate checks every commit whichever model drew the map, and
     `--planner super-vl-256k` is one flag away.
+
+## Why immich is scored on TurboMQ (added 2026-10-29)
+
+MoJoFM, ARI and c2c_cvg compare a plan with an answer key. The scrambles have one by construction: we flattened
+feature-organized repos into type folders ourselves, and their original folders are the key. immich is sliced by type
+for real, and nobody has written down what its feature modules should be. TurboMQ needs no key: it scores the import
+graph alone (many imports inside a module, few between modules), so the bench computes it for every entry and every
+method, scrambles included.
+
+**immich's own history as a key.** immich's maintainers restructured `server/` by hand in March 2024 (the PRs our
+video opens with): they dissolved its feature-sliced `domain/<feature>/` layer into the type folders we start from.
+G2 (2026-10-02) mapped those former folders (`40262c30`, 2024-03-18) onto the files right after the restructure
+(`~/ac-work/g2/immich-recovery/gt.rsf`, docs/gates.md) and found it a face-validity check, not a benchmark:
+
+- Only the domain layer was feature-sliced in 2024, so only services and DTOs carry a label; controllers,
+  repositories and shared code, where planners differ, have none.
+- At our pinned commit (`02063972e8`) 44 of the 53 labeled files still exist, in 22 features: 22 services, 20 DTOs and
+  2 others, 16% of the 269 movable files.
+- 41 of the 44 name their feature in the file name (`album.service.ts` belongs to `album`). On the 2024 snapshot,
+  G2's name-token baseline scored 91.7 and the LLM planner 93.8: every method lands near the top.
+- It is the layout the maintainers had for 2024's code, and then left.
+
+So MoJoFM against it would tell us that no planner misplaces `album.service.ts`, not which planner places the hard
+files better. We didn't compute it for these runs.
+
+**What TurboMQ says where we can check it.** On the four scrambles, Ultra's and Super VL's (thinking on, 256k) mean
+TurboMQ next to their MoJoFM difference:
+
+| Entry | Ultra TurboMQ | Super VL TurboMQ | Super VL's MoJoFM gain | Rank correlation of TurboMQ with MoJoFM over the 9 planner runs |
+|---|---|---|---|---|
+| hoppscotch | 7.86 | 8.32 | +8.0 | 0.90 |
+| hoppscotch-H1 | 7.82 | 8.33 | +5.7 | 0.83 |
+| kaneo | 9.83 | 10.97 | +4.5 | 0.85 |
+| ghostfolio | 18.25 | 18.31 | +3.9 | 0.22 |
+| immich | 10.20 | 10.26 | no key | |
+
+- TurboMQ moves in MoJoFM's direction on all four, and tracks it across planner runs on three (the 9 runs: Ultra,
+  Super VL thinking on and thinking off, 3 each). On ghostfolio it barely moves: a 3.9-point MoJoFM gain shows as
+  +0.06, the same as immich's difference.
+- It rewards what graph clustering optimizes, not whether a module is the right feature: on hoppscotch, Louvain
+  (r=4) has the best TurboMQ of any method (9.63) and a MoJoFM of 74.62, below the seeds draft (TurboMQ 7.37, MoJoFM
+  81.38). G1 also saw TurboMQ rank the unedited draft first on immich.
+- Hence the reading above: on immich we see no measurable difference, which is not the same as no difference.
 
 ## Cost and reproduction
 
