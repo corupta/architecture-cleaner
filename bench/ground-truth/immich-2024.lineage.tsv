@@ -1,0 +1,48 @@
+path	feature	path_at_40262c30	evidence
+src/cores/storage.core.ts	storage	src/domain/storage/storage.core.ts	R099 4b29bccc7c
+src/dtos/activity.dto.ts	activity	src/domain/activity/activity.dto.ts	R095 6d9e7694b1
+src/dtos/album.dto.ts	album	src/domain/album/album-response.dto.ts	R059 6d9e7694b1
+src/dtos/api-key.dto.ts	api-key	src/domain/api-key/api-key.dto.ts	R100 6d9e7694b1
+src/dtos/asset-ids.response.dto.ts	asset	src/domain/asset/response-dto/asset-ids-response.dto.ts	R100 6d9e7694b1
+src/dtos/asset-response.dto.ts	asset	src/domain/asset/response-dto/asset-response.dto.ts	R088 6d9e7694b1
+src/dtos/asset.dto.ts	asset	-	content 6d9e7694b1: 0.809 of its 44 lines are asset's, most from src/domain/asset/dto/asset.dto.ts
+src/dtos/auth.dto.ts	auth	src/domain/auth/auth.dto.ts	R100 6d9e7694b1
+src/dtos/download.dto.ts	download	src/domain/download/download.dto.ts	R100 6d9e7694b1
+src/dtos/exif.dto.ts	asset	src/domain/asset/response-dto/exif-response.dto.ts	R100 6d9e7694b1
+src/dtos/job.dto.ts	job	src/domain/job/job.dto.ts	R100 6d9e7694b1
+src/dtos/library.dto.ts	library	src/domain/library/library.dto.ts	R100 6d9e7694b1
+src/dtos/partner.dto.ts	partner	src/domain/partner/partner.dto.ts	R071 6d9e7694b1
+src/dtos/person.dto.ts	person	src/domain/person/person.dto.ts	R098 6d9e7694b1
+src/dtos/search.dto.ts	search	src/domain/search/dto/search.dto.ts	R066 6d9e7694b1
+src/dtos/server.dto.ts	server-info	src/domain/server-info/server-info.dto.ts	R096 6d9e7694b1; R100 a2364a12cf
+src/dtos/session.dto.ts	auth	-	content 4478e524f8: 0.750 of its 12 lines are auth's, most from src/dtos/auth.dto.ts
+src/dtos/shared-link.dto.ts	shared-link	src/domain/shared-link/shared-link-response.dto.ts	R057 6d9e7694b1
+src/dtos/stack.dto.ts	asset	src/domain/asset/dto/asset-stack.dto.ts	R100 6d9e7694b1
+src/dtos/tag.dto.ts	tag	src/domain/tag/tag-response.dto.ts	R054 6d9e7694b1
+src/dtos/time-bucket.dto.ts	asset	src/domain/asset/dto/time-bucket.dto.ts	R088 6d9e7694b1
+src/dtos/user-profile.dto.ts	user	-	content 6d9e7694b1: 0.875 of its 12 lines are user's, most from src/domain/user/response-dto/user-response.dto.ts
+src/dtos/user.dto.ts	user	-	content 6d9e7694b1: 0.771 of its 59 lines are user's, most from src/domain/user/response-dto/user-response.dto.ts
+src/services/activity.service.ts	activity	src/domain/activity/activity.service.ts	R100 ef4a492cb1
+src/services/album.service.ts	album	src/domain/album/album.service.ts	R100 ef4a492cb1
+src/services/api-key.service.ts	api-key	src/domain/api-key/api-key.service.ts	R100 ef4a492cb1
+src/services/asset.service.ts	asset	src/domain/asset/asset.service.ts	R100 ef4a492cb1
+src/services/auth.service.ts	auth	src/domain/auth/auth.service.ts	R100 ef4a492cb1
+src/services/database.service.ts	database	src/domain/database/database.service.ts	R100 ef4a492cb1
+src/services/download.service.ts	download	src/domain/download/download.service.ts	R100 ef4a492cb1
+src/services/job.service.ts	job	src/domain/job/job.service.ts	R100 ef4a492cb1
+src/services/library.service.ts	library	src/domain/library/library.service.ts	R100 ef4a492cb1
+src/services/media.service.ts	media	src/domain/media/media.service.ts	R100 ef4a492cb1
+src/services/metadata.service.ts	metadata	src/domain/metadata/metadata.service.ts	R100 ef4a492cb1
+src/services/partner.service.ts	partner	src/domain/partner/partner.service.ts	R100 ef4a492cb1
+src/services/person.service.ts	person	src/domain/person/person.service.ts	R100 ef4a492cb1
+src/services/search.service.ts	search	src/domain/search/search.service.ts	R100 ef4a492cb1
+src/services/server.service.ts	server-info	src/domain/server-info/server-info.service.ts	R100 ef4a492cb1; R097 a2364a12cf
+src/services/shared-link.service.ts	shared-link	src/domain/shared-link/shared-link.service.ts	R100 ef4a492cb1
+src/services/smart-info.service.ts	smart-info	src/domain/smart-info/smart-info.service.ts	R100 ef4a492cb1
+src/services/storage-template.service.ts	storage-template	src/domain/storage-template/storage-template.service.ts	R100 ef4a492cb1
+src/services/storage.service.ts	storage	src/domain/storage/storage.service.ts	R100 ef4a492cb1
+src/services/system-config.service.ts	system-config	src/domain/system-config/system-config.service.ts	R100 ef4a492cb1
+src/services/tag.service.ts	tag	src/domain/tag/tag.service.ts	R100 ef4a492cb1
+src/services/trash.service.ts	trash	src/domain/trash/trash.service.ts	R100 ef4a492cb1
+src/services/user.service.ts	user	src/domain/user/user.service.ts	R100 ef4a492cb1
+src/utils/media.ts	media	src/domain/media/media.util.ts	R100 16d0df796c
