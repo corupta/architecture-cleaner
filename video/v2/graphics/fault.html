@@ -3,7 +3,7 @@
      failed, the rollback, the file pinned where it was, and the attempt that was certified. The title is static. The
      four blocks are a chronology: each, with the note under it and the arrow into it, is faint with an ink outline
      until its moment, then opaque (the loop's convention, loop.html). Outlines: attempt 1 red (failure), attempt 2
-     green (success); the two between are blue while current, then ink. Nothing moves. -->
+     green (success), the two between ink. Nothing moves. -->
 <link rel="stylesheet" href="common.css">
 <link rel="stylesheet" href="diagrams.css">
 <script src="../../out/v2/data.js"></script>
@@ -49,7 +49,7 @@ const boxTop = 296;
 const height = 110;
 const width = 250;
 const lefts = [40, 356, 672, 988];
-// Each block's outline once it is opaque: a color it keeps (failure, success), or blue while current, then ink.
+// Each block's outline once it is opaque: its outcome's color (failure, success), else ink.
 const stages = [
   { title: `attempt ${failed.attempt}`, mark: '✗', outcome: 'var(--fail)', notes: [] },
   { title: 'rolled back', notes: [] },
@@ -87,10 +87,7 @@ window.renderAt = (t) => {
     const opacity = String(lerp(FAINT, 1, amounts[index]));
     box.style.opacity = notes.style.opacity = opacity;
     if (index) arrows[index - 1].style.opacity = opacity;
-    // A failure or success keeps its color; the others are blue while current (until the next block's moment).
-    const outline = outcome
-      ? mix('var(--ink)', outcome, amounts[index])
-      : mix('var(--ink)', 'var(--ac)', amounts[index] - (amounts[index + 1] ?? 0));
+    const outline = outcome ? mix('var(--ink)', outcome, amounts[index]) : 'var(--ink)';
     box.style.borderColor = outline;
     if (mark) mark.style.color = outline;
     if (noteOutcome) notes.style.color = mix('var(--ink-2)', outcome, amounts[index]);

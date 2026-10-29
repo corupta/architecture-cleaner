@@ -237,6 +237,14 @@ S10's cut stays as it is and renders the same.
     ones done, red and green failure and success. Red boxes mark the lines that matter in terminals; no annotations that
     don't carry meaning, no "≈ later" badge where the tool's own output shows its duration.
 
+11. **Animatic 2's notes** (corupta, 2026-10-29): no blue anywhere (the animation already shows what's current): black
+    outlines, red and green only for failure and success. The loop's order: the map, the move, the checker, the
+    commit, then "2 calls · $0.20" ("All Nemotron needed: …"). On a failure the commit greys out as the checker turns
+    red, then the roll-back path turns red. Red boxes appear after the text they mark and end in the gap before the
+    next word. The Super VL scene keeps v1's table, revised: "Tested repo", the model names only, MoJoFM and TurboMQ
+    as sections, the winners in bold black, immich's tie both bold, no highlight, MoJoFM and TurboMQ defined in
+    footnotes. The close keeps "Rebuild every commit with one command" (the conclusion may repeat the replay).
+
 Storyboard decisions this changes: decision 1 (the hook led with immich), decision 6 (Super VL is now B8's line, one
 sentence with its limits on the card), and the credibility beat (misses, mutation, bench table) leaves the video.
 

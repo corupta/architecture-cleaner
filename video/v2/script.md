@@ -47,7 +47,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 
 ## 0:53.1–1:04.7 Model (26 spoken words)
 
-> With Nemotron 3 Ultra, it used nearly twelve million tokens, and hit the spending limit even before rewriting imports.
+> With Nemotron 3 Ultra, opencode used nearly twelve million tokens, and hit the spending limit even before rewriting imports.
 > It's not the model. It's the job.
 
 | Shot | Lower third |
@@ -58,13 +58,13 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 
 > So ac splits the job.
 > Nemotron draws the map: which feature each file belongs to.
-> Two calls on Nebius Token Factory, twenty cents.
 > Plain code moves the files and updates their imports, one feature per commit.
 > And a separate checker proves every import still reaches the same file.
+> All Nemotron needed: two calls on Nebius Token Factory, twenty cents.
 
 | Shot | Lower third |
 |---|---|
-| `loop` (Nemotron → plain code → the checker → commit, each block current in turn; 2 calls · $0.20) | — |
+| `loop` (Nemotron → plain code → the checker → commit, in order; then 2 calls · $0.20) | — |
 
 ## 1:26–1:40.2 Catch (31 spoken words)
 
@@ -87,7 +87,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 | Shot | Lower third |
 |---|---|
 | `run` (63 commits landing on the run's clock; 0 rollbacks needed) | — |
-| `card-scale` (everything works exactly as before the refactor: compiler 0 errors, every test passes, API spec identical) | — |
+| `card-scale` (everything works exactly the same after the refactor: compiler 0 errors, every test passes, API spec identical) | — |
 
 ## 1:52.1–2:11.3 Features (43 spoken words)
 
@@ -111,7 +111,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 
 | Shot | Lower third |
 |---|---|
-| `card-super-vl` (v1's table: Nemotron 3.5 Super VL against Nemotron 3 Ultra, preliminary; immich highlighted) | — |
+| `supervl-table` (v1's table, revised: Nemotron 3 Ultra against Nemotron 3.5 Super VL, MoJoFM and TurboMQ sections, preliminary) | — |
 
 ## 2:24.7–2:39.1 Close (28 spoken words)
 

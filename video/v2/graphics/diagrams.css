@@ -1,6 +1,6 @@
 /* The diagram pages' shared look (loop, run, fault), on top of common.css: blocks, notes beside what they name, and
    the SVG layer the arrows are drawn on. Every changing property is set by the page's renderAt. An outline is ink by
-   default; blue marks the current block, green success, red failure. */
+   default, green for success, red for failure. */
 .node{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:var(--surface);border:3px solid var(--ink);border-radius:14px}
 .node-title{font:700 34px/1.15 var(--sans);color:var(--ink)}
 .node-subtitle{font:28px/1.2 var(--sans);color:var(--ink-2);margin-top:8px}
