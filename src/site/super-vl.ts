@@ -135,7 +135,7 @@ function reading(experiment: SuperVlExperiment): string {
   });
   const turboMq = `On TurboMQ ${turboMqAbove ? `${turboMqAbove} of the ${runs.length}` : `none of the ${runs.length}`} planner runs ${turboMqAbove === 1 ? 'scores' : 'score'} above the best deterministic method`;
   const second = real.length ? `${turboMq}, and on ${list(real)} we see no measurable difference between the two.` : `${turboMq}.`;
-  const third = `The demo keeps Ultra. Among the reasons: the recorded demo run reproduces byte for byte with the frozen tool, and switching would mean new code and new recordings after the feature freeze; ${runsPerEntry(experiment)} runs per entry are few; in 11 of its 30 calls Super VL's long reasoning names the public projects behind the scrambles and tries to recall their structure; and Ultra was compared at medium_effort only, never at full thinking.`;
+  const third = `The demo keeps Ultra. Among the reasons: the recorded demo run reproduces byte for byte with the frozen tool, and switching would mean new code and new recordings after the feature freeze; ${runsPerEntry(experiment)} runs per entry are few; in 11 of its 30 calls Super VL's long reasoning names the public project it is planning (ghostfolio, kaneo or immich), and in most of them tries to recall its structure; and Ultra was compared at medium_effort only, never at full thinking.`;
   return `${first} ${second} ${third}`;
 }
 

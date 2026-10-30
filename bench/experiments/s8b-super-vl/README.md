@@ -164,11 +164,13 @@ Reading it:
   against 10.20, p 0.45, both below Louvain; MoJoFM over immich's 2024 key 88.37 against 89.15, a difference of under
   one file. Neither is evidence of no gain: TurboMQ can miss a gain of ghostfolio's size, and the 2024 key labels
   mostly easy files, 41 of its 47 named after their feature (below).
-- Caveat: the scrambles are public projects, and in 11 of its 30 calls Super VL's long reasoning names them and tries
-  to recall their real structure ("I recall ghostfolio has modules…", "the actual Immich module list (from memory of
-  the codebase)"); some of what it recalls is wrong. Ultra's calls show no such recall. How much this inflates the
+- Caveat: our entries are public projects, and in 11 of its 30 calls (ghostfolio 4, kaneo 2, immich 5; none on
+  hoppscotch) Super VL's long reasoning names the project it is planning, and in most of them tries to recall its real
+  structure ("I recall ghostfolio has modules…", "the actual Immich module list (from memory of the codebase)"); some
+  of what it recalls is wrong. Ultra's calls show no such recall. How much this inflates the
   scramble scores is unmeasured; the scramble whose upstream it recalls most, ghostfolio, gains 3.9 points over Ultra.
-  On immich, which has no answer key to recall, TurboMQ shows no measurable difference, which can't settle it either.
+  On immich, whose only key is a partial one from its public 2024 history, neither metric shows a measurable
+  difference, which can't settle it either.
 - The lead is over Ultra at `medium_effort`, the configuration the tool uses, not over Ultra at full thinking, which
   we never measured with room to finish. It costs 2.5 times as much and takes 6.4 times as long per plan. At our
   earlier 64k cap the same model looked like a failure.
@@ -181,8 +183,9 @@ Reading it:
   - The recorded demo run (S6: 63 certified commits) reproduces byte for byte, digests included, from a fresh clone
     with the frozen tool. Switching means new code after the feature freeze (the demo and `ac run` can't take a
     planner configuration today) and recording the ladder, fault and re-wrap runs again.
-  - The results are preliminary: three runs per entry, only hoppscotch clear on its own, the scrambles are public
-    projects its reasoning tries to recall, and Ultra was compared at `medium_effort`, never at full thinking.
+  - The results are preliminary: three runs per entry, only hoppscotch clear on its own, our entries are public
+    projects and its reasoning names three of them and tries to recall ghostfolio's and immich's structure, and Ultra
+    was compared at `medium_effort`, never at full thinking.
   - It needs 2.5 times the cost and 6.4 times the time per plan, and calls longer than Token Factory's 10-minute limit
     for non-streamed answers.
   - The proof doesn't depend on the planner: the certificate checks every commit whichever model drew the map, and
