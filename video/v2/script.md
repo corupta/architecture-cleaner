@@ -82,7 +82,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 ## 1:40.2–1:52.1 Scale (24 spoken words)
 
 > On immich's whole server, unattended: sixty-three commits, each certified, in under two hours.
-> The compiler, every test and the API spec: exactly as before.
+> Everything works exactly as before the refactor: The compiler, every test and the API spec.
 
 | Shot | Lower third |
 |---|---|

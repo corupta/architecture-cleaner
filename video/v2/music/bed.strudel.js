@@ -22,6 +22,7 @@ stack(
   .adsr(".1:.3:.2:.7")
   .sound("user")
   .partials([1, 1/2, 1/4, 1/8, 0, 0, 0, 1/128])
+  .gain(.2)
   .lpf(256)
   // ._scope()
 )
