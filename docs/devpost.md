@@ -156,14 +156,14 @@ Factory's bill, of our $50 cap, and our ledger reconciles with that bill to the 
 scrambles pass; kaneo's fails closed), so the original folders are the ground truth. Against the best deterministic
 method (MoJoFM, 0–100), the planner's map wins on hoppscotch (87.59 against 81.38 in the recorded run; three fresh
 Ultra runs of the same request scored 81.38 to 84.83, mean 83.22) and on hoppscotch with opaque file names (83.45
-against 81.38), and loses on kaneo (50.65 against 66.90) and on immich (TurboMQ 10.07 against 10.50). It also scores
+against 81.38), and loses on kaneo (50.65 against 66.90) and on immich (MoJoFM 88.37 against 93.02). It also scores
 higher on ghostfolio (86.81 against 84.72), but our own validator rejects that plan, so counting only accepted plans
 it wins on 2 of 5.
 
 Preliminary: Nemotron 3.5 Super VL, with thinking on and 256k tokens to reason, beat Ultra on all four scrambles
 (hoppscotch 91.26 against Ultra's 83.22 mean) at 2.5 times the cost (at the full input price; 2.7 times as billed) and 6.4 times the time, and showed no difference
 on immich. The limits: three runs per entry, possible recall of these public projects, and Ultra compared only at
-`medium_effort`. The demo keeps Ultra: immich shows no gain, and the recorded run reproduces byte for byte.
+`medium_effort`. The demo keeps Ultra: on immich there is no measurable difference, and the recorded run reproduces byte for byte.
 
 ## What's new, and what isn't
 
