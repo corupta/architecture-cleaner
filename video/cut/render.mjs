@@ -19,8 +19,7 @@
 // x, y }]: seconds into the shot, a point in the 1920×1080 frame) and `boxes` ([{ x, y, w, h, at, dur }]: a red
 // rectangle drawn around part of the picture); and for the cut, `page` (terminal shots fill a black frame, padded,
 // their text above the caption band), `burnCaptions` and `finalBurnCaptions` (the review cuts burn the captions
-// in, the upload doesn't), `maxSeconds` (the final's limit) and `music` ({ file, belowVoice, fadeIn, fadeOut }: a bed
-// under out/, levelled `belowVoice` LU under the takes, faded in and out, mixed under the voice).
+// in, the upload doesn't) and `maxSeconds` (the final's limit).
 //
 //   node cut/render.mjs [--cut <dir>] [--final | --timing] [--ffmpeg <path>] [--ffprobe <path>]
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -264,25 +263,8 @@ if (takes.length) {
 } else {
   ffmpeg(['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-t', String(total), '-c:a', 'pcm_f32le', voice]);
 }
-// The music bed, if the cut has one: levelled `belowVoice` LU under the takes (each is levelled to −20 LUFS), faded
-// in and out, mixed under the voice; the final's loudness pass then measures the mix.
-let mix = voice;
-if (edl.music) {
-  const bed = path.join(out, edl.music.file);
-  if (fs.existsSync(bed)) {
-    const { integrated } = loudness(bed);
-    const gain = -20 - (edl.music.belowVoice ?? 25) - integrated;
-    const fadeIn = edl.music.fadeIn ?? 1;
-    const fadeOut = edl.music.fadeOut ?? 2;
-    mix = path.join(work, 'mix.wav');
-    ffmpeg(['-i', voice, '-i', bed, '-filter_complex',
-      `[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=end=${total},afade=t=in:st=0:d=${fadeIn},afade=t=out:st=${total - fadeOut}:d=${fadeOut},volume=${gain.toFixed(2)}dB[music];` +
-      '[0:a][music]amix=inputs=2:normalize=0:duration=first[mix]', '-map', '[mix]', '-c:a', 'pcm_f32le', mix]);
-    console.log(`music: ${edl.music.file} at ${gain.toFixed(1)} dB (${edl.music.belowVoice ?? 25} LU under the takes)`);
-  } else console.log(`music: no ${edl.music.file} (node v2/music/render.mjs): no bed`);
-}
 const rough = path.join(work, 'rough.mp4');
-ffmpeg(['-i', silent, '-i', mix, '-filter_complex', `[0:v]ass=${assFile}[video]`, '-map', '[video]', '-map', '1:a',
+ffmpeg(['-i', silent, '-i', voice, '-filter_complex', `[0:v]ass=${assFile}[video]`, '-map', '[video]', '-map', '1:a',
   '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', rough]);
 console.log(`rough cut: ${path.relative(video, rough)} (${duration(rough).toFixed(1)} s), captions: ${path.relative(video, path.join(work, 'captions.srt'))}, timing: ${path.relative(video, path.join(work, 'timing.md'))}${takes.length ? `, ${takes.length} voice-over takes` : ', silent'}${overruns ? `, ${overruns} beats overrun` : ''}`);
 
@@ -293,10 +275,10 @@ if (values.final) {
   const length = total + 2 * pad;
   const shape = `adelay=${pad * 1000}:all=1,apad=whole_dur=${length},atrim=end=${length}`;
   const target = 'I=-14:TP=-1.5:LRA=11';
-  const measured = JSON.parse(/\{[^{}]*"input_i"[^{}]*\}/.exec(analyze(mix, `${shape},loudnorm=${target}:print_format=json`))[0]);
+  const measured = JSON.parse(/\{[^{}]*"input_i"[^{}]*\}/.exec(analyze(voice, `${shape},loudnorm=${target}:print_format=json`))[0]);
   const loudnorm = `loudnorm=${target}:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true`;
   const final = path.join(work, 'final.mp4');
-  ffmpeg(['-i', silent, '-i', mix, '-filter_complex',
+  ffmpeg(['-i', silent, '-i', voice, '-filter_complex',
     `[0:v]ass=${assFinal},tpad=start_duration=${pad}:start_mode=clone:stop_duration=${pad}:stop_mode=clone,fade=t=in:st=0:d=${pad},fade=t=out:st=${total + pad}:d=${pad}[video];` +
     `[1:a]${shape},${loudnorm},aresample=48000,afade=t=in:st=0:d=${pad},afade=t=out:st=${total + pad}:d=${pad}[audio]`,
     '-map', '[video]', '-map', '[audio]', '-r', String(fps), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p',

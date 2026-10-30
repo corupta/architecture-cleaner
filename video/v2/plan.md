@@ -153,10 +153,9 @@ draft's five asset groups, "0 rollbacks", "4 of 5", the 17 PR titles.
 - **Motion:** cuts and light punch-ins (1.1–1.3×), wide → narrow → wide; no wipes, no flourishes. About 25–30 shots,
   none under 3 s.
 - **Voice:** corupta, off camera, conversational ("we", "you"), at the S10 setup, one take per beat.
-- **Music:** a starter is in [music/](music/README.md) for corupta to compose on in strudel.cc (his brief: quiet, one
-  instrument on a four-note major-pentatonic figure, repeated, a plain "tap tap tap blap" beat, synthesized sounds
-  only). Mixed after picture lock, about 25 dB under the voice, out for the pause in B3. No music unless it's clearly
-  better with it.
+- **Music: none** (corupta, 2026-10-30). A Strudel bed he composed was rendered and mixed under the voice; without
+  crackling it still made the video confusing, so it left the cut, and its code left the repository (it is in git
+  history).
 
 ## Assets
 
@@ -256,6 +255,11 @@ S10's cut stays as it is and renders the same.
     before the refactor". The Super VL table on MoJoFM only (S8 scored immich over its own 2024 layout, 47 files, so
     one measure now covers all five repos; TurboMQ added little), the measure named in the caption, no limit bullets,
     the footnotes plain grey: what MoJoFM is, immich's ground truth, "See bench/experiments/s8b-super-vl/compare.md".
+
+13. **The voice and the music** (corupta, 2026-10-30): one full retake replaces the eleven takes (better recording
+    settings); the cut splits it into its beats at the pauses between them and anchors each sentence to its words
+    (Whisper's word times), pauses capped at 0.35 s, his natural tempo. No music. The Super VL card's means carry a
+    "%" (the ranges don't), with room before the ranges. The upload: 2:52.7, −14.1 LUFS, captions as the .srt.
 
 Storyboard decisions this changes: decision 1 (the hook led with immich), decision 6 (Super VL is now B8's line, one
 sentence with its limits on the card), and the credibility beat (misses, mutation, bench table) leaves the video.
