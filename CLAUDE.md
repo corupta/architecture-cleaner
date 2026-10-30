@@ -36,7 +36,7 @@ S8 ran on 2026-10-20; [docs/sessions/s8.md](docs/sessions/s8.md) has the report.
 
 S8b ran on 2026-10-20 evening (an addendum in [docs/sessions/s8.md](docs/sessions/s8.md)): corupta asked to try Nemotron 3.5 Super VL as the planner. With thinking on it reasoned past the 64k cap; with thinking off it costs a fifth of Ultra but scores below it on immich and, less clearly, hoppscotch-H1. The demo keeps Ultra ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)).
 
-S8c and S8d ran on 2026-10-21 (same addendum): the gateway now streams requests above 64k tokens (Token Factory cuts non-streamed calls at 600 s). With thinking on and 256k tokens per answer, Super VL reasons a median of about 118k tokens and beats Ultra `medium_effort` on all four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no difference. corupta decided on 2026-10-23 that the demo keeps Ultra and shows Super VL's results as preliminary, with their limits. The ledger stands at $22.26.
+S8c and S8d ran on 2026-10-21 (same addendum): the gateway now streams requests above 64k tokens (Token Factory cuts non-streamed calls at 600 s). With thinking on and 256k tokens per answer, Super VL reasons a median of about 118k tokens and beats Ultra `medium_effort` on all four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost and 6.4 times the time; on immich it shows no measurable difference. corupta decided on 2026-10-23 that the demo keeps Ultra and shows Super VL's results as preliminary, with their limits. The ledger stands at $22.26.
 
 S9 ran on 2026-10-23; [docs/sessions/s9.md](docs/sessions/s9.md) has the report.
 - Numbers frozen (tag `freeze-numbers`): 2,000+ numbers in the README, the storyboard, the site and the video checked against their primary sources by 31 agents, listed in [docs/numbers.md](docs/numbers.md). The confirmed misstatements are fixed, the site's with regression tests. Among them: opencode's vitest run is not green (2,337 cases pass, 66 test files fail to load), its 1,680 tsc errors are syntax errors, and step certificates are static (K8 runs per rung).
@@ -56,6 +56,8 @@ S11 ran on 2026-10-27/30 (a better video): [docs/research/06-demo-videos.md](doc
 - Graphics drawn in code from the runs' own files (`video/v2/graphics/`, a frame clock in the Playwright capture), terminal tapes at a readable size, `render.mjs --cut v2` (crops, red boxes, sentence anchors from word timings).
 - An AI-judge panel with watcher profiles built from the listed judges' roles scored every version: against v1, animatic 5 rose from 3.73 to 3.97 over the four criteria (the watchers' Design 3.0 → 4.0).
 
+Both metrics on every bench entry (2026-10-29/30, corupta's request, a revived S8 session): immich's MoJoFM is scored over a partial key from its own March 2024 domain layer (47 of 269 files, [bench/ground-truth](bench/ground-truth/README.md)); the bench, the site's bench page, the README and the Devpost text report MoJoFM and TurboMQ for all five entries, and [docs/numbers.md](docs/numbers.md) lists every added number. On MoJoFM the planner wins 2 of 5 with accepted plans; on TurboMQ none (Louvain r=4 tops four, a rejected plan ghostfolio).
+
 ## Decided (revisable with a reason)
 
 - **Track and goal:** Coding and Agentic Engineering track, aiming to win it.
@@ -71,7 +73,7 @@ S11 ran on 2026-10-27/30 (a better video): [docs/research/06-demo-videos.md](doc
 - **Form factor:** CLI, a static replay site as the demo URL, and a `--replay` test build. No live endpoint on our key.
 - **Demo target:** immich `server/`, provisional until the Oct 6 gate. Backups: Dokploy, mcphub.
 - **Unattended run (2026-10-07):** the demo uses Nemotron's plan as produced, with no human edits to plan.yaml. Editing stays an optional hook. Plan quality improves in the tool (validator rules, critic gate), never by hand.
-- **Planner for the demo (2026-10-23):** Nemotron 3 Ultra (`medium_effort`), the recorded S6 run as it is. Nemotron 3.5 Super VL's bench results (thinking on, 256k: better on the scrambles, no gain on immich) are shown as preliminary, with their limits and the reasons for keeping Ultra ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)).
+- **Planner for the demo (2026-10-23):** Nemotron 3 Ultra (`medium_effort`), the recorded S6 run as it is. Nemotron 3.5 Super VL's bench results (thinking on, 256k: better on the scrambles on MoJoFM, no measurable difference on immich) are shown as preliminary, with their limits and the reasons for keeping Ultra ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)).
 - **Timeline:** freeze Oct 20, submit Oct 28.
 
 ## Hard constraints

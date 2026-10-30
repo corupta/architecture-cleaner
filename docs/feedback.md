@@ -359,7 +359,7 @@ hits were loops (#53).
 A planner run (three candidates and a critique) averaged $0.17.
 
 **66. With room to think, Super VL plans better** (preliminary). Thinking on, with 256k tokens per answer, it beat
-Ultra at `medium_effort` on all four of our scramble benchmarks (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost (at the full input price) and 6.4 times the time, and showed no difference on immich. Three runs per entry; on its own, only hoppscotch's lead is
+Ultra at `medium_effort` on all four of our scramble benchmarks (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost (at the full input price) and 6.4 times the time, and showed no measurable difference on immich. Three runs per entry; on its own, only hoppscotch's lead is
 clear (p = 0.05).
 
 ## Nebius AI Cloud
