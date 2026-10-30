@@ -233,8 +233,8 @@ CPU cores; its GPU, DLA and PVA were not used.)
 `node video/diagram/render.mjs`).
 
 **Gallery** (3:2, 1920×1280, from the video's own captures, in story order; 13 and 14 replaced on 2026-10-30 by the
-site's two-metric bench table and v2's Super VL card, `video/out/devpost/regenerate-13-14.mjs`), with captions (at most
-140 characters each):
+site's two-metric bench table and v2's Super VL card, `video/v2/graphics/supervl-table.html`, both captured with
+Playwright at 1280×853 CSS pixels and 1.5×), with captions (at most 140 characters each):
 1. `01-thumbnail.png`: Nemotron draws the map. Code moves it. A checker proves nothing else changed.
 2. `02-what-ac-does.png`: What ac does: immich's real files, sliced by type before, by feature after 63 certified commits.
 3. `03-ab-super.png`: A generic agent (opencode on Nemotron 3 Super) on the same task: its tests pass, its certificate fails.
