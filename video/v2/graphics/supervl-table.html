@@ -1,71 +1,56 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>A newer planner, measured: preliminary</title>
-<!-- B9's table (2:11–2:25): Nemotron 3 Ultra, the demo's planner, against Nemotron 3.5 Super VL, three planner runs per
-     bench entry. v2's own version of v1's card (video/cards/super-vl.html, which stays as submitted): one score per
-     section, MoJoFM for the four scrambles and TurboMQ for immich, so the change of scale is a row of its own. -->
+<!-- B9's table: Nemotron 3 Ultra, the demo's planner, against Nemotron 3.5 Super VL, three planner runs per tested repo,
+     on one measure, MoJoFM. v2's own version of v1's card (video/cards/super-vl.html, which stays as submitted). -->
 <link rel="stylesheet" href="common.css"><link rel="stylesheet" href="cards.css">
 <script src="common.js"></script>
 <style>
-.bench{position:absolute;left:56px;right:56px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center}
-.bench h1{font:700 36px/1.1 var(--sans);color:var(--ink);margin:0}
-.bench .caption{font:25px/1.25 var(--sans);color:var(--ink-2);margin:4px 0 0}
-.scores{border-collapse:collapse;margin-top:12px;width:100%;table-layout:fixed;font-variant-numeric:tabular-nums}
-.scores col.repo{width:270px}
-.scores col.mean{width:92px}
-.scores col.range{width:290px}
-.scores th,.scores td{font:25px/1.2 var(--sans);padding:1px 0;text-align:left;white-space:nowrap}
-.scores thead th{font-weight:700;color:var(--ink);padding:0 0 4px;border-bottom:2px solid var(--ink)}
-.scores .section th{font-weight:700;color:var(--ink-2);padding:6px 0 1px;border-bottom:1px solid var(--ring)}
-.scores .section.next th{padding-top:10px}
-.scores tbody tr:not(.section) td{border-bottom:1px solid var(--ring)}
-.scores .mean{text-align:right;padding-right:14px;color:var(--ink)}
+.bench{position:absolute;left:96px;right:96px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center}
+.bench h1{font:700 40px/1.1 var(--sans);color:var(--ink);margin:0}
+.bench .caption{font:26px/1.3 var(--sans);color:var(--ink-2);margin:8px 0 0}
+.scores{border-collapse:collapse;margin-top:22px;width:100%;table-layout:fixed;font-variant-numeric:tabular-nums}
+.scores col.repo{width:280px}
+.scores col.mean{width:110px}
+.scores col.range{width:280px}
+.scores th,.scores td{font:30px/1.25 var(--sans);padding:4px 0;text-align:left;white-space:nowrap}
+.scores thead th{font-weight:700;color:var(--ink);padding:0 0 8px;border-bottom:2px solid var(--ink)}
+.scores tbody td{border-bottom:1px solid var(--ring)}
+.scores .mean{text-align:right;padding-right:16px;color:var(--ink)}
 .scores .mean.win{font-weight:700}
 .scores .range{color:var(--muted)}
-.limits{margin:14px 0 0;padding:0 0 0 28px;font:25px/1.2 var(--sans);color:var(--ink)}
-.limits li{margin:2px 0 0;padding-left:2px}
-.limits li::marker{color:var(--muted)}
-.notes{margin-top:12px;font:16px/1.3 var(--sans);color:var(--muted)}
+.notes{margin-top:22px;font:20px/1.4 var(--sans);color:var(--muted)}
 .notes p{margin:0}
-.notes b{color:var(--ink-2)}
 </style>
 <div class="stage">
   <main class="bench">
     <h1>A newer planner, measured: preliminary</h1>
-    <p class="caption">Mean of 3 planner runs per entry (min to max). Higher score is better.</p>
+    <p class="caption">MoJoFM, mean of 3 planner runs per repo (min to max). Higher score is better.</p>
     <table class="scores">
       <colgroup><col class="repo"><col class="mean"><col class="range"><col class="mean"><col></colgroup>
       <thead><tr><th>Tested repo</th><th colspan="2">Nemotron 3 Ultra</th><th colspan="2">Nemotron 3.5 Super VL</th></tr></thead>
       <tbody>
-        <tr class="section"><th colspan="5">MoJoFM</th></tr>
         <tr><td>hoppscotch</td><td class="mean">83.22</td><td class="range">(81.38–84.83)</td><td class="mean win">91.26</td><td class="range">(88.97–94.48)</td></tr>
         <tr><td>hoppscotch-H1</td><td class="mean">85.06</td><td class="range">(80.00–90.34)</td><td class="mean win">90.80</td><td class="range">(88.97–93.10)</td></tr>
         <tr><td>ghostfolio</td><td class="mean">82.18</td><td class="range">(76.39–87.50)</td><td class="mean win">86.11</td><td class="range">(83.33–87.50)</td></tr>
         <tr><td>kaneo</td><td class="mean">50.74</td><td class="range">(50.39–50.91)</td><td class="mean win">55.27</td><td class="range">(49.61–58.75)</td></tr>
-        <tr class="section next"><th colspan="5">TurboMQ</th></tr>
-        <tr><td>immich</td><td class="mean win">10.20</td><td class="range">(10.03–10.42)</td><td class="mean win">10.26</td><td class="range">(10.08–10.35)</td></tr>
+        <tr><td>immich</td><td class="mean win">89.15</td><td class="range">(88.37–90.70)</td><td class="mean win">88.37</td><td class="range">(88.37–88.37)</td></tr>
       </tbody>
     </table>
-    <ul class="limits">
-      <li>3 runs per entry; the scrambles are public projects, and its reasoning tries to recall them</li>
-      <li>2.5× the cost and 6.4× the time per plan;<br>at our earlier 64k-token cap it finished 1 answer in 12</li>
-      <li>No difference on immich, the demo's target, so the demo keeps the plan Ultra made</li>
-    </ul>
     <div class="notes">
-      <p><b>MoJoFM</b>: how closely a planner's grouping matches the repo's own feature folders, 0 to 100</p>
-      <p><b>TurboMQ</b>: how well a grouping keeps imports inside groups, for a repo without a reference layout like immich</p>
-      <p>See bench/experiments/s8b-super-vl (README.md, compare.md), sessions S8b–S8d</p>
+      <p>MoJoFM, built on MoJo (moves and joins between layouts), compares a layout with a ground-truth layout.</p>
+      <p>immich's ground truth is its maintainers' own 2024 layout, for the 47 files it covers.</p>
+      <p>See bench/experiments/s8b-super-vl/compare.md</p>
     </div>
   </main>
 </div>
 <script>
-// B9 (2:11.3–2:24.7). Voice: "Preliminary results also show that the newer Nemotron 3.5 Super VL, thinking long, plans
-// even better on tested repos, and is tied with Ultra on immich." A still: everything is on screen from the first frame
-// and nothing moves.
-// The figures are bench/experiments/s8b-super-vl/compare.md's (and docs/numbers.md's rows for README line 55): the mean
-// over each entry's 3 planner runs, min to max, as delivered; Ultra is configuration `ultra` (medium_effort), Super VL
-// `super-vl-256k` (thinking on, 256k tokens per edit answer). MoJoFM for the four scrambles, TurboMQ's sum for immich
-// (10.2025 and 10.2561, p = 0.45: a tie, so both are bold). The bullets are v1's (video/cards/super-vl.html).
+// B9. Voice (v1's words): "Preliminary results also show that the newer Nemotron 3.5 Super VL, thinking long, plans even
+// better on tested repos, and is tied with Ultra on immich." A still: everything is on screen from the first frame.
+// The figures are bench/experiments/s8b-super-vl/compare.md's: MoJoFM, the mean over each repo's 3 planner runs (min to
+// max), as delivered; Ultra is configuration `ultra` (medium_effort), Super VL `super-vl-256k` (thinking on, 256k
+// tokens per edit answer). immich is scored over its 2024 key (bench/ground-truth/immich-2024.rsf, 47 of 269 files):
+// 88.37 lies inside Ultra's range, which the bench can't tell apart, so both are bold (a tie).
 const SCHEDULE = {
-  card: 0,            // the title, the table, the limits and the notes, from the first frame
+  card: 0,            // the title, the table and the notes, from the first frame
   end: 13.4,
 };
 window.renderAt = () => {};

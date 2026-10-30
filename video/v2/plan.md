@@ -245,6 +245,11 @@ S10's cut stays as it is and renders the same.
     as sections, the winners in bold black, immich's tie both bold, no highlight, MoJoFM and TurboMQ defined in
     footnotes. The close keeps "Rebuild every commit with one command" (the conclusion may repeat the replay).
 
+12. **Animatic 3's notes** (corupta, 2026-10-30): the scale card's heading back to "Everything works exactly / as
+    before the refactor". The Super VL table on MoJoFM only (S8 scored immich over its own 2024 layout, 47 files, so
+    one measure now covers all five repos; TurboMQ added little), the measure named in the caption, no limit bullets,
+    the footnotes plain grey: what MoJoFM is, immich's ground truth, "See bench/experiments/s8b-super-vl/compare.md".
+
 Storyboard decisions this changes: decision 1 (the hook led with immich), decision 6 (Super VL is now B8's line, one
 sentence with its limits on the card), and the credibility beat (misses, mutation, bench table) leaves the video.
 

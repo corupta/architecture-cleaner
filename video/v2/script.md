@@ -87,7 +87,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 | Shot | Lower third |
 |---|---|
 | `run` (63 commits landing on the run's clock; 0 rollbacks needed) | — |
-| `card-scale` (everything works exactly the same after the refactor: compiler 0 errors, every test passes, API spec identical) | — |
+| `card-scale` (everything works exactly as before the refactor: compiler 0 errors, every test passes, API spec identical) | — |
 
 ## 1:52.1–2:11.3 Features (43 spoken words)
 
@@ -111,7 +111,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 
 | Shot | Lower third |
 |---|---|
-| `supervl-table` (v1's table, revised: Nemotron 3 Ultra against Nemotron 3.5 Super VL, MoJoFM and TurboMQ sections, preliminary) | — |
+| `supervl-table` (Nemotron 3 Ultra against Nemotron 3.5 Super VL on MoJoFM, mean of 3 runs per tested repo, immich over its 2024 layout; preliminary) | — |
 
 ## 2:24.7–2:39.1 Close (28 spoken words)
 
