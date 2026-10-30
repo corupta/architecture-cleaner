@@ -1139,9 +1139,10 @@ same objective; ghostfolio's 19.88 is the seeds draft by file names (a baseline,
 no run of the experiment tops TurboMQ's best, while the committed bench's rejected ghostfolio plan does; immich's
 89.15 is the mean of Ultra's three fresh runs; the recall caveat counts immich's calls apart from the scrambles'; and
 the key's README names the one feature folder outside the domain layer. Where a row here and a frozen row above
-describe the same README or bench-page line, this row is current. Gallery images 13 and 14 were captured on
-2026-10-28, before this change (13 scores immich on TurboMQ only, 14 says "No difference on immich"); their captions
-in the Devpost text now give their date and say what changed since.
+describe the same README or bench-page line, this row is current. Gallery images 13 and 14, captured on
+2026-10-28 before this change (13 scored immich on TurboMQ only, 14 said "No difference on immich"), were replaced on
+2026-10-30 by the site's two-metric bench table and v2's Super VL card (MoJoFM, immich over its 2024 key, a tie), whose
+numbers are the rows below.
 
 <details><summary>Every number these changes added, with its source</summary>
 

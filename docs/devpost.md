@@ -232,7 +232,9 @@ CPU cores; its GPU, DLA and PVA were not used.)
 **Project thumbnail (3:2):** `thumbnail-devpost.png` (1080×720; `cards/thumbnail.html?layout=devpost`, rendered by
 `node video/diagram/render.mjs`).
 
-**Gallery** (3:2, 1920×1280, from the video's own captures, in story order), with captions:
+**Gallery** (3:2, 1920×1280, from the video's own captures, in story order; 13 and 14 replaced on 2026-10-30 by the
+site's two-metric bench table and v2's Super VL card, `video/out/devpost/regenerate-13-14.mjs`), with captions (at most
+140 characters each):
 1. `01-thumbnail.png`: Nemotron draws the map. Code moves it. A checker proves nothing else changed.
 2. `02-what-ac-does.png`: What ac does: immich's real files, sliced by type before, by feature after 63 certified commits.
 3. `03-ab-super.png`: A generic agent (opencode on Nemotron 3 Super) on the same task: its tests pass, its certificate fails.
@@ -245,8 +247,8 @@ CPU cores; its GPU, DLA and PVA were not used.)
 10. `10-findings.png`: Findings, recorded and never fixed: a base class injects 56 members into 51 classes.
 11. `11-boundaries.png`: Boundary rules: a new forbidden import fails the check; 161 of today's violations are frozen.
 12. `12-mutation.png`: We attacked the checker: 831 mutants, all 831 rejected by the static checks before a test runs.
-13. `13-bench.png`: Benchmarks with the losses: the planner against the best deterministic method on five entries (the bench page on 2026-10-28; it now shows MoJoFM and TurboMQ for every entry).
-14. `14-super-vl.png`: Preliminary: Nemotron 3.5 Super VL with room to think, against Ultra; three runs per entry (the card from 2026-10-28; the text and the site now say no measurable difference on immich).
+13. `13-bench.png`: Benchmarks with the losses: the planner vs the best deterministic method on 5 entries, MoJoFM and TurboMQ; boxed: rejected plans.
+14. `14-super-vl.png`: Preliminary: Nemotron 3.5 Super VL with room to think vs Ultra on MoJoFM, 3 runs per entry; on immich (2024 key), no measurable difference.
 15. `15-replay.png`: The test build, no key and no cost: npx ac demo --replay rebuilds every commit, and every tree equals the recording.
 
 # Feedback on Nebius Token Factory, AI Cloud and NVIDIA tools
