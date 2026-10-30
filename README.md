@@ -16,7 +16,7 @@ same Nemotron model left 1,638 imports dangling. To check it yourself, with no k
 
 Entry for the Nebius x NVIDIA Global AI Hackathon, Coding and Agentic Engineering track.
 
-**The video (3 minutes): [youtu.be/C1lzr74Ozd4](https://youtu.be/C1lzr74Ozd4)**, with chapters and English captions.
+**The video (2:53): [youtu.be/VJoate5NmEM](https://youtu.be/VJoate5NmEM)**, with chapters and English captions.
 
 
 **The replay site: [corupta.github.io/architecture-cleaner](https://corupta.github.io/architecture-cleaner/)**, every

@@ -3,7 +3,7 @@
 The research behind it is [docs/research/06-demo-videos.md](../../docs/research/06-demo-videos.md) (§0 is the
 one-page version; §7 and §7b are the panels on the S9 cut and the submitted v1). corupta OK'd the plan on 2026-10-28
 with the changes recorded under Decisions; production started the same day. The submitted video (v1, S10:
-youtu.be/C1lzr74Ozd4) stays in the entry unless v2 is clearly better (Fallback, below).
+youtu.be/C1lzr74Ozd4) stayed in the entry until v2 was ready; corupta uploaded v2 on 2026-10-30: youtu.be/VJoate5NmEM.
 
 ## Why a v2
 

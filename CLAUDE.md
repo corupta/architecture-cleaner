@@ -46,10 +46,15 @@ S9 ran on 2026-10-23; [docs/sessions/s9.md](docs/sessions/s9.md) has the report.
 - The repo is public (github.com/corupta/architecture-cleaner, MIT) and the site is live at corupta.github.io/architecture-cleaner; S9 closed with its exit criteria met.
 
 S10 ran on 2026-10-24/28 (the cut and the submission); [docs/sessions/s10.md](docs/sessions/s10.md) has the report. **Submitted on 2026-10-28** (tag `submitted`).
-- The video is public: https://youtu.be/C1lzr74Ozd4 (corupta's voice-over and rounded numbers, 2:59.6, English captions as YouTube CC, a thumbnail with the before/after diagram). The README's diagram, the close card and the thumbnails come from one script (`video/diagram/diagram.js`).
+- The first video: https://youtu.be/C1lzr74Ozd4 (corupta's voice-over and rounded numbers, 2:59.6), replaced in the entry by S11's v2 (below).
 - The README to the submission rule, [docs/devpost.md](docs/devpost.md) (the text, the Additional info answers, the gallery) and the feedback write-up [docs/feedback.md](docs/feedback.md) (36 items, each checked by a skeptic, uploaded as a zip with the log).
 - corupta's Nebius console export: the whole hackathon cost **$24.40** (the ledger said $35.96: Token Factory bills cached input at a lower price since 2026-10-20 at the latest, and didn't bill the 504); reconciliation lines bring the ledger to the bill.
 - Next: S11 (a better video, research and plan; [docs/next-session.md](docs/next-session.md)) is paused in another session; a v2 video can replace the link until the deadline, 2026-10-30 10:00 PT. Judging Dec 1–15.
+
+S11 ran on 2026-10-27/30 (a better video): [docs/research/06-demo-videos.md](docs/research/06-demo-videos.md) has the research and the panels, [video/v2/plan.md](video/v2/plan.md) the plan and corupta's decisions.
+- v2 of the video: https://youtu.be/VJoate5NmEM (2:52.7, corupta's full retake, no music, English captions as YouTube CC, chapters), in the README and the Devpost entry from 2026-10-30. Story over numbers: what ac is, immich by hand, the trap (2,337 test cases pass, 1,680 compiler errors), the split, the seeded fault caught, 63 certified commits, ac's features, Super VL as the one look ahead.
+- Graphics drawn in code from the runs' own files (`video/v2/graphics/`, a frame clock in the Playwright capture), terminal tapes at a readable size, `render.mjs --cut v2` (crops, red boxes, sentence anchors from word timings).
+- An AI-judge panel with watcher profiles built from the listed judges' roles scored every version: against v1, animatic 5 rose from 3.73 to 3.97 over the four criteria (the watchers' Design 3.0 → 4.0).
 
 ## Decided (revisable with a reason)
 

@@ -20,7 +20,7 @@ Coding and Agentic Engineering.
 
 - **Demo URL (the replay site):** https://corupta.github.io/architecture-cleaner/
 - **Repository:** https://github.com/corupta/architecture-cleaner (MIT)
-- **Video:** https://youtu.be/C1lzr74Ozd4 (public on YouTube, 2:59.6, English captions; the same link as the README's)
+- **Video:** https://youtu.be/VJoate5NmEM (public on YouTube, 2:52.7, English captions, chapters; the same link as the README's; it replaced the first video, youtu.be/C1lzr74Ozd4, on 2026-10-30)
 - **Test build:** `git clone https://github.com/corupta/architecture-cleaner.git && cd architecture-cleaner && npm ci && npx ac demo --replay`
   (Node ≥ 22.12, git and network access for npm and one fetch of immich; no key, $0, about 11 minutes on our
   12-core machine)
