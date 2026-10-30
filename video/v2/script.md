@@ -6,15 +6,15 @@ for word (the captions), its table names the shots. corupta revises the wording 
 pace (about 135 words a minute with his pauses) until his takes are in `vo/`, then `edl.json` follows them. No lower
 thirds; the captions are burned into the review cuts only. Every number is in [docs/numbers.md](../../docs/numbers.md).
 
-## 0:00–0:07.1 Hook (16 spoken words)
+## 0:00.0–0:05.5 Hook (16 spoken words)
 
-> Have you ever got lost in a verbose repo, trying to decide where to start refactoring?
+> Have you ever got completely lost, when refactoring a verbose repo?
 
 | Shot | Lower third |
 |---|---|
 | `sprawl` (immich's server/src sliced by type, scrolling) | — |
 
-## 0:07.1–0:20.5 Intro (28 spoken words)
+## 0:05.5–0:18.4 Intro (28 spoken words)
 
 > This is ac, architecture-cleaner.
 > It moves a TypeScript backend from type folders into feature folders, one commit at a time, each with a proof that nothing else changed.
@@ -23,19 +23,19 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 |---|---|
 | `glide` (the album, asset and user files glide into their feature folders; the commit, certified) | — |
 
-## 0:20.5–0:31.6 Immich (25 spoken words)
+## 0:18.4–0:31.9 Immich (25 spoken words)
 
-> The maintainers of immich, a self-hosted photo and video app, did this by hand: seventeen pull requests in two days.
-> Why not an AI agent?
+> The maintainers of immich, a self-hosted multi-media management app, did this by hand: seventeen pull requests in two days.
+> Why not use an AI agent, instead?
 
 | Shot | Lower third |
 |---|---|
 | `history` (immich's 17 restructure PRs as a GitHub-style list, scrolling; then 17 pull requests in 2 days, by hand) | — |
 
-## 0:31.6–0:53.1 Trap (45 spoken words)
+## 0:31.9–0:55.6 Trap (45 spoken words)
 
-> We asked opencode, a popular coding agent, running NVIDIA Nemotron 3 Super on Nebius Token Factory.
-> Over 2,000 test cases still passed, but 66 test files never loaded.
+> Using NVIDIA Nemotron 3 Super via Nebius Token Factory, we asked opencode, a popular coding agent, to restructure immich's server.
+> Over 2,000 test cases passed, but 66 test files never loaded.
 > And the TypeScript compiler found over a thousand errors.
 > A passing test count is not proof.
 
@@ -45,7 +45,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 | `g3-vitest-result` (its summary, a red box around test files and tests) | — |
 | `card-agents` (opencode + Nemotron 3 Super: 2,337 test cases pass, but 1,680 compiler errors) | — |
 
-## 0:53.1–1:04.7 Model (26 spoken words)
+## 0:55.6–1:09.2 Model (26 spoken words)
 
 > With Nemotron 3 Ultra, opencode used nearly twelve million tokens, and hit the spending limit even before rewriting imports.
 > It's not the model. It's the job.
@@ -54,23 +54,23 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 |---|---|
 | `card-agents-ultra` (opencode + Nemotron 3 Ultra joins: 11.6M tokens, but 0 imports rewritten (spending limit reached)) | — |
 
-## 1:04.7–1:26 Split (48 spoken words)
+## 1:09.2–1:30.9 Split (48 spoken words)
 
 > So ac splits the job.
-> Nemotron draws the map: which feature each file belongs to.
-> Plain code moves the files and updates their imports, one feature per commit.
-> And a separate checker proves every import still reaches the same file.
-> All Nemotron needed: two calls on Nebius Token Factory, twenty cents.
+> Nemotron draws the map of which feature each file belongs to.
+> Plain code moves the files and updates their imports, one commit per feature.
+> And a separate checker proves that every import reaches the same file.
+> Two calls on Nebius Token Factory, for twenty cents, in total.
 
 | Shot | Lower third |
 |---|---|
 | `loop` (Nemotron → plain code → the checker → commit, in order; then 2 calls · $0.20) | — |
 
-## 1:26–1:40.2 Catch (31 spoken words)
+## 1:30.9–1:43.8 Catch (31 spoken words)
 
 > Just to test it, we broke one import on purpose.
 > The checker named the file and the line.
-> ac rolled the commit back and redid the step without that file.
+> ac rolled back the commit, excluded the file, and succeeded in the next attempt.
 > Certified.
 
 | Shot | Lower third |
@@ -79,7 +79,7 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 | `fault-cert` (the seeded run's certificate, a red box around the file and the line) | — |
 | `fault` (attempt 1 ✗ → rolled back → album.dto.ts stays → attempt 2 ✓) | — |
 
-## 1:40.2–1:52.1 Scale (24 spoken words)
+## 1:43.8–1:59.3 Scale (24 spoken words)
 
 > On immich's whole server, unattended: sixty-three commits, each certified, in under two hours.
 > Everything works exactly as before the refactor: The compiler, every test and the API spec.
@@ -89,13 +89,13 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 | `run` (63 commits landing on the run's clock; 0 rollbacks needed) | — |
 | `card-scale` (everything works exactly as before the refactor: compiler 0 errors, every test passes, API spec identical) | — |
 
-## 1:52.1–2:11.3 Features (43 spoken words)
+## 1:59.3–2:19.8 Features (43 spoken words)
 
 > With ac, every commit carries its verdict.
 > You get a branch to review commit by commit,
 > and a plan you can edit.
-> Point the checker at any diff: opencode's fails, ours passes.
-> And it all replays on your machine: no key, no cost.
+> Point the checker at any diff: opencode's branch fails, our branch passes.
+> And it all replays on your machine; with no key and no cost.
 
 | Shot | Lower third |
 |---|---|
@@ -105,15 +105,16 @@ thirds; the captions are burned into the review cuts only. Every number is in [d
 | `certify-verdicts` (opencode's branch: FAIL; ours: PASS) | — |
 | `replay` (`npx ac demo --replay` in a fresh clone, its steps matching the recording, sped up) | — |
 
-## 2:11.3–2:24.7 Future (28 spoken words)
+## 2:19.8–2:38.3 Future (28 spoken words)
 
 > Preliminary results also show that the newer Nemotron 3.5 Super VL, thinking long, plans even better on tested repos, and is tied with Ultra on immich.
+> Therefore, as Nemotron improves, ac improves with it.
 
 | Shot | Lower third |
 |---|---|
 | `supervl-table` (Nemotron 3 Ultra against Nemotron 3.5 Super VL on MoJoFM, mean of 3 runs per tested repo, immich over its 2024 layout; preliminary) | — |
 
-## 2:24.7–2:39.1 Close (28 spoken words)
+## 2:38.3–2:51.4 Close (28 spoken words)
 
 > You can try it now.
 > Rebuild every commit with one command.

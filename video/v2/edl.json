@@ -3,51 +3,147 @@
   "page": true,
   "burnCaptions": true,
   "finalBurnCaptions": false,
-  "maxSeconds": 175,
+  "maxSeconds": 179,
   "music": {
     "file": "v2/music/bed.wav",
     "belowVoice": 20,
     "fadeIn": 1.5,
     "fadeOut": 3
   },
+  "voice": {
+    "maxPause": 0.35,
+    "tempo": 1.0,
+    "beats": {
+      "hook": {
+        "sentences": [
+          1.4
+        ],
+        "end": 6.68
+      },
+      "intro": {
+        "sentences": [
+          1.38,
+          5.5
+        ],
+        "end": 13.98
+      },
+      "immich": {
+        "sentences": [
+          1.38,
+          12.2
+        ],
+        "end": 14.56
+      },
+      "trap": {
+        "sentences": [
+          0.24,
+          10.8,
+          16.52,
+          20.54
+        ],
+        "end": 23.84
+      },
+      "model": {
+        "sentences": [
+          1.08,
+          12.22,
+          13.76
+        ],
+        "end": 14.86
+      },
+      "split": {
+        "sentences": [
+          1.72,
+          4.96,
+          9.2,
+          14.36,
+          18.08
+        ],
+        "end": 23.5
+      },
+      "catch": {
+        "sentences": [
+          0.93,
+          4.78,
+          7.6,
+          13.84
+        ],
+        "end": 14.3
+      },
+      "scale": {
+        "sentences": [
+          3.74,
+          12.28
+        ],
+        "end": 18.88
+      },
+      "features": {
+        "sentences": [
+          1.96,
+          6.14,
+          11.28,
+          17.42
+        ],
+        "end": 22.36
+      },
+      "future": {
+        "sentences": [
+          1.11,
+          14.54
+        ],
+        "end": 19.38
+      },
+      "close": {
+        "sentences": [
+          0.8,
+          3.06,
+          5.8,
+          7.36,
+          8.46,
+          10.66
+        ],
+        "end": 12.3
+      }
+    }
+  },
   "shots": [
     {
       "shot": "sprawl",
       "file": "v2/graphics/sprawl.mp4",
       "start": 0.0,
-      "end": 7.1,
+      "end": 5.45,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "glide",
       "file": "v2/graphics/glide.mp4",
-      "start": 7.1,
-      "end": 20.5,
+      "start": 5.45,
+      "end": 18.4,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "history",
       "file": "v2/graphics/history.mp4",
-      "start": 20.5,
-      "end": 31.6,
+      "start": 18.4,
+      "end": 31.95,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "g3-vitest",
       "file": "v2/cli/g3-vitest.mp4",
-      "start": 31.6,
-      "end": 38.7,
+      "start": 31.95,
+      "end": 42.65,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "g3-vitest-result",
       "file": "v2/cli/g3-vitest.mp4",
-      "start": 38.7,
-      "end": 44.5,
+      "start": 42.65,
+      "end": 48.35,
       "from": 61.8,
       "speed": 1,
       "boxes": [
@@ -63,40 +159,40 @@
     {
       "shot": "card-agents",
       "file": "v2/graphics/card-agents.mp4",
-      "start": 44.5,
-      "end": 53.1,
+      "start": 48.35,
+      "end": 55.6,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "card-agents-ultra",
       "file": "v2/graphics/card-agents-ultra.mp4",
-      "start": 53.1,
-      "end": 64.7,
+      "start": 55.6,
+      "end": 69.15,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "loop",
       "file": "v2/graphics/loop.mp4",
-      "start": 64.7,
-      "end": 86.0,
+      "start": 69.15,
+      "end": 90.9,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "loop-fail",
       "file": "v2/graphics/loop-fail.mp4",
-      "start": 86.0,
-      "end": 90.4,
+      "start": 90.9,
+      "end": 94.3,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "fault-cert",
       "file": "v2/cli/fault-cert.mp4",
-      "start": 90.4,
-      "end": 94.0,
+      "start": 94.3,
+      "end": 97.1,
       "from": 1.6,
       "speed": 1,
       "boxes": [
@@ -112,32 +208,32 @@
     {
       "shot": "fault",
       "file": "v2/graphics/fault.mp4",
-      "start": 94.0,
-      "end": 100.2,
+      "start": 97.1,
+      "end": 103.75,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "run",
       "file": "v2/graphics/run.mp4",
-      "start": 100.2,
-      "end": 107.2,
+      "start": 103.75,
+      "end": 112.25,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "card-scale",
       "file": "v2/graphics/card-scale.mp4",
-      "start": 107.2,
-      "end": 112.1,
+      "start": 112.25,
+      "end": 119.3,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "trailer",
       "file": "v2/cli/trailer.mp4",
-      "start": 112.1,
-      "end": 115.2,
+      "start": 119.3,
+      "end": 124.3,
       "from": 0.4,
       "speed": 1,
       "boxes": [
@@ -153,24 +249,24 @@
     {
       "shot": "branch-log",
       "file": "v2/cli/branch-log.mp4",
-      "start": 115.2,
-      "end": 119.2,
+      "start": 124.3,
+      "end": 126.45,
       "from": 2.3,
       "speed": 1
     },
     {
       "shot": "plan-entry",
       "file": "v2/cli/plan-entry.mp4",
-      "start": 119.2,
-      "end": 121.9,
+      "start": 126.45,
+      "end": 128.7,
       "from": 2.6,
       "speed": 1
     },
     {
       "shot": "certify-verdicts",
       "file": "v2/cli/certify-verdicts.mp4",
-      "start": 121.9,
-      "end": 126.4,
+      "start": 128.7,
+      "end": 134.7,
       "from": 4.5,
       "speed": 1,
       "labels": [
@@ -191,8 +287,8 @@
     {
       "shot": "replay",
       "file": "v2/cli/replay.mp4",
-      "start": 126.4,
-      "end": 131.3,
+      "start": 134.7,
+      "end": 139.85,
       "from": 0,
       "speed": "fit",
       "to": 200
@@ -200,16 +296,16 @@
     {
       "shot": "supervl-table",
       "file": "v2/graphics/supervl-table.mp4",
-      "start": 131.3,
-      "end": 144.7,
+      "start": 139.85,
+      "end": 158.3,
       "from": 0,
       "speed": 1
     },
     {
       "shot": "end",
       "file": "v2/graphics/end.mp4",
-      "start": 144.7,
-      "end": 159.1,
+      "start": 158.3,
+      "end": 171.45,
       "from": 0,
       "speed": 1
     }

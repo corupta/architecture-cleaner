@@ -15,7 +15,7 @@ stack(
   // note("~ ~ ~ c2").s("sine").decay(0.18).sustain(0).penv(12).pdecay(0.12).gain(0.5),
 
   n("1 3 2 <7 0>".ply(1).fast(2))
-  .add("[0, <1 3 2 <7 0>>]")
+  // .add("[0, <1 3 2 <7 0>>]")
   //.scale("G2:mixolydian")
   //.scale("D2:dorian")
   .scale("<D2:dorian G2:mixolydian>".slow(4))
