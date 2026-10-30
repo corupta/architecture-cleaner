@@ -10,5 +10,9 @@ noise, no sample banks), so no third-party recording is in the mix.
   the file in.
 - **Change it:** the notes are in `note("c4 e4 g4 e4")` (any of c d e g a keeps it pentatonic), the tempo in
   `setcpm(84 / 4)`, each part's loudness in `.gain(...)`. Save the result back into bed.strudel.js.
-- **In the video:** after picture lock, rendered offline in the headless Chromium the captures already use, mixed
-  about 25 dB under the voice and dropped for the pause in B3. If it isn't clearly better with it, the video has none.
+- **Render it** (after any change; real time, so a quiet machine): `node v2/music/render.mjs` from `video/` plays the
+  pattern with Strudel (`@strudel/web`, the engine strudel.cc runs) in headless Chromium and writes
+  `out/v2/music/bed.wav`, 3 minutes. The cut (`edl.json`'s `music`) levels it 25 LU under the voice and fades it in
+  and out.
+- **In the video:** mixed under the voice for corupta's review, about 25 dB down; it stays only if the cut is clearly
+  better with it.

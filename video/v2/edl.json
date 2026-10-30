@@ -4,6 +4,12 @@
   "burnCaptions": true,
   "finalBurnCaptions": false,
   "maxSeconds": 175,
+  "music": {
+    "file": "v2/music/bed.wav",
+    "belowVoice": 25,
+    "fadeIn": 1.5,
+    "fadeOut": 3
+  },
   "shots": [
     {
       "shot": "sprawl",
