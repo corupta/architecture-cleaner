@@ -5,7 +5,7 @@ import { packageDirectory } from '../certificate/toolchain.js';
 import { buildSite } from './build.js';
 
 export const siteUsage = `ac site --out <dir> [--source-url <repository URL>]
-         (the replay site from runs/, runs/g3, bench/results and the budget ledger: offline, deterministic, GitHub Pages ready)`;
+         (the replay site from runs/, runs/g3, bench/results, bench/experiments and the budget ledger: offline, deterministic, GitHub Pages ready)`;
 
 export async function siteCommand(argv: string[]): Promise<number> {
   let parsed;

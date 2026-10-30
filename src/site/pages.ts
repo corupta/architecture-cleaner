@@ -8,6 +8,7 @@ import { certificateCoverage, failedAttemptsPhrase } from '../report/render.js';
 import { renderAbTable, type AbLinks } from '../report/render-ab.js';
 import type { RunReportData } from '../report/run-data.js';
 import { renderBenchBody } from './bench.js';
+import { renderSuperVlSection, type SuperVlExperiment } from './super-vl.js';
 
 export const pitchLine = 'Nemotron draws the map. Code moves it. A checker proves nothing else changed.';
 
@@ -16,6 +17,8 @@ export interface SiteContext {
   runs: RunReportData[];
   ab: AbTableView[];
   bench: BenchResult[];
+  /** Nemotron 3.5 Super VL measured as the planner (bench/experiments/s8b-super-vl), or null when the package has none. */
+  superVl: SuperVlExperiment | null;
   /** The source repository's URL, when the build knows it (GitHub Actions passes it). */
   sourceUrl: string | null;
 }
@@ -76,7 +79,7 @@ ${context.ab.map((view) => renderAbTable(view, links)).join('\n')}`;
 }
 
 export function benchPage(context: SiteContext): string {
-  return page({ title: 'Benchmarks: recovering feature boundaries', breadcrumbs: [['../index.html', 'home']], body: renderBenchBody(context.bench) });
+  return page({ title: 'Benchmarks: recovering feature boundaries', breadcrumbs: [['../index.html', 'home']], body: renderBenchBody(context.bench, context.superVl ? renderSuperVlSection(context.superVl) : '') });
 }
 
 export function verifyPage(context: SiteContext): string {
@@ -93,7 +96,7 @@ ${pre('npx ac certify <immich clone> <base>..<head> --profile immich\nnpx ac cer
 <p>The certifier is a separate process from the executor and accepts any two commits: ours, a hand-made restructure, or an agent's. Its digest covers the two trees, not commit ids, so a certificate stays valid when its trailers are added by amending the commit.</p>
 <h2>3. Rebuild this site</h2>
 ${pre('npx ac site --out _site')}
-<p>The build reads only committed files (runs/*/, runs/g3/, bench/results/, budget/ledger.jsonl) and writes the same bytes every time. A run report can be rebuilt on its own with ${code('npx ac report runs/<name> --out <dir>')}.</p>
+<p>The build reads only committed files (runs/*/, runs/g3/, bench/results/, bench/experiments/s8b-super-vl/, budget/ledger.jsonl) and writes the same bytes every time. A run report can be rebuilt on its own with ${code('npx ac report runs/<name> --out <dir>')}.</p>
 <h2>4. Read the raw evidence</h2>
 <ul>
 ${context.runs.map((data) => `<li>${link(`../runs/${data.name}/index.html`, data.name)}: ${[

@@ -1,6 +1,7 @@
 // `ac site`: the replay site v1 (plan §4 "Demo URL"), built from committed artifacts only: every run dir under runs/
-// (one report bundle each, graph.json read, never computed), runs/g3 (the A/B), bench/results (the benchmarks) and the
-// budget ledger. Offline and deterministic; relative links and .nojekyll, so GitHub Pages serves it as is.
+// (one report bundle each, graph.json read, never computed), runs/g3 (the A/B), bench/results and the Super VL
+// experiment's results under bench/experiments (the benchmarks) and the budget ledger. Offline and deterministic;
+// relative links and .nojekyll, so GitHub Pages serves it as is.
 import fs from 'node:fs';
 import path from 'node:path';
 import { compare } from '../boundaries/folder-graph.js';
@@ -10,9 +11,10 @@ import type { AbLinks } from '../report/render-ab.js';
 import type { RunReportData } from '../report/run-data.js';
 import { readBenchResults } from './bench.js';
 import { abPage, benchPage, landingPage, verifyPage, type SiteContext } from './pages.js';
+import { readSuperVlExperiment, superVlFiles } from './super-vl.js';
 
 export interface SiteInput {
-  /** This package's directory: runs/, bench/results/, budget/ are read from it. */
+  /** This package's directory: runs/, bench/results/, bench/experiments/, budget/ are read from it. */
   packageDirectory: string;
   out: string;
   /** The source repository's URL for the landing and verify pages (GitHub Actions passes it), or null. */
@@ -103,7 +105,13 @@ export function buildSite(input: SiteInput): SiteResult {
     }
   }
 
-  const context: SiteContext = { runs: reports.map(({ result }) => result.data).sort(runOrder), ab: abViews, bench, sourceUrl: input.sourceUrl ?? null };
+  const superVl = readSuperVlExperiment(root);
+  for (const file of superVl ? superVlFiles(root, superVl) : []) {
+    fs.mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
+    fs.copyFileSync(path.join(root, file), path.join(out, file));
+  }
+
+  const context: SiteContext = { runs: reports.map(({ result }) => result.data).sort(runOrder), ab: abViews, bench, superVl, sourceUrl: input.sourceUrl ?? null };
   const write = (file: string, text: string) => {
     fs.mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
     fs.writeFileSync(path.join(out, file), text);
