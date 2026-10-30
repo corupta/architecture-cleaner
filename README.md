@@ -62,7 +62,7 @@ Nemotron only plans and narrates. Code moves the files, and the certificate chec
 | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, thinking off) | Narrates the findings log in 1–2 sentences per finding, under a lexical guard that drops any narration naming something its evidence doesn't contain. | 2 calls, **$0.0010**; 40 of the 45 findings sent (the cap is 40), 35 narrated: the guard dropped 4, and 1 came back with no narration |
 | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`) | The baseline: a generic coding agent (opencode 1.18.34) given the same task with no help from `ac` (gate G3). | $0.30 single-shot, $4.63 persistent ([docs/gates.md](docs/gates.md)) |
 | **Nemotron 3 Ultra**, again (opencode's default settings) | The baseline's second arm (S9): the same agent, prompt and scripts on the model `ac` plans with. | $0.55 single-shot, $2.55 persistent, billed (their caps counted $1.86 and $11.76 at the full input price); both fail (below) |
-| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch 91.26 against 83.22 MoJoFM) at 2.5 times the cost (at the full input price) and 6.4 times the time; on immich it shows no difference. With thinking off it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $8.37 on the bill for its runs and probes ($9.16 in the gateway's ledger: the full input price, plus $0.70 booked for a cut call that wasn't billed; [bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
+| **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`) | Measured as an alternative planner, three runs per bench entry (S8b to S8d). With thinking on and room to reason (256k tokens per edit answer and 128k for the critic, streamed), it beats Ultra on the four scrambles (hoppscotch MoJoFM 91.26 against 83.22, TurboMQ 8.32 against 7.86) at 2.5 times the cost (at the full input price) and 6.4 times the time; on immich it shows no measurable difference. With thinking off it costs a fifth of Ultra and scores below it on immich's TurboMQ and, less clearly, hoppscotch-H1's MoJoFM. `ac plan --planner super-vl-256k` or `super-vl-direct`. | $8.37 on the bill for its runs and probes ($9.16 in the gateway's ledger: the full input price, plus $0.70 booked for a cut call that wasn't billed; [bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)) |
 
 Every call goes through one in-process gateway (`src/gateway/`):
 - strict `json_schema` answers, explicit sampling and `max_tokens` caps;
@@ -332,53 +332,73 @@ range (02063972e8..7b993adbec) gives PASS (static checks), 367 moves, K2 reporti
 
 `ac scramble` flattens a feature-modular repo into type folders with our executor, in one commit our certifier
 checks; the original folders are the ground truth. `ac bench` scores the planner next to deterministic baselines
-(plan §7). MoJoFM, 0–100, planner vs the best deterministic method:
+(plan §7) on two metrics. MoJoFM (0–100) scores how well a plan recovers the original feature folders; TurboMQ scores
+how cohesive the modules are in the import graph, and needs no answer key. Planner vs the best deterministic method on
+each:
 
-| Entry | Scramble certificate | Best deterministic | Planner (Nemotron 3 Ultra), S7 | Planner, S8 |
-|---|---|---|---|---|
-| hoppscotch | PASS (static) | 81.38, seeds draft (export names) | **87.59** | **87.59** |
-| hoppscotch-H1 (opaque file names) | PASS (static) | 81.38, seeds draft (export names) | 79.31 | **83.45** |
-| kaneo | FAIL (static: K3c, K4) | **66.90**, Louvain r=4 | 49.61 | 50.65 (plan rejected: `middleware`) |
-| ghostfolio | PASS (static) | 84.72, seeds draft (file names) | 82.64 | **86.81** (plan rejected: `app`) |
-| immich (real target, TurboMQ) | – | **10.50**, Louvain r=4 | 10.07 | 10.07 (replayed under its pin) |
+| Entry | Metric | Scramble certificate | Best deterministic | Planner (Nemotron 3 Ultra), S7 | Planner, S8 |
+|---|---|---|---|---|---|
+| hoppscotch | MoJoFM | PASS (static) | 81.38, seeds draft (export names) | **87.59** | **87.59** |
+| | TurboMQ | | **9.63**, Louvain r=4 | 8.12 | 8.12 |
+| hoppscotch-H1 (opaque file names) | MoJoFM | PASS (static) | 81.38, seeds draft (export names) | 79.31 | **83.45** |
+| | TurboMQ | | **9.57**, Louvain r=4 | 7.39 | 7.14 |
+| kaneo | MoJoFM | FAIL (static: K3c, K4) | **66.90**, Louvain r=4 | 49.61 | 50.65 (plan rejected: `middleware`) |
+| | TurboMQ | | **16.05**, Louvain r=4 | 10.31 | 9.90 |
+| ghostfolio | MoJoFM | PASS (static) | 84.72, seeds draft (file names) | 82.64 | **86.81** (plan rejected: `app`) |
+| | TurboMQ | | 19.88, seeds draft (file names) | 19.20 | **19.93** (plan rejected: `app`) |
+| immich (real target) | MoJoFM over its 2024 key (47 of 269 files) | – | **93.02**, seeds draft (file names) | 88.37 | 88.37 (replayed under its pin) |
+| | TurboMQ | | **10.50**, Louvain r=4 | 10.07 | 10.07 |
 
-In S7 the planner won on 1 of 5. That matches the literature (classic methods beat LLM decompositions, ICSA 2026)
-and our G1 gate, which is why ac uses Nemotron to edit a deterministic draft, not to draw the map from nothing, and
-why the certificate, not the plan, carries the proof.
+immich isn't a scramble, so it has no complete answer key. Its MoJoFM counts the 47 of its 269 movable files that
+immich's own March 2024 feature folders (`server/src/domain/<feature>/`) still label once git history is followed to
+the pinned commit, in 23 features ([bench/ground-truth/README.md](bench/ground-truth/README.md)). Only the domain
+layer had feature folders then, so the key holds mostly services and DTOs (45 of 47), most of them named after their
+feature: a grouping by file name nearly reproduces it (the seeds draft is 3 of a possible 43 operations from it,
+93.02), and it can't see controllers, repositories or anything newer than 2024, where planners differ. It is reported
+for consistency, not as a measure of planning on immich.
 
-The S7 bench also showed two planner defects, and S8 fixed them in the tool, not by hand. Ultra named the files of
-its moves by the ids the prompt showed, and their targets by draft group keys, so the validator dropped every one
-of those moves (29 on kaneo, 154 on ghostfolio); and on ghostfolio a plan with no feature module won the ranking.
-Planner rules 2 read exactly the forms the prompt shows, never fuzzily, and rank plans with feature modules first.
-immich's recorded plan keeps rules 1 through its profile's pin, so it replays byte for byte. Re-planning the
-scramble entries re-recorded three critic calls for $0.11; the edit calls replayed. The planner now scores higher than the best deterministic method on 3 of 5 (hoppscotch, hoppscotch-H1, ghostfolio).
+In S7 the planner won on 1 of 5 on MoJoFM. That matches the literature (classic methods beat LLM decompositions, ICSA
+2026) and our G1 gate, which is why ac uses Nemotron to edit a deterministic draft, not to draw the map from nothing,
+and why the certificate, not the plan, carries the proof.
+
+The S7 bench also showed two planner defects, and S8 fixed them in the tool, not by hand. Ultra named the files of its
+moves by the ids the prompt showed, and their targets by draft group keys, so the validator dropped every one of those
+moves (29 on kaneo, 154 on ghostfolio); and on ghostfolio a plan with no feature module won the ranking. Planner rules
+2 read exactly the forms the prompt shows, never fuzzily, and rank plans with feature modules first. immich's recorded
+plan keeps rules 1 through its profile's pin, so it replays byte for byte. Re-planning the scramble entries
+re-recorded three critic calls for $0.11; the edit calls replayed. The planner now scores higher than the best
+deterministic method on MoJoFM on 3 of 5 (hoppscotch, hoppscotch-H1, ghostfolio). On TurboMQ it does on 1 of 5,
+ghostfolio (19.93 against 19.88), with a plan our validator rejects; Louvain r=4, which optimizes nearly the same
+graph objective, tops TurboMQ on the other four.
 
 Our own validator rejects two of the planner's plans: ghostfolio's (one of the three) and kaneo's (a loss either way);
-counting only plans the validator accepts, the planner wins on 2 of 5. On kaneo and ghostfolio, Ultra's name for one
-group was banned and dropped, and the group fell back to its draft label, which is banned too (`middleware` is a file
-type, `app` is not a feature). `ac run` refuses such a plan until `plan.yaml` is fixed; the bench scores it as it came
-back. kaneo's scramble certificate fails closed: its API runs an esbuild bundle that K3c doesn't model, and two URL
-templates K4 can't prove aren't paths. The recordings cost $1.23 in all (`cassettes/s7-bench.jsonl`, S7 and S8); `ac
-bench bench/manifest.json` replays them for $0.
+counting only plans the validator accepts, the planner wins on 2 of 5 on MoJoFM. On kaneo and ghostfolio, Ultra's name
+for one group was banned and dropped, and the group fell back to its draft label, which is banned too (`middleware` is
+a file type, `app` is not a feature). `ac run` refuses such a plan until `plan.yaml` is fixed; the bench scores it as
+it came back. kaneo's scramble certificate fails closed: its API runs an esbuild bundle that K3c doesn't model, and
+two URL templates K4 can't prove aren't paths. The recordings cost $1.23 in all (`cassettes/s7-bench.jsonl`, S7 and
+S8); `ac bench bench/manifest.json` replays them for $0.
 
 **Nemotron 3.5 Super VL as the planner (S8b to S8d).** NVIDIA's newer Super VL leads Ultra on public benchmarks, so we
 measured it on ours, three planner runs per entry for Ultra, for Super VL with thinking off and for Super VL with
 thinking on at 256k ([bench/experiments/s8b-super-vl](bench/experiments/s8b-super-vl/README.md)). At our usual
 64k-token cap, thinking on finished 1 of 12 answers: it reasons for a median of about 118k tokens. With thinking off
-it costs a fifth of Ultra and scores below it on immich and, less clearly, hoppscotch-H1, with no conclusive
-difference elsewhere. With thinking on and room to finish (256k tokens per edit answer and 128k for the critic,
-streamed past Token Factory's 10-minute limit for non-streamed calls), it beat Ultra on all four scrambles: hoppscotch 91.26 against
-83.22 MoJoFM, hoppscotch-H1 90.80 against 85.06, ghostfolio 86.11 against 82.18, kaneo 55.27 against 50.74 (pooled
-over the four, p ≈ 0.0007), at 2.5 times the cost and 6.4 times the time per plan. On immich, the demo's target, it
-shows no difference (TurboMQ 10.26 against 10.20). The demo keeps the plan Ultra made, for four reasons: immich shows
-no gain; the recorded run reproduces byte for byte and switching would mean new code after the freeze and new
-recordings; the results are preliminary (three runs per entry, possible recall of the public projects, Ultra compared
-only at `medium_effort`); and it costs 2.5 times as much and takes 6.4 times as long. The certificate checks every
-commit whichever model plans, and `ac plan --planner super-vl-256k` is one flag away (`ac run --plan` executes its
-`plan.yaml`). The same runs show how much one planner
-run varies: hoppscotch's 87.59 above is one draw, and three fresh Ultra runs of the same request scored 81.38 to
-84.83. The experiments cost $11.72 as the gateway booked them (the full input price, and $0.70 for the unbilled 504),
-Ultra's fresh runs included ($10.71 billed).
+it costs a fifth of Ultra and scores below it on immich's TurboMQ and, less clearly, on hoppscotch-H1's MoJoFM, with
+no conclusive difference elsewhere. With thinking on and room to finish (256k tokens per edit answer and 128k for the
+critic, streamed past Token Factory's 10-minute limit for non-streamed calls), it beat Ultra on all four scrambles:
+hoppscotch 91.26 against 83.22 MoJoFM, hoppscotch-H1 90.80 against 85.06, ghostfolio 86.11 against 82.18, kaneo 55.27
+against 50.74 (pooled over the four, p ≈ 0.0007), and on TurboMQ too, by 0.07 to 1.13, at 2.5 times the cost and 6.4
+times the time per plan. On TurboMQ, though, none of the experiment's 50 planner runs, in any configuration, beats the
+best deterministic method on any entry. On immich, the demo's target, it shows no measurable difference: TurboMQ 10.26
+against 10.20, and MoJoFM over the 2024 key 88.37 against 89.15, under one operation apart. The demo keeps the plan
+Ultra made, for four reasons: immich shows no measurable gain; the recorded run reproduces byte for byte and switching
+would mean new code after the freeze and new recordings; the results are preliminary (three runs per entry, possible
+recall of the public projects, Ultra compared only at `medium_effort`); and it costs 2.5 times as much and takes 6.4
+times as long. The certificate checks every commit whichever model plans, and `ac plan --planner super-vl-256k` is one
+flag away (`ac run --plan` executes its `plan.yaml`). The same runs show how much one planner run varies: hoppscotch's
+87.59 above is one draw, and three fresh Ultra runs of the same request scored 81.38 to 84.83. The experiments cost
+$11.72 as the gateway booked them (the full input price, and $0.70 for the unbilled 504), Ultra's fresh runs included
+($10.71 billed).
 
 ## Our own misses
 
@@ -400,10 +420,11 @@ We show these because the checker exists to catch them:
   before it shipped; it is now a hunt case. On 2026-10-20 the mutation harness, over all its subjects (7
   fixtures, 2 synthetic repositories, openhab-cloud, two immich steps and 53 hunt cases), killed 831 of 831 mutants
   with the static checks alone (`runs/mutation/report.md`).
-- **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored 57.24
-  because its draft read only file names; G1 had picked the seed source without ground truth. Restoring that rule
-  lifted H1 to 79.31. On ghostfolio it chose the export names, whose draft scores 2.08 points below the file names'
-  (82.64 against 84.72); with that run's moves all dropped (below), the planner fell from 86.11 to 82.64.
+- **The planner lost a G1 rule (S5), caught by the H1 benchmark (S7).** On opaque file names the planner scored a
+  MoJoFM of 57.24 because its draft read only file names; G1 had picked the seed source without ground truth.
+  Restoring that rule lifted H1 to 79.31. On ghostfolio it chose the export names, whose draft scores 2.08 points
+  below the file names' (82.64 against 84.72); with that run's moves all dropped (below), the planner fell from 86.11
+  to 82.64.
 - **Certificates that depended on our own install (S7, fixed in S8).** TypeScript's `@types` walk and Node's module
   resolution look up `node_modules` (and the nearest `package.json`) from every tree the certifier checks. On the
   judges' default path, `./ac-demo` sat inside this clone, below its `node_modules`, so a certificate made there could
