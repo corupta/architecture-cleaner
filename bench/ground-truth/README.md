@@ -168,7 +168,9 @@ whose subject falls below the rule). The script prints them but doesn't write th
 
 - **Only the domain layer.** Services, DTOs, one core and one util carry labels. Controllers (47), repositories (55),
   commands, middleware and shared code carry none. Those are the files where planners differ, so the key says nothing
-  about them.
+  about them. One folder outside the domain layer was sliced by feature too, the legacy v1 asset API
+  (`src/immich/api-v1/asset/` at `40262c30`: a controller, a service, a repository and DTOs); the rule seeds only from
+  `domain/<feature>/`, as G2 did, so the key doesn't use it.
 - **Names give it away.** 41 of the 47 files name their feature, so every reasonable method lands near the top. On the
   2024 snapshot, G2's name-token baseline scored 91.7 and its LLM planner 93.8. MoJoFM over this key mostly checks
   that no method separates `album.service.ts` from `album.dto.ts`.

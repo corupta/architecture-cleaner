@@ -1,6 +1,6 @@
 # Devpost submission (draft for corupta's review)
 
-Field by field, ready to paste. Every number is in [numbers.md](numbers.md), the ones S10 added in its S10 section;
+Field by field, ready to paste. Every number is in [numbers.md](numbers.md), the ones added since the freeze in its later sections;
 the feedback field is [feedback.md](feedback.md). corupta reviews both and submits (S10, step 4). Push `main` before
 submitting, so the links resolve.
 
@@ -158,12 +158,22 @@ method (MoJoFM, 0–100), the planner's map wins on hoppscotch (87.59 against 81
 Ultra runs of the same request scored 81.38 to 84.83, mean 83.22) and on hoppscotch with opaque file names (83.45
 against 81.38), and loses on kaneo (50.65 against 66.90) and on immich (MoJoFM 88.37 against 93.02). It also scores
 higher on ghostfolio (86.81 against 84.72), but our own validator rejects that plan, so counting only accepted plans
-it wins on 2 of 5.
+it wins on 2 of 5. immich isn't a scramble, so its MoJoFM counts only the 47 of its 269 movable files that the
+feature folders of its March 2024 domain layer still label once git history is followed to the pinned commit: mostly
+services and DTOs named after their feature, which a grouping by file name nearly reproduces. On TurboMQ, which scores
+how cohesive the modules are in the import graph and needs no answer key, Louvain (which optimizes modularity, a close
+cousin of TurboMQ) scores highest on four of the five; the planner is highest only on ghostfolio (19.93 against 19.88
+for the seeds draft by file names), with the plan our validator rejects.
 
-Preliminary: Nemotron 3.5 Super VL, with thinking on and 256k tokens to reason, beat Ultra on all four scrambles
-(hoppscotch 91.26 against Ultra's 83.22 mean) at 2.5 times the cost (at the full input price; 2.7 times as billed) and 6.4 times the time, and showed no difference
-on immich. The limits: three runs per entry, possible recall of these public projects, and Ultra compared only at
-`medium_effort`. The demo keeps Ultra: on immich there is no measurable difference, and the recorded run reproduces byte for byte.
+Preliminary: Nemotron 3.5 Super VL, with thinking on and 256k tokens to reason, beat Ultra on all four scrambles on
+MoJoFM (hoppscotch 91.26 against Ultra's 83.22 mean; pooled over the four, p ≈ 0.0007), and its mean TurboMQ was
+higher on all four too, by 0.07 to 1.13, though none of the experiment's runs, of either model, tops the best
+deterministic method on TurboMQ. It took 2.5 times the cost (at the full input price; 2.7 times as billed) and 6.4
+times the time. On immich the two are under one MoJo operation apart over its 2024 key (88.37 against the 89.15 mean
+of Ultra's three fresh runs; an operation, one file moved or two groups joined, is 2.33 points there), and score 10.26
+against 10.20 on TurboMQ. The limits: three runs per entry, possible recall of these public projects, and Ultra
+compared only at `medium_effort`. The demo keeps Ultra: on immich there is no measurable difference, and the recorded
+run reproduces byte for byte.
 
 ## What's new, and what isn't
 
@@ -198,7 +208,7 @@ guard let through stays in the findings log as recorded, labeled as the model's 
   (the models ran on Token Factory).
 - Every number in the README, the storyboard, the site and the video is listed with its source and how it was checked
   ([numbers.md](https://github.com/corupta/architecture-cleaner/blob/main/docs/numbers.md)): 2,489 at the freeze, and
-  an S10 section for the ones added since.
+  a section for each later addition (S10, S11, and both benchmark metrics on every entry).
 
 ## What's next: Clean Architecture
 
@@ -235,8 +245,8 @@ CPU cores; its GPU, DLA and PVA were not used.)
 10. `10-findings.png`: Findings, recorded and never fixed: a base class injects 56 members into 51 classes.
 11. `11-boundaries.png`: Boundary rules: a new forbidden import fails the check; 161 of today's violations are frozen.
 12. `12-mutation.png`: We attacked the checker: 831 mutants, all 831 rejected by the static checks before a test runs.
-13. `13-bench.png`: Benchmarks with the losses: the planner against the best classic method on five entries.
-14. `14-super-vl.png`: Preliminary: Nemotron 3.5 Super VL with room to think, against Ultra; three runs per entry.
+13. `13-bench.png`: Benchmarks with the losses: the planner against the best deterministic method on five entries (the bench page on 2026-10-28; it now shows MoJoFM and TurboMQ for every entry).
+14. `14-super-vl.png`: Preliminary: Nemotron 3.5 Super VL with room to think, against Ultra; three runs per entry (the card from 2026-10-28; the text and the site now say no measurable difference on immich).
 15. `15-replay.png`: The test build, no key and no cost: npx ac demo --replay rebuilds every commit, and every tree equals the recording.
 
 # Feedback on Nebius Token Factory, AI Cloud and NVIDIA tools
@@ -267,13 +277,13 @@ Nemotron 3.5 Lightning, thinking off, narrates the findings log: many short, gro
 
 Nemotron 3 Super (120B-A12B) runs our baseline, the generic coding agent we compare against. 
 
-We also measured Nemotron 3.5 Super VL as the planner: with thinking on and 256k tokens per answer it beat Ultra on all four of our scramble benchmarks at 2.5 times the cost and 6.4 times the time, and showed no difference on immich, so the demo keeps Ultra (preliminary: three runs per entry).
+We also measured Nemotron 3.5 Super VL as the planner: with thinking on and 256k tokens per edit answer it beat Ultra on all four of our scramble benchmarks on MoJoFM at 2.5 times the cost and 6.4 times the time, and showed no measurable difference on immich, so the demo keeps Ultra (preliminary: three runs per entry).
 
 **How would you rate Nemotron's output quality for your use case? (1–10)** Suggested: **7**.
 
 What worked well: instruction-following inside a strict schema. Every finished answer in our recordings (214 of 214) validated against its JSON schema, including schemas with 114 required keys. Ultra's judgment on top of a deterministic draft (names, contested files, feature or platform) is where it adds value, and its review of its own plan raises real points (6 of its 12 suggestions on immich passed our evidence gate). 
 
-What fell short: asked to place every file from scratch, Super and Ultra dropped 10–15% of hoppscotch's 189 files and 26–45% of kaneo's 456, so the model never draws the map alone; 5 of Ultra's 128 paid answers looped until the token cap; on our benchmarks the planner beats the best classic method on 2 of 5 entries, counting only plans our validator accepts; and in a generic agent loop at its default settings, Ultra ran "ls" on the same two folders 38 times in 48 tool calls.
+What fell short: asked to place every file from scratch, Super and Ultra dropped 10–15% of hoppscotch's 189 files and 26–45% of kaneo's 456, so the model never draws the map alone; 5 of Ultra's 128 paid answers looped until the token cap; on our benchmarks, counting only plans our validator accepts, the planner beats the best deterministic method on 2 of 5 entries on MoJoFM and on none on TurboMQ; and in a generic agent loop at its default settings, Ultra ran "ls" on the same two folders 38 times in 48 tool calls.
 
 **Did you fine-tune, prompt-engineer, or use Nemotron out of the box? What was your approach?**
 
@@ -285,7 +295,7 @@ The approach is structure more than prompting. Deterministic code reads the repo
 
 We compared within the Nemotron family and against classic methods, not against other vendors' models. Ultra at "medium_effort" gave the best edits in our first gate; Super matched it on one benchmark when it finished, but often stopped at its 32,768-token output limit; Super VL with room to think planned better than Ultra on our scrambles (above).
 
-Against classic clustering (Louvain) and our deterministic draft, the fair baseline for drawing module boundaries, Nemotron's edits win on 2 of 5 entries and lose on 2, which matches the literature (classic methods beat LLM decompositions). That's why Nemotron edits a deterministic draft instead of drawing the map, and why a checker, not the plan, carries the proof. The sharpest comparison is the same model in two jobs: in a generic agent loop, Ultra moved 374 files and rewrote no import within its spending limit; in "ac" it makes two planning calls for $0.20 and every commit is certified.
+Against classic clustering (Louvain) and our deterministic draft, the fair baseline for drawing module boundaries, Nemotron's edits win on 2 of 5 entries on MoJoFM (counting only plans our validator accepts) and lose on 2, which matches the literature (classic methods beat LLM decompositions on MoJoFM); on TurboMQ, a graph metric close to the modularity Louvain optimizes, Louvain scores highest on 4 of 5. That's why Nemotron edits a deterministic draft instead of drawing the map, and why a checker, not the plan, carries the proof. The sharpest comparison is the same model in two jobs: in a generic agent loop, Ultra moved 374 files and rewrote no import within its spending limit; in "ac" it makes two planning calls for $0.20 and every commit is certified.
 
 **Which Nebius platform capabilities were most valuable to your project and how?**
 

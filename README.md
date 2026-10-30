@@ -351,8 +351,9 @@ each:
 
 immich isn't a scramble, so it has no complete answer key. Its MoJoFM counts the 47 of its 269 movable files that
 immich's own March 2024 feature folders (`server/src/domain/<feature>/`) still label once git history is followed to
-the pinned commit, in 23 features ([bench/ground-truth/README.md](bench/ground-truth/README.md)). Only the domain
-layer had feature folders then, so the key holds mostly services and DTOs (45 of 47), most of them named after their
+the pinned commit, in 23 features ([bench/ground-truth/README.md](bench/ground-truth/README.md)). Apart from a legacy
+`api-v1/asset/` folder the key doesn't use, only the domain layer had feature folders then, so the key holds mostly
+services and DTOs (45 of 47), most of them named after their
 feature: a grouping by file name nearly reproduces it (the seeds draft is 3 of a possible 43 operations from it,
 93.02), and it can't see controllers, repositories or anything newer than 2024, where planners differ. It is reported
 for consistency, not as a measure of planning on immich.
@@ -368,8 +369,8 @@ moves (29 on kaneo, 154 on ghostfolio); and on ghostfolio a plan with no feature
 plan keeps rules 1 through its profile's pin, so it replays byte for byte. Re-planning the scramble entries
 re-recorded three critic calls for $0.11; the edit calls replayed. The planner now scores higher than the best
 deterministic method on MoJoFM on 3 of 5 (hoppscotch, hoppscotch-H1, ghostfolio). On TurboMQ it does on 1 of 5,
-ghostfolio (19.93 against 19.88), with a plan our validator rejects; Louvain r=4, which optimizes nearly the same
-graph objective, tops TurboMQ on the other four.
+ghostfolio (19.93 against 19.88 for the seeds draft by file names), with a plan our validator rejects; Louvain r=4, which optimizes
+modularity, a close cousin of TurboMQ, tops TurboMQ on the other four.
 
 Our own validator rejects two of the planner's plans: ghostfolio's (one of the three) and kaneo's (a loss either way);
 counting only plans the validator accepts, the planner wins on 2 of 5 on MoJoFM. On kaneo and ghostfolio, Ultra's name
@@ -387,12 +388,13 @@ it costs a fifth of Ultra and scores below it on immich's TurboMQ and, less clea
 no conclusive difference elsewhere. With thinking on and room to finish (256k tokens per edit answer and 128k for the
 critic, streamed past Token Factory's 10-minute limit for non-streamed calls), it beat Ultra on all four scrambles:
 hoppscotch 91.26 against 83.22 MoJoFM, hoppscotch-H1 90.80 against 85.06, ghostfolio 86.11 against 82.18, kaneo 55.27
-against 50.74 (pooled over the four, p ≈ 0.0007), and on TurboMQ too, by 0.07 to 1.13, at 2.5 times the cost and 6.4
-times the time per plan. On TurboMQ, though, none of the experiment's 50 planner runs, in any configuration, beats the
-best deterministic method on any entry. On immich, the demo's target, it shows no measurable difference: TurboMQ 10.26
-against 10.20, and MoJoFM over the 2024 key 88.37 against 89.15, under one operation apart. The demo keeps the plan
-Ultra made, for four reasons: immich shows no measurable gain; the recorded run reproduces byte for byte and switching
-would mean new code after the freeze and new recordings; the results are preliminary (three runs per entry, possible
+against 50.74 (pooled over the four, p ≈ 0.0007). Its mean TurboMQ was higher on all four too, by 0.07 to 1.13. It
+cost 2.5 times as much (at the full input price) and took 6.4 times as long per plan. On TurboMQ, though, none of the
+experiment's 50 planner runs, in any configuration, beats the best deterministic method on any entry. On immich, the
+demo's target, it shows no measurable difference: TurboMQ 10.26 against 10.20, and MoJoFM over the 2024 key 88.37
+against 89.15, under one operation apart. The demo keeps the plan Ultra made, for four reasons: immich shows no
+measurable gain; the recorded run reproduces byte for byte and switching would mean new code after the freeze and new
+recordings; the results are preliminary (three runs per entry, possible
 recall of the public projects, Ultra compared only at `medium_effort`); and it costs 2.5 times as much and takes 6.4
 times as long. The certificate checks every commit whichever model plans, and `ac plan --planner super-vl-256k` is one
 flag away (`ac run --plan` executes its `plan.yaml`). The same runs show how much one planner run varies: hoppscotch's
