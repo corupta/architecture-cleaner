@@ -3,7 +3,7 @@
 // card-agents serves two shots: the second (B4) starts its clock at 6 s, where the Ultra column appears.
 export const cardShots = [
   // B2 (0:21–0:32): the list scrolls to 6 s, steps back behind the card by 6.9 s, held to 11 s.
-  { id: 'history', card: 'v2/graphics/history.html', steps: [{ play: 8.2 }, { hold: 6 }] },
+  { id: 'history', card: 'v2/graphics/history.html', steps: [{ play: 8.0 }, { hold: 4.6 }] },
   // B3's end (0:50–0:56): opencode + Nemotron 3 Super, the left column alone.
   { id: 'card-agents', card: 'v2/graphics/card-agents.html', steps: [{ hold: 6 }] },
   // B4 (0:56–1:10): both columns.

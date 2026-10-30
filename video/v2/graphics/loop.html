@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>ac splits the job: the map, the move, the proof</title>
-<!-- M2, the loop. Shot "loop" (B5) plays 0–21.75 s: the three blocks reach their moment one after another as the voice
-     names them, then the commit lands, then the cost line. Shot "loop-fail" (B6's opening) opens it with ?from=21.75, the
+<!-- M2, the loop. Shot "loop" (B5) plays 0–22.25 s: the three blocks reach their moment one after another as the voice
+     names them, then the commit lands, then the cost line. Shot "loop-fail" (B6's opening) opens it with ?from=22.25, the
      loop's last picture: the commit goes back to faint and the checker turns red at once, then the way back to the
      move turns red.
      The faint stage is for chronology only: each block, its note and the arrow into it are faint with an ink outline
@@ -14,20 +14,20 @@
 <div class="stage" id="stage"><svg class="wires" id="wires"></svg></div>
 <script>
 // Seconds on the page's clock, keyed to the voice-over (v2.3, B5 and B6's opening). Retime here, then the shots'
-// lengths in shots-diagrams.mjs: loop plays 0–21.75 s, loop-fail starts the clock at 21.75 s (?from=21.75).
+// lengths in shots-diagrams.mjs: loop plays 0–22.25 s, loop-fail starts the clock at 22.25 s (?from=22.25).
 const SCHEDULE = {
-  // Timed to corupta's take (S11, 2026-10-30; pauses capped at 0.35 s, tempo 1.05). "So ac splits the job." (0.3–2.6 s):
+  // Timed to corupta's take (S11, 2026-10-30; pauses capped at 0.35 s, tempo 1.05). "So ac splits the job." (0.3–3.1 s):
   // the blocks, their notes, the commit and the way back, all faint.
-  map: 3.0, // "Nemotron draws the map of which feature each file belongs to." (3.0–6.9 s)
-  move: 7.3, // "Plain code moves the files and updates their imports, one commit per feature." (7.3–12.3 s)
-  proof: 12.6, // "And a separate checker proves that every import reaches the same file." (12.6–16.4 s)
-  commit: 15.6, // the commit lands: opaque, green, its ✓, as that sentence ends
-  // "Two calls on Nebius Token Factory, for twenty cents, in total." (16.4–21.6 s): the cost line appears and stays;
-  // the loop shot ends at 21.75 s.
-  cost: 16.4,
-  // loop-fail (?from=21.75), B6: "Just to test it, we broke one import on purpose."
-  failChecker: 22.05, // together: the commit goes back to faint (rolled back), the checker and its ✗ turn red
-  failPath: 22.95, // then the way back and its label turn red and opaque
+  map: 3.3, // "Nemotron draws the map of which feature each file belongs to." (3.3–7.1 s)
+  move: 7.4, // "Plain code moves the files and updates their imports, one commit per feature." (7.4–12.5 s)
+  proof: 12.8, // "And a separate checker proves that every import reaches the same file." (12.8–16.8 s)
+  commit: 16.0, // the commit lands: opaque, green, its ✓, as that sentence ends
+  // "Two calls on Nebius Token Factory, for twenty cents, in total." (17.1–22.1 s): the cost line appears and stays;
+  // the loop shot ends at 22.25 s.
+  cost: 17.1,
+  // loop-fail (?from=22.25), B6: "Just to test it, we broke one import on purpose."
+  failChecker: 22.55, // together: the commit goes back to faint (rolled back), the checker and its ✗ turn red
+  failPath: 23.45, // then the way back and its label turn red and opaque
   lighting: 0.5, // faint → opaque, and each color change
   costFade: 0.3, // the cost line's plain fade
 };// numbers.md row 51: the immich plan's two paid calls (the draft editor and the review), $0.1998 together.
